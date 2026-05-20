@@ -336,7 +336,7 @@ export function MapDisplay({
         // Occupied scoring: gold wash for reusable, blue-teal for active single-claim crystal
         baseClass += isOnlyOnce
           ? " bg-gradient-to-b from-sky-400/65 via-cyan-500/78 to-teal-700/86"
-          : " bg-amber-600";
+          : " bg-amber";
       } else if (isOnlyOnce) {
         baseClass += " bg-cyan"; // once-only scoring
       } else {

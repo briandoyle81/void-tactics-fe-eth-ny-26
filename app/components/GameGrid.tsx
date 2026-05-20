@@ -1502,7 +1502,7 @@ export function GameGrid({
                               title="Disabled (0 HP)"
                             >
                               <div className="w-5 h-5 flex items-center justify-center">
-                                <span className="text-xs leading-none font-mono">[KIA]</span>
+                                <span className="text-xs leading-none font-mono">[SOS]</span>
                               </div>
                             </div>
                           );

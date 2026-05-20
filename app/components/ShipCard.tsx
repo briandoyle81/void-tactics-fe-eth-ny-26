@@ -461,7 +461,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
               tooltipMode ? (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-1 z-20 pointer-events-none">
                   <div className="w-5 h-5 flex items-center justify-center animate-pulse">
-                    <span className="text-xs font-mono">[KIA]</span>
+                    <span className="text-xs font-mono">[SOS]</span>
                   </div>
                 </div>
               ) : (
@@ -472,7 +472,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                       : "top-0 right-0 m-1"
                   }`}
                 >
-                  <span className="text-xs font-mono">[KIA]</span>
+                  <span className="text-xs font-mono">[SOS]</span>
                 </div>
               )
             )}
