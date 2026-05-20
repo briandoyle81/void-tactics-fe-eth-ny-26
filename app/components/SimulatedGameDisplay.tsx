@@ -31,6 +31,7 @@ import {
   LastMove,
   getMainWeaponName,
   getSpecialName,
+  GRID_DIMENSIONS,
 } from "../types/types";
 import { GameGrid } from "./GameGrid";
 import { TutorialGridTaskPanel } from "./TutorialGridTaskPanel";
@@ -52,6 +53,10 @@ import {
   computeMovementRange,
   computeShootingRange,
 } from "../utils/gameGridRanges";
+import { calculateDamage } from "../utils/calculateDamage";
+import { useLandscapeMode } from "../hooks/useLandscapeMode";
+import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
+import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
 import {
   useAccount,
   usePublicClient,
@@ -66,6 +71,12 @@ import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useSwitchToSelectedChainIfNeeded } from "../hooks/useSwitchToSelectedChainIfNeeded";
 import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
 import posthog from "posthog-js";
+import {
+  getTutorialGridPanelConfig,
+  TUTORIAL_COMPLETION_SNIPER_PRIMARY_CTA_SUPPORTING,
+  TUTORIAL_COMPLETION_RETREAT_PRIMARY_CTA_SUPPORTING,
+  type TutorialGridPanelConfig,
+} from "./TutorialGridPanelConfigs";
 
 interface SimulatedGameDisplayProps {
   tutorialContext: TutorialContextValue;
@@ -86,9 +97,15 @@ function mapNodeToMobileTouchCopy(node: React.ReactNode): React.ReactNode {
     return toMobileTouchCopy(node);
   }
   if (Array.isArray(node)) {
-    return node.map((child, idx) => (
-      <React.Fragment key={idx}>{mapNodeToMobileTouchCopy(child)}</React.Fragment>
-    ));
+    return node.map((child, idx) => {
+      const key =
+        React.isValidElement(child) && child.key != null
+          ? String(child.key)
+          : String(idx);
+      return (
+        <React.Fragment key={key}>{mapNodeToMobileTouchCopy(child)}</React.Fragment>
+      );
+    });
   }
   if (React.isValidElement(node)) {
     const props = node.props as { children?: React.ReactNode };
@@ -102,8 +119,8 @@ function mapNodeToMobileTouchCopy(node: React.ReactNode): React.ReactNode {
   return node;
 }
 
-const GRID_WIDTH = 17;
-const GRID_HEIGHT = 11;
+const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
+const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
 
 /** Once true per chain+wallet, tutorial claim never reverts; cache indefinitely. */
 const TUTORIAL_CLAIM_COMPLETED_CACHE_KEY =
@@ -225,587 +242,6 @@ function isTutorialEnemyFleetShipId(shipId: bigint): boolean {
   return TUTORIAL_VIEW_ENEMY_HIGHLIGHT_SHIP_IDS.some((id) => id === shipId);
 }
 
-/**
- * Hard choice (rescue): max panel height as a fraction of the grid. Default
- * `TutorialGridTaskPanel` height is 4 rows; this is 4 + 2. Must be ≤ 11.
- */
-const TUTORIAL_RESCUE_PANEL_MAX_ROWS = 6;
-
-/**
- * Branch final steps: max panel height as a fraction of the grid when the panel
- * is content-sized (`panelFitToContent`). Must be ≤ grid row count (11).
- */
-const TUTORIAL_COMPLETION_ENDPOINT_PANEL_MAX_ROWS = 10;
-
-/** Step 1 (welcome): in-grid narrative with emphasis and map-theme colors. */
-const TUTORIAL_WELCOME_GRID_BRIEF = (
-  <>
-    <p>
-      <span className="font-bold text-cyan">Admiral</span>
-      {", you're late. We've traded losses with the "}
-      <span className="font-semibold text-warning-red">enemy</span>
-      {", and we're "}
-      <span className="font-semibold text-amber">behind on the board</span>
-      {", but with "}
-      <span className="font-bold text-cyan">you on station</span>
-      {" we can turn this around."}
-    </p>
-    <p>
-      {"We're fighting through the "}
-      <span className="font-semibold text-amber/70">outer dust belts</span>
-      {" over "}
-      <span className="font-semibold text-amber">sparse resources</span>
-      {". Under "}
-      <span className="font-semibold text-amber">space law</span>
-      {
-        ", whoever exploits a site first keeps it. Out here, that's the rule that matters."
-      }
-    </p>
-  </>
-);
-
-/** Step 2 (goals): same wording as before, with emphasis only. */
-const TUTORIAL_GOALS_GRID_BRIEF = (
-  <>
-    <p>
-      Each round, ships can mine the resources in the area they control.{" "}
-      <span className="font-semibold text-cyan">Central</span> has set the
-      claim minimum at <span className="font-bold text-amber">100</span>{" "}
-      tons for this{" "}
-      <span className="font-semibold text-amber/70">resource cluster</span>.
-      {"  "}
-      Whoever gets there first gets{" "}
-      <span className="font-semibold text-amber">legal control</span> of
-      the site.
-    </p>
-    <p>
-      Current tally: <span className="font-semibold text-cyan">60</span>{" "}
-      tons us, <span className="font-semibold text-warning-red">70</span> tons them.
-      We&apos;re{" "}
-      <span className="font-semibold text-amber">in the hole</span>, but{" "}
-      <span className="font-bold text-cyan">
-        the fight is still yours to take
-      </span>
-      .
-    </p>
-  </>
-);
-
-/** Step 3 (select-ship): narrative in-grid; orders under Orders. */
-const TUTORIAL_SELECT_SHIP_GRID_BRIEF = (
-  <>
-    <p>
-      <span className="font-semibold text-amber">What&apos;s left of</span>{" "}
-      our <span className="font-semibold text-cyan">fleet</span> is ready
-      for your <span className="font-semibold text-amber">inspection</span>
-      .
-    </p>
-  </>
-);
-
-const TUTORIAL_SELECT_SHIP_GRID_TASKS: React.ReactNode[] = [
-  <>Hover over our ships to view their stats and abilities.</>,
-  <>
-    Click on our ships to see their{" "}
-    <span className="font-semibold text-phosphor-green">movement</span>
-    {" and "}
-    <span className="font-semibold text-amber">threat range</span>.
-  </>,
-  <>
-    Click a ship again to see its{" "}
-    <span className="font-semibold text-amber">weapons range</span> from
-    the current position.
-  </>,
-];
-
-/** Step 4 (view-enemy): narrative in-grid; orders under Orders. */
-const TUTORIAL_VIEW_ENEMY_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-warning-red">enemy</span> holds the{" "}
-      <span className="font-semibold text-amber/70">right side</span> of the
-      map. Our sensors can show us their stats and abilities.
-    </p>
-  </>
-);
-
-const TUTORIAL_VIEW_ENEMY_GRID_TASKS: React.ReactNode[] = [
-  <>Hover over enemy ships to view their stats and abilities.</>,
-  <>
-    Click on enemy ships to see their{" "}
-    <span className="font-semibold text-phosphor-green">movement</span>
-    {" and "}
-    <span className="font-semibold text-amber">threat range</span>.
-  </>,
-  <>
-    Click an enemy ship again to see its{" "}
-    <span className="font-semibold text-amber">weapons range</span> from
-    the current position.
-  </>,
-];
-
-/** Step 5 (move-ship): narrative in-grid; orders under Orders. */
-const TUTORIAL_MOVE_SHIP_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-cyan">Sentinel</span> is
-      damaged. You can protect it by moving it into a{" "}
-      <span className="font-semibold text-purple">nebula</span>.
-    </p>
-    <p>
-      Nebula tiles block line of sight. Inside a nebula, ships can only shoot or
-      be shot by ships exactly{" "}
-      <span className="font-semibold text-amber">1 tile</span> away.
-    </p>
-  </>
-);
-
-const TUTORIAL_MOVE_SHIP_GRID_TASKS: React.ReactNode[] = [
-  <>Select the Sentinel.</>,
-  <>
-    With it selected, click a highlighted tile to stage a move.{" "}
-    <span className="font-semibold text-phosphor-green">Green</span> tiles show{" "}
-    <span className="font-semibold text-phosphor-green">movement</span> range.
-  </>,
-  <>
-    <span className="font-semibold text-phosphor-green">Submit</span> the move from
-    the left panel and approve the transaction.
-  </>,
-];
-
-/** Step 6 (wait-for-opponent): narrative in-grid; orders under Orders. */
-const TUTORIAL_WAIT_FOR_OPPONENT_GRID_BRIEF = (
-  <>
-    <p>
-      After a ship moves, both you and your opponent can see the{" "}
-      <span className="font-semibold text-purple">Last Move</span> of the
-      ship on the map.
-    </p>
-    <p>
-      This helps you track how ships moved during the turn so you can see what
-      changed.
-    </p>
-  </>
-);
-
-const TUTORIAL_WAIT_FOR_OPPONENT_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Your move is in. In a live match you wait on the opponent. Click{" "}
-    <span className="font-semibold text-cyan">Next</span> to advance and see
-    their response.
-  </>,
-];
-
-/** Step 7 (score-points): narrative in-grid; orders under Orders. */
-const TUTORIAL_SCORE_POINTS_GRID_BRIEF = (
-  <>
-    <p>
-      At round end, each scoring zone we{" "}
-      <span className="font-semibold text-amber">controlled</span> by a
-      functioning ship (not disabled) counts toward points.
-    </p>
-    <p>
-      The enemy destroyer moved to capture a resource. Respond by moving the{" "}
-      <span className="font-semibold text-cyan">Resolute</span> to claim one
-      for us.
-    </p>
-  </>
-);
-
-const TUTORIAL_SCORE_POINTS_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Select the <span className="font-semibold text-cyan">Resolute</span> and
-    move it to the highlighted central scoring tile.
-  </>,
-  <>
-    <span className="font-semibold text-phosphor-green">Submit</span> the move and
-    approve the transaction.
-  </>,
-];
-
-/** Step 8 (shoot): narrative in-grid; orders under Orders. */
-const TUTORIAL_SHOOT_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-warning-red">Hammer</span> just hit
-      the <span className="font-semibold text-cyan">Resolute</span> with a
-      plasma shot! Answer with the{" "}
-      <span className="font-semibold text-cyan">Vigilant</span>: move to a
-      resource and shoot back.
-    </p>
-  </>
-);
-
-const TUTORIAL_SHOOT_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Select the <span className="font-semibold text-cyan">Vigilant</span> and
-    stage a move to the highlighted tile.
-  </>,
-  <>
-    Click the <span className="font-semibold text-warning-red">Hammer</span> to
-    target it.
-  </>,
-  <>
-    <span className="font-semibold text-phosphor-green">Submit</span> to confirm move
-    and shot together.
-  </>,
-];
-
-/** Step 9 (end-of-round): narrative in-grid; orders under Orders. */
-const TUTORIAL_END_OF_ROUND_GRID_BRIEF = (
-  <>
-    <p>
-      When <span className="font-semibold text-amber">both sides</span>{" "}
-      have moved all their ships, the round ends, and points are awarded for
-      resources held. Movement markers clear and the{" "}
-      <span className="font-semibold text-cyan">first player</span> swaps:
-      whoever went second last round leads this one.
-    </p>
-  </>
-);
-
-const TUTORIAL_END_OF_ROUND_GRID_TASKS: React.ReactNode[] = [
-  <>
-    You must wait for the opponent to open the new round. Click{" "}
-    <span className="font-semibold text-cyan">Next</span> to see their move.
-  </>,
-];
-
-/** Step 10 (special-emp): narrative in-grid; orders under Orders. */
-const TUTORIAL_SPECIAL_EMP_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-warning-red">Anvil</span> just blasted
-      the <span className="font-semibold text-cyan">Resolute</span>!
-    </p>
-    <p>
-      We have a powerful gun, but we still can&apos;t knock it out in one hit.
-      Luckily, the <span className="font-semibold text-warning-red">Anvil</span> has{" "}
-      <span className="font-semibold text-purple">reactor damage</span> (💀)
-      from earlier in the fight. We can bypass its defenses and kill it
-      instantly with an <span className="font-semibold text-cyan">EMP</span>
-      !
-    </p>
-  </>
-);
-
-const TUTORIAL_SPECIAL_EMP_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Select the <span className="font-semibold text-cyan">Resolute</span> and
-    target the <span className="font-semibold text-warning-red">Anvil</span>.
-  </>,
-  <>
-    In the action bar, switch from{" "}
-    <span className="font-semibold text-cyan/80">Plasma</span> to{" "}
-    <span className="font-semibold text-cyan/80">EMP</span>.
-  </>,
-  <>
-    <span className="font-semibold text-phosphor-green">Submit</span>, then approve
-    the transaction.
-  </>,
-];
-
-/** Step 11 (ship-destruction): narrative in-grid; orders under Orders. */
-const TUTORIAL_SHIP_DESTRUCTION_GRID_BRIEF = (
-  <>
-    <p>
-      Resolute&apos;s EMP rammed the{" "}
-      <span className="font-semibold text-warning-red">Anvil</span>
-      &apos;s reactor past{" "}
-      <span className="font-semibold text-amber">
-        three overload points
-      </span>
-      . The stack detonates in a blinding flash and the ship is destroyed!
-    </p>
-    <p>
-      No ship survives once its reactor reaches three overload points (💀). The{" "}
-      <span className="font-semibold text-cyan">owner</span> may recycle the
-      NFT and take half the usual UTC recycle value. The player who{" "}
-      <span className="font-semibold text-cyan">destroyed it</span> gets the
-      matching half.
-    </p>
-  </>
-);
-
-const TUTORIAL_SHIP_DESTRUCTION_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Click <span className="font-semibold text-cyan">Next</span> when you are
-    ready.
-  </>,
-];
-
-/** Step 12 (rescue): narrative in-grid; orders under Orders. */
-const TUTORIAL_RESCUE_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-warning-red">enemy</span> retaliated
-      by disabling the{" "}
-      <span className="font-semibold text-cyan">Resolute</span>. It also has{" "}
-      <span className="font-semibold text-purple">reactor damage</span>{" "}
-      (💀), so one more hit and it&apos;s gone! Even worse, your repair ship is
-      too far away to reach it in time.
-    </p>
-    <p>
-      We&apos;re at the end: Whoever holds the center wins. What matters the
-      most to you?
-    </p>
-  </>
-);
-
-const TUTORIAL_RESCUE_GRID_TASKS: React.ReactNode[] = [
-  <>
-    <span className="font-semibold text-cyan">Save your ship:</span> select
-    the Resolute and{" "}
-    <span className="font-semibold text-phosphor-green">submit</span> Retreat to
-    leave the map.
-  </>,
-  <>
-    <span className="font-semibold text-cyan">Sacrifice for victory:</span>{" "}
-    select the Vigilant, target the{" "}
-    <span className="font-semibold text-warning-red">Hammer</span>, then{" "}
-    <span className="font-semibold text-phosphor-green">submit</span> the shot.
-  </>,
-];
-
-/** Step 13 (rescue-outcome-sniper): sacrifice branch, seize center with fighter. */
-const TUTORIAL_RESCUE_OUTCOME_SNIPER_GRID_BRIEF = (
-  <>
-    <p>
-      As expected, the{" "}
-      <span className="font-semibold text-warning-red">Hammer</span> destroyed the{" "}
-      <span className="font-semibold text-cyan">Resolute</span>.
-    </p>
-    <p>
-      You traded that ship for the ability to retake the center resource. The
-      resource point is open now. Take it with the{" "}
-      <span className="font-semibold text-cyan">Sentinel</span>.
-    </p>
-  </>
-);
-
-const TUTORIAL_RESCUE_OUTCOME_SNIPER_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Select the <span className="font-semibold text-cyan">Sentinel</span> and
-    stage a move to the highlighted tile.
-  </>,
-  <>
-    Optionally click the{" "}
-    <span className="font-semibold text-warning-red">Hammer</span> to stage a shot.
-  </>,
-  <>
-    <span className="font-semibold text-phosphor-green">Submit</span> to confirm the
-    move, with or without the shot.
-  </>,
-];
-
-/** Step 13 (rescue-outcome-retreat): Resolute saved; center open for Hammer. */
-const TUTORIAL_RESCUE_OUTCOME_RETREAT_GRID_BRIEF = (
-  <>
-    <p>
-      The <span className="font-semibold text-cyan">Resolute</span> is
-      safely off the map!
-    </p>
-    <p>
-      You spent your action to save the hull, but the center resource tile is
-      undefended. The <span className="font-semibold text-warning-red">Hammer</span>{" "}
-      can step in and secure it.
-    </p>
-    <p>
-      That puts them over the threshold and central will award them control of
-      this region.
-    </p>
-  </>
-);
-
-const TUTORIAL_RESCUE_OUTCOME_RETREAT_GRID_TASKS: React.ReactNode[] = [
-  <>
-    Click <span className="font-semibold text-cyan">Next</span> when you are
-    ready to see the opponent&apos;s response.
-  </>,
-];
-
-/** Step 14 victory path (completion-sniper): debrief only; CTA lives in TutorialGridTaskPanel.primaryCta. */
-const TUTORIAL_COMPLETION_SNIPER_GRID_BRIEF = (
-  <>
-    <p>
-      <span className="font-semibold text-phosphor-green">Victory</span>! You secured
-      the the center resource and guaranteed the win!
-    </p>
-    <p>
-      You gave up the{" "}
-      <span className="font-semibold text-cyan">Resolute</span> to earn that
-      opening. In the outer dust clouds, victory comes at a cost.
-    </p>
-  </>
-);
-
-const TUTORIAL_COMPLETION_SNIPER_PRIMARY_CTA_SUPPORTING = (
-  <>
-    You held the line in the battle. Claim{" "}
-    <span className="font-semibold text-amber">2 free ships</span>, put
-    this win on your record, and join the fight against other admirals.
-  </>
-);
-
-/** Step 14 loss path (completion-retreat): mirrors victory slide; board shows enemy on center. */
-const TUTORIAL_COMPLETION_RETREAT_GRID_BRIEF = (
-  <>
-    <p>
-      <span className="font-semibold text-amber">Live to fight again.</span>{" "}
-      The <span className="font-semibold text-warning-red">Hammer</span> claimed the
-      center resource, which puts the{" "}
-      <span className="font-semibold text-warning-red">enemy</span> over the
-      threshold.
-    </p>
-    <p>
-      You <span className="font-semibold text-amber">lost</span> this
-      engagement, but you kept your most{" "}
-      <span className="font-semibold text-cyan">powerful ship</span>.
-      Sometimes you must accept the loss of a battle to win the war.
-    </p>
-  </>
-);
-
-const TUTORIAL_COMPLETION_RETREAT_PRIMARY_CTA_SUPPORTING = (
-  <>
-    You banked power when it mattered.{" "}
-    <span className="font-semibold text-cyan">Log in</span> to claim{" "}
-    <span className="font-semibold text-amber">3 free ships</span>, fight,
-    log this loss on your record, and join the fight against other admirals.
-  </>
-);
-
-type TutorialGridPanelConfig = {
-  title: string;
-  brief: React.ReactNode;
-  tasks?: React.ReactNode[];
-  tasksSectionLabel?: React.ReactNode;
-  primaryCta?: {
-    eyebrow: string;
-    headline: string;
-    supporting: React.ReactNode;
-    buttonLabel: string;
-    onClick: () => void;
-  };
-  /**
-   * Max panel height as a fraction of the grid (11 rows). Branch finals use
-   * `TUTORIAL_COMPLETION_ENDPOINT_PANEL_MAX_ROWS` with `panelFitToContent`;
-   * rescue (Hard choice) uses `TUTORIAL_RESCUE_PANEL_MAX_ROWS`.
-   */
-  panelBottomRowExclusive?: number;
-  /** Branch finals: size panel to content, capped by `panelBottomRowExclusive`. */
-  panelFitToContent?: boolean;
-};
-
-function getTutorialGridPanelConfig(
-  stepId: string,
-): TutorialGridPanelConfig | null {
-  switch (stepId) {
-    case "welcome":
-      return { title: "Welcome aboard", brief: TUTORIAL_WELCOME_GRID_BRIEF };
-    case "goals":
-      return { title: "How we win", brief: TUTORIAL_GOALS_GRID_BRIEF };
-    case "select-ship":
-      return {
-        title: "Select a Ship",
-        brief: TUTORIAL_SELECT_SHIP_GRID_BRIEF,
-        tasks: TUTORIAL_SELECT_SHIP_GRID_TASKS,
-      };
-    case "view-enemy":
-      return {
-        title: "Inspect Enemy Ships",
-        brief: TUTORIAL_VIEW_ENEMY_GRID_BRIEF,
-        tasks: TUTORIAL_VIEW_ENEMY_GRID_TASKS,
-      };
-    case "move-ship":
-      return {
-        title: "Move Your Ship",
-        brief: TUTORIAL_MOVE_SHIP_GRID_BRIEF,
-        tasks: TUTORIAL_MOVE_SHIP_GRID_TASKS,
-      };
-    case "wait-for-opponent":
-      return {
-        title: "Previous Position",
-        brief: TUTORIAL_WAIT_FOR_OPPONENT_GRID_BRIEF,
-        tasks: TUTORIAL_WAIT_FOR_OPPONENT_GRID_TASKS,
-      };
-    case "score-points":
-      return {
-        title: "Scoring zones",
-        brief: TUTORIAL_SCORE_POINTS_GRID_BRIEF,
-        tasks: TUTORIAL_SCORE_POINTS_GRID_TASKS,
-      };
-    case "shoot":
-      return {
-        title: "Move and Return Fire",
-        brief: TUTORIAL_SHOOT_GRID_BRIEF,
-        tasks: TUTORIAL_SHOOT_GRID_TASKS,
-      };
-    case "end-of-round":
-      return {
-        title: "End of round",
-        brief: TUTORIAL_END_OF_ROUND_GRID_BRIEF,
-        tasks: TUTORIAL_END_OF_ROUND_GRID_TASKS,
-      };
-    case "special-emp":
-      return {
-        title: "EMP",
-        brief: TUTORIAL_SPECIAL_EMP_GRID_BRIEF,
-        tasks: TUTORIAL_SPECIAL_EMP_GRID_TASKS,
-      };
-    case "ship-destruction":
-      return {
-        title: "Aftermath",
-        brief: TUTORIAL_SHIP_DESTRUCTION_GRID_BRIEF,
-        tasks: TUTORIAL_SHIP_DESTRUCTION_GRID_TASKS,
-      };
-    case "rescue":
-      return {
-        title: "Hard choice",
-        brief: TUTORIAL_RESCUE_GRID_BRIEF,
-        tasks: TUTORIAL_RESCUE_GRID_TASKS,
-        tasksSectionLabel: (
-          <span
-            className="text-warning-red drop-shadow-[0_0_14px_rgba(248,113,113,0.8)] animate-tutorial-decision-label font-black"
-            style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-            }}
-          >
-            Make your decision
-          </span>
-        ),
-        panelBottomRowExclusive: TUTORIAL_RESCUE_PANEL_MAX_ROWS,
-      };
-    case "rescue-outcome-sniper":
-      return {
-        title: "Accepting a Sacrifice",
-        brief: TUTORIAL_RESCUE_OUTCOME_SNIPER_GRID_BRIEF,
-        tasks: TUTORIAL_RESCUE_OUTCOME_SNIPER_GRID_TASKS,
-      };
-    case "rescue-outcome-retreat":
-      return {
-        title: "The Resolute is Safe",
-        brief: TUTORIAL_RESCUE_OUTCOME_RETREAT_GRID_BRIEF,
-        tasks: TUTORIAL_RESCUE_OUTCOME_RETREAT_GRID_TASKS,
-      };
-    case "completion-retreat":
-      return {
-        title: "Planning Ahead",
-        brief: TUTORIAL_COMPLETION_RETREAT_GRID_BRIEF,
-        panelBottomRowExclusive: TUTORIAL_COMPLETION_ENDPOINT_PANEL_MAX_ROWS,
-        panelFitToContent: true,
-      };
-    case "completion-sniper":
-      return {
-        title: "Victory Achieved!",
-        brief: TUTORIAL_COMPLETION_SNIPER_GRID_BRIEF,
-        panelBottomRowExclusive: TUTORIAL_COMPLETION_ENDPOINT_PANEL_MAX_ROWS,
-        panelFitToContent: true,
-      };
-    default:
-      return null;
-  }
-}
 
 export function SimulatedGameDisplay({
   tutorialContext,
@@ -1017,8 +453,7 @@ export function SimulatedGameDisplay({
             publicClient,
           )),
         });
-      } catch (e) {
-        console.error(e);
+      } catch {
         toast.error("Could not switch network or send transaction");
       }
     },
@@ -1107,75 +542,7 @@ export function SimulatedGameDisplay({
     gridContainerRef,
   );
   const chromeOnSide = chromeLayout === "side";
-  const [requiresLandscapeMode, setRequiresLandscapeMode] =
-    React.useState(false);
-  const [isLandscapeMobile, setIsLandscapeMobile] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const orientationMq = window.matchMedia("(orientation: landscape)");
-    const mobileMq = window.matchMedia("(max-width: 1023px)");
-    const sync = () => {
-      const isMobile = mobileMq.matches;
-      const isLandscape = orientationMq.matches;
-      setRequiresLandscapeMode(isMobile && !isLandscape);
-      setIsLandscapeMobile(isMobile && isLandscape);
-    };
-    sync();
-    orientationMq.addEventListener("change", sync);
-    mobileMq.addEventListener("change", sync);
-    return () => {
-      orientationMq.removeEventListener("change", sync);
-      mobileMq.removeEventListener("change", sync);
-    };
-  }, []);
-  React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    type WebkitFullscreenDocument = Document & {
-      webkitFullscreenElement?: Element | null;
-      webkitExitFullscreen?: () => Promise<void> | void;
-    };
-    type WebkitFullscreenElement = HTMLElement & {
-      webkitRequestFullscreen?: () => Promise<void> | void;
-    };
-    const webkitDocument = document as WebkitFullscreenDocument;
-    const isCurrentlyFullscreen = () =>
-      Boolean(document.fullscreenElement || webkitDocument.webkitFullscreenElement);
-
-    if (!isLandscapeMobile) {
-      if (document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => {});
-      } else if (webkitDocument.webkitFullscreenElement) {
-        void Promise.resolve(webkitDocument.webkitExitFullscreen?.()).catch(() => {});
-      }
-      return;
-    }
-
-    if (isCurrentlyFullscreen()) return;
-
-    const rootEl = document.documentElement as WebkitFullscreenElement;
-    const tryEnterFullscreen = () => {
-      if (isCurrentlyFullscreen()) return;
-      const requestFullscreen =
-        rootEl.requestFullscreen?.bind(rootEl) ??
-        rootEl.webkitRequestFullscreen?.bind(rootEl);
-      if (!requestFullscreen) return;
-      void Promise.resolve(requestFullscreen()).catch(() => {});
-    };
-
-    const onFirstInteraction = () => {
-      tryEnterFullscreen();
-      window.removeEventListener("pointerdown", onFirstInteraction);
-      window.removeEventListener("touchend", onFirstInteraction);
-    };
-
-    window.addEventListener("pointerdown", onFirstInteraction, { passive: true });
-    window.addEventListener("touchend", onFirstInteraction, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", onFirstInteraction);
-      window.removeEventListener("touchend", onFirstInteraction);
-    };
-  }, [isLandscapeMobile]);
+  const { isLandscapeMobile, requiresLandscapeMode } = useLandscapeMode();
 
   React.useEffect(() => {
     if (!isLandscapeMobile) return;
@@ -1189,33 +556,22 @@ export function SimulatedGameDisplay({
     };
   }, [isLandscapeMobile]);
 
-  const proposedMoveTargetListClass = chromeOnSide
+  const useSideLayout = chromeOnSide && !isLandscapeMobile;
+  const proposedMoveTargetListClass = useSideLayout
     ? "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
     : "flex flex-wrap gap-2 min-h-[5rem]";
-  const proposedMoveTargetBtnClass = chromeOnSide
+  const proposedMoveTargetBtnClass = useSideLayout
     ? "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex w-full shrink-0 items-center justify-center"
     : "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex items-center shrink-0";
 
-  React.useEffect(() => {
-    if (actionOverride !== ActionType.Retreat) return;
-    if (targetShipId !== null || previewPosition !== null) {
-      setActionOverride(null);
-      if (selectedShipId != null) {
-        const k = selectedShipId.toString();
-        setRetreatExplicitByShipId((prev) => {
-          if (!prev[k]) return prev;
-          const next = { ...prev };
-          delete next[k];
-          return next;
-        });
-      }
-    }
-  }, [
+  useRetreatModeCancellation({
     actionOverride,
     targetShipId,
     previewPosition,
     selectedShipId,
-  ]);
+    setActionOverride,
+    setRetreatExplicitByShipId,
+  });
 
   // Mirror live game: whose turn it is comes from simulated state (e.g. after
   // end of round, opponent may go first).
@@ -1223,13 +579,7 @@ export function SimulatedGameDisplay({
     gameState.turnState.currentTurn.toLowerCase() ===
     TUTORIAL_PLAYER_ADDRESS.toLowerCase();
 
-  const prevTutorialCurrentTurnRef = React.useRef<string | undefined>(undefined);
-  React.useEffect(() => {
-    const key = gameState.turnState.currentTurn.toLowerCase();
-    const prev = prevTutorialCurrentTurnRef.current;
-    prevTutorialCurrentTurnRef.current = key;
-    if (prev === undefined) return;
-    if (prev === key) return;
+  const resetSelection = React.useCallback(() => {
     setSelectedShipId(null);
     setPreviewPosition(null);
     setTargetShipId(null);
@@ -1238,7 +588,8 @@ export function SimulatedGameDisplay({
     setDragOverCell(null);
     setHoveredCell(null);
     setRetreatExplicitByShipId({});
-  }, [gameState.turnState.currentTurn]);
+  }, []);
+  useResetSelectionOnTurnChange(gameState.turnState.currentTurn, resetSelection);
 
   // Map of onchain ship ID (bigint) to ship object. Tutorial IDs are strings;
   // when we need a ship we convert TutorialShipId -> bigint for this map only.
@@ -2196,81 +1547,23 @@ export function SimulatedGameDisplay({
     };
   }, [selectedShipId, tutorialDisplayLastMove]);
 
-  // Calculate damage for a target ship
-  const calculateDamage = useCallback(
+  const calculateDamageForShip = useCallback(
     (
       targetShipId: bigint,
       weaponType?: "weapon" | "special",
       showReducedDamage?: boolean,
-    ) => {
-      if (!selectedShipId)
-        return {
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: false,
-        };
-
-      const shooterAttributes = getShipAttributes(selectedShipId);
-      const targetAttributes = getShipAttributes(targetShipId);
-
-      if (!shooterAttributes || !targetAttributes)
-        return {
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: false,
-        };
-
-      // Handle ships with 0 hull points - they get reactor critical timer increment
-      if (targetAttributes.hullPoints === 0) {
-        return {
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: true,
-        };
-      }
-
-      const currentWeaponType = weaponType || selectedWeaponType;
-      let baseDamage: number;
-
-      // EMP special applies reactor damage (previewed as +1 reactor level).
-      if (currentWeaponType === "special" && specialType === 1) {
-        return {
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: true,
-        };
-      }
-
-      if (currentWeaponType === "special") {
-        baseDamage =
-          (specialData as SpecialData)?.strength || shooterAttributes.gunDamage;
-      } else {
-        baseDamage = shooterAttributes.gunDamage;
-      }
-
-      const reduction = targetAttributes.damageReduction;
-      let reducedDamage: number;
-
-      if (currentWeaponType === "special" && !showReducedDamage) {
-        reducedDamage = baseDamage;
-      } else {
-        reducedDamage = Math.max(
-          0,
-          baseDamage - Math.floor((baseDamage * reduction) / 100),
-        );
-      }
-
-      const willKill = reducedDamage >= targetAttributes.hullPoints;
-
-      return { reducedDamage, willKill, reactorCritical: false };
-    },
-    [
-      selectedShipId,
-      getShipAttributes,
-      selectedWeaponType,
-      specialData,
-      specialType,
-    ],
+    ) =>
+      calculateDamage({
+        shooterId: selectedShipId,
+        targetShipId,
+        getShipAttributes,
+        selectedWeaponType,
+        specialData: specialData as SpecialData | null,
+        specialType,
+        weaponType,
+        showReducedDamage,
+      }),
+    [selectedShipId, getShipAttributes, selectedWeaponType, specialData, specialType],
   );
 
   // Get valid targets
@@ -3523,7 +2816,7 @@ export function SimulatedGameDisplay({
               <div
                 className="mb-2 border border-solid px-1.5 py-1"
                 style={{
-                  backgroundColor: "rgba(8, 12, 22, 0.96)",
+                  backgroundColor: "color-mix(in srgb, var(--color-near-black) 96%, transparent)",
                   borderColor: "var(--color-gunmetal)",
                   borderTopColor: "var(--color-steel)",
                   borderLeftColor: "var(--color-steel)",
@@ -3599,7 +2892,7 @@ export function SimulatedGameDisplay({
                           : "var(--color-text-secondary)",
                       backgroundColor:
                         mobileLeftPanelTab === tab
-                          ? "rgba(86, 214, 255, 0.12)"
+                          ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                           : "var(--color-steel)",
                       borderRadius: 0,
                     }}
@@ -3636,7 +2929,7 @@ export function SimulatedGameDisplay({
                       className="flex h-full min-h-0 flex-col border border-solid p-2"
                       style={{
                         borderColor: "var(--color-gunmetal)",
-                        backgroundColor: "rgba(8, 12, 22, 0.85)",
+                        backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
                       }}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -3715,9 +3008,15 @@ export function SimulatedGameDisplay({
                                       "var(--font-jetbrains-mono), 'Courier New', monospace",
                                   }}
                                 >
-                                  {tutorialGridPanelConfig.tasks.map((task, idx) => (
-                                    <li key={idx}>{mapNodeToMobileTouchCopy(task)}</li>
-                                  ))}
+                                  {tutorialGridPanelConfig.tasks.map((task, idx) => {
+                                    const key =
+                                      React.isValidElement(task) && task.key != null
+                                        ? String(task.key)
+                                        : String(idx);
+                                    return (
+                                      <li key={key}>{mapNodeToMobileTouchCopy(task)}</li>
+                                    );
+                                  })}
                                 </ol>
                               </div>
                             ) : null}
@@ -3942,7 +3241,7 @@ export function SimulatedGameDisplay({
                 <div
                   className="absolute inset-0 z-[260] overflow-y-auto px-1 pb-1 pt-0.5"
                   style={{
-                    backgroundColor: "rgba(3, 8, 16, 0.97)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 97%, transparent)",
                   }}
                 >
                   <div className="mb-1 flex items-center justify-between">
@@ -4006,7 +3305,7 @@ export function SimulatedGameDisplay({
                                   : "var(--color-text-secondary)",
                               backgroundColor:
                                 selectedWeaponType === "weapon"
-                                  ? "rgba(86, 214, 255, 0.12)"
+                                  ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                                   : "transparent",
                             }}
                           >
@@ -4032,7 +3331,7 @@ export function SimulatedGameDisplay({
                                   : "var(--color-text-secondary)",
                               backgroundColor:
                                 selectedWeaponType === "special"
-                                  ? "rgba(86, 214, 255, 0.12)"
+                                  ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                                   : "transparent",
                             }}
                           >
@@ -4228,7 +3527,7 @@ export function SimulatedGameDisplay({
                       blockedGrid={blockedGrid}
                       scoringGrid={scoringGrid}
                       onlyOnceGrid={onlyOnceGrid}
-                      calculateDamage={calculateDamage}
+                      calculateDamage={calculateDamageForShip}
                       getShipAttributes={getShipAttributes}
                       disableTooltips={true}
                       address={TUTORIAL_PLAYER_ADDRESS}
@@ -4271,7 +3570,7 @@ export function SimulatedGameDisplay({
                         style={{
                           borderColor: "var(--color-warning-red)",
                           color: "var(--color-warning-red)",
-                          backgroundColor: "rgba(10, 10, 15, 0.92)",
+                          backgroundColor: "color-mix(in srgb, var(--color-near-black) 92%, transparent)",
                           borderRadius: 0,
                         }}
                         title="Battle menu"
@@ -4283,7 +3582,7 @@ export function SimulatedGameDisplay({
                         <div
                           className="absolute right-0 top-[calc(100%+6px)] w-[13.25rem] border border-solid p-1"
                           style={{
-                            backgroundColor: "rgba(3, 8, 16, 0.98)",
+                            backgroundColor: "color-mix(in srgb, var(--color-near-black) 98%, transparent)",
                             borderColor: "var(--color-warning-red)",
                             borderRadius: 0,
                           }}
@@ -4300,7 +3599,7 @@ export function SimulatedGameDisplay({
         </div>
 
         {isMobileFleetModalOpen ? (
-          <div className="fixed inset-0 z-[310] flex flex-col bg-[rgba(4,8,15,0.98)] p-3">
+          <div className="fixed inset-0 z-[310] flex flex-col bg-near-black p-3">
             <div className="mb-3 flex items-center justify-between border border-solid px-3 py-2" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
               <h3 className="text-sm uppercase tracking-wider text-cyan">[FLEET INTEL]</h3>
               <button
@@ -4974,7 +4273,7 @@ export function SimulatedGameDisplay({
                           : "var(--color-text-secondary)",
                       backgroundColor:
                         actionOverride === ActionType.Retreat
-                          ? "rgba(255, 77, 77, 0.15)"
+                          ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
                           : "var(--color-slate)",
                       borderWidth: "2px",
                       borderStyle: "solid",
@@ -4987,7 +4286,7 @@ export function SimulatedGameDisplay({
                         e.currentTarget.style.color =
                           "var(--color-warning-red)";
                         e.currentTarget.style.backgroundColor =
-                          "rgba(255, 77, 77, 0.12)";
+                          "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -5063,7 +4362,7 @@ export function SimulatedGameDisplay({
                   blockedGrid={blockedGrid}
                   scoringGrid={scoringGrid}
                   onlyOnceGrid={onlyOnceGrid}
-                  calculateDamage={calculateDamage}
+                  calculateDamage={calculateDamageForShip}
                   getShipAttributes={getShipAttributes}
                   disableTooltips={false}
                   address={TUTORIAL_PLAYER_ADDRESS}
@@ -5151,7 +4450,7 @@ export function SimulatedGameDisplay({
                           "var(--font-rajdhani), 'Arial Black', sans-serif",
                         borderColor: "var(--color-purple)",
                         color: "var(--color-purple)",
-                        backgroundColor: "rgba(10, 10, 15, 0.88)",
+                        backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
                         borderRadius: 0,
                       }}
                     >

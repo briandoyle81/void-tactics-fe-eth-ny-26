@@ -11,6 +11,7 @@ import {
   getSpecialName,
   ActionType,
   LastMove,
+  GRID_DIMENSIONS,
 } from "../types/types";
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
@@ -38,7 +39,22 @@ import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { GameEvents } from "./GameEvents";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
-import { computeMovementRange } from "../utils/gameGridRanges";
+import {
+  computeMovementRange,
+  hasLineOfSight,
+} from "../utils/gameGridRanges";
+import { calculateDamage } from "../utils/calculateDamage";
+import { useLandscapeMode } from "../hooks/useLandscapeMode";
+import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
+import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
+
+const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
+const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
+
+const POLL_INTERVAL_FOCUSED_MS = 30 * 1000;
+const POLL_INTERVAL_UNFOCUSED_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_HIDDEN_MS = 60 * 60 * 1000;
+const TURN_POLL_DIVISOR = 10;
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 
@@ -107,7 +123,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     gridContainerRef,
   );
   const chromeOnSide = chromeLayout === "side";
-  const [isLandscapeMobile, setIsLandscapeMobile] = React.useState(false);
+  const { isLandscapeMobile, requiresLandscapeMode } = useLandscapeMode();
   const [isMobileFleetModalOpen, setIsMobileFleetModalOpen] = React.useState(false);
   const [isMobileFleeOpen, setIsMobileFleeOpen] = React.useState(false);
   const [isMobileWeaponMenuOpen, setIsMobileWeaponMenuOpen] = React.useState(false);
@@ -117,74 +133,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [mobileActivePanel, setMobileActivePanel] = React.useState<
     "status" | "actions" | "fleet" | "events" | "none"
   >("none");
-  const [requiresLandscapeMode, setRequiresLandscapeMode] =
-    React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const orientationMq = window.matchMedia("(orientation: landscape)");
-    const mobileMq = window.matchMedia("(max-width: 1023px)");
-    const sync = () => {
-      const isMobile = mobileMq.matches;
-      const isLandscape = orientationMq.matches;
-      setRequiresLandscapeMode(isMobile && !isLandscape);
-      setIsLandscapeMobile(isMobile && isLandscape);
-    };
-    sync();
-    orientationMq.addEventListener("change", sync);
-    mobileMq.addEventListener("change", sync);
-    return () => {
-      orientationMq.removeEventListener("change", sync);
-      mobileMq.removeEventListener("change", sync);
-    };
-  }, []);
-  React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    type WebkitFullscreenDocument = Document & {
-      webkitFullscreenElement?: Element | null;
-      webkitExitFullscreen?: () => Promise<void> | void;
-    };
-    type WebkitFullscreenElement = HTMLElement & {
-      webkitRequestFullscreen?: () => Promise<void> | void;
-    };
-    const webkitDocument = document as WebkitFullscreenDocument;
-    const isCurrentlyFullscreen = () =>
-      Boolean(document.fullscreenElement || webkitDocument.webkitFullscreenElement);
-
-    if (!isLandscapeMobile) {
-      if (document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => {});
-      } else if (webkitDocument.webkitFullscreenElement) {
-        void Promise.resolve(webkitDocument.webkitExitFullscreen?.()).catch(() => {});
-      }
-      return;
-    }
-
-    if (isCurrentlyFullscreen()) return;
-
-    const rootEl = document.documentElement as WebkitFullscreenElement;
-    const tryEnterFullscreen = () => {
-      if (isCurrentlyFullscreen()) return;
-      const requestFullscreen =
-        rootEl.requestFullscreen?.bind(rootEl) ??
-        rootEl.webkitRequestFullscreen?.bind(rootEl);
-      if (!requestFullscreen) return;
-      void Promise.resolve(requestFullscreen()).catch(() => {});
-    };
-
-    const onFirstInteraction = () => {
-      tryEnterFullscreen();
-      window.removeEventListener("pointerdown", onFirstInteraction);
-      window.removeEventListener("touchend", onFirstInteraction);
-    };
-
-    window.addEventListener("pointerdown", onFirstInteraction, { passive: true });
-    window.addEventListener("touchend", onFirstInteraction, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", onFirstInteraction);
-      window.removeEventListener("touchend", onFirstInteraction);
-    };
-  }, [isLandscapeMobile]);
   const useSideLayout = chromeOnSide && !isLandscapeMobile;
 
   const proposedMoveTargetListClass = useSideLayout
@@ -194,27 +142,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     ? "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex w-full shrink-0 items-center justify-center"
     : "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex items-center shrink-0";
 
-  // If the user starts targeting or moving, clear retreat mode and per-ship retreat choice.
-  React.useEffect(() => {
-    if (actionOverride !== ActionType.Retreat) return;
-    if (targetShipId !== null || previewPosition !== null) {
-      setActionOverride(null);
-      if (selectedShipId != null) {
-        const k = selectedShipId.toString();
-        setRetreatExplicitByShipId((prev) => {
-          if (!prev[k]) return prev;
-          const next = { ...prev };
-          delete next[k];
-          return next;
-        });
-      }
-    }
-  }, [
+  useRetreatModeCancellation({
     actionOverride,
     targetShipId,
     previewPosition,
     selectedShipId,
-  ]);
+    setActionOverride,
+    setRetreatExplicitByShipId,
+  });
 
   // Fetch the current game data to get real-time updates
   const {
@@ -225,7 +160,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   } = useGetGame(Number(initialGame.metadata.gameId));
 
   // Use the fetched game data if available, otherwise fall back to initial game
-  const game = (gameData as GameDataView) || initialGame;
+  const game = gameData || initialGame;
   const aliveShipPositions = React.useMemo(
     () => game.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
     [game.shipPositions],
@@ -402,10 +337,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const retryAttemptRef = React.useRef<number>(0);
 
   // Track page visibility and window focus for polling intervals
-  const [isPageVisible, setIsPageVisible] = React.useState(true);
-  const [isWindowFocused, setIsWindowFocused] = React.useState(true);
   const isWindowFocusedRef = React.useRef(true);
   const wasHiddenRef = React.useRef(false);
+  // Single revision counter drives polling effect re-runs on focus/visibility changes,
+  // replacing two mirrored state/ref pairs that caused double re-renders per event.
+  const [activityRevision, setActivityRevision] = React.useState(0);
   const wasInactiveRef = React.useRef(false);
   const lastRefetchOnFocusAtRef = React.useRef(0);
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -415,7 +351,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     number | null
   >(null);
   const lastPollTimeRef = React.useRef<number>(Date.now());
-  const currentPollIntervalRef = React.useRef<number>(30 * 1000);
+  const currentPollIntervalRef = React.useRef<number>(POLL_INTERVAL_FOCUSED_MS);
 
   // Register this game's refetch function for global event handling
   React.useEffect(() => {
@@ -451,8 +387,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     wasHiddenRef.current = initialHidden;
     isWindowFocusedRef.current = initialFocused;
     wasInactiveRef.current = initialHidden || !initialFocused;
-    setIsPageVisible(!initialHidden);
-    setIsWindowFocused(initialFocused);
+    setActivityRevision((r) => r + 1);
 
     const maybeRefetchOnActive = (wasInactive: boolean) => {
       const now = Date.now();
@@ -480,8 +415,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       isWindowFocusedRef.current = nowFocused;
       wasInactiveRef.current = nowInactive;
 
-      setIsPageVisible(!nowHidden);
-      setIsWindowFocused(nowFocused);
+      setActivityRevision((r) => r + 1);
       maybeRefetchOnActive(wasInactive);
     };
 
@@ -529,7 +463,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
     // Get turn time from game (in seconds, convert to milliseconds)
     const turnTimeMs = Number(game.turnState.turnTime || 0n) * 1000;
-    const pollIntervalAfterMove = turnTimeMs / 10; // Poll every turnTime/10
+    const pollIntervalAfterMove = turnTimeMs / TURN_POLL_DIVISOR;
 
     if (playerMoveTimeRef.current) {
       // Player just moved: poll every turnTime/10
@@ -548,11 +482,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           // Switch to normal polling
           playerMoveTimeRef.current = null;
           setPlayerMoveTimestamp(null);
-          const normalPollInterval = isPageVisible
-            ? isWindowFocused
-              ? 30 * 1000 // 30 seconds if window focused
-              : 5 * 60 * 1000 // 5 minutes if tab active but window not focused
-            : 60 * 60 * 1000; // 60 minutes if tab inactive
+          const normalPollInterval = !wasHiddenRef.current
+            ? isWindowFocusedRef.current
+              ? POLL_INTERVAL_FOCUSED_MS
+              : POLL_INTERVAL_UNFOCUSED_MS
+            : POLL_INTERVAL_HIDDEN_MS;
           currentPollIntervalRef.current = normalPollInterval;
           pollingIntervalRef.current = setInterval(() => {
             lastPollTimeRef.current = Date.now();
@@ -581,11 +515,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               // Switch to normal polling
               playerMoveTimeRef.current = null;
               setPlayerMoveTimestamp(null);
-              const normalPollInterval = isPageVisible
-                ? isWindowFocused
-                  ? 30 * 1000 // 30 seconds if window focused
-                  : 5 * 60 * 1000 // 5 minutes if tab active but window not focused
-                : 60 * 60 * 1000; // 60 minutes if tab inactive
+              const normalPollInterval = !wasHiddenRef.current
+                ? isWindowFocusedRef.current
+                  ? POLL_INTERVAL_FOCUSED_MS
+                  : POLL_INTERVAL_UNFOCUSED_MS
+                : POLL_INTERVAL_HIDDEN_MS;
               currentPollIntervalRef.current = normalPollInterval;
               lastPollTimeRef.current = Date.now();
               pollingIntervalRef.current = setInterval(() => {
@@ -600,11 +534,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       }
     } else {
       // No recent move: poll at normal intervals
-      const normalPollInterval = isPageVisible
-        ? isWindowFocused
-          ? 30 * 1000 // 30 seconds if window focused
-          : 5 * 60 * 1000 // 5 minutes if tab active but window not focused
-        : 60 * 60 * 1000; // 60 minutes if tab inactive
+      const normalPollInterval = !wasHiddenRef.current
+        ? isWindowFocusedRef.current
+          ? POLL_INTERVAL_FOCUSED_MS
+          : POLL_INTERVAL_UNFOCUSED_MS
+        : POLL_INTERVAL_HIDDEN_MS;
       currentPollIntervalRef.current = normalPollInterval;
       pollingIntervalRef.current = setInterval(() => {
         lastPollTimeRef.current = Date.now();
@@ -621,8 +555,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       }
     };
   }, [
-    isPageVisible,
-    isWindowFocused,
+    activityRevision,
     playerMoveTimestamp,
     refetchGame,
     game.turnState.turnTime,
@@ -631,7 +564,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Reset move time when turn changes (opponent moved)
   React.useEffect(() => {
     if (gameData) {
-      const gameDataTyped = gameData as GameDataView;
+      const gameDataTyped = gameData;
       const isMyTurn = gameDataTyped.turnState.currentTurn === address;
 
       // If it's not my turn, clear the move time (opponent's turn now)
@@ -642,18 +575,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
   }, [gameData, address]);
 
-  const prevCurrentTurnForSelectionRef = React.useRef<string | undefined>(
-    undefined,
-  );
-  // Clear grid selection whenever the acting player changes (turn passes).
-  React.useEffect(() => {
-    const t = game.turnState.currentTurn;
-    if (t == null) return;
-    const key = t.toLowerCase();
-    const prev = prevCurrentTurnForSelectionRef.current;
-    prevCurrentTurnForSelectionRef.current = key;
-    if (prev === undefined) return;
-    if (prev === key) return;
+  const resetSelection = React.useCallback(() => {
     setSelectedShipId(null);
     setPreviewPosition(null);
     setTargetShipId(null);
@@ -662,12 +584,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setDragOverCell(null);
     setHoveredCell(null);
     setRetreatExplicitByShipId({});
-  }, [game.turnState.currentTurn]);
+  }, []);
+  useResetSelectionOnTurnChange(game.turnState.currentTurn, resetSelection);
 
   // Initialize previous state on mount
   React.useEffect(() => {
     if (gameData && !prevGameStateRef.current) {
-      const gameDataTyped = gameData as GameDataView;
+      const gameDataTyped = gameData;
       prevGameStateRef.current = {
         currentTurn: gameDataTyped.turnState.currentTurn,
         currentRound: gameDataTyped.turnState.currentRound,
@@ -679,7 +602,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   React.useEffect(() => {
     if (!gameData) return;
 
-    const gameDataTyped = gameData as GameDataView;
+    const gameDataTyped = gameData;
     const currentState = {
       currentTurn: gameDataTyped.turnState.currentTurn,
       currentRound: gameDataTyped.turnState.currentRound,
@@ -695,17 +618,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         prevState.currentRound !== currentState.currentRound;
 
       if (!stateChanged) {
-        // Got event but state didn't change - log error and retry
-        const retryDelay = Math.pow(2, retryAttemptRef.current) * 1000; // 2s, 4s, 8s, etc.
-        console.error(
-          `[GameDisplay] GameUpdate event received but state unchanged. ` +
-            `GameId: ${game.metadata.gameId}, ` +
-            `Previous: turn=${prevState.currentTurn}, round=${prevState.currentRound}, ` +
-            `Current: turn=${currentState.currentTurn}, round=${currentState.currentRound}. ` +
-            `Retrying in ${retryDelay}ms (attempt ${
-              retryAttemptRef.current + 1
-            })`,
-        );
+        const retryDelay = Math.pow(2, retryAttemptRef.current) * 1000;
 
         // Clear any existing retry timeout
         if (retryTimeoutRef.current) {
@@ -784,10 +697,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       setTargetShipId(null);
     }
   }, [gameData, initialGame]);
-
-  // Grid dimensions from the contract
-  const GRID_WIDTH = 17;
-  const GRID_HEIGHT = 11;
 
   // Get game map state directly from the Maps contract
   const { data: gameMapState, isLoading: mapLoading } = useGetGameMapState(
@@ -939,100 +848,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return set;
   }, [game.creatorMovedShipIds, game.joinerMovedShipIds]);
 
-  // Check line of sight between two positions using Bresenham's algorithm
-  const hasLineOfSight = React.useCallback(
-    (
-      row0: number,
-      col0: number,
-      row1: number,
-      col1: number,
-      blockedGrid: boolean[][],
-    ): boolean => {
-      // Early checks - always check start and end
-      if (blockedGrid[row0] && blockedGrid[row0][col0]) {
-        return false;
-      }
-
-      if (row0 === row1 && col0 === col1) {
-        return !(blockedGrid[row1] && blockedGrid[row1][col1]);
-      }
-
-      // Use Bresenham's algorithm for line of sight
-      const dRow = Math.abs(row1 - row0);
-      const dCol = Math.abs(col1 - col0);
-      const sRow = row1 > row0 ? 1 : row1 < row0 ? -1 : 0;
-      const sCol = col1 > col0 ? 1 : col1 < col0 ? -1 : 0;
-
-      let err = dCol - dRow;
-      let row = row0;
-      let col = col0;
-
-      while (true) {
-        // Check if we've reached the target
-        if (row === row1 && col === col1) {
-          return !(blockedGrid[row1] && blockedGrid[row1][col1]);
-        }
-
-        const e2 = err * 2;
-
-        // Handle tie case (corner) - exclusive with other branches
-        if (e2 === 0) {
-          // Check flankers before moving
-          if (
-            blockedGrid[row] &&
-            blockedGrid[row][col + sCol] &&
-            blockedGrid[row + sRow] &&
-            blockedGrid[row + sRow][col]
-          ) {
-            return false;
-          }
-
-          // Advance diagonally
-          col += sCol;
-          err -= dRow;
-          row += sRow;
-          err += dCol;
-
-          // Check new cell unless it's the target
-          if (
-            (row !== row1 || col !== col1) &&
-            blockedGrid[row] &&
-            blockedGrid[row][col]
-          ) {
-            return false;
-          }
-          continue;
-        }
-
-        // Column step
-        if (e2 > -dRow) {
-          err -= dRow;
-          col += sCol;
-          if (
-            (row !== row1 || col !== col1) &&
-            blockedGrid[row] &&
-            blockedGrid[row][col]
-          ) {
-            return false;
-          }
-        }
-
-        // Row step
-        if (e2 < dCol) {
-          err += dCol;
-          row += sRow;
-          if (
-            (row !== row1 || col !== col1) &&
-            blockedGrid[row] &&
-            blockedGrid[row][col]
-          ) {
-            return false;
-          }
-        }
-      }
-    },
-    [],
-  );
 
   // Create a 2D array to represent the grid
   const grid: (ShipPosition | null)[][] = React.useMemo(() => {
@@ -1268,106 +1083,24 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setTargetShipId(null);
   }, [isRammingMovePreview, targetShipId]);
 
-  // Calculate damage for a target ship (shooterShipIdOverride used for last-move display when no ship selected)
-  const calculateDamage = React.useCallback(
+  const calculateDamageForShip = React.useCallback(
     (
       targetShipId: bigint,
       weaponType?: "weapon" | "special",
       showReducedDamage?: boolean,
       shooterShipIdOverride?: bigint,
-    ) => {
-      const shooterId = shooterShipIdOverride ?? selectedShipId;
-      if (shooterId == null)
-        return {
-          baseDamage: 0,
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: false,
-        };
-
-      const shooterAttributes = getShipAttributes(shooterId);
-      const targetAttributes = getShipAttributes(targetShipId);
-
-      if (!shooterAttributes || !targetAttributes)
-        return {
-          baseDamage: 0,
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: false,
-        };
-
-      // Determine which damage value to use based on weapon type
-      const currentWeaponType = weaponType || selectedWeaponType;
-      let baseDamage: number;
-
-      if (currentWeaponType === "special") {
-        // For special abilities, use the special strength
-        baseDamage =
-          (specialData as SpecialData)?.strength || shooterAttributes.gunDamage;
-      } else {
-        // Regular weapon damage
-        baseDamage = shooterAttributes.gunDamage;
-      }
-
-      // For repair special abilities (specialType === 2), always show repair amount
-      // even if target has 0 HP (disabled ships can be repaired)
-      if (currentWeaponType === "special" && specialType === 2) {
-        // Repair abilities ignore damage reduction and always show the repair amount
-        return {
-          baseDamage,
-          reducedDamage: baseDamage,
-          willKill: false,
-          reactorCritical: false,
-        };
-      }
-
-      // EMP special applies reactor damage (previewed as +1 reactor level).
-      if (currentWeaponType === "special" && specialType === 1) {
-        return {
-          baseDamage: 0,
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: true,
-        };
-      }
-
-      // Handle ships with 0 hull points - they get reactor critical timer increment instead of damage
-      // (but not for repair abilities, which we handled above)
-      if (targetAttributes.hullPoints === 0) {
-        return {
-          baseDamage: 0,
-          reducedDamage: 0,
-          willKill: false,
-          reactorCritical: true,
-        };
-      }
-
-      const reduction = targetAttributes.damageReduction;
-      let reducedDamage: number;
-
-      // For display purposes, flak can show reduced damage even though it ignores reduction in actual combat
-      if (currentWeaponType === "special" && !showReducedDamage) {
-        // Special abilities ignore damage reduction (actual combat behavior)
-        reducedDamage = baseDamage;
-      } else {
-        // Regular weapons are affected by damage reduction, or show reduced damage for display
-        reducedDamage = Math.max(
-          0,
-          baseDamage - Math.floor((baseDamage * reduction) / 100),
-        );
-      }
-
-      const willKill = reducedDamage >= targetAttributes.hullPoints;
-
-      return { baseDamage, reducedDamage, willKill, reactorCritical: false };
-    },
-    [
-      selectedShipId,
-      getShipAttributes,
-      selectedWeaponType,
-      specialData,
-      specialType,
-    ],
+    ) =>
+      calculateDamage({
+        shooterId: shooterShipIdOverride ?? selectedShipId,
+        targetShipId,
+        getShipAttributes,
+        selectedWeaponType,
+        specialData: specialData as SpecialData | null,
+        specialType,
+        weaponType,
+        showReducedDamage,
+      }),
+    [selectedShipId, getShipAttributes, selectedWeaponType, specialData, specialType],
   );
 
   // Valid targets: only ships in range from current position (or from preview position when move is set). Used for selection logic.
@@ -1450,7 +1183,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     shipMap,
     address,
     getShipAttributes,
-    hasLineOfSight,
     blockedGrid,
     game.shipPositions,
     selectedWeaponType,
@@ -1594,7 +1326,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     shipMap,
     address,
     getShipAttributes,
-    hasLineOfSight,
     blockedGrid,
     game.shipPositions,
     selectedWeaponType,
@@ -2823,7 +2554,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   }}
                   onError={(error) => {
                     setAwaitingTurnSyncAfterSubmit(false);
-                    console.error("Error submitting move:", error);
                     const errorMessage =
                       (error as Error)?.message ||
                       String(error) ||
@@ -3350,7 +3080,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   : "var(--color-text-secondary)",
               backgroundColor:
                 actionOverride === ActionType.Retreat
-                  ? "rgba(255, 77, 77, 0.15)"
+                  ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
                   : "var(--color-slate)",
               borderWidth: "2px",
               borderStyle: "solid",
@@ -3361,7 +3091,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 e.currentTarget.style.borderColor = "var(--color-warning-red)";
                 e.currentTarget.style.color = "var(--color-warning-red)";
                 e.currentTarget.style.backgroundColor =
-                  "rgba(255, 77, 77, 0.12)";
+                  "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
               }
             }}
             onMouseLeave={(e) => {
@@ -3517,7 +3247,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             <div
               className="mb-2 border border-solid px-1.5 py-1"
               style={{
-                backgroundColor: "rgba(8, 12, 22, 0.96)",
+                backgroundColor: "color-mix(in srgb, var(--color-near-black) 96%, transparent)",
                 borderColor: "var(--color-gunmetal)",
                 borderTopColor: "var(--color-steel)",
                 borderLeftColor: "var(--color-steel)",
@@ -3595,7 +3325,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         : "var(--color-text-secondary)",
                     backgroundColor:
                       mobileLeftPanelTab === tab
-                        ? "rgba(86, 214, 255, 0.12)"
+                        ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                         : "var(--color-steel)",
                     borderRadius: 0,
                   }}
@@ -3663,7 +3393,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div
                 className="absolute inset-0 z-[260] overflow-y-auto pl-0.5 pr-1.5 pt-1 pb-2"
                 style={{
-                  backgroundColor: "rgba(3, 8, 16, 0.97)",
+                  backgroundColor: "color-mix(in srgb, var(--color-near-black) 97%, transparent)",
                 }}
               >
                 <div className="mb-1 flex items-center justify-between">
@@ -3704,7 +3434,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                                 : "var(--color-text-secondary)",
                             backgroundColor:
                               selectedWeaponType === "weapon"
-                                ? "rgba(86, 214, 255, 0.12)"
+                                ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                                 : "transparent",
                           }}
                         >
@@ -3730,7 +3460,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                                 : "var(--color-text-secondary)",
                             backgroundColor:
                               selectedWeaponType === "special"
-                                ? "rgba(86, 214, 255, 0.12)"
+                                ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                                 : "transparent",
                           }}
                         >
@@ -3847,7 +3577,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       blockedGrid={blockedGrid}
                       scoringGrid={scoringGrid}
                       onlyOnceGrid={onlyOnceGrid}
-                      calculateDamage={calculateDamage}
+                      calculateDamage={calculateDamageForShip}
                       getShipAttributes={getShipAttributes}
                       disableTooltips={true}
                       address={address}
@@ -3890,7 +3620,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         style={{
                           borderColor: "var(--color-warning-red)",
                           color: "var(--color-warning-red)",
-                          backgroundColor: "rgba(10, 10, 15, 0.92)",
+                          backgroundColor: "color-mix(in srgb, var(--color-near-black) 92%, transparent)",
                           borderRadius: 0,
                         }}
                         title="Battle menu"
@@ -3902,7 +3632,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         <div
                           className="absolute right-0 top-[calc(100%+6px)] w-[13.25rem] border border-solid p-1"
                           style={{
-                            backgroundColor: "rgba(3, 8, 16, 0.98)",
+                            backgroundColor: "color-mix(in srgb, var(--color-near-black) 98%, transparent)",
                             borderColor: "var(--color-warning-red)",
                             borderRadius: 0,
                           }}
@@ -3927,7 +3657,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         </div>
 
         {isMobileFleetModalOpen ? (
-          <div className="fixed inset-0 z-[310] flex flex-col bg-[rgba(4,8,15,0.98)] p-3">
+          <div className="fixed inset-0 z-[310] flex flex-col bg-near-black p-3">
             <div className="mb-3 flex items-center justify-between border border-solid px-3 py-2" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
               <h3 className="text-sm uppercase tracking-wider text-cyan">[FLEET INTEL]</h3>
               <button
@@ -4020,7 +3750,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           <div
             className="sticky top-0 z-[260] border border-solid px-2 py-1.5"
             style={{
-              backgroundColor: "rgba(8, 12, 22, 0.96)",
+              backgroundColor: "color-mix(in srgb, var(--color-near-black) 96%, transparent)",
               borderColor: "var(--color-gunmetal)",
               borderTopColor: "var(--color-steel)",
               borderLeftColor: "var(--color-steel)",
@@ -4598,7 +4328,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           blockedGrid={blockedGrid}
           scoringGrid={scoringGrid}
           onlyOnceGrid={onlyOnceGrid}
-          calculateDamage={calculateDamage}
+          calculateDamage={calculateDamageForShip}
           getShipAttributes={getShipAttributes}
           disableTooltips={disableTooltips}
           address={address}
@@ -4628,7 +4358,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         />
             </div>
           {game.metadata.winner ===
-            "0x0000000000000000000000000000000000000000" && (
+            "0x0000000000000000000000000000000000000000" &&
+            process.env.NODE_ENV === "development" && (
               <div className="absolute bottom-0 left-0 z-[220] pointer-events-none">
                 <div className="pointer-events-auto">
                   {isDebugPanelMinimized ? (
@@ -4641,7 +4372,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           "var(--font-rajdhani), 'Arial Black', sans-serif",
                         borderColor: "var(--color-cyan)",
                         color: "var(--color-cyan)",
-                        backgroundColor: "rgba(10, 10, 15, 0.88)",
+                        backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
                         borderRadius: 0,
                       }}
                     >
@@ -4800,7 +4531,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         "var(--font-rajdhani), 'Arial Black', sans-serif",
                       borderColor: "var(--color-purple)",
                       color: "var(--color-purple)",
-                      backgroundColor: "rgba(10, 10, 15, 0.88)",
+                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
                       borderRadius: 0,
                     }}
                   >
@@ -5296,7 +5027,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     : "var(--color-text-secondary)",
                 backgroundColor:
                   mobileActivePanel === id
-                    ? "rgba(86, 214, 255, 0.12)"
+                    ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
                     : "var(--color-steel)",
                 borderRadius: 0,
               }}

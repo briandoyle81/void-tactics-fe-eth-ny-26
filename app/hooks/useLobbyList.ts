@@ -32,62 +32,24 @@ export function useLobbyList() {
     setError(null);
   }, [activeChainId]);
 
-  // Invalidate queries when block number changes (Wagmi v2 approach)
+  // Invalidate on each new block, debounced to at most once per 5 s.
+  // Avoids the redundant dual-invalidation (block + interval) on fast chains.
+  const lastInvalidatedRef = useRef(0);
   useEffect(() => {
-    if (blockNumber) {
-      queryClient.invalidateQueries({
-        queryKey: lobbiesData.queryKey,
-      });
-    }
+    lastInvalidatedRef.current = 0;
+  }, [address, activeChainId]);
+
+  useEffect(() => {
+    if (!blockNumber) return;
+    const now = Date.now();
+    if (now - lastInvalidatedRef.current < 5000) return;
+    lastInvalidatedRef.current = now;
+    queryClient.invalidateQueries({ queryKey: lobbiesData.queryKey });
   }, [blockNumber, queryClient, lobbiesData.queryKey]);
-
-  // Set up 5-second interval for additional refresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({
-        queryKey: lobbiesData.queryKey,
-      });
-    }, 5000); // 5 seconds
-
-    return () => clearInterval(interval);
-  }, [queryClient, lobbiesData.queryKey, address, activeChainId]);
 
   // Process the lobby data when it changes
   useEffect(() => {
-    if (!lobbiesData.data || !Array.isArray(lobbiesData.data)) {
-      setIsLoading(lobbiesData.isLoading);
-      setError(lobbiesData.error?.message || null);
-      return;
-    }
-
-    const fetchedLobbies: Lobby[] = [];
-    const seenIds = new Set<string>();
-
-    // Process all lobbies and deduplicate by ID
-    lobbiesData.data.forEach((lobbyData, index) => {
-      if (
-        lobbyData &&
-        typeof lobbyData === "object" &&
-        lobbyData.basic &&
-        lobbyData.basic.id
-      ) {
-        try {
-          // The contract returns Lobby structs directly, not tuples
-          const lobby = lobbyData as Lobby;
-          const lobbyId = lobby.basic.id.toString();
-
-          // Only add if we haven't seen this lobby ID before
-          if (!seenIds.has(lobbyId)) {
-            seenIds.add(lobbyId);
-            fetchedLobbies.push(lobby);
-          }
-        } catch (err) {
-          console.error(`Error converting lobby at index ${index}:`, err);
-        }
-      }
-    });
-
-    setLobbies(fetchedLobbies);
+    setLobbies(processLobbyData(lobbiesData.data));
     setIsLoading(lobbiesData.isLoading);
     setError(lobbiesData.error?.message || null);
   }, [

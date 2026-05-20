@@ -109,18 +109,8 @@ export function useMapExists(mapId: number) {
   });
 }
 
-const gameIdCallCounts: Record<number, number> = {};
-
 export function useGetGameMapState(gameId: number) {
-  gameIdCallCounts[gameId] = (gameIdCallCounts[gameId] || 0) + 1;
-
-  const result = useMapsRead("getGameMapState", [BigInt(gameId)], {
-    query: {
-      enabled: gameId > 0,
-      // Note: staleTime and gcTime may not be supported by wagmi's useReadContract
-      // The caching is handled by React Query internally
-    },
+  return useMapsRead("getGameMapState", [BigInt(gameId)], {
+    query: { enabled: gameId > 0 },
   });
-
-  return result;
 }

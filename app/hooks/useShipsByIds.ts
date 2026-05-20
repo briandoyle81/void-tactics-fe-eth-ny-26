@@ -1,15 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useShipsRead } from "./useShipsContract";
 import { Ship } from "../types/types";
 import { cacheShipsData } from "./useShipDataCache";
 
 export function useShipsByIds(shipIds: bigint[]) {
+  const args = useMemo(
+    () => (shipIds.length > 0 ? [shipIds] : undefined),
+    [shipIds],
+  );
   const {
     data: ships,
     isLoading,
     error,
     refetch,
-  } = useShipsRead("getShipsByIds", shipIds.length > 0 ? [shipIds] : undefined);
+  } = useShipsRead("getShipsByIds", args);
 
   // Cache ship data when it's fetched
   useEffect(() => {

@@ -56,64 +56,21 @@ import {
   type FleetComposition,
 } from "../utils/fleetCompositionStorage";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
-
-/** Onchain turn timer when creating an Immediate game lobby. */
-const IMMEDIATE_GAME_TURN_SECONDS = 5 * 60;
-/** Onchain turn timer when creating a Correspondence game lobby. */
-const CORRESPONDENCE_GAME_TURN_SECONDS = 24 * 60 * 60;
-
-function formatLobbyTurnTimeDisplay(seconds: bigint): string {
-  const s = Number(seconds);
-  if (s === IMMEDIATE_GAME_TURN_SECONDS) {
-    return "Immediate game, 5 minutes per turn";
-  }
-  if (s === CORRESPONDENCE_GAME_TURN_SECONDS) {
-    return "Correspondence game, 24 hours per turn";
-  }
-  return `${s.toLocaleString()} s`;
-}
-
-const SKIRMISH_THREAT_LIMIT = 1000;
-const BATTLE_THREAT_LIMIT = 2000;
-
-function formatLobbyCostLimitDisplay(costLimit: bigint): string {
-  const n = Number(costLimit);
-  if (n === SKIRMISH_THREAT_LIMIT) {
-    return "Skirmish, 1000 threat per fleet";
-  }
-  if (n === BATTLE_THREAT_LIMIT) {
-    return "Battle, 2000 threat per fleet";
-  }
-  return n.toLocaleString();
-}
-
-const SHORT_MAX_SCORE = 50;
-const MEDIUM_MAX_SCORE = 100;
-const LONG_MAX_SCORE = 200;
-
-function formatLobbyMaxScoreDisplay(maxScore: bigint): string {
-  const n = Number(maxScore);
-  if (n === SHORT_MAX_SCORE) {
-    return "Short, 50 points to win";
-  }
-  if (n === MEDIUM_MAX_SCORE) {
-    return "Medium, 100 points to win";
-  }
-  if (n === LONG_MAX_SCORE) {
-    return "Long, 200 points to win";
-  }
-  return n.toLocaleString();
-}
-
-const VOID_TACTICS_ALPHA_DISCORD_INVITE = "https://discord.gg/SPzndFWvHZ";
-
-/** Minimum owned and constructed ships required to use lobbies. */
-const MIN_SHIPS_FOR_LOBBIES = 10;
-
-/** Matches `findNextPosition`: 4 deployment columns per side × grid height. */
-const FLEET_DEPLOY_ZONE_COLUMNS = 4;
-const MAX_SHIPS_PER_FLEET =
-  FLEET_DEPLOY_ZONE_COLUMNS * GRID_DIMENSIONS.HEIGHT;
+import {
+  IMMEDIATE_GAME_TURN_SECONDS,
+  CORRESPONDENCE_GAME_TURN_SECONDS,
+  formatLobbyTurnTimeDisplay,
+  SKIRMISH_THREAT_LIMIT,
+  BATTLE_THREAT_LIMIT,
+  formatLobbyCostLimitDisplay,
+  SHORT_MAX_SCORE,
+  MEDIUM_MAX_SCORE,
+  LONG_MAX_SCORE,
+  formatLobbyMaxScoreDisplay,
+  VOID_TACTICS_ALPHA_DISCORD_INVITE,
+  MIN_SHIPS_FOR_LOBBIES,
+  MAX_SHIPS_PER_FLEET,
+} from "../utils/lobbyFormatters";
 
 const Lobbies: React.FC = () => {
   const { address, isConnected } = useAccount();

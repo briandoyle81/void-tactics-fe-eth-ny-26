@@ -443,43 +443,14 @@ export default function Home() {
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => { setActiveTab(tab); posthog.capture("tab_navigated", { tab_name: tab }); }}
-                    className="shrink-0 snap-start px-4 py-2.5 min-h-11 border-2 border-solid text-xs uppercase font-semibold tracking-wider transition-colors duration-150 sm:px-5 sm:text-sm md:min-h-0 md:px-6 md:py-3 md:text-base"
+                    className={`shrink-0 snap-start px-4 py-2.5 min-h-11 border-2 border-solid text-xs uppercase font-semibold tracking-wider transition-colors duration-150 sm:px-5 sm:text-sm md:min-h-0 md:px-6 md:py-3 md:text-base ${
+                      isActive
+                        ? "border-cyan text-cyan bg-steel"
+                        : "border-gunmetal border-t-steel border-l-steel text-text-secondary bg-slate hover:border-cyan hover:text-cyan hover:bg-steel"
+                    }`}
                     style={{
                       fontFamily:
                         "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      borderColor: isActive
-                        ? "var(--color-cyan)"
-                        : "var(--color-gunmetal)",
-                      color: isActive
-                        ? "var(--color-cyan)"
-                        : "var(--color-text-secondary)",
-                      backgroundColor: isActive
-                        ? "var(--color-steel)"
-                        : "var(--color-slate)",
-                      borderTopColor: isActive
-                        ? "var(--color-cyan)"
-                        : "var(--color-steel)",
-                      borderLeftColor: isActive
-                        ? "var(--color-cyan)"
-                        : "var(--color-steel)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.borderColor = "var(--color-cyan)";
-                        e.currentTarget.style.color = "var(--color-cyan)";
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-steel)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.borderColor =
-                          "var(--color-gunmetal)";
-                        e.currentTarget.style.color =
-                          "var(--color-text-secondary)";
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-slate)";
-                      }
                     }}
                   >
                     [{tab.toUpperCase()}]

@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
 import type { Address } from "viem";
@@ -47,11 +46,11 @@ export function useLobbies() {
     refetch: loadLobbies,
   } = useLobbyList();
 
-  const [lobbyList, setLobbyList] = useState<LobbyListState>({
-    lobbies: [],
-    isLoading: false,
-    error: null,
-  });
+  const lobbyList: LobbyListState = {
+    lobbies,
+    isLoading: lobbiesLoading,
+    error: lobbiesError,
+  };
 
   // Create a new lobby
   const createLobby = async (
@@ -94,8 +93,6 @@ export function useLobbies() {
         value,
       });
 
-      // Refresh the lobby list after creating a lobby
-      loadLobbies();
     } catch (error) {
       console.error("Failed to create lobby:", error);
       throw error;
@@ -118,8 +115,6 @@ export function useLobbies() {
         args: [lobbyId],
       });
 
-      // Refresh the lobby list after joining a lobby
-      loadLobbies();
     } catch (error) {
       console.error("Failed to join lobby:", error);
       throw error;
@@ -231,8 +226,6 @@ export function useLobbies() {
         args: [lobbyId],
       });
 
-      // Refresh the lobby list after accepting
-      loadLobbies();
     } catch (error) {
       console.error("Failed to accept game:", error);
       throw error;
@@ -255,22 +248,11 @@ export function useLobbies() {
         args: [lobbyId],
       });
 
-      // Refresh the lobby list after rejecting
-      loadLobbies();
     } catch (error) {
       console.error("Failed to reject game:", error);
       throw error;
     }
   };
-
-  // Update lobby list when the lobby list hook data changes
-  useEffect(() => {
-    setLobbyList({
-      lobbies,
-      isLoading: lobbiesLoading,
-      error: lobbiesError,
-    });
-  }, [lobbies, lobbiesLoading, lobbiesError]);
 
   return {
     // State

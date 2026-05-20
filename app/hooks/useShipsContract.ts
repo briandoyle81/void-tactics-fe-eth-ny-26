@@ -2,7 +2,6 @@ import { useReadContract, useWriteContract } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { useSelectedChainId } from "./useSelectedChainId";
-// import { Ship, ShipTuple } from "../types/types";
 
 // Hook for reading contract data
 export function useShipsContract() {

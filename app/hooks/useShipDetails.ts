@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useOwnedShips } from "./useOwnedShips";
-import { Ship } from "../types/types";
 
 export function useShipDetails() {
   const { ships, isLoading, error } = useOwnedShips();
@@ -61,63 +60,9 @@ export function useShipDetails() {
     };
   }, [ships]);
 
-  // Get ships by equipment type
-  const shipsByEquipment = useMemo(() => {
-    if (!ships) return {};
-
-    const equipmentGroups: Record<string, Ship[]> = {};
-
-    ships.forEach((ship) => {
-      const mainWeapon = ship.equipment.mainWeapon;
-      const armor = ship.equipment.armor;
-      const shields = ship.equipment.shields;
-      const special = ship.equipment.special;
-
-      const key = `W${mainWeapon}-A${armor}-S${shields}-SP${special}`;
-
-      if (!equipmentGroups[key]) {
-        equipmentGroups[key] = [];
-      }
-      equipmentGroups[key].push(ship);
-    });
-
-    return equipmentGroups;
-  }, [ships]);
-
-  // Get ships by trait tier
-  const shipsByTier = useMemo(() => {
-    if (!ships) return {};
-
-    const tierGroups: Record<string, Ship[]> = {};
-
-    ships.forEach((ship) => {
-      const accuracy = ship.traits.accuracy;
-      const hull = ship.traits.hull;
-      const speed = ship.traits.speed;
-
-      // Calculate tier based on trait values
-      const getTier = (trait: number) => {
-        if (trait < 50) return 0;
-        if (trait < 80) return 1;
-        return 2;
-      };
-
-      const tier = `A${getTier(accuracy)}-H${getTier(hull)}-S${getTier(speed)}`;
-
-      if (!tierGroups[tier]) {
-        tierGroups[tier] = [];
-      }
-      tierGroups[tier].push(ship);
-    });
-
-    return tierGroups;
-  }, [ships]);
-
   return {
     fleetStats,
     shipsByStatus,
-    shipsByEquipment,
-    shipsByTier,
     isLoading,
     error,
   };

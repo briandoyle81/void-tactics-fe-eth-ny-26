@@ -23,8 +23,6 @@ export { useShipDetails } from "./useShipDetails";
 
 // Phase 3: Real-time & Performance hooks
 export { useContractEvents } from "./useContractEvents";
-export { useNavyAnalytics } from "./useNavyAnalytics";
-export { useNavyOptimization } from "./useNavyOptimization";
 
 // Phase 4: Ship Purchasing with FLOW
 export { useShipPurchasing } from "./useShipPurchasing";
@@ -62,9 +60,3 @@ export {
 
 // Types
 export type { ShipsReadFunction, ShipsWriteFunction } from "./useShipsContract";
-export type {
-  NavyComposition,
-  NavyPerformance,
-  OptimizationSuggestion,
-} from "./useNavyAnalytics";
-export type { VirtualScrollConfig } from "./useNavyOptimization";

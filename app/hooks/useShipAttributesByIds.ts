@@ -31,6 +31,11 @@ export function useShipAttributesByIds(shipIds: bigint[]) {
     [chainId],
   );
 
+  const contractArgs = React.useMemo(
+    () => (shouldCallContract ? ([shipIds] as const) : undefined),
+    [shouldCallContract, shipIds],
+  );
+
   const {
     data: contractData,
     isLoading,
@@ -41,7 +46,7 @@ export function useShipAttributesByIds(shipIds: bigint[]) {
     abi: CONTRACT_ABIS.SHIP_ATTRIBUTES,
     chainId,
     functionName: "calculateShipAttributesByIds",
-    args: shouldCallContract ? [shipIds] : undefined,
+    args: contractArgs,
   });
 
   React.useEffect(() => {

@@ -5,6 +5,8 @@ import type { Abi } from "viem";
 import { Ship } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
 
+const SHIPS_ABI = CONTRACT_ABIS.SHIPS as Abi;
+
 // Cache configuration
 const CACHE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_CACHE_SIZE = 50; // Reduced from 1000 to prevent quota issues
@@ -72,14 +74,11 @@ interface ShipImageState {
   retryCount: number;
 }
 
-// Check if user is logged in (basic check)
 function isUserLoggedIn(): boolean {
-  // Check if there's a wallet connection by looking for common wallet indicators
   return (
     typeof window !== "undefined" &&
     (window.ethereum?.isConnected?.() ||
-      localStorage.getItem("wagmi.connected") === "true" ||
-      document.querySelector('[data-testid="wallet-connect-button"]') === null)
+      localStorage.getItem("wagmi.connected") === "true")
   );
 }
 
@@ -300,7 +299,7 @@ export function useShipImageCache(ship: Ship) {
         // Call tokenURI directly
         const tokenURI = await publicClient.readContract({
           address: CONTRACT_ADDRESSES.SHIPS as `0x${string}`,
-          abi: CONTRACT_ABIS.SHIPS as Abi,
+          abi: SHIPS_ABI,
           functionName: "tokenURI",
           args: [ship.id],
         });
@@ -759,9 +758,6 @@ const initializeCacheSystem = () => {
   }
 };
 
-// Initialize on page load
-initializeCacheSystem();
-
 // Periodic queue check to prevent getting stuck
 let queueCheckInterval: NodeJS.Timeout | null = null;
 
@@ -786,13 +782,11 @@ function stopQueueCheck() {
   }
 }
 
-// Start queue check
-startQueueCheck();
-
-// Clean up on page unload (only on client side)
+// All module-level side effects gated on client environment to prevent SSR issues.
 if (typeof window !== "undefined") {
+  initializeCacheSystem();
+  startQueueCheck();
   window.addEventListener("beforeunload", () => {
-    debugLog("🧹 Cleaning up cache system on page unload");
     stopQueueCheck();
     isProcessingQueue = false;
     activeRequests = 0;

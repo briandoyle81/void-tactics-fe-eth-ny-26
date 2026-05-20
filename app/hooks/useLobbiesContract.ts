@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { useReadContract, useWriteContract } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
-import { Lobby, PlayerLobbyState } from "../types/types";
+import { Lobby, PlayerLobbyState, PlayerLobbyStateTuple, tupleToPlayerLobbyState } from "../types/types";
 import { useSelectedChainId } from "./useSelectedChainId";
 
 /** Lobbies contract target for the in-app network picker (reads and intended writes). */
@@ -24,9 +25,7 @@ export function useLobbiesContract() {
 export function useLobbiesRead(
   functionName: string,
   args?: readonly unknown[],
-  // Pass-through wagmi options (e.g. query.enabled)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  options?: any
+  options?: { query?: { enabled?: boolean } }
 ) {
   const { address, abi, chainId } = useLobbiesChainParams();
   return useReadContract({
@@ -35,7 +34,7 @@ export function useLobbiesRead(
     chainId,
     functionName,
     args,
-    ...(options || {}),
+    query: options?.query,
   });
 }
 
@@ -70,9 +69,10 @@ export function useLobby(
   lobbyId: bigint,
   options?: { enabled?: boolean }
 ) {
+  const args = useMemo(() => [lobbyId] as const, [lobbyId]);
   const { data, error, isLoading, refetch } = useLobbiesRead(
     "getLobby",
-    [lobbyId],
+    args,
     { query: { enabled: options?.enabled ?? true } }
   );
 
@@ -86,24 +86,12 @@ export function useLobby(
 }
 
 export function usePlayerLobbyState(playerAddress: string) {
-  const { data, error, isLoading, refetch } = useLobbiesRead("getPlayerState", [
-    playerAddress,
-  ]);
+  const args = useMemo(() => [playerAddress] as const, [playerAddress]);
+  const { data, error, isLoading, refetch } = useLobbiesRead("getPlayerState", args);
 
   return {
     playerState: data
-      ? ({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          activeLobbyId: (data as any)[0],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          activeLobbiesCount: (data as any)[1],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          hasActiveLobby: (data as any)[2],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          kickCount: (data as any)[3],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          lastKickTime: (data as any)[4],
-        } as PlayerLobbyState)
+      ? tupleToPlayerLobbyState(data as PlayerLobbyStateTuple)
       : undefined,
     error,
     isLoading,
@@ -131,5 +119,6 @@ export function useLobbySettings() {
 }
 
 export function useIsLobbyOpenForJoining(lobbyId: bigint) {
-  return useLobbiesRead("isLobbyOpenForJoining", [lobbyId]);
+  const args = useMemo(() => [lobbyId] as const, [lobbyId]);
+  return useLobbiesRead("isLobbyOpenForJoining", args);
 }

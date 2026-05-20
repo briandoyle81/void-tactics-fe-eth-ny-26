@@ -61,11 +61,7 @@ export function useFreeShipClaiming() {
       try {
         const stored = localStorage.getItem("void-tactics-eligibility-cache");
         return stored ? JSON.parse(stored) : {};
-      } catch (error) {
-        console.error(
-          "Error loading eligibility cache from localStorage:",
-          error
-        );
+      } catch {
         return {};
       }
     }
@@ -130,7 +126,6 @@ export function useFreeShipClaiming() {
   // Handle write contract errors (including user rejection)
   useEffect(() => {
     if (error) {
-      console.error("Write contract error:", error);
       setShowError(true);
 
       // Check if the error is due to user rejection
@@ -163,8 +158,8 @@ export function useFreeShipClaiming() {
           "void-tactics-eligibility-cache",
           JSON.stringify(cache)
         );
-      } catch (error) {
-        console.error("Error saving eligibility cache to localStorage:", error);
+      } catch {
+        // localStorage write failure is non-fatal
       }
     }
   }, []);
@@ -388,9 +383,6 @@ export function useFreeShipClaiming() {
 
       // Toast will be shown when receipt is received (in useEffect below)
     } catch (err: unknown) {
-      console.error("Error claiming free ships:", err);
-
-      // Check if the error is due to user rejection
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
         errorMessage.includes("User rejected") ||

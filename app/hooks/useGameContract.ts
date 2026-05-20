@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
+import { GameDataView } from "../types/types";
 
 // Hook for reading contract data
 export function useGameContract() {
@@ -24,10 +26,13 @@ export function useGameRead(
 ) {
   const { chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
+  const address = useMemo(
+    () => getContractAddresses(activeChainId).GAME as `0x${string}`,
+    [activeChainId],
+  );
 
   return useReadContract({
-    address: contractAddresses.GAME as `0x${string}`,
+    address,
     abi: CONTRACT_ABIS.GAME as Abi,
     chainId: activeChainId,
     functionName,
@@ -55,19 +60,28 @@ export function useGameCount() {
 }
 
 export function useGetGamesForPlayer(playerAddress: string) {
-  return useGameRead("getGamesForPlayer", [playerAddress], {
+  const args = useMemo(() => [playerAddress] as const, [playerAddress]);
+  return useGameRead("getGamesForPlayer", args, {
     query: { enabled: !!playerAddress },
   });
 }
 
 export function useGetGame(gameId: number) {
-  return useGameRead("getGame", [BigInt(gameId)], {
+  const args = useMemo(() => [BigInt(gameId)] as const, [gameId]);
+  const result = useGameRead("getGame", args, {
     query: { enabled: gameId > 0 },
   });
+  return { ...result, data: result.data as GameDataView | undefined };
 }
 
 export function useGetGamesFromIds(gameIds: number[]) {
-  return useGameRead("getGamesFromIds", [gameIds.map((id) => BigInt(id))], {
+  const args = useMemo(
+    () => [gameIds.map((id) => BigInt(id))] as const,
+    // gameIds reference must be stable at call sites for this memo to be effective
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameIds],
+  );
+  return useGameRead("getGamesFromIds", args, {
     query: { enabled: gameIds.length > 0 },
   });
 }

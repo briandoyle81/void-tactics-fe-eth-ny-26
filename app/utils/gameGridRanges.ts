@@ -1,5 +1,83 @@
 import { Attributes, ShipPosition, ActionType } from "../types/types";
 
+export function hasLineOfSight(
+  row0: number,
+  col0: number,
+  row1: number,
+  col1: number,
+  blockedGrid: boolean[][],
+): boolean {
+  if (blockedGrid[row0] && blockedGrid[row0][col0]) return false;
+
+  if (row0 === row1 && col0 === col1) {
+    return !(blockedGrid[row1] && blockedGrid[row1][col1]);
+  }
+
+  const dRow = Math.abs(row1 - row0);
+  const dCol = Math.abs(col1 - col0);
+  const sRow = row1 > row0 ? 1 : row1 < row0 ? -1 : 0;
+  const sCol = col1 > col0 ? 1 : col1 < col0 ? -1 : 0;
+
+  let err = dCol - dRow;
+  let row = row0;
+  let col = col0;
+
+  while (true) {
+    if (row === row1 && col === col1) {
+      return !(blockedGrid[row1] && blockedGrid[row1][col1]);
+    }
+
+    const e2 = err * 2;
+
+    if (e2 === 0) {
+      if (
+        blockedGrid[row] &&
+        blockedGrid[row][col + sCol] &&
+        blockedGrid[row + sRow] &&
+        blockedGrid[row + sRow][col]
+      ) {
+        return false;
+      }
+      col += sCol;
+      err -= dRow;
+      row += sRow;
+      err += dCol;
+      if (
+        (row !== row1 || col !== col1) &&
+        blockedGrid[row] &&
+        blockedGrid[row][col]
+      ) {
+        return false;
+      }
+      continue;
+    }
+
+    if (e2 > -dRow) {
+      err -= dRow;
+      col += sCol;
+      if (
+        (row !== row1 || col !== col1) &&
+        blockedGrid[row] &&
+        blockedGrid[row][col]
+      ) {
+        return false;
+      }
+    }
+
+    if (e2 < dCol) {
+      err += dCol;
+      row += sRow;
+      if (
+        (row !== row1 || col !== col1) &&
+        blockedGrid[row] &&
+        blockedGrid[row][col]
+      ) {
+        return false;
+      }
+    }
+  }
+}
+
 interface MovementRangeParams {
   gridWidth: number;
   gridHeight: number;
@@ -402,50 +480,5 @@ export function computeShootingRange({
   }
 
   return validShootingPositions;
-
-  function hasLineOfSight(
-    row0: number,
-    col0: number,
-    row1: number,
-    col1: number,
-    grid: boolean[][],
-  ): boolean {
-    if (grid[row0] && grid[row0][col0]) return false;
-    if (grid[row1] && grid[row1][col1]) return false;
-
-    const dx = Math.abs(col1 - col0);
-    const dy = Math.abs(row1 - row0);
-    const sx = col0 < col1 ? 1 : -1;
-    const sy = row0 < row1 ? 1 : -1;
-    let err = dx - dy;
-
-    let x = col0;
-    let y = row0;
-
-    while (true) {
-      if (x === col1 && y === row1) break;
-
-      const e2 = 2 * err;
-      if (e2 > -dy) {
-        err -= dy;
-        x += sx;
-      }
-      if (e2 < dx) {
-        err += dx;
-        y += sy;
-      }
-
-      if (
-        (x !== col0 || y !== row0) &&
-        (x !== col1 || y !== row1) &&
-        grid[y] &&
-        grid[y][x]
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  }
 }
 

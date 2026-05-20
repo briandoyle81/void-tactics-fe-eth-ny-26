@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
@@ -24,10 +25,13 @@ export function useFleetsRead(
 ) {
   const { chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
-  const { FLEETS } = getContractAddresses(activeChainId);
+  const address = useMemo(
+    () => getContractAddresses(activeChainId).FLEETS as `0x${string}`,
+    [activeChainId],
+  );
 
   return useReadContract({
-    address: FLEETS as `0x${string}`,
+    address,
     abi: CONTRACT_ABIS.FLEETS as Abi,
     chainId: activeChainId,
     functionName,
@@ -57,14 +61,21 @@ export function useFleetShipIdsAndPositions(
 ) {
   const { chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
-  const { FLEETS } = getContractAddresses(activeChainId);
+  const address = useMemo(
+    () => getContractAddresses(activeChainId).FLEETS as `0x${string}`,
+    [activeChainId],
+  );
+  const args = useMemo(
+    () => (fleetId ? [fleetId] : undefined) as readonly unknown[] | undefined,
+    [fleetId],
+  );
 
   return useReadContract({
-    address: FLEETS as `0x${string}`,
+    address,
     abi: CONTRACT_ABIS.FLEETS as Abi,
     chainId: activeChainId,
     functionName: "getFleetShipIdsAndPositions",
-    args: fleetId ? [fleetId] : undefined,
+    args,
     query: options?.query,
   });
 }

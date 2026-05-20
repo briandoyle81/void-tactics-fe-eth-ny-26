@@ -22,9 +22,6 @@ export function useShipActions() {
   // Handle write contract errors (including user rejection)
   useEffect(() => {
     if (error) {
-      console.error("Write contract error:", error);
-
-      // Check if the error is due to user rejection
       const errorMessage = error.message || "";
       if (
         errorMessage.includes("User rejected") ||
@@ -78,9 +75,6 @@ export function useShipActions() {
         void refetch();
       }, 1500);
     } catch (err: unknown) {
-      console.error("Error constructing ship:", err);
-
-      // Check if the error is due to user rejection
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
         errorMessage.includes("User rejected") ||
@@ -134,9 +128,6 @@ export function useShipActions() {
         void refetch();
       }, 1500);
     } catch (err: unknown) {
-      console.error("Error constructing all ships:", err);
-
-      // Check if the error is due to user rejection
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
         errorMessage.includes("User rejected") ||
@@ -201,9 +192,6 @@ export function useShipActions() {
         void refetch();
       }, 1500);
     } catch (err: unknown) {
-      console.error("Error recycling ships:", err);
-
-      // Check if the error is due to user rejection
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
         errorMessage.includes("User rejected") ||

@@ -1,65 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useMemo } from "react";
 import { useAccount } from "wagmi";
-import { getSelectedChainId } from "../config/networks";
 import { useGetGamesForPlayer } from "./useGameContract";
 import { GameDataView } from "../types/types";
 
 export function usePlayerGames() {
-  const { address, chainId: walletChainId } = useAccount();
-  const activeChainId = walletChainId ?? getSelectedChainId();
-  const [games, setGames] = useState<GameDataView[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { address } = useAccount();
 
-  // Single call: Get all games for the player
-  const {
-    data: gamesData,
-    isLoading: isLoadingGames,
-    error: gamesError,
-    refetch: refetchGames,
-  } = useGetGamesForPlayer(address || "0x0");
+  const { data: gamesData, isLoading, error, refetch } = useGetGamesForPlayer(
+    address || "0x0",
+  );
 
-  const prevChainIdRef = useRef<number | null>(null);
-  useEffect(() => {
-    const prev = prevChainIdRef.current;
-    prevChainIdRef.current = activeChainId;
-    if (prev === null || prev === activeChainId) return;
-    setGames([]);
-    setError(null);
-  }, [activeChainId]);
-
-  // Process the game data when it changes
-  useEffect(() => {
-    setIsLoading(isLoadingGames);
-    setError(gamesError?.message || null);
-
-    if (!gamesData || !Array.isArray(gamesData)) {
-      setGames([]);
-      return;
-    }
-
-    const fetchedGames: GameDataView[] = [];
-
-    // Process all games
-    gamesData.forEach((gameData, index) => {
-      if (gameData && typeof gameData === "object") {
-        try {
-          // The contract returns GameDataView structs directly
-          const game = gameData as GameDataView;
-          fetchedGames.push(game);
-        } catch (err) {
-          console.error(`Error converting game at index ${index}:`, err);
-        }
-      }
-    });
-
-    setGames(fetchedGames);
-  }, [gamesData, isLoadingGames, gamesError, address, activeChainId]);
+  const games = useMemo((): GameDataView[] => {
+    if (!Array.isArray(gamesData)) return [];
+    return (gamesData as GameDataView[]).filter(
+      (g): g is GameDataView => g != null && typeof g === "object",
+    );
+  }, [gamesData]);
 
   return {
     games,
     isLoading,
-    error,
-    refetch: refetchGames,
+    error: error?.message ?? null,
+    refetch,
   };
 }

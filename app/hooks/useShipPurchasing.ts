@@ -9,6 +9,8 @@ import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWr
 import { getContractAddresses } from "../config/contracts";
 import { toast } from "react-hot-toast";
 import { useOwnedShips } from "./useOwnedShips";
+
+const POST_PURCHASE_REFETCH_DELAY_MS = 2000;
 import { useEffect } from "react";
 import { getVariantForChainId } from "../config/networks";
 import { useShipsPurchaseInfo } from "./useShipsPurchaseInfo";
@@ -66,8 +68,6 @@ export function useShipPurchasing() {
 
   useEffect(() => {
     if (error) {
-      console.error("Write contract error:", error);
-
       const errorMessage = error.message || "";
       if (
         errorMessage.includes("User rejected") ||
@@ -84,7 +84,7 @@ export function useShipPurchasing() {
   useEffect(() => {
     if (isConfirmed && hash) {
       toast.success("Ships purchased successfully!");
-      setTimeout(() => refetch(), 2000);
+      setTimeout(() => refetch(), POST_PURCHASE_REFETCH_DELAY_MS);
     }
   }, [isConfirmed, hash, refetch]);
 
@@ -143,8 +143,6 @@ export function useShipPurchasing() {
         )),
       });
     } catch (err: unknown) {
-      console.error("Error purchasing ships:", err);
-
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (
         errorMessage.includes("User rejected") ||
@@ -157,9 +155,6 @@ export function useShipPurchasing() {
       }
     }
   };
-
-  const purchaseSingleShip = (tier: number) => purchaseShips(tier);
-  const purchaseMultipleShips = (tier: number) => purchaseShips(tier);
 
   const getPurchaseCosts = (tier: number, maxCount: number = 10) => {
     const p = pricesWei[tier];
@@ -195,8 +190,6 @@ export function useShipPurchasing() {
     isLoadingPurchaseInfo,
 
     purchaseShips,
-    purchaseSingleShip,
-    purchaseMultipleShips,
 
     getPurchaseCosts,
     canAfford,

@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAccount } from "wagmi";
 import { useShipsRead } from "./useShipsContract";
 import { Ship } from "../types/types";
 import { cacheShipsData } from "./useShipDataCache";
 import { useSelectedChainId } from "./useSelectedChainId";
+
+const REFETCH_DEBOUNCE_MS = 400;
+const REFETCH_RETRY_MS = 2000;
 
 export function useOwnedShips() {
   const { address } = useAccount();
@@ -14,17 +17,17 @@ export function useOwnedShips() {
     baselineOwnedIdsKeyRef.current = null;
   }, [address, activeChainId]);
 
-  // Get ship IDs owned by the user
-  const shipIdsResult = useShipsRead(
-    "getShipIdsOwned",
-    address ? [address] : undefined,
+  const shipIdsArgs = useMemo(
+    () => (address ? [address] : undefined),
+    [address],
   );
+  const shipIdsResult = useShipsRead("getShipIdsOwned", shipIdsArgs);
 
-  // Get ship details for all owned ships
-  const shipsDataResult = useShipsRead(
-    "getShipsByIds",
-    shipIdsResult.data ? [shipIdsResult.data] : undefined,
+  const shipsDataArgs = useMemo(
+    () => (shipIdsResult.data ? [shipIdsResult.data] : undefined),
+    [shipIdsResult.data],
   );
+  const shipsDataResult = useShipsRead("getShipsByIds", shipsDataArgs);
 
   const prevChainIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -85,16 +88,16 @@ export function useOwnedShips() {
 
   // Refetch IDs first, then ship rows. Same-ID updates (construct, attribute sync)
   // are served by the second refetch. New IDs rely on `ownedIdsKey` effect above.
-  const refetch = async () => {
+  const refetch = useCallback(async () => {
     await shipIdsResult.refetch();
     await shipsDataResult.refetch();
     setTimeout(() => {
       void shipsDataResult.refetch();
-    }, 400);
+    }, REFETCH_DEBOUNCE_MS);
     setTimeout(() => {
       void shipsDataResult.refetch();
-    }, 2000);
-  };
+    }, REFETCH_RETRY_MS);
+  }, [shipIdsResult.refetch, shipsDataResult.refetch]);
 
   return {
     shipIds: (shipIdsResult.data as bigint[]) || [],

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "./useSelectedChainId";
@@ -96,15 +97,16 @@ export function useShipAttributesWrite() {
 }
 
 export function useShipAttributesOwner() {
-  const { data: owner } = useShipAttributesRead("owner");
+  const { data } = useShipAttributesRead("owner");
   const { address } = useAccount();
+  const owner = typeof data === "string" ? (data as `0x${string}`) : undefined;
 
   return {
-    owner: owner as string,
+    owner,
     isOwner:
-      address &&
-      owner &&
-      address.toLowerCase() === (owner as string).toLowerCase(),
+      !!address &&
+      !!owner &&
+      address.toLowerCase() === owner.toLowerCase(),
   };
 }
 
@@ -122,21 +124,26 @@ export function useCosts() {
 }
 
 export function useAttributesVersionBase(version: number) {
-  return useShipAttributesRead("getAttributesVersionBase", [version]);
+  const args = useMemo(() => [version] as const, [version]);
+  return useShipAttributesRead("getAttributesVersionBase", args);
 }
 
 export function useGunData(weaponIndex: number) {
-  return useShipAttributesRead("getGunData", [weaponIndex]);
+  const args = useMemo(() => [weaponIndex] as const, [weaponIndex]);
+  return useShipAttributesRead("getGunData", args);
 }
 
 export function useArmorData(armorIndex: number) {
-  return useShipAttributesRead("getArmorData", [armorIndex]);
+  const args = useMemo(() => [armorIndex] as const, [armorIndex]);
+  return useShipAttributesRead("getArmorData", args);
 }
 
 export function useShieldData(shieldIndex: number) {
-  return useShipAttributesRead("getShieldData", [shieldIndex]);
+  const args = useMemo(() => [shieldIndex] as const, [shieldIndex]);
+  return useShipAttributesRead("getShieldData", args);
 }
 
 export function useSpecialData(specialIndex: number) {
-  return useShipAttributesRead("getSpecialData", [specialIndex]);
+  const args = useMemo(() => [specialIndex] as const, [specialIndex]);
+  return useShipAttributesRead("getSpecialData", args);
 }
