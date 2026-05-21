@@ -126,10 +126,20 @@ export function RepairDroneAnimation({
         const outBend = bendBase * d.outScale;
         const backBend = bendBase * d.backScale;
 
-        const m1x = mBaseX + px * outBend;
-        const m1y = mBaseY + py * outBend;
-        const m2x = mBaseX + px * backBend;
-        const m2y = mBaseY + py * backBend;
+        let m1x = mBaseX + px * outBend;
+        let m1y = mBaseY + py * outBend;
+        let m2x = mBaseX + px * backBend;
+        let m2y = mBaseY + py * backBend;
+
+        // Self-repair: route each drone via a unique approach angle so they
+        // orbit from the start instead of sitting motionless at the ship.
+        if (dx === 0 && dy === 0) {
+          const angle = (i / drones.length) * Math.PI * 2;
+          m1x = Math.cos(angle) * orbit * 2;
+          m1y = Math.sin(angle) * orbit;
+          m2x = Math.cos(angle + Math.PI) * orbit * 2;
+          m2y = Math.sin(angle + Math.PI) * orbit;
+        }
 
         return (
         <div
@@ -146,7 +156,37 @@ export function RepairDroneAnimation({
             } as React.CSSProperties
           }
         >
-          <div className="repair-drone__orbiter" />
+          {/* X-frame quadcopter drone */}
+          <svg
+            width="14"
+            height="14"
+            viewBox="-7 -7 14 14"
+            style={{ overflow: "visible" }}
+          >
+            {/* Soft glow halo */}
+            <circle cx="0" cy="0" r="6" fill="#56d6ff" opacity="0.1" />
+            {/* Arms — X configuration */}
+            {([[-1.2,-1.2,-4.8,-4.8],[1.2,-1.2,4.8,-4.8],[-1.2,1.2,-4.8,4.8],[1.2,1.2,4.8,4.8]] as [number,number,number,number][]).map(([x1,y1,x2,y2], ai) => (
+              <line key={ai} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#56d6ff" strokeWidth="0.9" opacity="0.85" />
+            ))}
+            {/* Spinning rotor rings */}
+            {([[-4.8,-4.8],[4.8,-4.8],[-4.8,4.8],[4.8,4.8]] as [number,number][]).map(([cx, cy], ri) => (
+              <g key={ri}>
+                <circle cx={cx} cy={cy} r="2" fill="none" stroke="#56d6ff" strokeWidth="0.6" strokeDasharray="2 1.2" opacity="0.75">
+                  <animateTransform attributeName="transform" type="rotate" from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="0.35s" repeatCount="indefinite" />
+                </circle>
+                <circle cx={cx} cy={cy} r="0.5" fill="#56d6ff" opacity="0.6" />
+              </g>
+            ))}
+            {/* Body: diamond */}
+            <polygon points="0,-2.4 2.4,0 0,2.4 -2.4,0" fill="#56d6ff" opacity="0.95" />
+            {/* Status light: green */}
+            <circle cx="0" cy="0" r="0.85" fill="#6bff8f" />
+            {/* Repair aura - pulsing green ring, visible during repair phase only */}
+            <circle cx="0" cy="0" r="4" fill="none" stroke="#6bff8f" strokeWidth="1.2" className="repair-drone__aura" style={{ animationDelay: `${d.delayMs}ms` }} />
+            {/* Repair sparks - spinning dashed ring */}
+            <circle cx="0" cy="0" r="5.5" fill="none" stroke="#6bff8f" strokeWidth="0.6" strokeDasharray="1.5 2.5" className="repair-drone__sparks" style={{ animationDelay: `${d.delayMs}ms` }} />
+          </svg>
         </div>
         );
       })}

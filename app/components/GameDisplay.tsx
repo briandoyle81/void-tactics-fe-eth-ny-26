@@ -1156,8 +1156,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       const distance =
         Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
       const canShoot = distance === 1 || distance <= shootingRange;
+      // Repair drones can target the caster's own ship (distance 0)
+      const isSelfRepair =
+        selectedWeaponType === "special" && specialType === 2 && distance === 0;
 
-      if (canShoot && distance > 0) {
+      if ((canShoot && distance > 0) || isSelfRepair) {
         const shouldCheckLineOfSight =
           distance > 1 &&
           (selectedWeaponType !== "special" ||
@@ -2315,7 +2318,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
   const retreatPrepShipId =
-    selectedShipId != null && actionOverride === ActionType.Retreat
+    selectedShipId != null &&
+    actionOverride === ActionType.Retreat &&
+    isShipOwnedByCurrentPlayer(selectedShipId)
       ? selectedShipId
       : null;
 
@@ -3025,6 +3030,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   const targetShip = shipMap.get(target.shipId);
                   const isSelectedTarget =
                     targetShipId !== null && targetShipId === target.shipId;
+                  const isRepair =
+                    selectedWeaponType === "special" && specialType === 2;
+                  const accentColor = isRepair
+                    ? "var(--color-cyan)"
+                    : "var(--color-warning-red)";
                   return (
                     <button
                       key={target.shipId.toString()}
@@ -3035,17 +3045,15 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         fontFamily:
                           "var(--font-rajdhani), 'Arial Black', sans-serif",
                         borderColor: isSelectedTarget
-                          ? "var(--color-warning-red)"
+                          ? accentColor
                           : "var(--color-gunmetal)",
                         borderTopColor: isSelectedTarget
-                          ? "var(--color-warning-red)"
+                          ? accentColor
                           : "var(--color-steel)",
                         borderLeftColor: isSelectedTarget
-                          ? "var(--color-warning-red)"
+                          ? accentColor
                           : "var(--color-steel)",
-                        color: isSelectedTarget
-                          ? "var(--color-warning-red)"
-                          : "var(--color-warning-red)",
+                        color: accentColor,
                         backgroundColor: isSelectedTarget
                           ? "var(--color-steel)"
                           : "var(--color-slate)",

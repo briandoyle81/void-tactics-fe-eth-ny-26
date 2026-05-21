@@ -8,6 +8,7 @@ interface MissileShootingAnimationProps {
   attackerCol: number;
   targetRow: number;
   targetCol: number;
+  facingRight: boolean;
 }
 
 export function MissileShootingAnimation({
@@ -16,6 +17,7 @@ export function MissileShootingAnimation({
   attackerCol,
   targetRow,
   targetCol,
+  facingRight,
 }: MissileShootingAnimationProps) {
   const [missiles, setMissiles] = useState<
     Array<{
@@ -33,6 +35,7 @@ export function MissileShootingAnimation({
       spawnY: number;
       driftStartTime: number;
       startTime: number;
+      trail: { x: number; y: number }[];
     }>
   >([]);
   const missileIdRef = useRef(0);
@@ -56,11 +59,26 @@ export function MissileShootingAnimation({
     [gridContainerRef]
   );
 
+  // Offset from cell center to the missile launch port.
+  // Facing right: +5% cell width, -10% cell height
+  // Facing left:  -5% cell width, -10% cell height
+  const getAttackerOrigin = useCallback(() => {
+    const center = getCellCenter(attackerRow, attackerCol);
+    if (!gridContainerRef.current) return center;
+    const rect = gridContainerRef.current.getBoundingClientRect();
+    const cw = rect.width / 17;
+    const ch = rect.height / 11;
+    return {
+      x: center.x + (facingRight ? cw * 0.05 : -cw * 0.05),
+      y: center.y - ch * 0.10,
+    };
+  }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
+
   // Select target spot and spawn missile
   const spawnMissile = useCallback(() => {
     if (!gridContainerRef.current) return;
 
-    const attackerCenter = getCellCenter(attackerRow, attackerCol);
+    const attackerCenter = getAttackerOrigin();
     const targetCenter = getCellCenter(targetRow, targetCol);
 
     // Select a random target spot within target cell
@@ -105,14 +123,15 @@ export function MissileShootingAnimation({
       angle,
       targetX,
       targetY,
-      startX: driftX, // Acceleration starts from drift position
+      startX: driftX,
       startY: driftY,
-      driftX, // Store drift position
+      driftX,
       driftY,
-      spawnX: attackerCenter.x, // Store spawn position
+      spawnX: attackerCenter.x,
       spawnY: attackerCenter.y,
       driftStartTime: Date.now(),
-      startTime: Date.now() + INITIAL_DRIFT_TIME * 1000, // Acceleration starts after drift
+      startTime: Date.now() + INITIAL_DRIFT_TIME * 1000,
+      trail: [] as { x: number; y: number }[],
     };
 
     setMissiles([firstMissile]);
@@ -156,6 +175,7 @@ export function MissileShootingAnimation({
         spawnY: attackerCenter.y,
         driftStartTime: Date.now(),
         startTime: Date.now() + INITIAL_DRIFT_TIME * 1000,
+        trail: [] as { x: number; y: number }[],
       };
 
       setMissiles((prev) => [...prev, secondMissile]);
@@ -167,6 +187,7 @@ export function MissileShootingAnimation({
     targetRow,
     targetCol,
     getCellCenter,
+    getAttackerOrigin,
   ]);
 
   // Handle missile despawn and respawn
@@ -308,11 +329,26 @@ export function MissileShootingAnimation({
             return null;
           }
 
+          // Store the exhaust (base) position in the trail, not the tip.
+          // Base is at local (0, 12); world: translate + rotate gives:
+          //   exhaustX = x - 12·sin(angle), exhaustY = y + 12·cos(angle)
+          const TRIANGLE_HEIGHT = 12;
+          const angleRad = (angle * Math.PI) / 180;
+          const exhaustX = missile.x - TRIANGLE_HEIGHT * Math.sin(angleRad);
+          const exhaustY = missile.y + TRIANGLE_HEIGHT * Math.cos(angleRad);
+
+          const MAX_TRAIL = 10;
+          const newTrail = [
+            { x: exhaustX, y: exhaustY },
+            ...missile.trail.slice(0, MAX_TRAIL - 1),
+          ];
+
           return {
             ...missile,
             x: currentX,
             y: currentY,
             angle,
+            trail: newTrail,
           };
         })
         .filter((m): m is NonNullable<typeof m> => m !== null);
@@ -350,10 +386,9 @@ export function MissileShootingAnimation({
 
   const gridRect = gridContainerRef.current.getBoundingClientRect();
 
-  // Create acute isosceles triangle points
-  // Triangle points: tip at (0, 0), base points at (-base/2, height) and (base/2, height)
-  const triangleSize = 8; // Base width
-  const triangleHeight = 12; // Height
+  // Acute isosceles triangle: tip at (0,0) pointing toward target, base below
+  const triangleSize = 8;
+  const triangleHeight = 12;
   const tipX = 0;
   const tipY = 0;
   const baseLeftX = -triangleSize / 2;
@@ -363,25 +398,44 @@ export function MissileShootingAnimation({
   return (
     <svg
       className="absolute pointer-events-none z-20"
-      style={{
-        left: `0px`,
-        top: `0px`,
-        width: `${gridRect.width}px`,
-        height: `${gridRect.height}px`,
-      }}
+      style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
       viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
       preserveAspectRatio="none"
     >
-      {missiles.map((missile) => (
-        <polygon
-          key={missile.id}
-          points={`${tipX},${tipY} ${baseLeftX},${baseY} ${baseRightX},${baseY}`}
-          fill="red"
-          stroke="red"
-          strokeWidth="0"
-          transform={`translate(${missile.x}, ${missile.y}) rotate(${missile.angle})`}
-        />
-      ))}
+      {missiles.map((missile) => {
+        // Exhaust (base) world position: local (0, triangleHeight) after rotate+translate
+        const aRad = (missile.angle * Math.PI) / 180;
+        const exX = missile.x - triangleHeight * Math.sin(aRad);
+        const exY = missile.y + triangleHeight * Math.cos(aRad);
+        return (
+          <g key={missile.id}>
+            {/* Exhaust trail */}
+            {missile.trail.map((pos, i) => {
+              const t = i / Math.max(missile.trail.length - 1, 1);
+              return (
+                <circle
+                  key={i}
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={Math.max(0.5, (1 - t * 0.65) * 4)}
+                  fill="#ffaa00"
+                  opacity={(1 - t) * 0.55}
+                />
+              );
+            })}
+            {/* Engine glow at exhaust end */}
+            <circle cx={exX} cy={exY} r={7} fill="#ffcc00" opacity={0.2} />
+            {/* Missile body */}
+            <polygon
+              points={`${tipX},${tipY} ${baseLeftX},${baseY} ${baseRightX},${baseY}`}
+              fill="#ff3300"
+              stroke="#ff7700"
+              strokeWidth="0.75"
+              transform={`translate(${missile.x}, ${missile.y}) rotate(${missile.angle})`}
+            />
+          </g>
+        );
+      })}
     </svg>
   );
 }

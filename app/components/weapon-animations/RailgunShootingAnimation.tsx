@@ -8,6 +8,7 @@ interface RailgunShootingAnimationProps {
   attackerCol: number;
   targetRow: number;
   targetCol: number;
+  facingRight: boolean;
 }
 
 export function RailgunShootingAnimation({
@@ -16,6 +17,7 @@ export function RailgunShootingAnimation({
   attackerCol,
   targetRow,
   targetCol,
+  facingRight,
 }: RailgunShootingAnimationProps) {
   const [projectiles, setProjectiles] = useState<
     Array<{
@@ -31,9 +33,14 @@ export function RailgunShootingAnimation({
       travelTime: number;
     }>
   >([]);
+  const [muzzleFlashes, setMuzzleFlashes] = useState<
+    { id: number; x: number; y: number; size: number }[]
+  >([]);
   const projectileIdRef = useRef(0);
+  const flashIdRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
   const hasFiredRef = useRef<string>("");
+  const instanceId = useRef(Math.random().toString(36).slice(2));
 
   // Calculate cell centers
   const getCellCenter = useCallback(
@@ -52,11 +59,26 @@ export function RailgunShootingAnimation({
     [gridContainerRef]
   );
 
+  // Offset from cell center to the railgun barrel port.
+  // Facing right: +60% cell width, -5% cell height
+  // Facing left:  -60% cell width, -5% cell height
+  const getAttackerOrigin = useCallback(() => {
+    const center = getCellCenter(attackerRow, attackerCol);
+    if (!gridContainerRef.current) return center;
+    const rect = gridContainerRef.current.getBoundingClientRect();
+    const cw = rect.width / 17;
+    const ch = rect.height / 11;
+    return {
+      x: center.x + (facingRight ? cw * 0.30 : -cw * 0.30),
+      y: center.y - ch * 0.15,
+    };
+  }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
+
   // Spawn a new projectile
   const spawnProjectile = useCallback(() => {
     if (!gridContainerRef.current) return;
 
-    const attackerCenter = getCellCenter(attackerRow, attackerCol);
+    const attackerCenter = getAttackerOrigin();
     const targetCenter = getCellCenter(targetRow, targetCol);
 
     // Select a random target spot within target cell
@@ -91,10 +113,20 @@ export function RailgunShootingAnimation({
     };
 
     setProjectiles((prev) => {
-      // Only add if there are no existing projectiles (single shot)
       if (prev.length > 0) return prev;
       return [newProjectile];
     });
+
+    // Muzzle flash at attacker origin
+    const flashId = flashIdRef.current++;
+    const flashSize = 26;
+    setMuzzleFlashes((prev) => [
+      ...prev,
+      { id: flashId, x: attackerCenter.x, y: attackerCenter.y, size: flashSize },
+    ]);
+    setTimeout(() => {
+      setMuzzleFlashes((prev) => prev.filter((f) => f.id !== flashId));
+    }, 150);
 
     // Remove projectile after it reaches target
     setTimeout(() => {
@@ -107,6 +139,7 @@ export function RailgunShootingAnimation({
     targetRow,
     targetCol,
     getCellCenter,
+    getAttackerOrigin,
   ]);
 
   // Handle projectile despawn and respawn (endless cycling with single projectile)
@@ -200,41 +233,72 @@ export function RailgunShootingAnimation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attackerRow, attackerCol, targetRow, targetCol]);
 
-  if (!gridContainerRef.current || projectiles.length === 0) return null;
+  if (!gridContainerRef.current || (projectiles.length === 0 && muzzleFlashes.length === 0)) return null;
 
   const gridRect = gridContainerRef.current.getBoundingClientRect();
-
-  // Create cylinder shape (small rectangle)
-  const cylinderWidth = 3; // Width of cylinder (reduced by 50%)
-  const cylinderHeight = 6; // Length of cylinder (reduced by 50%)
+  const iid = instanceId.current;
 
   return (
-    <svg
-      className="absolute pointer-events-none z-20"
-      style={{
-        left: `0px`,
-        top: `0px`,
-        width: `${gridRect.width}px`,
-        height: `${gridRect.height}px`,
-      }}
-      viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
-      preserveAspectRatio="none"
-    >
-      {projectiles.map((projectile) => (
-        <rect
-          key={projectile.id}
-          x={-cylinderWidth / 2}
-          y={-cylinderHeight / 2}
-          width={cylinderWidth}
-          height={cylinderHeight}
-          fill="white"
-          stroke="white"
-          strokeWidth="1"
-          transform={`translate(${projectile.x}, ${projectile.y}) rotate(${
-            projectile.angle + 90
-          })`}
-        />
-      ))}
-    </svg>
+    <>
+      <svg
+        className="absolute pointer-events-none z-20"
+        style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
+        viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
+        preserveAspectRatio="none"
+      >
+        <defs>
+          {projectiles.map((p) => (
+            <linearGradient
+              key={p.id}
+              id={`rg-trail-${iid}-${p.id}`}
+              x1={p.startX}
+              y1={p.startY}
+              x2={p.x}
+              y2={p.y}
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor="#56d6ff" stopOpacity="0" />
+              <stop offset="60%" stopColor="#56d6ff" stopOpacity="0.45" />
+              <stop offset="90%" stopColor="#56d6ff" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
+            </linearGradient>
+          ))}
+        </defs>
+        {projectiles.map((p) => (
+          <g key={p.id}>
+            {/* Comet trail: gradient line from spawn to current position */}
+            <line
+              x1={p.startX} y1={p.startY}
+              x2={p.x} y2={p.y}
+              stroke={`url(#rg-trail-${iid}-${p.id})`}
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            {/* Outer glow at tip */}
+            <circle cx={p.x} cy={p.y} r={5} fill="#56d6ff" opacity={0.3} />
+            {/* Bright core at tip */}
+            <circle cx={p.x} cy={p.y} r={2.5} fill="#ffffff" />
+          </g>
+        ))}
+      </svg>
+      {/* Muzzle flashes */}
+      <div
+        className="absolute pointer-events-none z-20"
+        style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
+      >
+        {muzzleFlashes.map((f) => (
+          <div
+            key={f.id}
+            className="railgun-muzzle-flash"
+            style={{
+              left: f.x - f.size / 2,
+              top: f.y - f.size / 2,
+              width: f.size,
+              height: f.size,
+            }}
+          />
+        ))}
+      </div>
+    </>
   );
 }

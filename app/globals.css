@@ -16,6 +16,7 @@
   --color-amber: #ffb84d;
   --color-cyan: #56d6ff;
   --color-warning-red: #ff4d4d;
+  --color-orange: #ff7700;
   --color-purple: #c084fc;
 
   /* Text Colors */
@@ -49,6 +50,7 @@
   --color-amber: #ffb84d;
   --color-cyan: #56d6ff;
   --color-warning-red: #ff4d4d;
+  --color-orange: #ff7700;
   --color-purple: #c084fc;
 
   /* Text Colors */
@@ -227,16 +229,40 @@ body::before {
 
 /* Laser shooting animation */
 @keyframes laser-fade {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+  0%   { opacity: 1; }
+  60%  { opacity: 0.7; }
+  100% { opacity: 0; }
 }
 
 .animate-laser-fade {
-  animation: laser-fade 0.5s linear forwards;
+  animation: laser-fade 0.3s linear forwards;
+}
+
+@keyframes laser-impact-flare {
+  0%   { transform: scale(0.1); opacity: 0.9; }
+  50%  { opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.laser-impact-flare {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, #ff3333 40%, transparent 80%);
+  animation: laser-impact-flare 0.2s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes railgun-muzzle-flash {
+  0%   { transform: scale(0.2); opacity: 0.9; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.railgun-muzzle-flash {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #56d6ff 55%, transparent 85%);
+  animation: railgun-muzzle-flash 0.15s ease-out forwards;
+  pointer-events: none;
 }
 
 /* Flee: ship zooms off toward starting side */
@@ -423,16 +449,33 @@ body::before {
     transform: translate(var(--m1x), var(--m1y));
     opacity: 1;
   }
+  /* ── Repair scan: orbit the target ship during the work window ── */
   35% {
-    /* arrive at target */
-    transform: translate(var(--dx), var(--dy));
+    transform: translate(var(--dx), calc(var(--dy) - var(--orbit)));
+    opacity: 1;
+  }
+  42% {
+    transform: translate(calc(var(--dx) + var(--orbit) * 2), var(--dy));
+    opacity: 1;
+  }
+  49% {
+    transform: translate(var(--dx), calc(var(--dy) + var(--orbit)));
+    opacity: 1;
+  }
+  56% {
+    transform: translate(calc(var(--dx) - var(--orbit) * 2), var(--dy));
+    opacity: 1;
+  }
+  63% {
+    transform: translate(var(--dx), calc(var(--dy) - var(--orbit)));
     opacity: 1;
   }
   65% {
-    /* hover at target */
+    /* settle at target before departing */
     transform: translate(var(--dx), var(--dy));
     opacity: 1;
   }
+  /* ─────────────────────────────────────────────────────────────── */
   82% {
     /* return arc midpoint */
     transform: translate(var(--m2x), var(--m2y));
@@ -445,6 +488,44 @@ body::before {
     transform: translate(0px, 0px);
     opacity: 0;
   }
+}
+
+@keyframes repair-orbiter-opacity {
+  0%   { opacity: 0; }
+  38%  { opacity: 0; }
+  43%  { opacity: 1; }
+  67%  { opacity: 1; }
+  72%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes repair-pulse-scale {
+  0%   { transform: scale(0.4); }
+  50%  { transform: scale(2.0); }
+  100% { transform: scale(0.4); }
+}
+
+@keyframes repair-spark-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Repair aura: pulsing ring — only visible during the work window */
+.repair-drone__aura {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    repair-orbiter-opacity var(--dur, 3.2s) ease-in-out infinite,
+    repair-pulse-scale 0.5s ease-in-out infinite;
+}
+
+/* Repair sparks: spinning dashed ring — same gating */
+.repair-drone__sparks {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    repair-orbiter-opacity var(--dur, 3.2s) ease-in-out infinite,
+    repair-spark-rotate 1.0s linear infinite;
 }
 
 @keyframes repair-drone-orbit {
@@ -467,56 +548,13 @@ body::before {
 
 .repair-drone {
   position: absolute;
-  left: calc(var(--ax) - 2px);
-  top: calc(var(--ay) - 2px);
-  width: 4px;
-  height: 4px;
-  background: var(--color-cyan);
+  left: calc(var(--ax) - 7px);
+  top: calc(var(--ay) - 7px);
+  width: 14px;
+  height: 14px;
   opacity: 0;
   animation: repair-drone-flight var(--dur, 3.2s) ease-in-out infinite;
-}
-
-.repair-drone::after {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: -1px;
-  width: 6px;
-  height: 6px;
-  background: rgba(86, 214, 255, 0.18);
-  pointer-events: none;
-}
-
-.repair-drone__orbiter {
-  position: absolute;
-  left: -1px;
-  top: -1px;
-  width: 6px;
-  height: 6px;
-  background: rgba(107, 255, 143, 0.65); /* subtle green service light */
-  opacity: 0;
-  animation: repair-drone-orbit 0.55s linear infinite;
-}
-
-@keyframes repair-orbiter-opacity {
-  0%,
-  30% {
-    opacity: 0;
-  }
-  40%,
-  60% {
-    opacity: 1;
-  }
-  70%,
-  100% {
-    opacity: 0;
-  }
-}
-
-.repair-drone__orbiter {
-  animation:
-    repair-drone-orbit 0.55s linear infinite,
-    repair-orbiter-opacity var(--dur, 3.2s) ease-in-out infinite;
+  filter: drop-shadow(0 0 3px rgba(86, 214, 255, 0.75));
 }
 
 /* Functional pulse for targeting, shields, weapons */

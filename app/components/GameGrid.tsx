@@ -814,20 +814,79 @@ export function GameGrid({
                     if (isCellDestroyed) {
                       return;
                     }
-                    const canRamDisabledEnemy =
+                    // Disabled enemy: cycle weapon targeting ↔ ramming when eligible for both.
+                    // NOTE: isMovementTile becomes false once previewPosition is set (movementRange
+                    // returns [] when previewPosition is set), so we compute ranges directly from
+                    // the ship's actual current position instead of relying on isMovementTile.
+                    const isDisabledEnemy =
                       !!selectedShipId &&
                       isCurrentPlayerTurn &&
                       isShipOwnedByCurrentPlayer(selectedShipId) &&
-                      isMovementTile &&
                       !isShipOwnedByCurrentPlayer(cell.shipId) &&
                       (() => {
                         const targetAttrs = getShipAttributes(cell.shipId);
                         return !!targetAttrs && targetAttrs.hullPoints === 0;
                       })();
-                    if (canRamDisabledEnemy) {
-                      setPreviewPosition({ row: rowIndex, col: colIndex });
-                      setTargetShipId(null);
-                      return;
+
+                    if (isDisabledEnemy) {
+                      // Find selected ship's actual current position.
+                      // When previewPosition === ship's current cell, the grid overwrites the
+                      // original cell with isPreview:true, so the !isPreview scan returns -1.
+                      // Fall back to previewPosition in that case.
+                      let selRow = -1, selCol = -1;
+                      for (let r = 0; r < grid.length && selRow === -1; r++) {
+                        for (let c = 0; c < grid[r].length; c++) {
+                          const gc = grid[r][c];
+                          if (gc?.shipId === selectedShipId && !gc.isPreview) {
+                            selRow = r; selCol = c; break;
+                          }
+                        }
+                      }
+                      if (selRow === -1 && previewPosition) {
+                        selRow = previewPosition.row;
+                        selCol = previewPosition.col;
+                      }
+                      const selAttrs = getShipAttributes(selectedShipId!);
+                      const moveRange = selAttrs?.movement || 1;
+                      const weapRange = selAttrs?.range || 1;
+                      const dist =
+                        selRow >= 0
+                          ? Math.abs(rowIndex - selRow) + Math.abs(colIndex - selCol)
+                          : Infinity;
+                      const inMoveRange = dist > 0 && dist <= moveRange;
+                      const inWeaponRange = dist === 1 || dist <= weapRange;
+
+                      const alreadyRamming =
+                        previewPosition?.row === rowIndex &&
+                        previewPosition?.col === colIndex;
+                      const previewAtCurrentPos =
+                        selRow >= 0 &&
+                        previewPosition?.row === selRow &&
+                        previewPosition?.col === selCol;
+                      const noMoveElsewhere =
+                        previewPosition === null || previewAtCurrentPos || alreadyRamming;
+
+                      if (inMoveRange && inWeaponRange && noMoveElsewhere) {
+                        if (targetShipId === cell.shipId) {
+                          // 2nd click: weapon → ramming
+                          setPreviewPosition({ row: rowIndex, col: colIndex });
+                          setTargetShipId(null);
+                          return;
+                        }
+                        if (alreadyRamming) {
+                          // 3rd click: ramming → weapon targeting (shoot from current pos)
+                          if (selRow >= 0) setPreviewPosition({ row: selRow, col: selCol });
+                          setTargetShipId(cell.shipId);
+                          return;
+                        }
+                        // 1st click: fall through to weapon targeting below
+                      } else if (inMoveRange) {
+                        // In movement range only (not weapon range): always ram
+                        setPreviewPosition({ row: rowIndex, col: colIndex });
+                        setTargetShipId(null);
+                        return;
+                      }
+                      // In weapon range only (or out of both): fall through to normal targeting
                     }
                     // Check for repair drone auto-switch FIRST (before any other logic)
                     if (
@@ -1501,8 +1560,8 @@ export function GameGrid({
                               className="absolute top-0 left-1/2 -translate-x-1/2 mt-0.5 z-20 flex items-center justify-center pointer-events-none"
                               title="Disabled (0 HP)"
                             >
-                              <div className="w-5 h-5 flex items-center justify-center">
-                                <span className="text-xs leading-none font-mono">[SOS]</span>
+                              <div className="px-1 py-0.5 flex items-center justify-center bg-warning-red/60 border border-warning-red">
+                                <span className="text-xs leading-none font-mono text-white">[SOS]</span>
                               </div>
                             </div>
                           );
@@ -1989,23 +2048,27 @@ export function GameGrid({
                                 gap: "clamp(1px, 0.35vmin, 2px)",
                               }}
                             >
-                              {skullLevels.map((level) => (
-                                <div
-                                  key={level}
-                                  className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-warning-red/90 leading-none"
-                                  style={{
-                                    width: "clamp(8px, 2.2vmin, 12px)",
-                                    height: "clamp(8px, 2.2vmin, 12px)",
-                                  }}
-                                >
-                                  <span
-                                    className="font-mono leading-none"
-                                    style={{ fontSize: "clamp(6px, 1.6vmin, 8px)" }}
+                              {skullLevels.map((level) => {
+                                const isNewFromRam =
+                                  isRammingToCell && level === skullCount - 1;
+                                return (
+                                  <div
+                                    key={level}
+                                    className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-warning-red/90 leading-none${isNewFromRam ? " animate-pulse" : ""}`}
+                                    style={{
+                                      width: "clamp(8px, 2.2vmin, 12px)",
+                                      height: "clamp(8px, 2.2vmin, 12px)",
+                                    }}
                                   >
-                                    ✕
-                                  </span>
-                                </div>
-                              ))}
+                                    <span
+                                      className="font-mono leading-none"
+                                      style={{ fontSize: "clamp(6px, 1.6vmin, 8px)" }}
+                                    >
+                                      ✕
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         })()}
@@ -2472,6 +2535,12 @@ export function GameGrid({
                 );
                 if (!targetPosition) return null;
 
+                // Creator ships face right, joiner ships face left.
+                const attackerIsCreator =
+                  selectedShipCreatorSide ??
+                  grid[attackerRow]?.[attackerCol]?.isCreator ??
+                  false;
+
                 return (
                   <LaserShootingAnimation
                     gridContainerRef={gridContainerRef}
@@ -2479,6 +2548,7 @@ export function GameGrid({
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
+                    facingRight={attackerIsCreator}
                   />
                 );
               })()}
@@ -2536,6 +2606,11 @@ export function GameGrid({
                 const targetPosition = findShipPositionById(targetShipId);
                 if (!targetPosition) return null;
 
+                const attackerIsCreator =
+                  selectedShipCreatorSide ??
+                  grid[attackerRow]?.[attackerCol]?.isCreator ??
+                  false;
+
                 return (
                   <MissileShootingAnimation
                     gridContainerRef={gridContainerRef}
@@ -2543,6 +2618,7 @@ export function GameGrid({
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
+                    facingRight={attackerIsCreator}
                   />
                 );
               })()}
@@ -2603,6 +2679,11 @@ export function GameGrid({
                 );
                 if (!targetPosition) return null;
 
+                const attackerIsCreator =
+                  selectedShipCreatorSide ??
+                  grid[attackerRow]?.[attackerCol]?.isCreator ??
+                  false;
+
                 return (
                   <PlasmaShootingAnimation
                     gridContainerRef={gridContainerRef}
@@ -2610,6 +2691,7 @@ export function GameGrid({
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
+                    facingRight={attackerIsCreator}
                   />
                 );
               })()}
@@ -2670,6 +2752,11 @@ export function GameGrid({
                 );
                 if (!targetPosition) return null;
 
+                const attackerIsCreator =
+                  selectedShipCreatorSide ??
+                  grid[attackerRow]?.[attackerCol]?.isCreator ??
+                  false;
+
                 return (
                   <RailgunShootingAnimation
                     gridContainerRef={gridContainerRef}
@@ -2677,6 +2764,7 @@ export function GameGrid({
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
+                    facingRight={attackerIsCreator}
                   />
                 );
               })()}
@@ -3059,11 +3147,11 @@ export function GameGrid({
                           } ${
                             selectedWeaponType === "special"
                               ? specialType === 3 // Flak
-                                ? "bg-amber/20 border border-amber" // Flak
+                                ? "bg-amber/60 border border-amber" // Flak
                                 : specialType === 1 // EMP
-                                  ? "bg-warning-red/20 border border-warning-red" // EMP reactor damage
-                                  : "bg-cyan/20 border border-cyan" // Other specials
-                              : "bg-warning-red/20 border border-warning-red"
+                                  ? "bg-warning-red/60 border border-warning-red" // EMP reactor damage
+                                  : "bg-cyan/60 border border-cyan" // Other specials
+                              : "bg-warning-red/60 border border-warning-red"
                           }`}
                           style={{
                             left: `${cellX}px`,
@@ -3100,26 +3188,32 @@ export function GameGrid({
                       return (
                         <>
                           <div
-                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-cyan whitespace-nowrap border border-cyan bg-cyan/15"
+                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-white whitespace-nowrap border border-warning-red bg-warning-red/60"
                             style={{
                               left: `${cellX}px`,
                               top: `${labelTopPx}px`,
                               transform: `${labelTransform} translateY(${
-                                isTopGridRow ? 0 : -22
+                                isTopGridRow ? 0 : -30
                               }px)`,
                             }}
                           >
-                            Ramming Speed
+                            RAMMING SPEED
                           </div>
                           <div
-                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-white whitespace-nowrap border border-warning-red bg-warning-red/20"
+                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-white whitespace-nowrap flex items-center gap-1"
                             style={{
                               left: `${cellX}px`,
                               top: `${labelTopPx}px`,
                               transform: labelTransform,
+                              backgroundColor: "rgba(255, 119, 0, 0.75)",
+                              borderWidth: 1,
+                              borderStyle: "solid",
+                              borderColor: "#ff7700",
                             }}
                           >
-                            REACTOR CRITICAL +1
+                            <span className="flex shrink-0 items-center justify-center rounded-full bg-warning-red/90 leading-none" style={{ width: 10, height: 10, fontSize: 7 }}>✕</span>
+                            WARNING: OVERLOAD
+                            <span className="flex shrink-0 items-center justify-center rounded-full bg-warning-red/90 leading-none" style={{ width: 10, height: 10, fontSize: 7 }}>✕</span>
                           </div>
                         </>
                       );
@@ -3159,7 +3253,7 @@ export function GameGrid({
                         : "translate(-50%, -100%)";
                       return (
                         <div
-                          className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-amber whitespace-nowrap border border-amber bg-amber/10"
+                          className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-amber whitespace-nowrap border border-amber bg-amber/60"
                           style={{
                             left: `${cellX}px`,
                             top: `${labelTopPx}px`,
@@ -3251,7 +3345,7 @@ export function GameGrid({
                     return (
                       <div
                         key={`tutorial-click-${p.row}-${p.col}-${i}`}
-                        className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-amber whitespace-nowrap bg-amber/10 border border-amber"
+                        className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-amber whitespace-nowrap bg-amber/60 border border-amber"
                         style={{
                           left: `${cellX}px`,
                           top: `${tutorialTopPx}px`,

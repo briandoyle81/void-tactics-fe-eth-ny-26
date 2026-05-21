@@ -1658,7 +1658,11 @@ export function SimulatedGameDisplay({
         allowedTargetsSet?.has(shipPosition.shipId) &&
         distance > 0;
 
-      if ((canShoot && distance > 0) || isShootStepAllowedTarget) {
+      // Repair drones can target the caster's own ship (distance 0)
+      const isSelfRepair =
+        selectedWeaponType === "special" && specialType === 2 && distance === 0;
+
+      if ((canShoot && distance > 0) || isSelfRepair || isShootStepAllowedTarget) {
         const shouldCheckLineOfSight =
           distance > 1 &&
           (selectedWeaponType !== "special" ||
@@ -4194,21 +4198,25 @@ export function SimulatedGameDisplay({
                               const isSelectedTarget =
                                 targetShipId !== null &&
                                 targetShipId === BigInt(target.shipId);
+                              const isRepair =
+                                selectedWeaponType === "special" &&
+                                specialType === 2;
+                              const accentColor = isRepair
+                                ? "var(--color-cyan)"
+                                : "var(--color-warning-red)";
                               const targetButtonStyle: React.CSSProperties = {
                                 fontFamily:
                                   "var(--font-rajdhani), 'Arial Black', sans-serif",
                                 borderColor: isSelectedTarget
-                                  ? "var(--color-warning-red)"
+                                  ? accentColor
                                   : "var(--color-gunmetal)",
                                 borderTopColor: isSelectedTarget
-                                  ? "var(--color-warning-red)"
+                                  ? accentColor
                                   : "var(--color-steel)",
                                 borderLeftColor: isSelectedTarget
-                                  ? "var(--color-warning-red)"
+                                  ? accentColor
                                   : "var(--color-steel)",
-                                color: isSelectedTarget
-                                  ? "var(--color-warning-red)"
-                                  : "var(--color-warning-red)",
+                                color: accentColor,
                                 backgroundColor: isSelectedTarget
                                   ? "var(--color-steel)"
                                   : "var(--color-slate)",

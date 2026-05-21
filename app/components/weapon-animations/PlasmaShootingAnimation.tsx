@@ -8,6 +8,7 @@ interface PlasmaShootingAnimationProps {
   attackerCol: number;
   targetRow: number;
   targetCol: number;
+  facingRight: boolean;
 }
 
 export function PlasmaShootingAnimation({
@@ -16,7 +17,10 @@ export function PlasmaShootingAnimation({
   attackerCol,
   targetRow,
   targetCol,
+  facingRight,
 }: PlasmaShootingAnimationProps) {
+  const PLASMA_COLORS = ["#56d6ff", "#6495ED", "#9370DB", "#4169E1", "#00CED1"];
+
   const [particles, setParticles] = useState<
     Array<{
       id: number;
@@ -26,6 +30,7 @@ export function PlasmaShootingAnimation({
       spread: number;
       size: number;
       opacity: number;
+      color: string;
       targetX: number;
       targetY: number;
       startX: number;
@@ -54,11 +59,26 @@ export function PlasmaShootingAnimation({
     [gridContainerRef]
   );
 
+  // Offset from cell center to the plasma cannon port.
+  // Facing right: +8% cell width, -15% cell height
+  // Facing left:  -8% cell width, -15% cell height
+  const getAttackerOrigin = useCallback(() => {
+    const center = getCellCenter(attackerRow, attackerCol);
+    if (!gridContainerRef.current) return center;
+    const rect = gridContainerRef.current.getBoundingClientRect();
+    const cw = rect.width / 17;
+    const ch = rect.height / 11;
+    return {
+      x: center.x + (facingRight ? cw * 0.09 : -cw * 0.09),
+      y: center.y - ch * 0.16,
+    };
+  }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
+
   // Create a new particle
   const createParticle = useCallback(() => {
     if (!gridContainerRef.current) return;
 
-    const attackerCenter = getCellCenter(attackerRow, attackerCol);
+    const attackerOrigin = getAttackerOrigin();
     const targetCenter = getCellCenter(targetRow, targetCol);
 
     // Random point within target cell
@@ -66,37 +86,34 @@ export function PlasmaShootingAnimation({
     const cellWidth = gridRect.width / 25;
     const cellHeight = gridRect.height / 13;
 
-    // Start particles from the center of the firing ship's cell (y-axis)
-    const startY = attackerCenter.y;
-
     const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
     const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
 
     // Calculate direction to target
-    const dx = targetX - attackerCenter.x;
-    const dy = targetY - attackerCenter.y;
+    const dx = targetX - attackerOrigin.x;
+    const dy = targetY - attackerOrigin.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Create particle with spread (flamethrower effect)
-    // Spread increases as it travels (cone shape)
-    const spread = (Math.random() - 0.5) * 0.15; // Random spread angle in radians (tighter spread)
-    const size = 4 + Math.random() * 4; // Random size between 4-8px
-    const opacity = 1.0; // Fully opaque
+    const spread = (Math.random() - 0.5) * 0.15;
+    const size = 4 + Math.random() * 4;
+    const opacity = 1.0;
+    const color = PLASMA_COLORS[Math.floor(Math.random() * PLASMA_COLORS.length)];
 
     const newParticle = {
       id: particleIdRef.current++,
-      x: attackerCenter.x,
-      y: startY, // Start from below the firing ship
+      x: attackerOrigin.x,
+      y: attackerOrigin.y,
       progress: 0,
       spread,
       size,
       opacity,
+      color,
       targetX,
       targetY,
-      startX: attackerCenter.x,
-      startY: startY, // Start from below the firing ship
+      startX: attackerOrigin.x,
+      startY: attackerOrigin.y,
       startTime: Date.now(),
-      travelTime: 0.3 + Math.random() * 0.2, // 0.3-0.5 seconds travel time
+      travelTime: 0.3 + Math.random() * 0.2,
     };
 
     setParticles((prev) => [...prev, newParticle]);
@@ -112,6 +129,7 @@ export function PlasmaShootingAnimation({
     targetRow,
     targetCol,
     getCellCenter,
+    getAttackerOrigin,
   ]);
 
   // Continuously create particles
@@ -157,26 +175,17 @@ export function PlasmaShootingAnimation({
           const currentX = baseX + Math.cos(spreadAngle) * spreadDistance;
           const currentY = baseY + Math.sin(spreadAngle) * spreadDistance;
 
-          // Keep fully opaque (no fade)
-          const currentOpacity = particle.opacity;
-
           return {
             ...particle,
             x: currentX,
             y: currentY,
             progress,
-            opacity: currentOpacity,
           };
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
 
       setParticles(updatedParticles);
-
-      if (updatedParticles.length > 0) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        animationFrameRef.current = null;
-      }
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
@@ -210,8 +219,8 @@ export function PlasmaShootingAnimation({
           cx={particle.x}
           cy={particle.y}
           r={particle.size}
-          fill="#6495ED"
-          opacity={particle.opacity}
+          fill={particle.color}
+          opacity={1}
         />
       ))}
     </svg>
