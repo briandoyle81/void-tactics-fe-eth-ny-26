@@ -603,6 +603,17 @@ body::before {
   animation: victory-claim-flash 1.4s ease-in-out infinite;
 }
 
+/* Mobile portrait → landscape rotation hint */
+@keyframes phone-rotate {
+  0%, 20% { transform: rotate(0deg); }
+  60%, 80% { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}
+.animate-phone-rotate {
+  animation: phone-rotate 2.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* Tutorial Hard choice: soft pulse on the orders section label */
 @keyframes tutorial-decision-label-pulse {
   0%,

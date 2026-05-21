@@ -71,7 +71,7 @@ export default function AlphaDiscordNoticeBar({
       </button>
       <div className="mx-auto flex max-w-7xl items-center justify-center">
         <p
-          className="line-clamp-1 w-full text-center text-xs font-semibold uppercase tracking-wider sm:text-sm"
+          className="line-clamp-2 w-full text-center text-xs font-semibold uppercase tracking-wider sm:line-clamp-1 sm:text-sm"
           style={{
             fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
             color: "var(--color-near-black)",

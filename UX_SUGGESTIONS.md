@@ -78,8 +78,8 @@ Profile shows `// No achievements unlocked` with no list of what achievements ex
 
 ## Mobile
 
-**19. Fleet positioning grid is too small to use on touch.**
-Each grid cell is likely under 30 px on a phone. Dragging a ship to an exact cell is nearly impossible with a finger. For mobile, consider a tap-to-place model: tap a ship in the list → grid highlights valid positions → tap a cell to place.
+See [MOBILE_UX.md](./MOBILE_UX.md) for the full mobile audit and task list.
 
-**20. Address display is nearly useless for disambiguation.**
-`0x0000...0001` and `0x0000...0002` are visually identical. Show an ENS name when available; for raw addresses, show the last 6 chars instead of 4 (more entropy), or use a per-address blockie/avatar icon that's visually distinct.
+**~~19. Fleet positioning grid is too small to use on touch.~~** → Tracked as MOBILE_UX #5.
+
+**~~20. Address display is nearly useless for disambiguation.~~** → Tracked as MOBILE_UX #10.

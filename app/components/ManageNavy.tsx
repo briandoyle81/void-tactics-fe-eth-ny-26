@@ -1794,10 +1794,12 @@ const ManageNavy: React.FC = () => {
               type="button"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setFilterWindowAnchor({
-                  top: rect.bottom + 8,
-                  left: Math.max(12, rect.left),
-                });
+                const windowWidth = Math.min(window.innerWidth * 0.96, 72 * 16);
+                const left = Math.min(
+                  Math.max(12, rect.left),
+                  Math.max(0, window.innerWidth - windowWidth),
+                );
+                setFilterWindowAnchor({ top: rect.bottom + 8, left });
                 setShowFilterWindow(true);
               }}
               className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"

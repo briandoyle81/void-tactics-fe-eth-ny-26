@@ -55,7 +55,7 @@ import {
   readFleetCompositionPersisted,
   type FleetComposition,
 } from "../utils/fleetCompositionStorage";
-import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
+import { VOID_TACTICS_CHAIN_CHANGED_EVENT, getNativeTokenSymbol } from "../config/networks";
 import {
   IMMEDIATE_GAME_TURN_SECONDS,
   CORRESPONDENCE_GAME_TURN_SECONDS,
@@ -235,6 +235,13 @@ const Lobbies: React.FC = () => {
   const lastDragOverPositionRef = useRef<{ row: number; col: number } | null>(
     null,
   );
+
+  // Tap-to-place state for touch devices
+  const [tapPendingShipId, setTapPendingShipId] = useState<bigint | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+  }, []);
 
   // Validate selected lobby when lobby list loads (e.g. lobby no longer exists or user not in it)
   useEffect(() => {
@@ -741,6 +748,7 @@ const Lobbies: React.FC = () => {
   // Function to handle ship selection on the grid
   const handleShipSelect = (shipId: bigint) => {
     setSelectedShipId(shipId);
+    setTapPendingShipId(null);
   };
 
   // Function to handle ship movement on the grid
@@ -776,6 +784,7 @@ const Lobbies: React.FC = () => {
       // Add ship to fleet at this position
       setSelectedShips((prev) => [...prev, shipId]);
       setShipPositions((prev) => [...prev, { shipId, row, col }]);
+      setTapPendingShipId(null);
       return;
     }
 
@@ -812,8 +821,9 @@ const Lobbies: React.FC = () => {
       prev.map((pos) => (pos.shipId === shipId ? { ...pos, row, col } : pos)),
     );
 
-    // Clear selection after moving
+    // Clear selection and pending placement after moving
     setSelectedShipId(null);
+    setTapPendingShipId(null);
   };
 
   // Drag and drop handlers
@@ -867,6 +877,19 @@ const Lobbies: React.FC = () => {
     setDraggedShipId(null);
     setDragOverPosition(null);
     lastDragOverPositionRef.current = null;
+  };
+
+  // Ship list tap handler — desktop adds immediately, touch enters pending-placement mode
+  const handleListShipTap = (shipId: bigint, canSelect: boolean) => {
+    if (!canSelect) return;
+    if (selectedShips.includes(shipId)) {
+      removeShipFromFleet(shipId);
+      setTapPendingShipId(null);
+    } else if (isTouchDevice) {
+      setTapPendingShipId((prev) => (prev === shipId ? null : shipId));
+    } else {
+      addShipToFleet(shipId);
+    }
   };
 
   // Navigate to Games tab (used by Go to Games button)
@@ -2021,15 +2044,11 @@ const Lobbies: React.FC = () => {
                 >
                   {paused ? "LOBBIES PAUSED" : "CREATE LOBBY"}
                 </button>
-                {needsPaymentForLobby && (
-                  <p className="text-center text-xs text-amber">
-                    Additional lobby fee:{" "}
-                    {additionalLobbyFee
-                      ? formatEther(additionalLobbyFee as bigint)
-                      : "0"}{" "}
-                    FLOW
+                {needsPaymentForLobby && additionalLobbyFee ? (
+                  <p className="text-center text-xs text-amber font-mono">
+                    // Free games used — lobby fee: {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
                   </p>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -2384,6 +2403,33 @@ const Lobbies: React.FC = () => {
                 player who creates their fleet first will go first in the game.
               </p>
             </div>
+            {/* Cost summary — only shown when fees apply */}
+            {(needsPaymentForLobby && additionalLobbyFee) ||
+            (createForm.reservedJoiner.trim() &&
+              address &&
+              createForm.reservedJoiner.trim().toLowerCase() !==
+                address.toLowerCase()) ? (
+              <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
+                {needsPaymentForLobby && additionalLobbyFee ? (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                    <span className="text-amber font-bold shrink-0">
+                      {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
+                    </span>
+                  </div>
+                ) : null}
+                {createForm.reservedJoiner.trim() &&
+                address &&
+                createForm.reservedJoiner.trim().toLowerCase() !==
+                  address.toLowerCase() ? (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-text-secondary">Reservation fee (private lobby)</span>
+                    <span className="text-amber font-bold shrink-0">1 UTC</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <LobbyCreateButton
                 costLimit={BigInt(createFormCostLimit)}
@@ -2543,8 +2589,7 @@ const Lobbies: React.FC = () => {
                         "var(--font-jetbrains-mono), 'Courier New', monospace",
                     }}
                   >
-                    {lobby.basic.creator.slice(0, 6)}...
-                    {lobby.basic.creator.slice(-4)}
+                    {lobby.basic.creator.slice(0, 6)}…{lobby.basic.creator.slice(-4)}
                   </span>
                   <CreatorStats
                     address={lobby.basic.creator as `0x${string}`}
@@ -2576,8 +2621,7 @@ const Lobbies: React.FC = () => {
                             "var(--font-jetbrains-mono), 'Courier New', monospace",
                         }}
                       >
-                        {lobby.players.joiner.slice(0, 6)}...
-                        {lobby.players.joiner.slice(-4)}
+                        {lobby.players.joiner.slice(0, 6)}…{lobby.players.joiner.slice(-4)}
                       </span>
                     </div>
                     <CreatorStats
@@ -2608,8 +2652,7 @@ const Lobbies: React.FC = () => {
                             "var(--font-jetbrains-mono), 'Courier New', monospace",
                         }}
                       >
-                        {lobby.players.reservedJoiner.slice(0, 6)}...
-                        {lobby.players.reservedJoiner.slice(-4)}
+                        {lobby.players.reservedJoiner.slice(0, 6)}…{lobby.players.reservedJoiner.slice(-4)}
                       </span>
                       <span
                         className="ml-1 text-[10px] font-bold tracking-widest text-amber/50"
@@ -2777,8 +2820,7 @@ const Lobbies: React.FC = () => {
                           </p>
                           <p className="text-xs text-text-muted">
                             Reserved for:{" "}
-                            {lobby.players.reservedJoiner.slice(0, 6)}...
-                            {lobby.players.reservedJoiner.slice(-4)}
+                            {lobby.players.reservedJoiner.slice(0, 6)}…{lobby.players.reservedJoiner.slice(-4)}
                           </p>
                         </div>
                       )
@@ -3646,19 +3688,13 @@ const Lobbies: React.FC = () => {
                                     ship.shipData.constructed &&
                                     !ship.shipData.inFleet;
 
-                                  const handleCardClick = () => {
-                                    if (!canSelect) return;
-                                    if (selectedShips.includes(ship.id)) {
-                                      removeShipFromFleet(ship.id);
-                                    } else {
-                                      addShipToFleet(ship.id);
-                                    }
-                                  };
+                                  const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                  const isPending = tapPendingShipId === ship.id;
 
                                   return (
                                     <div
                                       key={ship.id.toString()}
-                                      draggable={canSelect}
+                                      draggable={canSelect && !isTouchDevice}
                                       onDragStart={(e) => {
                                         if (canSelect) {
                                           handleDragStart(ship.id);
@@ -3666,7 +3702,7 @@ const Lobbies: React.FC = () => {
                                         }
                                       }}
                                       onDragEnd={handleDragEnd}
-                                      className={canSelect ? "cursor-move" : ""}
+                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
                                     >
                                       <ShipCard
                                         ship={ship}
@@ -3719,8 +3755,12 @@ const Lobbies: React.FC = () => {
                               className="w-full h-full"
                               showPlayerOverlay={true}
                               showDeployZoneLabel={
-                                !playerFleetId &&
                                 !(showFleetView && viewingFleetId && viewingFleetOwner)
+                              }
+                              pendingPlacementShipId={
+                                !playerFleetId && !(showFleetView && viewingFleetId && viewingFleetOwner)
+                                  ? tapPendingShipId
+                                  : null
                               }
                               isCreator={currentLobby.basic.creator === address}
                               isCreatorViewer={
@@ -3793,8 +3833,12 @@ const Lobbies: React.FC = () => {
                               className="w-full h-full"
                               showPlayerOverlay={true}
                               showDeployZoneLabel={
-                                !playerFleetId &&
                                 !(showFleetView && viewingFleetId && viewingFleetOwner)
+                              }
+                              pendingPlacementShipId={
+                                !playerFleetId && !(showFleetView && viewingFleetId && viewingFleetOwner)
+                                  ? tapPendingShipId
+                                  : null
                               }
                               isCreator={currentLobby.basic.creator === address}
                               isCreatorViewer={
@@ -3876,19 +3920,13 @@ const Lobbies: React.FC = () => {
                                     ship.shipData.constructed &&
                                     !ship.shipData.inFleet;
 
-                                  const handleCardClick = () => {
-                                    if (!canSelect) return;
-                                    if (selectedShips.includes(ship.id)) {
-                                      removeShipFromFleet(ship.id);
-                                    } else {
-                                      addShipToFleet(ship.id);
-                                    }
-                                  };
+                                  const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                  const isPending = tapPendingShipId === ship.id;
 
                                   return (
                                     <div
                                       key={ship.id.toString()}
-                                      draggable={canSelect}
+                                      draggable={canSelect && !isTouchDevice}
                                       onDragStart={(e) => {
                                         if (canSelect) {
                                           handleDragStart(ship.id);
@@ -3896,7 +3934,7 @@ const Lobbies: React.FC = () => {
                                         }
                                       }}
                                       onDragEnd={handleDragEnd}
-                                      className={canSelect ? "cursor-move" : ""}
+                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
                                     >
                                       <ShipCard
                                         ship={ship}
@@ -4027,7 +4065,7 @@ const Lobbies: React.FC = () => {
             <div className="mb-4 p-3 bg-black/40 border border-gunmetal rounded-none">
               <p className="text-sm text-text-secondary">
                 <span className="text-cyan">Owner:</span>{" "}
-                {viewingFleetOwner.slice(0, 6)}...{viewingFleetOwner.slice(-4)}
+                {viewingFleetOwner.slice(0, 6)}…{viewingFleetOwner.slice(-4)}
                 {address &&
                   viewingFleetOwner.toLowerCase() === address.toLowerCase() && (
                     <span className="ml-2 text-cyan font-bold">(You)</span>

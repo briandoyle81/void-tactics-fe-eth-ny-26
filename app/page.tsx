@@ -300,6 +300,16 @@ export default function Home() {
     };
   }, [updateTabScrollHints, status, hideGlobalChrome]);
 
+  // Scroll active tab into view on mobile when activeTab changes
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector<HTMLElement>('[aria-selected="true"]');
+    activeBtn?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeTab, isHydrated]);
+
   const topChromeRowStyle: CSSProperties = hideGlobalChrome
     ? {
         height: "0px",
@@ -340,7 +350,7 @@ export default function Home() {
         </div>
         <main
           className={`flex min-h-0 flex-1 flex-col gap-4 px-2 md:gap-8 md:px-10 lg:px-20 w-full max-w-7xl mx-auto ${
-            hideGlobalChrome ? "pt-0 pb-0" : "pt-4 pb-16 md:pb-20"
+            hideGlobalChrome ? "pt-0 pb-0" : "pt-4 pb-8 sm:pb-16 md:pb-20"
           }`}
         >
           <div
@@ -403,7 +413,7 @@ export default function Home() {
       </div>
       <main
         className={`flex min-h-0 flex-1 flex-col gap-4 w-full md:gap-8 ${
-          hideGlobalChrome ? "pt-0 pb-0" : "pt-4 pb-16 md:pb-20"
+          hideGlobalChrome ? "pt-0 pb-0" : "pt-4 pb-8 sm:pb-16 md:pb-20"
         } ${
           activeTab === "Games" || isInfoTutorialActive
             ? "px-0"

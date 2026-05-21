@@ -5,6 +5,7 @@ import { TransactionButton } from "./TransactionButton";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import {
   useAccount,
+  useBalance,
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
@@ -93,6 +94,9 @@ export function LobbyCreateButton({
     reservedJoiner !== "0x0000000000000000000000000000000000000000";
   const zeroAddress = "0x0000000000000000000000000000000000000000" as Address;
 
+  // Read native balance
+  const { data: nativeBalance } = useBalance({ address, chainId });
+
   // Read UTC balance
   const { data: utcBalance } = useReadContract({
     address: contractAddresses.UNIVERSAL_CREDITS as `0x${string}`,
@@ -133,17 +137,11 @@ export function LobbyCreateButton({
       chainId,
     });
 
-  // UTC is required for reservation fee (1 UTC) and additional lobby fee.
+  // UTC is required only for the reservation fee (1 UTC). Additional lobby fee is native.
   const totalUtcRequired = React.useMemo(() => {
-    let total = 0n;
-    if (isReserved) {
-      total += parseEther("1"); // Reservation fee
-    }
-    if (value > 0n) {
-      total += value; // Additional lobby fee (in UTC)
-    }
-    return total;
-  }, [isReserved, value]);
+    if (isReserved) return parseEther("1");
+    return 0n;
+  }, [isReserved]);
 
   // Type-safe UTC balance
   const utcBalanceBigInt = React.useMemo(() => utcBalance as bigint | undefined, [utcBalance]);
@@ -224,18 +222,20 @@ export function LobbyCreateButton({
         return "Cannot reserve a lobby for yourself. Please enter a different player's address or leave empty for an open lobby.";
       }
     }
-    // Check UTC requirements (for reserved lobbies and/or additional lobby fees)
+    // Check UTC requirements (reservation fee only)
     if (totalUtcRequired > 0n) {
       const balance = utcBalance as bigint | undefined;
       if (!balance || balance < totalUtcRequired) {
-        return `Insufficient UTC balance. Need ${formatEther(
-          totalUtcRequired
-        )} UTC.`;
+        return `Insufficient UTC balance. Need ${formatEther(totalUtcRequired)} UTC.`;
       }
       if (!utcApproved) {
-        return `Please approve ${formatEther(
-          totalUtcRequired
-        )} UTC transfer first`;
+        return `Please approve ${formatEther(totalUtcRequired)} UTC transfer first`;
+      }
+    }
+    // Check native balance for additional lobby fee
+    if (value > 0n) {
+      if (!nativeBalance || nativeBalance.value < value) {
+        return `Insufficient native balance. Need ${formatEther(value)} ${nativeBalance?.symbol ?? "native"} for the lobby fee.`;
       }
     }
     return true;
@@ -250,6 +250,8 @@ export function LobbyCreateButton({
     totalUtcRequired,
     utcBalanceBigInt,
     utcApproved,
+    value,
+    nativeBalance,
   ]);
 
   const transactionId = React.useMemo(
@@ -260,30 +262,17 @@ export function LobbyCreateButton({
     [address, costLimit, turnTime, selectedMapId, maxScore, reservedJoiner]
   );
 
-  // If UTC is required (reserved lobby and/or additional fee) and not approved, show approve button
+  // If UTC is required (reserved lobby) and not approved, show approve button
   if (
     totalUtcRequired > 0n &&
     !utcApproved &&
     !isApprovingUTC &&
     !isApproving
   ) {
-    const feeBreakdown = [];
-    if (isReserved) {
-      feeBreakdown.push("1 UTC (reservation)");
-    }
-    if (value > 0n) {
-      feeBreakdown.push(`${formatEther(value)} UTC (additional lobby fee)`);
-    }
-
     return (
       <div className="flex flex-col gap-2">
         <div className="text-xs text-amber font-mono">
-          {feeBreakdown.length > 0 && (
-            <div>
-              Required: {feeBreakdown.join(" + ")} ={" "}
-              {formatEther(totalUtcRequired)} UTC
-            </div>
-          )}
+          <div>Required: 1 UTC (reservation fee){value > 0n ? ` + ${formatEther(value)} ${nativeBalance?.symbol ?? "native"} (lobby fee)` : ""}</div>
         </div>
         <button
           onClick={handleApproveUTC}
@@ -317,7 +306,7 @@ export function LobbyCreateButton({
         maxScore,
         reservedJoiner || zeroAddress,
       ]}
-      value={totalUtcRequired > 0n ? 0n : value}
+      value={value}
       className={className}
       disabled={disabled || isApprovingUTC || isApproving}
       loadingText={

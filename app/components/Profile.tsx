@@ -195,16 +195,17 @@ const Profile: React.FC = () => {
                         <span className={`font-bold shrink-0 ${outcome.color}`}>
                           [{outcome.text}]
                         </span>
-                        {opponent && (
-                          <span className="opacity-50 font-mono truncate">
-                            vs {opponent}
-                          </span>
-                        )}
                       </div>
                       <span className="opacity-50 shrink-0">
                         {formatDate(game.metadata.startedAt)}
                       </span>
                     </div>
+                    {/* Row 1b: opponent (own line so it never crowds the ID/outcome) */}
+                    {opponent && (
+                      <div className="mt-0.5 opacity-50 font-mono">
+                        vs {opponent}
+                      </div>
+                    )}
                     {/* Row 2: score, round, ships */}
                     <div className="flex items-center gap-4 mt-1 opacity-70">
                       {playerScore !== null && (

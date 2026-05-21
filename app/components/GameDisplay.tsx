@@ -2715,6 +2715,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           className="border-2 bg-near-black/85 p-4 text-center sm:p-5"
           style={{ width: "min(90vw, 22rem)", borderColor: "var(--color-cyan)" }}
         >
+          <div className="flex justify-center mb-4">
+            <div
+              className="animate-phone-rotate"
+              style={{
+                width: "2rem",
+                height: "3.4rem",
+                border: "2px solid var(--color-cyan)",
+                borderRadius: "4px",
+                position: "relative",
+                opacity: 0.8,
+              }}
+            >
+              <div style={{
+                position: "absolute",
+                top: "4px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "0.6rem",
+                height: "2px",
+                backgroundColor: "var(--color-cyan)",
+                borderRadius: "1px",
+              }} />
+            </div>
+          </div>
           <h2
             className="text-lg font-bold uppercase tracking-wider text-cyan sm:text-xl"
             style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
@@ -3312,7 +3336,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   key={tab}
                   type="button"
                   onClick={() => setMobileLeftPanelTab(tab)}
-                  className="px-1 py-1 text-[10px] uppercase tracking-wider border border-solid"
+                  className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                   style={{
                     fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
                     borderColor:
@@ -3336,7 +3360,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMobileFleetModalOpen(true)}
-                className="px-1 py-1 text-[10px] uppercase tracking-wider border border-solid"
+                className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                 style={{
                   fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
                   borderColor: "var(--color-phosphor-green)",
@@ -3362,11 +3386,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               {mobileLeftPanelTab === "status" ? (
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-1.5">
-                    <div className="border border-solid px-1.5 py-1 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                    <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
                       <span className="text-text-muted">Me </span>
                       <span className="font-mono text-white">{myScore}/{maxScore}</span>
                     </div>
-                    <div className="border border-solid px-1.5 py-1 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                    <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
                       <span className="text-text-muted">Opp </span>
                       <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
                     </div>
@@ -3401,19 +3425,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsMobileWeaponMenuOpen((prev) => !prev)}
-                      disabled={!selectedShip}
-                      className="flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid bg-black/40 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50"
+                      disabled={!selectedShip || !(selectedShip.equipment.special > 0)}
+                      className="flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid bg-black/40 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 disabled:cursor-default"
                       style={{
                         borderColor: "var(--color-gunmetal)",
                         borderRadius: 0,
                       }}
                     >
                       <span className="truncate">{mobileWeaponDisplayName}</span>
-                      <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
+                      {selectedShip && selectedShip.equipment.special > 0 && (
+                        <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
+                      )}
                     </button>
                     {isMobileWeaponMenuOpen ? (
                       <div
-                        className="absolute left-0 top-[calc(100%+4px)] z-[270] w-full border border-solid bg-[var(--color-near-black)]"
+                        className="absolute left-0 bottom-[calc(100%+4px)] z-[270] w-full border border-solid bg-[var(--color-near-black)]"
                         style={{
                           borderColor: "var(--color-gunmetal)",
                           borderRadius: 0,

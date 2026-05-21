@@ -40,6 +40,7 @@ interface MapDisplayProps {
   onDrop?: (row: number, col: number, e?: React.DragEvent) => void;
   dragOverPosition?: { row: number; col: number } | null;
   showDeployZoneLabel?: boolean;
+  pendingPlacementShipId?: bigint | null;
 }
 
 export function MapDisplay({
@@ -60,6 +61,7 @@ export function MapDisplay({
   onDrop,
   dragOverPosition = null,
   showDeployZoneLabel = false,
+  pendingPlacementShipId = null,
 }: MapDisplayProps) {
   const mapGridRef = useRef<HTMLDivElement>(null);
   const [, setMapGridLayoutVersion] = useState(0);
@@ -218,6 +220,12 @@ export function MapDisplay({
   const handleCellClick = (row: number, col: number) => {
     if (!allowSelection) return;
     if (!onShipSelect || !onShipMove) return;
+
+    // Tap-to-place: pending ship from list awaiting placement on touch devices
+    if (pendingPlacementShipId && !getShipAtPosition(row, col) && isValidShipPosition(row, col)) {
+      onShipMove(pendingPlacementShipId, row, col);
+      return;
+    }
 
     const ship = getShipAtPosition(row, col);
 
@@ -385,11 +393,13 @@ export function MapDisplay({
                 const ship = getShipAtPosition(row, col);
                 const isDragOver = dragOverPosition?.row === row && dragOverPosition?.col === col;
                 const isShipDraggable = ship && allowSelection && selectableShipIds?.some((id) => id === ship.id);
+                const isPendingTarget = !!pendingPlacementShipId && !ship && isValidShipPosition(row, col);
 
                 return (
                 <div
                   key={`${row}-${col}`}
                   className={`${getTileClass(row, col)} ${isDragOver ? "ring-2 ring-cyan ring-inset" : ""} ${isShipDraggable ? "cursor-move" : ""}`}
+                  style={isPendingTarget ? { boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-amber) 60%, transparent)" } : undefined}
                   onClick={() => handleCellClick(row, col)}
                   onMouseEnter={(e) => handleCellEnter(row, col, e)}
                   onMouseMove={(e) => handleCellMove(row, col, e)}

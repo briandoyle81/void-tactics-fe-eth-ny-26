@@ -2778,6 +2778,30 @@ export function SimulatedGameDisplay({
     return (
       <div className="mx-auto flex min-h-[70vh] w-full max-w-4xl items-center justify-center px-4 py-10">
         <div className="w-full max-w-md border-2 bg-near-black/85 p-6 text-center" style={{ borderColor: "var(--color-cyan)" }}>
+          <div className="flex justify-center mb-4">
+            <div
+              className="animate-phone-rotate"
+              style={{
+                width: "2rem",
+                height: "3.4rem",
+                border: "2px solid var(--color-cyan)",
+                borderRadius: "4px",
+                position: "relative",
+                opacity: 0.8,
+              }}
+            >
+              <div style={{
+                position: "absolute",
+                top: "4px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "0.6rem",
+                height: "2px",
+                backgroundColor: "var(--color-cyan)",
+                borderRadius: "1px",
+              }} />
+            </div>
+          </div>
           <h2
             className="text-xl font-bold uppercase tracking-wider text-cyan"
             style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
@@ -2879,7 +2903,7 @@ export function SimulatedGameDisplay({
                     key={tab}
                     type="button"
                     onClick={() => setMobileLeftPanelTab(tab)}
-                    className="px-1 py-1 text-[10px] uppercase tracking-wider border border-solid"
+                    className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                     style={{
                       fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
                       borderColor:
@@ -2903,7 +2927,7 @@ export function SimulatedGameDisplay({
                 <button
                   type="button"
                   onClick={() => setIsMobileFleetModalOpen(true)}
-                  className="px-1 py-1 text-[10px] uppercase tracking-wider border border-solid"
+                  className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                   style={{
                     fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
                     borderColor: "var(--color-phosphor-green)",
@@ -3213,11 +3237,11 @@ export function SimulatedGameDisplay({
                 {mobileLeftPanelTab === "status" ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-1.5">
-                      <div className="border border-solid px-1.5 py-1 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
                         <span className="text-text-muted">Me </span>
                         <span className="font-mono text-white">{myScore}/{maxScore}</span>
                       </div>
-                      <div className="border border-solid px-1.5 py-1 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
                         <span className="text-text-muted">Opp </span>
                         <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
                       </div>
@@ -3263,8 +3287,8 @@ export function SimulatedGameDisplay({
                       <button
                         type="button"
                         onClick={() => setIsMobileWeaponMenuOpen((prev) => !prev)}
-                        disabled={!selectedShip}
-                        className={`flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 ${
+                        disabled={!selectedShip || !(selectedShip.equipment.special > 0)}
+                        className={`flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 disabled:cursor-default ${
                           shouldHighlightSpecialEmpWeaponDropdown
                             ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
                             : "bg-black/40"
@@ -3280,11 +3304,13 @@ export function SimulatedGameDisplay({
                         }}
                       >
                         <span className="truncate">{mobileWeaponDisplayName}</span>
-                        <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
+                        {selectedShip && selectedShip.equipment.special > 0 && (
+                          <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
+                        )}
                       </button>
                       {isMobileWeaponMenuOpen ? (
                         <div
-                          className="absolute left-0 top-[calc(100%+4px)] z-[270] w-full border border-solid bg-[var(--color-near-black)]"
+                          className="absolute left-0 bottom-[calc(100%+4px)] z-[270] w-full border border-solid bg-[var(--color-near-black)]"
                           style={{
                             borderColor: "var(--color-gunmetal)",
                             borderRadius: 0,
