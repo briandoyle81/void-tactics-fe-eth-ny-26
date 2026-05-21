@@ -24,7 +24,10 @@ import ShipConstructor from "./components/ShipConstructor";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
 import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
+import { useOwnedShips } from "./hooks/useOwnedShips";
+import { usePlayerGames } from "./hooks/usePlayerGames";
 import { TUTORIAL_STEP_STORAGE_KEY } from "./types/onboarding";
+import { MAP_ADMIN_ADDRESS } from "./config/alpha";
 import posthog from "posthog-js";
 
 /** Tabs we may persist; includes owner-only names so refresh works before contract reads resolve. */
@@ -41,9 +44,11 @@ const KNOWN_TAB_NAMES = new Set<string>([
 ]);
 
 export default function Home() {
-  const { status } = useAccount();
+  const { status, address, isConnected } = useAccount();
   const { isOwner } = useShipAttributesOwner();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
+  const { ships, isLoading: shipsLoading } = useOwnedShips();
+  const { games: playerGames, isLoading: gamesLoading } = usePlayerGames();
 
   // Initialize with default tab to prevent hydration mismatch
   const [activeTab, setActiveTab] = useState("Info");
@@ -247,6 +252,20 @@ export default function Home() {
     };
   }, []);
 
+  // Keep tabs visible during loading to avoid flash-of-hidden-tabs for returning users.
+  const hasShips = shipsLoading || ships.length > 0;
+  const hasGames = gamesLoading || playerGames.length > 0;
+  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+  const hasYourTurn =
+    isConnected &&
+    playerGames.some(
+      (g) =>
+        g.metadata.winner === ZERO_ADDR &&
+        g.turnState.currentTurn === address,
+    );
+  const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
+  const showCustomizeShip = hasShips || activeTab === "Customize Ship";
+
   /** Hide site header (0px row) during Info onboarding tutorial or Games detail; not tied to wallet state. */
   const hideGlobalChrome =
     isInfoTutorialActive || isGamesDetailActive || isManageNavyPurchaseActive;
@@ -260,6 +279,8 @@ export default function Home() {
     activeTab,
     isOwner,
     canAdminShipPurchasePrices,
+    showGames,
+    showCustomizeShip,
     status,
     hideGlobalChrome,
   ]);
@@ -415,15 +436,13 @@ export default function Home() {
                 }
               >
               {(() => {
-                const tabs = [
-                  "Info",
-                  "Manage Navy",
-                  "Lobbies",
-                  "Games",
-                  "Profile",
-                  "Maps",
-                  "Customize Ship",
-                ];
+                const tabs = ["Info", "Manage Navy", "Lobbies"];
+                if (showGames) tabs.push("Games");
+                if (showGames) tabs.push("Profile");
+                if (address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() || activeTab === "Maps") {
+                  tabs.push("Maps");
+                }
+                if (showCustomizeShip) tabs.push("Customize Ship");
                 if (isOwner || activeTab === "Ship Attributes") {
                   tabs.push("Ship Attributes");
                 }
@@ -454,6 +473,12 @@ export default function Home() {
                     }}
                   >
                     [{tab.toUpperCase()}]
+                    {tab === "Games" && hasYourTurn && (
+                      <span
+                        className="ml-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-phosphor-green align-middle"
+                        aria-label="Your turn"
+                      />
+                    )}
                   </button>
                 );
               })}

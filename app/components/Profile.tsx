@@ -62,6 +62,27 @@ const Profile: React.FC = () => {
     return { text: "DEFEAT", color: "text-warning-red" };
   };
 
+  const getPlayerScore = (game: typeof games[0]) => {
+    if (!address) return null;
+    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
+    return isCreator ? game.creatorScore : game.joinerScore;
+  };
+
+  const getOpponentAddress = (game: typeof games[0]) => {
+    if (!address) return null;
+    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
+    const opponent = isCreator ? game.metadata.joiner : game.metadata.creator;
+    return `${opponent.slice(0, 6)}…${opponent.slice(-4)}`;
+  };
+
+  const getActiveShips = (game: typeof games[0]) => {
+    if (!address) return null;
+    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
+    return isCreator
+      ? game.creatorActiveShipIds.length
+      : game.joinerActiveShipIds.length;
+  };
+
   const formatDate = (timestamp: bigint) => {
     const date = new Date(Number(timestamp) * 1000);
     return date.toLocaleDateString("en-US", {
@@ -69,6 +90,13 @@ const Profile: React.FC = () => {
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  const navigateToGame = (gameId: string) => {
+    if (!address) return;
+    localStorage.setItem(`selectedGameId-${address}`, gameId);
+    localStorage.setItem(`gamesViewMode-${address}`, "detail");
+    window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
   };
 
   return (
@@ -122,7 +150,7 @@ const Profile: React.FC = () => {
           <h4 className="text-lg font-bold text-purple mb-2 tracking-widest">
             [ACHIEVEMENTS]
           </h4>
-          <p className="text-sm font-mono opacity-60 tracking-wider">// No achievements unlocked</p>
+          <p className="text-sm font-mono opacity-50 tracking-wider">Operational tracking coming in a future update.</p>
         </div>
       </div>
 
@@ -143,24 +171,61 @@ const Profile: React.FC = () => {
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {sortedGames.map((game) => {
                 const outcome = getGameOutcome(game);
+                const playerScore = getPlayerScore(game);
+                const opponent = getOpponentAddress(game);
+                const activeShips = getActiveShips(game);
+                const round = Number(game.turnState.currentRound);
+                const inProgress = game.metadata.winner === "0x0000000000000000000000000000000000000000";
                 return (
                   <div
                     key={game.metadata.gameId.toString()}
-                    className="border border-gunmetal bg-black/20 p-2 text-xs"
+                    className="border border-gunmetal bg-black/20 px-3 py-2 text-xs cursor-pointer transition-colors duration-100 hover:border-cyan hover:bg-black/40"
                     style={{ borderRadius: 0 }}
+                    onClick={() => navigateToGame(game.metadata.gameId.toString())}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigateToGame(game.metadata.gameId.toString()); }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold">
+                    {/* Row 1: ID, outcome, date */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono font-bold shrink-0">
                           Game #{game.metadata.gameId.toString()}
                         </span>
-                        <span className={`font-bold ${outcome.color}`}>
+                        <span className={`font-bold shrink-0 ${outcome.color}`}>
                           [{outcome.text}]
                         </span>
+                        {opponent && (
+                          <span className="opacity-50 font-mono truncate">
+                            vs {opponent}
+                          </span>
+                        )}
                       </div>
-                      <span className="opacity-60">
+                      <span className="opacity-50 shrink-0">
                         {formatDate(game.metadata.startedAt)}
                       </span>
+                    </div>
+                    {/* Row 2: score, round, ships */}
+                    <div className="flex items-center gap-4 mt-1 opacity-70">
+                      {playerScore !== null && (
+                        <span className="font-mono">
+                          <span className="opacity-60">score </span>
+                          <span className="font-bold">{playerScore.toString()}</span>
+                          <span className="opacity-60"> / {game.maxScore.toString()}</span>
+                        </span>
+                      )}
+                      {round > 0 && (
+                        <span className="font-mono">
+                          <span className="opacity-60">rnd </span>
+                          <span className="font-bold">{round}</span>
+                        </span>
+                      )}
+                      {activeShips !== null && inProgress && (
+                        <span className="font-mono">
+                          <span className="opacity-60">ships </span>
+                          <span className="font-bold">{activeShips}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

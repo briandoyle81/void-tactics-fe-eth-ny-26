@@ -3946,29 +3946,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   return (
                     <div className="flex flex-col gap-1.5">
                       <div
-                        className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
-                        style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          color: "var(--color-text-secondary)",
-                        }}
+                        className="flex items-center justify-between gap-2"
+                        style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
                       >
-                        <span style={{ color: "var(--color-cyan)" }}>
+                        <span
+                          className="text-sm font-bold uppercase tracking-wider"
+                          style={{ color: "var(--color-cyan)" }}
+                        >
                           YOUR TURN
                         </span>
-                        <span style={{ color: "var(--color-text-muted)" }}>
-                          •
-                        </span>
                         <span
-                          className="font-mono animate-timeout-soft"
+                          className="font-mono text-sm animate-timeout-soft"
                           style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-cyan)",
+                            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+                            color: "var(--color-warning-red)",
                           }}
                         >
                           00:00
                         </span>
+                      </div>
+                      <div
+                        className="text-sm font-bold uppercase tracking-wider animate-victory-flash"
+                        style={{ color: "var(--color-warning-red)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+                      >
+                        Opponent can now claim victory
                       </div>
                       <div className="flex items-center gap-2">
                         <div
@@ -3979,7 +3980,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           }}
                         >
                           <div
-                            className="h-full animate-timeout-bar"
+                            className="h-full animate-victory-flash"
                             style={{
                               width: `100%`,
                               backgroundColor: "var(--color-warning-red)",
@@ -4018,6 +4019,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 if (canSeizeTurn) {
                   return (
                     <div className="flex flex-col gap-1.5">
+                      <p className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-amber)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+                        Opponent&apos;s timer expired
+                      </p>
                       <div className="text-sm">
                         <div
                           className="inline-block"
@@ -4174,6 +4178,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         </svg>
                       </button>
                     </div>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)", fontFamily: "var(--font-rajdhani), sans-serif" }}>
+                      {isMyTurnEffective
+                        ? "Opponent may claim victory if timer expires"
+                        : "You may claim victory if their timer expires"}
+                    </p>
                   </div>
                 );
               })()}

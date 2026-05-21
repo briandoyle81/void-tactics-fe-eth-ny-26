@@ -98,6 +98,13 @@ export function isRoninSaigonChain(chainId: number): boolean {
   return chainId === saigon.id;
 }
 
+export function isFlowTestnetChain(chainId: number): boolean {
+  return chainId === flowTestnet.id;
+}
+
+/** Flow EVM block gas cap (2^24). Gas estimates from wagmi often exceed this, causing reverts. */
+export const FLOW_TESTNET_BLOCK_GAS_CAP = 16_000_000n;
+
 /** Ensures legacy `gasPrice` meets chain minimums (Ronin Saigon). */
 export function applyLegacyGasPriceFloor(chainId: number, gasPriceWei: bigint): bigint {
   if (isRoninSaigonChain(chainId) && gasPriceWei < RONIN_SAIGON_MIN_GAS_PRICE_WEI) {

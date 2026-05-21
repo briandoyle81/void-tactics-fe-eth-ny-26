@@ -133,14 +133,14 @@ export function LobbyCreateButton({
       chainId,
     });
 
-  // Calculate total UTC required: reservation fee (1 UTC) + additional lobby fee (if value > 0, it's in UTC)
+  // UTC is required for reservation fee (1 UTC) and additional lobby fee.
   const totalUtcRequired = React.useMemo(() => {
     let total = 0n;
     if (isReserved) {
       total += parseEther("1"); // Reservation fee
     }
     if (value > 0n) {
-      total += value; // Additional lobby fee (in UTC, not FLOW)
+      total += value; // Additional lobby fee (in UTC)
     }
     return total;
   }, [isReserved, value]);

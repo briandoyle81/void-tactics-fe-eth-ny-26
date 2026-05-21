@@ -410,6 +410,7 @@ export function useFreeShipClaiming() {
     // Next claim countdown (when has claimed)
     secondsUntilNextClaim,
     nextClaimInFormatted,
+    cooldownSeconds,
 
     // Loading states
     isLoadingClaimStatus,

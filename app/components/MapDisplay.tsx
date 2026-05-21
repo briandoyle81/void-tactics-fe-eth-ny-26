@@ -39,6 +39,7 @@ interface MapDisplayProps {
   onDragOver?: (row: number, col: number, e: React.DragEvent) => void;
   onDrop?: (row: number, col: number, e?: React.DragEvent) => void;
   dragOverPosition?: { row: number; col: number } | null;
+  showDeployZoneLabel?: boolean;
 }
 
 export function MapDisplay({
@@ -58,6 +59,7 @@ export function MapDisplay({
   onDragOver,
   onDrop,
   dragOverPosition = null,
+  showDeployZoneLabel = false,
 }: MapDisplayProps) {
   const mapGridRef = useRef<HTMLDivElement>(null);
   const [, setMapGridLayoutVersion] = useState(0);
@@ -377,37 +379,6 @@ export function MapDisplay({
           key={`map-display-${mapId}-${mapState.blockedTiles.length}-${mapState.scoringTiles.length}`}
           className="grid relative gap-0 grid-cols-[repeat(17,1fr)] grid-rows-[repeat(11,1fr)] w-full h-full"
         >
-          {/* Player-specific overlay - render first so it's behind everything */}
-          {showPlayerOverlay && (
-            <div className="absolute pointer-events-none inset-0">
-              {isCreator ? (
-                /* Creator overlay - left 4 columns (0-3) */
-                <div
-                  className="absolute bg-cyan"
-                  style={{
-                    left: 0,
-                    top: 0,
-                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
-                    height: "100%",
-                    opacity: 0.1,
-                  }}
-                />
-              ) : (
-                /* Joiner overlay - right 4 columns (13-16) */
-                <div
-                  className="absolute bg-cyan"
-                  style={{
-                    right: 0,
-                    top: 0,
-                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
-                    height: "100%",
-                    opacity: 0.1,
-                  }}
-                />
-              )}
-            </div>
-          )}
-
           {Array.from({ length: GRID_DIMENSIONS.HEIGHT }, (_, row) => (
             <div key={`row-${row}`} className="contents">
               {Array.from({ length: GRID_DIMENSIONS.WIDTH }, (_, col) => {
@@ -501,6 +472,63 @@ export function MapDisplay({
               })}
             </div>
           ))}
+
+          {/* Player deployment zone overlay - rendered after grid cells so it appears above them */}
+          {showPlayerOverlay && (
+            <div className="absolute pointer-events-none inset-0 z-[5]">
+              {isCreator ? (
+                /* Creator zone - left 4 columns (0-3) */
+                <div
+                  className="absolute flex flex-col items-center justify-start pt-2 overflow-hidden"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
+                    height: "100%",
+                    backgroundColor: "color-mix(in srgb, var(--color-amber) 8%, transparent)",
+                    borderRight: "2px solid color-mix(in srgb, var(--color-amber) 35%, transparent)",
+                  }}
+                >
+                  {showDeployZoneLabel && (
+                    <span
+                      className="text-[18px] font-bold tracking-widest leading-none"
+                      style={{
+                        fontFamily: "var(--font-rajdhani), sans-serif",
+                        color: "color-mix(in srgb, var(--color-amber) 60%, transparent)",
+                      }}
+                    >
+                      YOUR ZONE
+                    </span>
+                  )}
+                </div>
+              ) : (
+                /* Joiner zone - right 4 columns (13-16) */
+                <div
+                  className="absolute flex flex-col items-center justify-start pt-2 overflow-hidden"
+                  style={{
+                    right: 0,
+                    top: 0,
+                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
+                    height: "100%",
+                    backgroundColor: "color-mix(in srgb, var(--color-amber) 8%, transparent)",
+                    borderLeft: "2px solid color-mix(in srgb, var(--color-amber) 35%, transparent)",
+                  }}
+                >
+                  {showDeployZoneLabel && (
+                    <span
+                      className="text-[18px] font-bold tracking-widest leading-none"
+                      style={{
+                        fontFamily: "var(--font-rajdhani), sans-serif",
+                        color: "color-mix(in srgb, var(--color-amber) 60%, transparent)",
+                      }}
+                    >
+                      YOUR ZONE
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Grid reference lines overlay */}
           <div className="absolute pointer-events-none inset-0 z-10">

@@ -6,6 +6,7 @@ import { useGetAllPresetMaps, useMapCount } from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
 import { PresetMap, GRID_DIMENSIONS } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
+import { MAP_ADMIN_ADDRESS } from "../config/alpha";
 
 export default function Maps() {
   const { address } = useAccount();
@@ -28,10 +29,8 @@ export default function Maps() {
     }));
   }, [allMapsData]);
 
-  // Temporary restriction - only allow specific address to create maps
-  const ALLOWED_ADDRESS = "0x69a5B3aE8598fC5A5419eaa1f2A59Db2D052e346";
   const canCreateMaps =
-    address?.toLowerCase() === ALLOWED_ADDRESS.toLowerCase();
+    address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
 
   useEffect(() => {
     const onChainChanged = () => {

@@ -70,7 +70,39 @@ import {
   VOID_TACTICS_ALPHA_DISCORD_INVITE,
   MIN_SHIPS_FOR_LOBBIES,
   MAX_SHIPS_PER_FLEET,
+  formatThreatShort,
+  formatTurnShort,
+  formatScoreShort,
 } from "../utils/lobbyFormatters";
+import { usePlayerStats } from "../hooks/usePlayerStats";
+
+function CreatorStats({
+  address,
+  chainId,
+}: {
+  address: `0x${string}`;
+  chainId: number;
+}) {
+  const stats = usePlayerStats(address, chainId);
+  if (!stats) return null;
+  const wins = Number(stats.wins);
+  const losses = Number(stats.losses);
+  return (
+    <div
+      className="flex items-center gap-2 text-base font-bold tabular-nums"
+      style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
+    >
+      <span className="text-phosphor-green">{wins}W</span>
+      <span
+        className="text-[10px] font-normal"
+        style={{ color: "color-mix(in srgb, var(--color-text-muted) 40%, transparent)" }}
+      >
+        /
+      </span>
+      <span className="text-warning-red">{losses}L</span>
+    </div>
+  );
+}
 
 const Lobbies: React.FC = () => {
   const { address, isConnected } = useAccount();
@@ -157,6 +189,7 @@ const Lobbies: React.FC = () => {
 
   const { isSuccess: isCreateLobbyConfirmed } = useWaitForTransactionReceipt({
     hash: pendingCreateLobbyHash,
+    chainId,
     query: { enabled: !!pendingCreateLobbyHash },
   });
 
@@ -407,6 +440,7 @@ const Lobbies: React.FC = () => {
   // Drop ships that are not on the current global costs version from selection
   useEffect(() => {
     if (globalCostsVersion === null) return;
+    let removedCount = 0;
     setSelectedShips((prev) => {
       const next = prev.filter((id) => {
         const ship = resolveFleetPickerShip(id);
@@ -415,6 +449,7 @@ const Lobbies: React.FC = () => {
           Number(ship.shipData.costsVersion) === globalCostsVersion
         );
       });
+      removedCount = prev.length - next.length;
       return next.length === prev.length ? prev : next;
     });
     setShipPositions((prev) => {
@@ -427,6 +462,12 @@ const Lobbies: React.FC = () => {
       });
       return next.length === prev.length ? prev : next;
     });
+    if (removedCount > 0) {
+      toast(
+        `${removedCount} ship${removedCount > 1 ? "s" : ""} removed from your fleet — cost data is out of date. Update them in Manage Navy.`,
+        { icon: "⚠️", duration: 6000 },
+      );
+    }
   }, [globalCostsVersion, ships, playerFleetShips, resolveFleetPickerShip]);
 
   // Track the last loaded fleet ID to avoid reloading unnecessarily
@@ -2371,10 +2412,9 @@ const Lobbies: React.FC = () => {
                 className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
                 onTransactionSent={(hash) => {
                   setPendingCreateLobbyHash(hash);
+                  setShowCreateForm(false);
                 }}
-                onSuccess={() => {
-                  // Form closes in receipt effect tied to `pendingCreateLobbyHash`.
-                }}
+                onSuccess={() => {}}
                 onError={(error) => {
                   setPendingCreateLobbyHash(undefined);
                   console.error("Failed to create lobby:", error);
@@ -2426,79 +2466,195 @@ const Lobbies: React.FC = () => {
             ) : null}
           </div>
         ) : (
-          lobbyList.lobbies.map((lobby) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {lobbyList.lobbies.map((lobby) => (
             <div
               key={lobby.basic.id.toString()}
-              className={`border p-4 ${
+              className={`overflow-hidden border ${
                 address &&
                 lobby.basic.creator.toLowerCase() === address.toLowerCase()
-                  ? "border-amber bg-amber/10"
-                  : "border-cyan bg-black/40"
+                  ? "border-amber bg-amber/5"
+                  : "border-cyan bg-black/30"
               }`}
-              style={{
-                borderRadius: 0, // Square corners for industrial theme
-              }}
+              style={{ borderRadius: 0 }}
             >
-              <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h5 className="text-lg font-bold">
-                      Lobby #{lobby.basic.id.toString()}
-                    </h5>
-                    {address &&
-                      lobby.basic.creator.toLowerCase() ===
-                        address.toLowerCase() && (
-                        <span className="px-2 py-1 text-xs bg-amber/20 text-amber rounded-none">
-                          YOUR LOBBY
-                        </span>
-                      )}
-                  </div>
-                  <p
-                    className={`text-sm ${
+              {/* ── Header bar ── */}
+              <div
+                className={`flex items-center justify-between px-4 py-2 border-b ${
+                  address &&
+                  lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                    ? "border-amber/20 bg-amber/5"
+                    : "border-cyan/15 bg-cyan/5"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <h5
+                    className={`text-base font-black tracking-wider ${
                       address &&
-                      lobby.basic.creator.toLowerCase() ===
-                        address.toLowerCase()
-                        ? "text-cyan font-bold"
-                        : "text-text-muted"
+                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                        ? "text-amber"
+                        : "text-cyan"
                     }`}
+                    style={{
+                      fontFamily:
+                        "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    }}
                   >
-                    Creator: {lobby.basic.creator.slice(0, 6)}...
-                    {lobby.basic.creator.slice(-4)}
-                  </p>
-                  {lobby.players.joiner !==
-                    "0x0000000000000000000000000000000000000000" && (
-                    <p
-                      className={`text-sm ${
-                        address &&
-                        lobby.players.joiner.toLowerCase() ===
-                          address.toLowerCase()
-                          ? "text-cyan font-bold"
-                          : "text-text-muted"
-                      }`}
-                    >
-                      Joiner: {lobby.players.joiner.slice(0, 6)}...
-                      {lobby.players.joiner.slice(-4)}
-                    </p>
-                  )}
-                  {/* Reservation Status */}
-                  {lobby.players.reservedJoiner &&
-                    lobby.players.reservedJoiner !==
-                      "0x0000000000000000000000000000000000000000" &&
-                    typeof lobby.players.reservedJoiner === "string" && (
-                      <div className="mt-2">
-                        <span className="px-2 py-1 text-xs bg-amber/20 text-amber rounded-none border border-amber/50">
-                          [RESERVED]
-                        </span>
-                        <p className="text-xs text-amber mt-1">
-                          Reserved for:{" "}
-                          {lobby.players.reservedJoiner.slice(0, 6)}...
-                          {lobby.players.reservedJoiner.slice(-4)}
-                        </p>
-                      </div>
+                    LOBBY #{lobby.basic.id.toString()}
+                  </h5>
+                  {address &&
+                    lobby.basic.creator.toLowerCase() ===
+                      address.toLowerCase() && (
+                      <span
+                        className="text-[10px] font-bold tracking-widest text-amber/60"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        }}
+                      >
+                        [YOURS]
+                      </span>
                     )}
+                </div>
+                <span
+                  className={`text-[11px] font-bold tracking-widest ${getStatusColor(lobby.state.status)}`}
+                  style={{
+                    fontFamily:
+                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                  }}
+                >
+                  [{getStatusText(lobby.state.status)}]
+                </span>
+              </div>
 
-                  {/* Fleet Selection Indicators */}
-                  <div className="mt-2 flex flex-wrap gap-2">
+              {/* ── Body ── */}
+              <div className="px-4 pt-3 pb-2 space-y-2">
+                {/* Creator: address left, W/L right */}
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className={`text-sm font-bold ${
+                      address &&
+                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                        ? "text-amber"
+                        : "text-text-secondary"
+                    }`}
+                    style={{
+                      fontFamily:
+                        "var(--font-jetbrains-mono), 'Courier New', monospace",
+                    }}
+                  >
+                    {lobby.basic.creator.slice(0, 6)}...
+                    {lobby.basic.creator.slice(-4)}
+                  </span>
+                  <CreatorStats
+                    address={lobby.basic.creator as `0x${string}`}
+                    chainId={chainId}
+                  />
+                </div>
+
+                {/* Joiner row */}
+                {lobby.players.joiner !==
+                  "0x0000000000000000000000000000000000000000" && (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] font-bold tracking-widest text-text-muted"
+                        style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+                      >
+                        + JOINER
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          address &&
+                          lobby.players.joiner.toLowerCase() ===
+                            address.toLowerCase()
+                            ? "text-cyan"
+                            : "text-text-secondary"
+                        }`}
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        }}
+                      >
+                        {lobby.players.joiner.slice(0, 6)}...
+                        {lobby.players.joiner.slice(-4)}
+                      </span>
+                    </div>
+                    <CreatorStats
+                      address={lobby.players.joiner as `0x${string}`}
+                      chainId={chainId}
+                    />
+                  </div>
+                )}
+
+                {/* Reservation status */}
+                {lobby.players.reservedJoiner &&
+                  lobby.players.reservedJoiner !==
+                    "0x0000000000000000000000000000000000000000" &&
+                  typeof lobby.players.reservedJoiner === "string" && (
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="w-8 shrink-0 text-[10px] font-bold tracking-widest text-amber/70"
+                        style={{
+                          fontFamily: "var(--font-rajdhani), sans-serif",
+                        }}
+                      >
+                        RESV
+                      </span>
+                      <span
+                        className="text-sm text-amber"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        }}
+                      >
+                        {lobby.players.reservedJoiner.slice(0, 6)}...
+                        {lobby.players.reservedJoiner.slice(-4)}
+                      </span>
+                      <span
+                        className="ml-1 text-[10px] font-bold tracking-widest text-amber/50"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        }}
+                      >
+                        [RESERVED]
+                      </span>
+                    </div>
+                  )}
+
+                {/* Stats: 2×2 stacked grid */}
+                <div className="grid grid-cols-2 gap-px border border-gunmetal/40 mt-1">
+                  {[
+                    { label: "THREAT", value: formatThreatShort(lobby.basic.costLimit) },
+                    { label: "TURN",   value: formatTurnShort(lobby.gameConfig.turnTime) },
+                    { label: "MAP",    value: `#${lobby.gameConfig.selectedMapId.toString()}` },
+                    { label: "SCORE",  value: formatScoreShort(lobby.gameConfig.maxScore) },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex flex-col gap-0.5 px-3 py-2 bg-black/20">
+                      <span
+                        className="text-[9px] font-bold tracking-widest text-text-muted"
+                        style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+                      >
+                        {label}
+                      </span>
+                      <span
+                        className="text-xs font-bold text-cyan"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        }}
+                      >
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Fleet indicators */}
+                {(lobby.players.creatorFleetId > 0n ||
+                  lobby.players.joinerFleetId > 0n) && (
+                  <div className="flex flex-wrap gap-2 border-t border-gunmetal/40 pt-2">
                     {lobby.players.creatorFleetId > 0n && (
                       <button
                         onClick={() => {
@@ -2506,15 +2662,16 @@ const Lobbies: React.FC = () => {
                           setViewingFleetOwner(lobby.basic.creator);
                           setShowFleetView(true);
                         }}
-                        className={`px-2 py-1 text-xs rounded-none border ${
+                        className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
                           address &&
                           lobby.basic.creator.toLowerCase() ===
                             address.toLowerCase()
-                            ? "border-cyan text-cyan hover:bg-cyan/20"
-                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/20"
+                            ? "border-amber text-amber hover:bg-amber/10"
+                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
                         }`}
+                        style={{ borderRadius: 0 }}
                       >
-                        Creator Fleet #{lobby.players.creatorFleetId.toString()}
+                        CMDR FLEET #{lobby.players.creatorFleetId.toString()}
                       </button>
                     )}
                     {lobby.players.joinerFleetId > 0n && (
@@ -2524,69 +2681,24 @@ const Lobbies: React.FC = () => {
                           setViewingFleetOwner(lobby.players.joiner);
                           setShowFleetView(true);
                         }}
-                        className={`px-2 py-1 text-xs rounded-none border ${
+                        className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
                           address &&
                           lobby.players.joiner.toLowerCase() ===
                             address.toLowerCase()
-                            ? "border-cyan text-cyan hover:bg-cyan/20"
-                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/20"
+                            ? "border-cyan text-cyan hover:bg-cyan/10"
+                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
                         }`}
+                        style={{ borderRadius: 0 }}
                       >
-                        Joiner Fleet #{lobby.players.joinerFleetId.toString()}
+                        JOIN FLEET #{lobby.players.joinerFleetId.toString()}
                       </button>
                     )}
                   </div>
-                </div>
-                <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-                  <span
-                    className={`px-2 py-1 rounded-none text-xs font-bold ${getStatusColor(
-                      lobby.state.status,
-                    )}`}
-                  >
-                    {getStatusText(lobby.state.status)}
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-none text-xs font-bold ${
-                      lobby.players.joiner !==
-                      "0x0000000000000000000000000000000000000000"
-                        ? "bg-phosphor-green/20 text-phosphor-green"
-                        : "bg-steel/20 text-text-muted"
-                    }`}
-                  >
-                    {lobby.players.joiner !==
-                    "0x0000000000000000000000000000000000000000"
-                      ? "JOINED"
-                      : "WAITING"}
-                  </span>
-                </div>
+                )}
               </div>
 
-              <div className="mb-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-4">
-                <div>
-                  <span className="text-text-muted">Fleet Threat Limit:</span>
-                  <span className="ml-2">
-                    {formatLobbyCostLimitDisplay(lobby.basic.costLimit)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-muted">Turn Time:</span>
-                  <span className="ml-2">
-                    {formatLobbyTurnTimeDisplay(lobby.gameConfig.turnTime)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-muted">Map ID:</span>
-                  <span className="ml-2">
-                    {lobby.gameConfig.selectedMapId.toString()}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-muted">Max Score:</span>
-                  <span className="ml-2">
-                    {formatLobbyMaxScoreDisplay(lobby.gameConfig.maxScore)}
-                  </span>
-                </div>
-              </div>
+              {/* ── Action section ── */}
+              <div className="border-t border-gunmetal/40 px-4 py-3">
 
               {lobby.state.status === LobbyStatus.Open &&
                 lobby.basic.creator !== address &&
@@ -2708,68 +2820,45 @@ const Lobbies: React.FC = () => {
 
               {/* Show action buttons for creator */}
               {lobby.basic.creator === address && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {/* Go to Games button - show when both fleets are selected */}
+                <div className="flex flex-col gap-2">
                   {lobby.players.creatorFleetId > 0n &&
                     lobby.players.joinerFleetId > 0n && (
                       <button
                         type="button"
                         onClick={closeFleetModalAndGoToGames}
-                        className="flex-1 px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
                       >
                         GO TO GAMES
                       </button>
                     )}
-
-                  {/* Fleet selection button - only show if creator hasn't selected fleet AND joiner has joined */}
                   {lobby.players.creatorFleetId === 0n &&
                     lobby.players.joiner !==
                       "0x0000000000000000000000000000000000000000" && (
                       <button
                         onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="flex-1 px-4 py-2 rounded-none border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
                       >
                         SELECT FLEET
                       </button>
                     )}
-
-                  {/* View fleet while waiting for opponent; Games only after both fleets */}
                   {lobby.players.creatorFleetId > 0n &&
                     lobby.players.joinerFleetId === 0n && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLobby(lobby.basic.id)}
-                          className="flex-1 px-4 py-2 rounded-none border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        >
-                          VIEW FLEET SELECTION
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          aria-disabled="true"
-                          className="flex-1 cursor-not-allowed px-4 py-2 rounded-none border border-gunmetal bg-near-black/40 text-text-muted font-mono font-bold text-sm tracking-wider"
-                        >
-                          WAITING FOR OPPOSING ADMIRAL
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLobby(lobby.basic.id)}
+                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
+                      >
+                        VIEW FLEET SELECTION
+                      </button>
                     )}
-
-                  {/* Show waiting message if no joiner has joined yet */}
-                  {lobby.players.creatorFleetId === 0n &&
-                    lobby.players.joiner ===
-                      "0x0000000000000000000000000000000000000000" && (
-                      <div className="flex-1 px-4 py-2 rounded-none border border-gunmetal text-text-muted text-center font-mono font-bold text-sm tracking-wider">
-                        WAITING FOR JOINER
-                      </div>
-                    )}
-
-                  {/* Leave button - show for all pre-game scenarios */}
                   {lobby.state.status !== LobbyStatus.InGame && (
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
                       allowWhenOtherPending
-                      className="flex-1 px-4 py-2 rounded-none border border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                      className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
                       onSuccess={() => {
                         if (selectedLobby === lobby.basic.id) {
                           resetFleetSelectionModalState();
@@ -2786,59 +2875,45 @@ const Lobbies: React.FC = () => {
                 </div>
               )}
 
-              {/* Show action buttons for joiner - same layout and style as creator */}
+              {/* Show action buttons for joiner */}
               {lobby.players.joiner === address && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {/* Go to Games button - show when both fleets are selected */}
+                <div className="flex flex-col gap-2">
                   {lobby.players.creatorFleetId > 0n &&
                     lobby.players.joinerFleetId > 0n && (
                       <button
                         type="button"
                         onClick={closeFleetModalAndGoToGames}
-                        className="flex-1 px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
                       >
                         GO TO GAMES
                       </button>
                     )}
-
-                  {/* Fleet selection button - when joiner hasn't selected fleet yet */}
                   {lobby.players.joinerFleetId === 0n && (
                     <button
                       onClick={() => setSelectedLobby(lobby.basic.id)}
-                      className="flex-1 px-4 py-2 rounded-none border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                      className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                      style={{ borderRadius: 0 }}
                     >
                       SELECT FLEET
                     </button>
                   )}
-
-                  {/* View fleet while waiting for opponent; Games only after both fleets */}
                   {lobby.players.joinerFleetId > 0n &&
                     lobby.players.creatorFleetId === 0n && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLobby(lobby.basic.id)}
-                          className="flex-1 px-4 py-2 rounded-none border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        >
-                          VIEW FLEET SELECTION
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          aria-disabled="true"
-                          className="flex-1 cursor-not-allowed px-4 py-2 rounded-none border border-gunmetal bg-near-black/40 text-text-muted font-mono font-bold text-sm tracking-wider"
-                        >
-                          WAITING FOR OPPOSING ADMIRAL
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLobby(lobby.basic.id)}
+                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
+                      >
+                        VIEW FLEET SELECTION
+                      </button>
                     )}
-
-                  {/* Leave button - show as long as game hasn't started */}
                   {lobby.state.status !== LobbyStatus.InGame && (
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
                       allowWhenOtherPending
-                      className="flex-1 px-4 py-2 rounded-none border border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                      className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
                       onSuccess={() => {
                         if (selectedLobby === lobby.basic.id) {
                           resetFleetSelectionModalState();
@@ -2872,8 +2947,10 @@ const Lobbies: React.FC = () => {
               {lobby.state.status === LobbyStatus.InGame && (
                 <div className="text-sm text-warning-red">Game in progress</div>
               )}
+              </div>{/* close action section */}
             </div>
-          ))
+          ))}
+          </div>
         )}
       </div>
         </>
@@ -3641,6 +3718,10 @@ const Lobbies: React.FC = () => {
                               )}
                               className="w-full h-full"
                               showPlayerOverlay={true}
+                              showDeployZoneLabel={
+                                !playerFleetId &&
+                                !(showFleetView && viewingFleetId && viewingFleetOwner)
+                              }
                               isCreator={currentLobby.basic.creator === address}
                               isCreatorViewer={
                                 currentLobby.basic.creator === address
@@ -3711,6 +3792,10 @@ const Lobbies: React.FC = () => {
                               )}
                               className="w-full h-full"
                               showPlayerOverlay={true}
+                              showDeployZoneLabel={
+                                !playerFleetId &&
+                                !(showFleetView && viewingFleetId && viewingFleetOwner)
+                              }
                               isCreator={currentLobby.basic.creator === address}
                               isCreatorViewer={
                                 currentLobby.basic.creator === address

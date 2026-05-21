@@ -2,7 +2,10 @@
 
 import React, { useState, useLayoutEffect } from "react";
 import { OnboardingTutorial } from "./OnboardingTutorial";
-import { TUTORIAL_STEP_STORAGE_KEY } from "../types/onboarding";
+import {
+  TUTORIAL_STEP_STORAGE_KEY,
+  TUTORIAL_COMPLETED_STEPS_KEY,
+} from "../types/onboarding";
 import { useAccount } from "wagmi";
 import posthog from "posthog-js";
 import { HeroShipShowcase } from "./HeroShipShowcase";
@@ -18,6 +21,7 @@ const Info: React.FC = () => {
     isLoadingClaimStatus,
     claimStatusError,
     nextClaimInFormatted,
+    cooldownSeconds,
     error: freeShipError,
   } = useFreeShipClaiming();
   // Check if there's a saved tutorial step on mount
@@ -28,6 +32,19 @@ const Info: React.FC = () => {
       return saved !== null;
     }
     return false;
+  });
+
+  // Check if the tutorial has ever been completed (fix 5)
+  const [tutorialCompleted] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const raw = localStorage.getItem(TUTORIAL_COMPLETED_STEPS_KEY);
+    if (!raw) return false;
+    try {
+      const ids: string[] = JSON.parse(raw);
+      return ids.includes("completion-retreat") || ids.includes("completion-sniper");
+    } catch {
+      return false;
+    }
   });
 
   // Notify the top-level layout when tutorial is active so it can mirror
@@ -164,16 +181,19 @@ const Info: React.FC = () => {
                     boxShadow: "0 0 22px rgba(86, 214, 255, 0.18)",
                   }}
                 >
-                  [PLAY NOW]
+                  {tutorialCompleted ? "[REPLAY TUTORIAL]" : "[PLAY NOW]"}
                 </button>
+                {/* Fix 6: replace disabled button with prompt copy */}
                 {!isConnected && (
-                  <button
-                    disabled
-                    className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-phosphor-green text-phosphor-green font-mono font-bold tracking-wide md:tracking-wider transition-all duration-200 opacity-50 cursor-not-allowed w-full md:w-auto rounded-none text-xs sm:text-sm"
-                    style={{ borderRadius: 0 }}
+                  <p
+                    className="flex items-center w-full md:w-auto text-xs text-phosphor-green/70 py-1"
+                    style={{
+                      fontFamily:
+                        "var(--font-jetbrains-mono), 'Courier New', monospace",
+                    }}
                   >
-                    [LOG IN TO CLAIM FREE SHIPS]
-                  </button>
+                    &gt; Connect wallet to claim free ships
+                  </p>
                 )}
                 {isConnected &&
                   !isLoadingClaimStatus &&
@@ -220,6 +240,41 @@ const Info: React.FC = () => {
                     </>
                   )}
               </div>
+              {/* Fix 7: cooldown hint before first claim */}
+              {isConnected &&
+                !isLoadingClaimStatus &&
+                !freeShipError &&
+                !claimStatusError &&
+                isEligible && (
+                  <p
+                    className="text-xs text-phosphor-green/60 leading-snug"
+                    style={{
+                      fontFamily:
+                        "var(--font-jetbrains-mono), 'Courier New', monospace",
+                    }}
+                  >
+                    &gt; First batch is free and instant. New batches available
+                    every{" "}
+                    {cooldownSeconds >= 86400
+                      ? `${Math.round(cooldownSeconds / 86400)} days`
+                      : cooldownSeconds >= 3600
+                        ? `${Math.round(cooldownSeconds / 3600)} hours`
+                        : `${Math.round(cooldownSeconds / 60)} minutes`}
+                    .
+                  </p>
+                )}
+              {/* Fix 5: tutorial completion badge */}
+              {tutorialCompleted && (
+                <p
+                  className="text-xs text-cyan/60 leading-snug"
+                  style={{
+                    fontFamily:
+                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                  }}
+                >
+                  &#10003; Tutorial completed
+                </p>
+              )}
             </div>
           </div>
 

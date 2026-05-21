@@ -16,6 +16,15 @@ export function formatLobbyTurnTimeDisplay(seconds: bigint): string {
   return `${s.toLocaleString()} s`;
 }
 
+export function formatTurnShort(seconds: bigint): string {
+  const s = Number(seconds);
+  if (s === IMMEDIATE_GAME_TURN_SECONDS) return "5 min";
+  if (s === CORRESPONDENCE_GAME_TURN_SECONDS) return "24 hr";
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  return `${Math.round(s / 3600)}h`;
+}
+
 export const SKIRMISH_THREAT_LIMIT = 1000;
 export const BATTLE_THREAT_LIMIT = 2000;
 
@@ -27,6 +36,13 @@ export function formatLobbyCostLimitDisplay(costLimit: bigint): string {
   if (n === BATTLE_THREAT_LIMIT) {
     return "Battle, 2000 threat per fleet";
   }
+  return n.toLocaleString();
+}
+
+export function formatThreatShort(costLimit: bigint): string {
+  const n = Number(costLimit);
+  if (n === SKIRMISH_THREAT_LIMIT) return "Skirmish (1K)";
+  if (n === BATTLE_THREAT_LIMIT) return "Battle (2K)";
   return n.toLocaleString();
 }
 
@@ -46,6 +62,14 @@ export function formatLobbyMaxScoreDisplay(maxScore: bigint): string {
     return "Long, 200 points to win";
   }
   return n.toLocaleString();
+}
+
+export function formatScoreShort(maxScore: bigint): string {
+  const n = Number(maxScore);
+  if (n === SHORT_MAX_SCORE) return "50 pts (short)";
+  if (n === MEDIUM_MAX_SCORE) return "100 pts (medium)";
+  if (n === LONG_MAX_SCORE) return "200 pts (long)";
+  return `${n.toLocaleString()} pts`;
 }
 
 export const VOID_TACTICS_ALPHA_DISCORD_INVITE = "https://discord.gg/SPzndFWvHZ";

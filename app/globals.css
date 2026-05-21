@@ -593,6 +593,16 @@ body::before {
   animation: pulse-functional 2.2s ease-in-out infinite;
 }
 
+@keyframes victory-claim-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Urgent flash for "opponent can claim victory" state */
+.animate-victory-flash {
+  animation: victory-claim-flash 1.4s ease-in-out infinite;
+}
+
 /* Tutorial Hard choice: soft pulse on the orders section label */
 @keyframes tutorial-decision-label-pulse {
   0%,

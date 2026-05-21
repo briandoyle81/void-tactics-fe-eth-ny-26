@@ -36,6 +36,13 @@ import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
 
+const FAUCET_URLS: Record<number, string> = {
+  545: "https://faucet.flow.com/fund-account",
+  84532: "https://thirdweb.com/base-sepolia-testnet",
+  2021: "https://faucet.roninchain.com/",
+  37714555429: "https://faucet.quicknode.com/xai",
+};
+
 function resolveChainIdFromQueryParam(value: string | null): number | null {
   if (!value) return null;
   const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
@@ -277,6 +284,7 @@ function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
 const Header: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
+  const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLElement | null>(null);
@@ -406,11 +414,21 @@ const Header: React.FC = () => {
 
   // Warn if chain variant mapping is incompatible with deployed contract config.
   useEffect(() => {
-    if (!isHydrated) return;
-    if (maxVariant == null) return;
+    if (!isHydrated || maxVariant == null) {
+      setHasVariantMismatch(false);
+      return;
+    }
     const maxVariantNumber = Number(maxVariant);
-    if (!Number.isFinite(maxVariantNumber)) return;
-    if (selectedChainVariant <= maxVariantNumber) return;
+    if (!Number.isFinite(maxVariantNumber)) {
+      setHasVariantMismatch(false);
+      return;
+    }
+    if (selectedChainVariant <= maxVariantNumber) {
+      setHasVariantMismatch(false);
+      return;
+    }
+
+    setHasVariantMismatch(true);
 
     const warningKey = `${selectedChainId}:${selectedChainVariant}:${maxVariantNumber}`;
     if (lastVariantWarningKeyRef.current === warningKey) return;
@@ -725,23 +743,30 @@ const Header: React.FC = () => {
                             : `0.00 ${nativeTokenSymbol}`}
                         </span>
                       </div>
-                      {/* Buy Tokens button (disabled placeholder) */}
-                      <button
-                        type="button"
-                        disabled
-                        className="w-32 h-8 border border-solid text-xs font-bold tracking-wider uppercase cursor-not-allowed opacity-70"
+                      {/* Get Tokens link — opens chain-appropriate faucet */}
+                      <a
+                        href={FAUCET_URLS[selectedChainId] ?? FAUCET_URLS[545]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-32 h-8 border border-solid text-xs font-bold tracking-wider uppercase flex items-center justify-center transition-colors duration-150"
                         style={{
                           fontFamily:
                             "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: "var(--color-text-muted)",
-                          backgroundColor: "var(--color-steel)",
-                          borderColor: "var(--color-gunmetal)",
+                          color: "var(--color-cyan)",
+                          backgroundColor: "var(--color-near-black)",
+                          borderColor: "rgba(86, 214, 255, 0.75)",
                           borderTopColor: "var(--color-steel)",
                           borderLeftColor: "var(--color-steel)",
                         }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "var(--color-slate)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "var(--color-near-black)";
+                        }}
                       >
-                        [BUY TOKENS]
-                      </button>
+                        [GET TOKENS]
+                      </a>
                     </div>
 
                     {/* UTC Balance and Network */}
@@ -971,6 +996,21 @@ const Header: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Variant mismatch persistent banner */}
+      {hasVariantMismatch && (
+        <div
+          className="border-t border-solid px-4 py-1.5 text-xs font-bold tracking-wider uppercase"
+          style={{
+            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+            color: "var(--color-warning-red)",
+            backgroundColor: "color-mix(in srgb, var(--color-warning-red) 10%, transparent)",
+            borderColor: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
+          }}
+        >
+          &#9888; Network variant mismatch — claims and purchases may fail. Try switching networks.
+        </div>
+      )}
 
       {/* UTC Purchase Modal */}
       {showUTCPurchaseModal && (

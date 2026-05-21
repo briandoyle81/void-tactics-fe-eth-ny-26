@@ -93,6 +93,8 @@ export function ManageNavyMobileTutorialSheet({
       : kind === "buy"
         ? "Materials and energy"
         : "Drone factories online";
+  const stepLabel =
+    kind === "construct" ? "STEP 2 OF 3" : kind === "buy" ? "STEP 3 OF 3" : "STEP 1 OF 3";
   const progressPct = kind === "construct" ? "66%" : kind === "buy" ? "100%" : "33%";
   const body =
     kind === "construct"
@@ -130,15 +132,23 @@ Use [CLAIM FREE SHIPS] when you are ready to draw from the next batch.`;
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-start justify-between gap-3">
-          <h3
-            id="manage-navy-mobile-tutorial-title"
-            className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
-            style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-            }}
-          >
-            {title}
-          </h3>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h3
+              id="manage-navy-mobile-tutorial-title"
+              className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
+              style={{
+                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              }}
+            >
+              {title}
+            </h3>
+            <span
+              className="text-[10px] font-bold tracking-widest text-text-muted"
+              style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+            >
+              {stepLabel}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => onNotNow(false)}
@@ -181,14 +191,22 @@ export function ManageNavyDroneFactoryBrief({
       role="region"
       aria-label="Drone factory briefing"
     >
-      <h3
-        className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
-        style={{
-          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-        }}
-      >
-        Drone factories online
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
+          style={{
+            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+          }}
+        >
+          Drone factories online
+        </h3>
+        <span
+          className="text-[10px] font-bold tracking-widest text-text-muted shrink-0 ml-3"
+          style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+        >
+          STEP 1 OF 3
+        </span>
+      </div>
       <div className="mb-2 mt-2 h-1 w-full shrink-0 bg-gunmetal">
         <div
           className="h-1 bg-cyan transition-all duration-300"
@@ -226,14 +244,22 @@ export function ManageNavyConstructDeliveryBrief({
       role="region"
       aria-label="Construct delivery briefing"
     >
-      <h3
-        className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
-        style={{
-          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-        }}
-      >
-        Ready for delivery
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
+          style={{
+            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+          }}
+        >
+          Ready for delivery
+        </h3>
+        <span
+          className="text-[10px] font-bold tracking-widest text-text-muted shrink-0 ml-3"
+          style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+        >
+          STEP 2 OF 3
+        </span>
+      </div>
       <div className="mb-2 mt-2 h-1 w-full shrink-0 bg-gunmetal">
         <div
           className="h-1 bg-cyan transition-all duration-300"
@@ -267,14 +293,22 @@ export function ManageNavyBuyShipsBrief({
       role="region"
       aria-label="Buy ships briefing"
     >
-      <h3
-        className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
-        style={{
-          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-        }}
-      >
-        Materials and energy
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-lg font-bold uppercase leading-tight tracking-wide text-cyan"
+          style={{
+            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+          }}
+        >
+          Materials and energy
+        </h3>
+        <span
+          className="text-[10px] font-bold tracking-widest text-text-muted shrink-0 ml-3"
+          style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
+        >
+          STEP 3 OF 3
+        </span>
+      </div>
       <div className="mb-2 mt-2 h-1 w-full shrink-0 bg-gunmetal">
         <div
           className="h-1 bg-cyan transition-all duration-300"
