@@ -11,6 +11,9 @@ interface MissileShootingAnimationProps {
   facingRight: boolean;
 }
 
+const IMPACT_DURATION = 500; // ms
+const IMPACT_COLORS = ["#ff4400", "#ff8800", "#ffcc00", "#ffffff", "#ff6600"];
+
 export function MissileShootingAnimation({
   gridContainerRef,
   attackerRow,
@@ -38,8 +41,21 @@ export function MissileShootingAnimation({
       trail: { x: number; y: number }[];
     }>
   >([]);
+
+  const [impacts, setImpacts] = useState<
+    Array<{
+      id: number;
+      x: number;
+      y: number;
+      startTime: number;
+      particles: Array<{ angle: number; speed: number; size: number; color: string }>;
+    }>
+  >([]);
+
   const missileIdRef = useRef(0);
+  const impactIdRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const impactAnimationRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate cell centers
@@ -60,8 +76,8 @@ export function MissileShootingAnimation({
   );
 
   // Offset from cell center to the missile launch port.
-  // Facing right: +5% cell width, -10% cell height
-  // Facing left:  -5% cell width, -10% cell height
+  // Facing right: +11% cell width, -16% cell height
+  // Facing left:  -11% cell width, -16% cell height
   const getAttackerOrigin = useCallback(() => {
     const center = getCellCenter(attackerRow, attackerCol);
     if (!gridContainerRef.current) return center;
@@ -69,8 +85,8 @@ export function MissileShootingAnimation({
     const cw = rect.width / 17;
     const ch = rect.height / 11;
     return {
-      x: center.x + (facingRight ? cw * 0.05 : -cw * 0.05),
-      y: center.y - ch * 0.10,
+      x: center.x + (facingRight ? cw * 0.11 : -cw * 0.11),
+      y: center.y - ch * 0.16,
     };
   }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
 
@@ -107,10 +123,6 @@ export function MissileShootingAnimation({
 
     const driftX = attackerCenter.x + Math.cos(initialAngle) * driftDistance;
     const driftY = attackerCenter.y + Math.sin(initialAngle) * driftDistance;
-
-    // New path from drift position to target
-    const newDx = targetX - driftX;
-    const newDy = targetY - driftY;
 
     // Angle for triangle orientation (always point at target)
     const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
@@ -325,7 +337,17 @@ export function MissileShootingAnimation({
           );
 
           if (distanceToTarget <= 0.1) {
-            // Missile reached target - mark for removal
+            const numParticles = 6 + Math.floor(Math.random() * 4);
+            const particles = Array.from({ length: numParticles }, () => ({
+              angle: Math.random() * Math.PI * 2,
+              speed: 15 + Math.random() * 35,
+              size: 1.5 + Math.random() * 3,
+              color: IMPACT_COLORS[Math.floor(Math.random() * IMPACT_COLORS.length)],
+            }));
+            setImpacts((prev) => [
+              ...prev,
+              { id: impactIdRef.current++, x: currentX, y: currentY, startTime: Date.now(), particles },
+            ]);
             return null;
           }
 
@@ -371,6 +393,29 @@ export function MissileShootingAnimation({
     };
   }, [missiles, gridContainerRef]);
 
+  // Drive impact animation re-renders and expire finished impacts.
+  // Uses a functional updater so newly-added impacts are never clobbered.
+  // Returns a new array every frame while impacts are alive so React re-renders
+  // and JSX can read the current Date.now() for position/opacity calculations.
+  useEffect(() => {
+    const animate = () => {
+      const now = Date.now();
+      setImpacts((prev) => {
+        if (prev.length === 0) return prev; // same ref → React bails out, no re-render
+        return prev.filter((imp) => now - imp.startTime < IMPACT_DURATION); // new array → re-render
+      });
+      impactAnimationRef.current = requestAnimationFrame(animate);
+    };
+
+    impactAnimationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (impactAnimationRef.current) {
+        cancelAnimationFrame(impactAnimationRef.current);
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Start first missile
   useEffect(() => {
     spawnMissile();
@@ -382,7 +427,7 @@ export function MissileShootingAnimation({
     };
   }, [spawnMissile]);
 
-  if (!gridContainerRef.current || missiles.length === 0) return null;
+  if (!gridContainerRef.current || (missiles.length === 0 && impacts.length === 0)) return null;
 
   const gridRect = gridContainerRef.current.getBoundingClientRect();
 
@@ -395,6 +440,8 @@ export function MissileShootingAnimation({
   const baseRightX = triangleSize / 2;
   const baseY = triangleHeight;
 
+  const now = Date.now();
+
   return (
     <svg
       className="absolute pointer-events-none z-20"
@@ -402,6 +449,54 @@ export function MissileShootingAnimation({
       viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
       preserveAspectRatio="none"
     >
+      {/* Impact effects */}
+      {impacts.map((impact) => {
+        const elapsed = now - impact.startTime;
+        const t = Math.min(elapsed / IMPACT_DURATION, 1);
+        const easeOut = 1 - Math.pow(1 - t, 2);
+
+        const flashRadius = easeOut * 18;
+        const flashOpacity = Math.max(0, 1 - t * 2.5);
+
+        const ringRadius = easeOut * 28;
+        const ringOpacity = Math.max(0, 1 - t * 1.6);
+
+        return (
+          <g key={impact.id}>
+            {/* Inner glow */}
+            <circle cx={impact.x} cy={impact.y} r={flashRadius * 0.6} fill="#ff8800" opacity={flashOpacity * 0.7} />
+            {/* White flash */}
+            <circle cx={impact.x} cy={impact.y} r={flashRadius} fill="#ffffff" opacity={flashOpacity} />
+            {/* Expanding ring */}
+            <circle
+              cx={impact.x}
+              cy={impact.y}
+              r={ringRadius}
+              fill="none"
+              stroke="#ff4400"
+              strokeWidth={Math.max(0.5, 2.5 * (1 - t))}
+              opacity={ringOpacity}
+            />
+            {/* Debris particles */}
+            {impact.particles.map((p, i) => {
+              const px = impact.x + Math.cos(p.angle) * p.speed * easeOut;
+              const py = impact.y + Math.sin(p.angle) * p.speed * easeOut;
+              return (
+                <circle
+                  key={i}
+                  cx={px}
+                  cy={py}
+                  r={Math.max(0.5, p.size * (1 - t * 0.6))}
+                  fill={p.color}
+                  opacity={Math.max(0, 1 - t * 1.8)}
+                />
+              );
+            })}
+          </g>
+        );
+      })}
+
+      {/* Missiles */}
       {missiles.map((missile) => {
         // Exhaust (base) world position: local (0, triangleHeight) after rotate+translate
         const aRad = (missile.angle * Math.PI) / 180;
