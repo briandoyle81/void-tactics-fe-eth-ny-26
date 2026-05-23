@@ -15,11 +15,14 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.85.3",
+    "@types/pg": "^8.20.0",
     "next": "16.1.4",
     "next-auth": "^4.24.14",
+    "pg": "^8.21.0",
     "pino-pretty": "^13.1.1",
     "posthog-js": "^1.369.5",
     "prisma": "^7.8.0",
