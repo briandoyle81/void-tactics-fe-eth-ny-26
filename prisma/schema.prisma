@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Users ──────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id // Google OAuth sub (user.id from NextAuth)
+  email         String   @unique
+  username      String?
+  creditBalance Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  ships          Ship[]
+  lobbiesCreated Lobby[]       @relation("LobbyCreator")
+  lobbiesJoined  Lobby[]       @relation("LobbyJoiner")
+  gamesAsPlayer1 Game[]        @relation("GamePlayer1")
+  gamesAsPlayer2 Game[]        @relation("GamePlayer2")
+  fleets         Fleet[]
+  stats          PlayerStats?
+}
+
+// ── Ships ──────────────────────────────────────────────────────────────────────
+
+model Ship {
+  id             Int       @id @default(autoincrement())
+  ownerId        String
+  owner          User      @relation(fields: [ownerId], references: [id])
+  name           String    @default("Ship")
+  // equipment: { mainWeapon: 0-3, armor: 0-3, shields: 0-3, special: 0-3 }
+  equipment      Json
+  // traits: { serialNumber, colors: { h1,s1,l1,h2,s2,l2 }, variant, accuracy, hull, speed }
+  traits         Json
+  cost           Int       @default(0)
+  shiny          Boolean   @default(false)
+  constructed    Boolean   @default(false)
+  inFleet        Boolean   @default(false)
+  destroyed      Boolean   @default(false)
+  shipsDestroyed Int       @default(0)
+  destroyedAt    DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+// ── Fleets ─────────────────────────────────────────────────────────────────────
+// One fleet per player per lobby. Query: fleet where lobbyId=X and ownerId=Y.
+
+model Fleet {
+  id                Int      @id @default(autoincrement())
+  ownerId           String
+  owner             User     @relation(fields: [ownerId], references: [id])
+  lobbyId           Int
+  lobby             Lobby    @relation(fields: [lobbyId], references: [id])
+  // Ship IDs in this fleet (references Ship.id)
+  shipIds           Int[]
+  totalCost         Int      @default(0)
+  isComplete        Boolean  @default(false)
+  // Starting grid positions: [{ row, col }] indexed to match shipIds
+  startingPositions Json?
+  createdAt         DateTime @default(now())
+}
+
+// ── Lobbies ────────────────────────────────────────────────────────────────────
+
+model Lobby {
+  id               Int         @id @default(autoincrement())
+  creatorId        String
+  creator          User        @relation("LobbyCreator", fields: [creatorId], references: [id])
+  joinerId         String?
+  joiner           User?       @relation("LobbyJoiner", fields: [joinerId], references: [id])
+  mapId            Int?
+  map              Map?        @relation(fields: [mapId], references: [id])
+  status           LobbyStatus @default(OPEN)
+  costLimit        Int         @default(0) // max total fleet cost
+  turnTimeSeconds  Int         @default(120)
+  maxScore         Int         @default(3)
+  creatorGoesFirst Boolean?
+  createdAt        DateTime    @default(now())
+  joinedAt         DateTime?
+
+  fleets           Fleet[]
+  game             Game?
+}
+
+enum LobbyStatus {
+  OPEN
+  FLEET_SELECTION
+  IN_GAME
+  CANCELLED
+  COMPLETED
+}
+
+// ── Games ──────────────────────────────────────────────────────────────────────
+
+model Game {
+  id           Int       @id @default(autoincrement())
+  lobbyId      Int       @unique
+  lobby        Lobby     @relation(fields: [lobbyId], references: [id])
+  player1Id    String // creator
+  player1      User      @relation("GamePlayer1", fields: [player1Id], references: [id])
+  player2Id    String // joiner
+  player2      User      @relation("GamePlayer2", fields: [player2Id], references: [id])
+  // Full serialised GameDataView — served directly to the client
+  state        Json
+  currentTurn  String // userId of the player whose turn it is
+  currentRound Int       @default(1)
+  phase        GamePhase @default(ACTIVE)
+  winnerId     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  turns        GameTurn[]
+}
+
+enum GamePhase {
+  ACTIVE
+  COMPLETED
+  TIMED_OUT
+  ABANDONED
+}
+
+model GameTurn {
+  id          Int      @id @default(autoincrement())
+  gameId      Int
+  game        Game     @relation(fields: [gameId], references: [id])
+  playerId    String
+  round       Int
+  // Array of actions submitted this turn: [{ type, shipId, targetRow, targetCol, ... }]
+  actions     Json
+  submittedAt DateTime @default(now())
+
+  @@index([gameId, round])
+}
+
+// ── Maps ───────────────────────────────────────────────────────────────────────
+
+model Map {
+  id           Int      @id @default(autoincrement())
+  name         String
+  gridWidth    Int      @default(17)
+  gridHeight   Int      @default(11)
+  // [{ row, col }]
+  blockedTiles Json     @default("[]")
+  // [{ row, col, points, onlyOnce }]
+  scoringTiles Json     @default("[]")
+  createdAt    DateTime @default(now())
+
+  lobbies      Lobby[]
+}
+
+// ── Player Stats ───────────────────────────────────────────────────────────────
+
+model PlayerStats {
+  userId     String @id
+  user       User   @relation(fields: [userId], references: [id])
+  wins       Int    @default(0)
+  losses     Int    @default(0)
+  totalGames Int    @default(0)
+}

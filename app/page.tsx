@@ -415,7 +415,7 @@ export default function Home() {
         className={`flex min-h-0 flex-1 flex-col gap-4 w-full md:gap-8 ${
           hideGlobalChrome ? "pt-0 pb-0" : "pt-4 pb-8 sm:pb-16 md:pb-20"
         } ${
-          activeTab === "Games" || isInfoTutorialActive
+          isGamesDetailActive || isInfoTutorialActive
             ? "px-0"
             : "px-2 md:px-10 lg:px-20"
         }`}
@@ -424,7 +424,7 @@ export default function Home() {
         <div
           className={`w-full ${
             activeTab === "Maps" ||
-            activeTab === "Games" ||
+            isGamesDetailActive ||
             isInfoTutorialActive
               ? ""
               : "max-w-7xl mx-auto"

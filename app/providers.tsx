@@ -6,6 +6,7 @@ import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { http } from "wagmi";
+import { SessionProvider } from "next-auth/react";
 import { TransactionProvider } from "./providers/TransactionContext";
 import { type ReactNode, useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,17 +52,19 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <InvalidateQueriesOnChainChange />
-        <PosthogAppChainSync />
-        <RainbowKitProvider>
-          <TransactionProvider>
-            {children}
-            <MobileAlphaNoticeModal />
-          </TransactionProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <SessionProvider>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <InvalidateQueriesOnChainChange />
+          <PosthogAppChainSync />
+          <RainbowKitProvider>
+            <TransactionProvider>
+              {children}
+              <MobileAlphaNoticeModal />
+            </TransactionProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </SessionProvider>
   );
 }
