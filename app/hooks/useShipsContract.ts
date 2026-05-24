@@ -1,40 +1,35 @@
-import { useReadContract, useWriteContract } from "wagmi";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import type { Abi } from "viem";
+import { getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "./useSelectedChainId";
 
-// Hook for reading contract data
 export function useShipsContract() {
   const activeChainId = useSelectedChainId();
   const contractAddresses = getContractAddresses(activeChainId);
-
   return {
     address: contractAddresses.SHIPS as `0x${string}`,
-    abi: CONTRACT_ABIS.SHIPS as Abi,
+    abi: [] as const,
     chainId: activeChainId,
   };
 }
 
-// Hook for reading contract data with proper typing
-export function useShipsRead(functionName: string, args?: readonly unknown[]) {
-  const activeChainId = useSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
+const STUB = { data: undefined as unknown, isLoading: false, error: null as Error | null, refetch: async () => {} };
 
-  return useReadContract({
-    address: contractAddresses.SHIPS as `0x${string}`,
-    abi: CONTRACT_ABIS.SHIPS as Abi,
-    chainId: activeChainId,
-    functionName,
-    args,
-  });
+export function useShipsRead(_functionName: string, _args?: readonly unknown[]) {
+  return STUB;
 }
 
-// Hook for writing to contract with proper typing
 export function useShipsWrite() {
-  return useWriteContract();
+  return {
+    writeContract: async () => {},
+    writeContractAsync: async () => { throw new Error("blockchain writes disabled"); },
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    data: undefined,
+    reset: () => {},
+  };
 }
 
-// Type-safe contract function names
 export type ShipsReadFunction =
   | "getShip"
   | "getShipIdsOwned"
@@ -51,7 +46,5 @@ export type ShipsWriteFunction =
   | "constructShips"
   | "constructAllMyShips"
   | "shipBreaker"
-  /** Permissionless: refreshes costsVersion + cost via ShipAttributes (reverts if ship in fleet). */
   | "syncShipCosts"
-  /** Owner or game only; players should use syncShipCosts. */
   | "setCostOfShip";

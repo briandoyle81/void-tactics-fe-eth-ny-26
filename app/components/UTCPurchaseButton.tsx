@@ -3,7 +3,7 @@
 import React from "react";
 import { TransactionButton } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import { getSelectedChainId } from "../config/networks";
 import posthog from "posthog-js";
 
@@ -46,21 +46,15 @@ export function UTCPurchaseButton({
   const { address } = useAccount();
   const activeChainId = getSelectedChainId();
 
-  // Get user's FLOW balance
-  const { data: flowBalance } = useBalance({
-    address,
-    chainId: activeChainId,
-  });
-
   const validateBeforeTransaction = React.useCallback(() => {
     if (!address) {
       return "Please connect your wallet";
     }
-    if (!flowBalance || flowBalance.value < flowCost) {
+    if (true) { // balance check removed with wagmi
       return "Insufficient FLOW balance";
     }
     return true;
-  }, [address, flowBalance, flowCost]);
+  }, [address]);
 
   const handleSuccess = React.useCallback(() => {
     posthog.capture("utc_purchased", { tier, utc_amount: utcAmount });

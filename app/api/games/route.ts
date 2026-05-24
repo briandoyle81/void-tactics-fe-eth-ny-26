@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/app/lib/prisma";
+import { requireAuth } from "@/app/lib/auth";
+import { stringifyWithBigint } from "@/app/lib/bigintJson";
+import { GameDataView } from "@/app/types/types";
+
+export async function GET() {
+  const { userId, error } = await requireAuth();
+  if (error) return error;
+
+  const games = await prisma.game.findMany({
+    where: {
+      phase: "ACTIVE",
+      OR: [{ player1Id: userId! }, { player2Id: userId! }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const gameViews = games.map((g) => g.state as unknown as GameDataView);
+  return new NextResponse(stringifyWithBigint(gameViews), {
+    headers: { "Content-Type": "application/json" },
+  });
+}

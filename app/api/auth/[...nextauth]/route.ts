@@ -1,15 +1,11 @@
 import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import { authOptions } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
 const handler = NextAuth({
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  ...authOptions,
   callbacks: {
+    ...authOptions.callbacks,
     async signIn({ user, account }) {
       if (account?.provider !== "google" || !user.id || !user.email) return true;
       await prisma.user.upsert({
@@ -23,12 +19,6 @@ const handler = NextAuth({
         },
       });
       return true;
-    },
-    session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub!;
-      }
-      return session;
     },
   },
 });

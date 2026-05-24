@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useAccount } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 
 const Profile: React.FC = () => {

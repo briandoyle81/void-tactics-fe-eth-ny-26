@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAccount } from "wagmi";
 import posthog from "posthog-js";
 import {
   GameDataView,
@@ -16,14 +15,18 @@ import {
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { useGetGameMapState } from "../hooks/useMapsContract";
-import { useGameContract, useGetGame } from "../hooks/useGameContract";
+import { useGetGame } from "../hooks/useGameContract";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { apiMutate } from "../lib/apiMutate";
+import { useGameStream } from "../hooks/useGameStream";
 import {
   useContractEvents,
   registerGameRefetch,
   unregisterGameRefetch,
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
-import { TransactionButton } from "./TransactionButton";
+import { useQueryClient } from "@tanstack/react-query";
+// TransactionButton removed — actions go through REST API
 import { toast } from "react-hot-toast";
 import { useTransaction } from "../providers/TransactionContext";
 import {
@@ -75,16 +78,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [showDebug, setShowDebug] = React.useState(false);
   // Tooltip disable toggle
   const [disableTooltips, setDisableTooltips] = React.useState(false);
-  const { address } = useAccount();
+  const { userId: address } = useCurrentUser();
+  const queryClient = useQueryClient();
   const appChainId = useSelectedChainId();
-  const gameContract = useGameContract();
-  const { clearAllTransactions, transactionState } = useTransaction();
+  const { clearAllTransactions } = useTransaction();
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
   const [previewPosition, setPreviewPosition] = useState<{
     row: number;
     col: number;
   } | null>(null);
   const [targetShipId, setTargetShipId] = useState<bigint | null>(null);
+  const [isMoveSubmitting, setIsMoveSubmitting] = useState(false);
+  const [isTimeoutSubmitting, setIsTimeoutSubmitting] = useState(false);
   // Explicit per-ship action override (e.g. Retreat/Flee)
   const [actionOverride, setActionOverride] = useState<ActionType | null>(null);
   /** Player clicked Retreat for this ship (healthy ships); not set for auto-retreat on 0 HP. */
@@ -320,7 +325,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const displayedLastMove: LastMove | undefined =
     optimisticLastMove ?? game.lastMove;
 
-  // Enable real-time event listening for game updates
+  // Subscribe to SSE for real-time opponent move updates
+  useGameStream(Number(initialGame.metadata.gameId), !readOnly);
+  // No-op: kept for the global refetch registry used by debug tools
   useContractEvents();
 
   // Track previous game state to detect if state changed after event
@@ -705,7 +712,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Create grids from contract map (same format as tutorial map grids)
   const { blockedGrid, scoringGrid, onlyOnceGrid } = React.useMemo(() => {
-    const gameMapData = gameMapState as
+    const gameMapData = (gameMapState ?? undefined) as
       | [
           Array<{ row: number; col: number }>,
           Array<{
@@ -1095,7 +1102,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         targetShipId,
         getShipAttributes,
         selectedWeaponType,
-        specialData: specialData as SpecialData | null,
+        specialData: (specialData ?? null) as SpecialData | null,
         specialType,
         weaponType,
         showReducedDamage,
@@ -1985,11 +1992,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
     if (!isShipOwnedByCurrentPlayer(selectedShipId)) return false;
 
-    const moveShipTxId = `move-ship-${selectedShipId}-${game.metadata.gameId}`;
-    const waitingOnMoveTx =
-      (transactionState.isPending &&
-        transactionState.activeTransactionId === moveShipTxId) ||
-      awaitingTurnSyncAfterSubmit;
+    const waitingOnMoveTx = isMoveSubmitting || awaitingTurnSyncAfterSubmit;
 
     if (movedShipIdsSet.has(selectedShipId)) {
       const attrs = getShipAttributes(selectedShipId);
@@ -2005,9 +2008,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     selectedShipId,
     canActInGame,
     awaitingTurnSyncAfterSubmit,
-    transactionState.isPending,
-    transactionState.activeTransactionId,
-    game.metadata.gameId,
+    isMoveSubmitting,
     isShipOwnedByCurrentPlayer,
     movedShipIdsSet,
     getShipAttributes,
@@ -2374,7 +2375,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
   }, [isMyTurnEffective, address, clearAllTransactions, readOnly]);
 
-  // Handle move submission - now handled by TransactionButton
+  // Handle move submission
 
   // Clear last move display when user selects a ship or makes a proposed move
   React.useEffect(() => {
@@ -2471,21 +2472,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             };
 
             return (
-                <TransactionButton
-                  transactionId={`move-ship-${selectedShipId}-${game.metadata.gameId}`}
-                  contractAddress={gameContract.address}
-                  abi={gameContract.abi}
-                  functionName="moveShip"
-                  args={[
-                    game.metadata.gameId,
-                    selectedShipId,
-                    computedRow,
-                    computedCol,
-                    computedActionType,
-                    computedActionType === ActionType.Pass
-                      ? 0n
-                      : targetShipId || 0n,
-                  ]}
+                <button
+                  type="button"
+                  disabled={isMoveSubmitting}
                   style={submitMoveButtonStyle}
                   className={`px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 ${
                     isRail ? "min-w-0 flex-[2] h-full w-full" : ""
@@ -2494,139 +2483,90 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       ? " animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
                       : ""
                   }`}
-                  loadingText="[SUBMITTING...]"
-                  errorText="[ERR]"
-                  onTransactionSent={(hash) => {
-                    setAwaitingTurnSyncAfterSubmit(true);
-                    if (selectedShipId == null) return;
-                    const moveTypeLabel =
-                      ActionType[computedActionType] ??
-                      String(computedActionType);
-                    let targetShipIdForAnalytics: string | undefined;
-                    if (computedActionType !== ActionType.Pass) {
-                      const tid = targetShipId ?? 0n;
-                      if (tid !== 0n) {
-                        targetShipIdForAnalytics = tid.toString();
-                      }
-                    }
-                    posthog.capture("game_move_submitted", {
-                      game_id: String(game.metadata.gameId),
-                      ship_id: selectedShipId.toString(),
-                      move_type: moveTypeLabel,
-                      ...(targetShipIdForAnalytics != null
-                        ? { target_ship_id: targetShipIdForAnalytics }
-                        : {}),
-                      tx_hash: hash,
-                      chain_id: appChainId,
-                    });
-                  }}
-                  onSuccess={() => {
-                    const currentPosition = game.shipPositions.find(
-                      (pos) => pos.shipId === selectedShipId,
-                    );
-                    const oldRow = currentPosition
-                      ? currentPosition.position.row
-                      : computedRow;
-                    const oldCol = currentPosition
-                      ? currentPosition.position.col
-                      : computedCol;
-
-                    const submittedTargetShipId = targetShipId ?? 0n;
-
-                    setOptimisticLastMove({
-                      shipId: selectedShipId!,
-                      oldRow,
-                      oldCol,
-                      newRow:
-                        computedActionType === ActionType.Retreat
-                          ? -1
-                          : computedRow,
-                      newCol:
-                        computedActionType === ActionType.Retreat
-                          ? -1
-                          : computedCol,
-                      actionType: computedActionType,
-                      targetShipId: submittedTargetShipId,
-                      timestamp: BigInt(Date.now()),
-                    });
-
-                    toast.success("Move submitted successfully!");
-                    const moveTime = Date.now();
-                    playerMoveTimeRef.current = moveTime;
-                    setPlayerMoveTimestamp(moveTime);
-                    refetchGame();
-                    refetch?.();
-                  }}
-                  onError={(error) => {
-                    setAwaitingTurnSyncAfterSubmit(false);
-                    const errorMessage =
-                      (error as Error)?.message ||
-                      String(error) ||
-                      "Unknown error";
-
-                    if (
-                      errorMessage.includes("User rejected") ||
-                      errorMessage.includes("User denied")
-                    ) {
-                      toast.error("Transaction declined by user");
-                    } else if (errorMessage.includes("insufficient funds")) {
-                      toast.error("Insufficient funds for transaction");
-                    } else if (errorMessage.includes("gas")) {
-                      toast.error(
-                        "Transaction failed due to gas estimation error",
-                      );
-                    } else if (errorMessage.includes("execution reverted")) {
-                      toast.error(
-                        "Transaction reverted - check if it's your turn and ship is valid",
-                      );
-                    } else if (errorMessage.includes("NotYourTurn")) {
-                      toast.error("It's not your turn to move");
-                    } else if (errorMessage.includes("ShipNotFound")) {
-                      toast.error("Ship not found in this game");
-                    } else if (errorMessage.includes("InvalidMove")) {
-                      toast.error(
-                        "Invalid move - check ship position and movement range",
-                      );
-                    } else if (errorMessage.includes("PositionOccupied")) {
-                      toast.error("Target position is already occupied");
-                    } else {
-                      toast.error(`Transaction failed: ${errorMessage}`);
-                    }
-                  }}
-                  validateBeforeTransaction={() => {
-                    if (!selectedShipId) {
-                      return "No ship selected";
-                    }
-                    if (
-                      !game.metadata.gameId ||
-                      game.metadata.gameId === 0n
-                    ) {
-                      return "Invalid game ID";
-                    }
+                  onClick={async () => {
+                    if (!selectedShipId || isMoveSubmitting) return;
                     if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
-                      return "You can only move your own ships";
+                      toast.error("You can only move your own ships");
+                      return;
                     }
-                    if (
-                      (computedActionType as ActionType) !==
-                      ActionType.Retreat
-                    ) {
+                    if (computedActionType !== ActionType.Retreat) {
                       if (movedShipIdsSet.has(selectedShipId)) {
-                        return "This ship has already moved this round";
+                        toast.error("This ship has already moved this round");
+                        return;
                       }
-                      if (
-                        computedRow < 0 ||
-                        computedRow >= GRID_HEIGHT ||
-                        computedCol < 0 ||
-                        computedCol >= GRID_WIDTH
-                      ) {
-                        return "Invalid position coordinates";
+                      if (computedRow < 0 || computedRow >= GRID_HEIGHT || computedCol < 0 || computedCol >= GRID_WIDTH) {
+                        toast.error("Invalid position coordinates");
+                        return;
                       }
                     }
-                    return true;
+                    setIsMoveSubmitting(true);
+                    setAwaitingTurnSyncAfterSubmit(true);
+                    try {
+                      const currentPosition = game.shipPositions.find(
+                        (pos) => pos.shipId === selectedShipId,
+                      );
+                      const oldRow = currentPosition ? currentPosition.position.row : computedRow;
+                      const oldCol = currentPosition ? currentPosition.position.col : computedCol;
+                      const submittedTargetShipId = computedActionType === ActionType.Pass ? 0n : (targetShipId || 0n);
+
+                      const updatedState = await apiMutate<GameDataView>(
+                        `/api/games/${game.metadata.gameId}/action`,
+                        "POST",
+                        {
+                          shipId: selectedShipId,
+                          row: computedRow,
+                          col: computedCol,
+                          actionType: computedActionType,
+                          targetShipId: submittedTargetShipId,
+                          specialType,
+                        },
+                      );
+
+                      // Hydrate React Query cache immediately — no extra round-trip
+                      queryClient.setQueryData(["games", Number(game.metadata.gameId)], updatedState);
+
+                      const moveTypeLabel = ActionType[computedActionType] ?? String(computedActionType);
+                      posthog.capture("game_move_submitted", {
+                        game_id: String(game.metadata.gameId),
+                        ship_id: selectedShipId.toString(),
+                        move_type: moveTypeLabel,
+                        ...(submittedTargetShipId !== 0n ? { target_ship_id: submittedTargetShipId.toString() } : {}),
+                        chain_id: appChainId,
+                      });
+
+                      setOptimisticLastMove({
+                        shipId: selectedShipId,
+                        oldRow,
+                        oldCol,
+                        newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
+                        newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
+                        actionType: computedActionType,
+                        targetShipId: submittedTargetShipId,
+                        timestamp: BigInt(Date.now()),
+                      });
+
+                      toast.success("Move submitted!");
+                      const moveTime = Date.now();
+                      playerMoveTimeRef.current = moveTime;
+                      setPlayerMoveTimestamp(moveTime);
+                      refetch?.();
+                    } catch (err) {
+                      setAwaitingTurnSyncAfterSubmit(false);
+                      const errorMessage = err instanceof Error ? err.message : String(err);
+                      if (errorMessage.includes("Not your turn")) {
+                        toast.error("It's not your turn to move");
+                      } else if (errorMessage.includes("already moved")) {
+                        toast.error("This ship has already moved this round");
+                      } else {
+                        toast.error(`Move failed: ${errorMessage}`);
+                      }
+                    } finally {
+                      setIsMoveSubmitting(false);
+                    }
                   }}
                 >
-                  {isSelectedShipDisabled ? "Submit Retreat" : "Submit"}
-                </TransactionButton>
+                  {isMoveSubmitting ? "[SUBMITTING...]" : isSelectedShipDisabled ? "Submit Retreat" : "Submit"}
+                </button>
             );
           })()}
           <button
@@ -3414,7 +3354,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 <GameEvents
                   lastMove={selectedShipId !== null ? undefined : displayedLastMove}
                   shipMap={shipMap}
-                  address={address}
+                  address={address ?? undefined}
                   appendDestroyedText={appendDestroyedTextToLastMove}
                   debugSuffix={lastMoveTargetPositionDebugSuffix}
                 />
@@ -3614,7 +3554,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       calculateDamage={calculateDamageForShip}
                       getShipAttributes={getShipAttributes}
                       disableTooltips={true}
-                      address={address}
+                      address={address ?? undefined}
                       currentTurn={game.turnState.currentTurn}
                       highlightedMovePosition={highlightedMovePosition}
                       lastMoveShipId={lastMoveShipId}
@@ -4070,25 +4010,27 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                             borderRadius: 0,
                           }}
                         >
-                          <TransactionButton
-                            transactionId={`timeout-${game.metadata.gameId.toString()}`}
-                            contractAddress={gameContract.address}
-                            abi={gameContract.abi}
-                            functionName="endGameOnTimeout"
-                            args={[game.metadata.gameId]}
+                          <button
+                            type="button"
+                            disabled={isTimeoutSubmitting}
                             className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
-                            loadingText="Claiming..."
-                            errorText="Failed"
-                            onSuccess={() => {
-                              toast.success(
-                                "Game ended. Opponent forfeited by timeout.",
-                              );
-                              refetchGame();
-                              refetch?.();
+                            onClick={async () => {
+                              if (isTimeoutSubmitting) return;
+                              setIsTimeoutSubmitting(true);
+                              try {
+                                await apiMutate(`/api/games/${game.metadata.gameId}/timeout`, "POST");
+                                toast.success("Game ended. Opponent forfeited by timeout.");
+                                refetchGame();
+                                refetch?.();
+                              } catch (err) {
+                                toast.error(`Timeout claim failed: ${err instanceof Error ? err.message : String(err)}`);
+                              } finally {
+                                setIsTimeoutSubmitting(false);
+                              }
                             }}
                           >
-                            Claim win (timeout)
-                          </TransactionButton>
+                            {isTimeoutSubmitting ? "Claiming..." : "Claim win (timeout)"}
+                          </button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -4374,7 +4316,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           calculateDamage={calculateDamageForShip}
           getShipAttributes={getShipAttributes}
           disableTooltips={disableTooltips}
-          address={address}
+          address={address ?? undefined}
           currentTurn={game.turnState.currentTurn}
           highlightedMovePosition={highlightedMovePosition}
           lastMoveShipId={lastMoveShipId}
@@ -4614,7 +4556,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         selectedShipId !== null ? undefined : displayedLastMove
                       }
         shipMap={shipMap}
-        address={address}
+        address={address ?? undefined}
                       appendDestroyedText={appendDestroyedTextToLastMove}
                       debugSuffix={lastMoveTargetPositionDebugSuffix}
                     />
@@ -4685,7 +4627,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             <GameEvents
               lastMove={selectedShipId !== null ? undefined : displayedLastMove}
               shipMap={shipMap}
-              address={address}
+              address={address ?? undefined}
               appendDestroyedText={appendDestroyedTextToLastMove}
               debugSuffix={lastMoveTargetPositionDebugSuffix}
             />

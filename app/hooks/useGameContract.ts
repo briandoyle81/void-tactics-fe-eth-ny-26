@@ -1,16 +1,19 @@
+"use client";
+
 import { useMemo } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount } from "./useAccount";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/app/lib/apiFetch";
 import { GameDataView } from "../types/types";
 
-// Hook for reading contract data
+// Contract params — still needed for wagmi write calls until Phase 4
 export function useGameContract() {
   const { chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
   const contractAddresses = getContractAddresses(activeChainId);
-
   return {
     address: contractAddresses.GAME as `0x${string}`,
     abi: CONTRACT_ABIS.GAME as Abi,
@@ -18,70 +21,45 @@ export function useGameContract() {
   };
 }
 
-// Hook for reading contract data with proper typing
-export function useGameRead(
-  functionName: string,
-  args?: readonly unknown[],
-  options?: { query?: { enabled?: boolean } }
-) {
-  const { chainId: walletChainId } = useAccount();
-  const activeChainId = walletChainId ?? getSelectedChainId();
-  const address = useMemo(
-    () => getContractAddresses(activeChainId).GAME as `0x${string}`,
-    [activeChainId],
-  );
-
-  return useReadContract({
-    address,
-    abi: CONTRACT_ABIS.GAME as Abi,
-    chainId: activeChainId,
-    functionName,
-    args,
-    query: options?.query,
-  });
-}
-
-// Hook for writing to contract with proper typing
 export function useGameWrite() {
-  return useWriteContract();
+  return {
+    writeContract: async () => {},
+    writeContractAsync: async () => { throw new Error("blockchain writes disabled"); },
+    isPending: false, isSuccess: false, isError: false, error: null, data: undefined, reset: () => {},
+  };
 }
 
-// Type-safe contract function names
-export type GameReadFunction =
-  | "gameCount"
-  | "playerGames"
-  | "getGame"
-  | "getGamesFromIds"
-  | "games";
-
-// Specific hooks for common functions
-export function useGameCount() {
-  return useGameRead("gameCount");
-}
-
-export function useGetGamesForPlayer(playerAddress: string) {
-  const args = useMemo(() => [playerAddress] as const, [playerAddress]);
-  return useGameRead("getGamesForPlayer", args, {
-    query: { enabled: !!playerAddress },
-  });
-}
+// ── Read hooks — replaced with API calls ──────────────────────────────────────
 
 export function useGetGame(gameId: number) {
-  const args = useMemo(() => [BigInt(gameId)] as const, [gameId]);
-  const result = useGameRead("getGame", args, {
-    query: { enabled: gameId > 0 },
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["games", gameId],
+    queryFn: () => apiFetch<GameDataView>(`/api/games/${gameId}`),
+    enabled: gameId > 0,
+    // SSE (useGameStream) handles real-time push; this is a fallback safety-net poll
+    refetchInterval: 15000,
+    staleTime: 2000,
   });
-  return { ...result, data: result.data as GameDataView | undefined };
+  return { data, isLoading, error, refetch };
 }
 
-export function useGetGamesFromIds(gameIds: number[]) {
-  const args = useMemo(
-    () => [gameIds.map((id) => BigInt(id))] as const,
-    // gameIds reference must be stable at call sites for this memo to be effective
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameIds],
-  );
-  return useGameRead("getGamesFromIds", args, {
-    query: { enabled: gameIds.length > 0 },
+export function useGetGamesForPlayer(_playerAddress: string) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["games", "player"],
+    queryFn: () => apiFetch<GameDataView[]>("/api/games"),
+    refetchInterval: 5000,
   });
+  return { data, isLoading, error, refetch };
+}
+
+// Kept as shim — gameId is now a number not a bigint in the traditional backend
+export function useGetGamesFromIds(gameIds: number[]) {
+  const key = useMemo(() => gameIds.join(","), [gameIds]);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["games", "byIds", key],
+    queryFn: () =>
+      Promise.all(gameIds.map((id) => apiFetch<GameDataView>(`/api/games/${id}`))),
+    enabled: gameIds.length > 0,
+  });
+  return { data, isLoading, error, refetch };
 }

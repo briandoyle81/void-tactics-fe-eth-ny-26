@@ -7,12 +7,11 @@ import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseI
 import { ShipPurchaseButton } from "./ShipPurchaseButton";
 import { ShipImage } from "./ShipImage";
 import type { Ship } from "../types/types";
-import { formatEther } from "viem";
 
 interface ShipPurchaseInterfaceProps {
   onClose: () => void;
-  paymentMethod?: "FLOW" | "UTC";
-  onPaymentMethodChange?: (method: "FLOW" | "UTC") => void;
+  paymentMethod?: "USD" | "UTC";
+  onPaymentMethodChange?: (method: "USD" | "UTC") => void;
 }
 
 const TIER_COLOR_SCHEMES = [
@@ -69,28 +68,18 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   const { refetch } = useOwnedShips();
   const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
 
-  const paymentMethod = externalPaymentMethod ?? "FLOW";
-  const paymentMethodLabel = paymentMethod === "FLOW" ? "TOKENS" : "UTC";
+  const paymentMethod = externalPaymentMethod ?? "USD";
 
-  if (paymentMethod === "UTC" && !utcPack.purchaserDeployed) {
-    return (
-      <div className="w-full py-8 text-center">
-        <p className="text-warning-red font-mono">
-          UTC ship packs are not available on this network (ShipPurchaser not
-          deployed).
-        </p>
-      </div>
-    );
-  }
-
-  const pack = paymentMethod === "FLOW" ? shipsPack : utcPack;
+  const pack = paymentMethod === "USD" ? shipsPack : utcPack;
   const {
     tiers,
     shipsPerTier: maxPerTier,
-    pricesWei: prices,
     isLoading,
     tierCount,
   } = pack;
+  const prices = paymentMethod === "USD"
+    ? (shipsPack as ReturnType<typeof useShipsPurchaseInfo>).pricesUsdCents
+    : (utcPack as ReturnType<typeof useShipPurchaserPurchaseInfo>).pricesUtc;
 
   const getTierColors = (tier: number) =>
     TIER_COLOR_SCHEMES[tier % TIER_COLOR_SCHEMES.length]!;
@@ -237,7 +226,9 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
         {tiers.map((tier: number, index: number) => {
           const price = prices[index];
           const shipsCount = maxPerTier[index];
-          const priceFormatted = price ? formatEther(price) : "0";
+          const priceFormatted = paymentMethod === "USD"
+            ? `$${((price ?? 0) / 100).toFixed(2)}`
+            : `${price ?? 0} UTC`;
           const colors = getTierColors(tier);
           const guaranteedRanksDisplay = getGuaranteedRankNumbers(tier)
             .filter((r) => r > 1)
@@ -251,7 +242,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
             <ShipPurchaseButton
               key={index}
               tier={tier}
-              price={price ?? BigInt(0)}
+              price={BigInt(price ?? 0)}
               paymentMethod={paymentMethod}
               className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
               refetch={refetch}
@@ -272,7 +263,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
                   <div className="border border-solid border-current/30 bg-black/20 px-2 py-1">
                     <div className="opacity-75">PRICE</div>
                     <div className="font-bold">
-                      {priceFormatted} {paymentMethodLabel}
+                      {priceFormatted}
                     </div>
                   </div>
                   <div className="border border-solid border-current/30 bg-black/20 px-2 py-1">
@@ -364,8 +355,8 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
         }}
       >
         {paymentMethod === "UTC"
-          ? "Click to approve UTC. After approval, click to purchase."
-          : "Click to purchase."}
+          ? "UTC will be deducted from your in-game balance."
+          : "Ships are added to your fleet immediately."}
       </p>
       <p
         className="mt-1 text-[11px] uppercase tracking-[0.08em] text-text-muted"

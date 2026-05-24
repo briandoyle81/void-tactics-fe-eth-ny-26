@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { usePublicClient } from "wagmi";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import { Ship } from "../types/types";
@@ -75,11 +74,15 @@ interface ShipImageState {
 }
 
 function isUserLoggedIn(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window.ethereum?.isConnected?.() ||
-      localStorage.getItem("wagmi.connected") === "true")
-  );
+  // Use next-auth session storage key instead of wagmi
+  if (typeof window === "undefined") return false;
+  try {
+    const session = sessionStorage.getItem("next-auth.session-token") ??
+      localStorage.getItem("next-auth.session-token");
+    return session !== null;
+  } catch {
+    return false;
+  }
 }
 
 // Process the request queue with rate limiting
@@ -154,7 +157,7 @@ export function useShipImageCache(ship: Ship) {
   });
   const [renderKey, setRenderKey] = useState(0);
 
-  const publicClient = usePublicClient();
+  const publicClient = null;
   const cacheKey = `${imageCachePrefix()}${ship.id.toString()}`;
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -278,9 +281,9 @@ export function useShipImageCache(ship: Ship) {
     }
   }, [ship, saveToCache]);
 
-  // Fetch image from contract with retry logic
+  // Fetch image from contract — no-op: publicClient removed with wagmi
   const fetchImageFromContract = useCallback(async () => {
-    if (!publicClient) return;
+    if (!publicClient) return; // always returns early
 
     const attemptFetch = async (retryCount: number): Promise<void> => {
       try {
@@ -297,7 +300,8 @@ export function useShipImageCache(ship: Ship) {
         }));
 
         // Call tokenURI directly
-        const tokenURI = await publicClient.readContract({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tokenURI = await (publicClient as any).readContract({
           address: CONTRACT_ADDRESSES.SHIPS as `0x${string}`,
           abi: SHIPS_ABI,
           functionName: "tokenURI",
@@ -424,7 +428,7 @@ export function useShipImageCache(ship: Ship) {
     };
 
     attemptFetch(0);
-  }, [publicClient, ship.id, saveToCache, shipId, shipRequestKey]);
+  }, [ship.id, saveToCache, shipId, shipRequestKey]);
 
   // Load cached image on mount
   useEffect(() => {

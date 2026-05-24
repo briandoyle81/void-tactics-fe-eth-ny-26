@@ -6,7 +6,7 @@ import {
   TUTORIAL_STEP_STORAGE_KEY,
   TUTORIAL_COMPLETED_STEPS_KEY,
 } from "../types/onboarding";
-import { useAccount } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import posthog from "posthog-js";
 import { HeroShipShowcase } from "./HeroShipShowcase";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";

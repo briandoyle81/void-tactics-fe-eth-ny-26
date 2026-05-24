@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
-import { useAccount } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import { toast } from "react-hot-toast";
 import posthog from "posthog-js";
 

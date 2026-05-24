@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ADDRESSES } from "../config/contracts";
-import { useAccount } from "wagmi";
+import React, { useState } from "react";
+import { useLobbies } from "../hooks/useLobbies";
 
 interface LobbyRejectButtonProps {
   lobbyId: bigint;
@@ -14,16 +12,6 @@ interface LobbyRejectButtonProps {
   onError?: (error: Error) => void;
 }
 
-const LOBBY_REJECT_ABI = [
-  {
-    inputs: [{ internalType: "uint256", name: "_lobbyId", type: "uint256" }],
-    name: "rejectGame",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 export function LobbyRejectButton({
   lobbyId,
   children,
@@ -32,32 +20,30 @@ export function LobbyRejectButton({
   onSuccess,
   onError,
 }: LobbyRejectButtonProps) {
-  const { address } = useAccount();
+  const { rejectGame } = useLobbies();
+  const [isPending, setIsPending] = useState(false);
 
-  const validateBeforeTransaction = React.useCallback(() => {
-    if (!address) {
-      return "Please connect your wallet";
+  const handleClick = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await rejectGame(lobbyId);
+      onSuccess?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsPending(false);
     }
-    return true;
-  }, [address]);
+  };
 
   return (
-    <TransactionButton
-      transactionId={`reject-game-${lobbyId}-${address}`}
-      contractAddress={CONTRACT_ADDRESSES.LOBBIES as `0x${string}`}
-      abi={LOBBY_REJECT_ABI}
-      functionName="rejectGame"
-      args={[lobbyId]}
+    <button
+      onClick={handleClick}
+      disabled={disabled || isPending}
       className={className}
-      disabled={disabled}
-      loadingText="[REJECTING...]"
-      errorText="[ERROR REJECTING]"
-      onSuccess={onSuccess}
-      onError={onError}
-      validateBeforeTransaction={validateBeforeTransaction}
+      type="button"
     >
-      {children}
-    </TransactionButton>
+      {isPending ? "[REJECTING...]" : children}
+    </button>
   );
 }
-

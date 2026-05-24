@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
-import { useAccount } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 
 const FreeShipClaiming: React.FC = () => {
   const { address } = useAccount();

@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ADDRESSES } from "../config/contracts";
-import { useAccount } from "wagmi";
+import React, { useState } from "react";
+import { useLobbies } from "../hooks/useLobbies";
 import posthog from "posthog-js";
 
 interface LobbyAcceptButtonProps {
@@ -15,16 +13,6 @@ interface LobbyAcceptButtonProps {
   onError?: (error: Error) => void;
 }
 
-const LOBBY_ACCEPT_ABI = [
-  {
-    inputs: [{ internalType: "uint256", name: "_lobbyId", type: "uint256" }],
-    name: "acceptGame",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 export function LobbyAcceptButton({
   lobbyId,
   children,
@@ -33,35 +21,31 @@ export function LobbyAcceptButton({
   onSuccess,
   onError,
 }: LobbyAcceptButtonProps) {
-  const { address } = useAccount();
+  const { acceptGame } = useLobbies();
+  const [isPending, setIsPending] = useState(false);
 
-  const validateBeforeTransaction = React.useCallback(() => {
-    if (!address) {
-      return "Please connect your wallet";
+  const handleClick = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await acceptGame(lobbyId);
+      posthog.capture("game_accepted", { lobby_id: lobbyId.toString() });
+      onSuccess?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsPending(false);
     }
-    return true;
-  }, [address]);
+  };
 
   return (
-    <TransactionButton
-      transactionId={`accept-game-${lobbyId}-${address}`}
-      contractAddress={CONTRACT_ADDRESSES.LOBBIES as `0x${string}`}
-      abi={LOBBY_ACCEPT_ABI}
-      functionName="acceptGame"
-      args={[lobbyId]}
+    <button
+      onClick={handleClick}
+      disabled={disabled || isPending}
       className={className}
-      disabled={disabled}
-      loadingText="[ACCEPTING...]"
-      errorText="[ERROR ACCEPTING]"
-      onSuccess={() => {
-        posthog.capture("game_accepted", { lobby_id: lobbyId.toString() });
-        onSuccess?.();
-      }}
-      onError={onError}
-      validateBeforeTransaction={validateBeforeTransaction}
+      type="button"
     >
-      {children}
-    </TransactionButton>
+      {isPending ? "[ACCEPTING...]" : children}
+    </button>
   );
 }
-

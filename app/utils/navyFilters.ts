@@ -224,9 +224,9 @@ export function shipMatchesNavyFilter(
     case "not_in_fleet":
       return !ship.shipData.inFleet;
     case "destroyed":
-      return ship.shipData.timestampDestroyed > 0n;
+      return !!ship.shipData.timestampDestroyed;
     case "alive":
-      return ship.shipData.timestampDestroyed === 0n;
+      return !ship.shipData.timestampDestroyed;
     case "eq_weapon":
       return numOk && ship.equipment.mainWeapon === n;
     case "eq_armor":

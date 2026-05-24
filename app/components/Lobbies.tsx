@@ -7,12 +7,8 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import {
-  useAccount,
-  useChainId,
-  useWaitForTransactionReceipt,
-} from "wagmi";
-import { formatEther } from "viem";
+import { useAccount } from "../hooks/useAccount";
+import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useLobbies } from "../hooks/useLobbies";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useFleetsRead } from "../hooks/useFleetsContract";
@@ -106,7 +102,7 @@ function CreatorStats({
 
 const Lobbies: React.FC = () => {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const chainId = useSelectedChainId();
   const {
     lobbyList,
     playerState,
@@ -114,29 +110,15 @@ const Lobbies: React.FC = () => {
     freeGamesPerAddress,
     additionalLobbyFee,
     paused,
-    // leaveLobby,
-    // timeoutJoiner,
     createFleet,
-    // quitWithPenalty,
     loadLobbies,
-    lastTransactionHash,
   } = useLobbies();
 
-  // Wait for transaction receipt for fleet creation
-  const { isSuccess: isFleetCreated, error: fleetCreationError } =
-    useWaitForTransactionReceipt({
-      hash: lastTransactionHash,
-    });
 
   const { ships, isLoading: shipsLoading, shipCount } = useOwnedShips();
 
   const constructedReadyCount = useMemo(
-    () =>
-      ships.filter(
-        (s) =>
-          Boolean(s.shipData?.constructed) &&
-          s.shipData?.timestampDestroyed === 0n,
-      ).length,
+    () => ships.filter((s) => s.shipData.constructed === true).length,
     [ships],
   );
 
@@ -183,30 +165,6 @@ const Lobbies: React.FC = () => {
     activeLobbiesCount >= Number(freeGamesPerAddress || 0n);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [pendingCreateLobbyHash, setPendingCreateLobbyHash] = useState<
-    `0x${string}` | undefined
-  >(undefined);
-
-  const { isSuccess: isCreateLobbyConfirmed } = useWaitForTransactionReceipt({
-    hash: pendingCreateLobbyHash,
-    chainId,
-    query: { enabled: !!pendingCreateLobbyHash },
-  });
-
-  React.useEffect(() => {
-    if (!isCreateLobbyConfirmed || !pendingCreateLobbyHash) return;
-    setShowCreateForm(false);
-    setCreateForm({
-      threatScale: "skirmish",
-      turnPace: "immediate",
-      selectedMapId: "1",
-      scoreLength: "medium",
-      creatorGoesFirst: false,
-      reservedJoiner: "",
-    });
-    setPendingCreateLobbyHash(undefined);
-    loadLobbies();
-  }, [isCreateLobbyConfirmed, pendingCreateLobbyHash, loadLobbies]);
 
   useEffect(() => {
     if ((needsShipsForLobbyUi || needsConstructForLobbyUi) && showCreateForm) {
@@ -947,7 +905,6 @@ const Lobbies: React.FC = () => {
   useEffect(() => {
     const onChainChanged = () => {
       setShowCreateForm(false);
-      setPendingCreateLobbyHash(undefined);
       resetFleetSelectionModalState();
       setShowFleetView(false);
       setIsCreatingFleet(false);
@@ -1405,46 +1362,6 @@ const Lobbies: React.FC = () => {
   // Track the last fleet creation lobby ID to show toast when receipt is received
   const lastFleetCreationLobbyRef = React.useRef<bigint | null>(null);
 
-  // Show toast and refresh lobby state when fleet creation receipt is received
-  React.useEffect(() => {
-    if (!isFleetCreated || !lastFleetCreationLobbyRef.current) return;
-    lastFleetCreationLobbyRef.current = null;
-
-    toast.success("Fleet created successfully!");
-    setShowFleetView(false);
-    setShowFleetConfirmation(false);
-
-    // Refetch selected lobby and lobby list so UI shows updated fleet state immediately
-    refetchSelectedLobby();
-    refetchGames();
-
-    (async () => {
-      // Brief delay so chain state is updated before we refetch (helps joiner who selected second)
-      await new Promise((r) => setTimeout(r, 1200));
-      await loadLobbies();
-      await refetchSelectedLobby();
-      // Always leave fleet UI after this wallet's fleet tx confirms. List vs getLobby can disagree
-      // for one block; the joiner already submitted a valid fleet, so switching to Games is correct.
-      resetFleetSelectionModalState();
-      navigateToGamesTab();
-    })();
-  }, [
-    isFleetCreated,
-    loadLobbies,
-    navigateToGamesTab,
-    resetFleetSelectionModalState,
-    refetchSelectedLobby,
-    refetchGames,
-  ]);
-
-  // Handle fleet creation errors
-  React.useEffect(() => {
-    if (fleetCreationError && lastFleetCreationLobbyRef.current) {
-      const errorMessage = fleetCreationError.message || "Transaction failed";
-      toast.error(`Fleet creation failed: ${errorMessage}`);
-      lastFleetCreationLobbyRef.current = null;
-    }
-  }, [fleetCreationError]);
 
   const createFleetWithConfirmation = async (lobbyId: bigint) => {
     if (!isConnected || selectedShips.length === 0) return;
@@ -1488,11 +1405,18 @@ const Lobbies: React.FC = () => {
         col: pos.col,
       }));
 
-      // Submit tx - store lobby ID to show toast when receipt is received
-      lastFleetCreationLobbyRef.current = lobbyId;
       await createFleet(lobbyId, selectedShips, startingPositions);
 
-      // Don't show toast here - wait for receipt (handled in useEffect above)
+      // Fleet creation is synchronous with the server — handle success here
+      lastFleetCreationLobbyRef.current = null;
+      toast.success("Fleet created successfully!");
+      setShowFleetView(false);
+      setShowFleetConfirmation(false);
+      refetchSelectedLobby();
+      refetchGames();
+      await loadLobbies();
+      resetFleetSelectionModalState();
+      navigateToGamesTab();
     } catch (error) {
       console.error("Failed to create fleet:", error);
       lastFleetCreationLobbyRef.current = null;
@@ -2046,7 +1970,7 @@ const Lobbies: React.FC = () => {
                 </button>
                 {needsPaymentForLobby && additionalLobbyFee ? (
                   <p className="text-center text-xs text-amber font-mono">
-                    // Free games used — lobby fee: {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
+                    // Free games used — lobby fee: {(Number(additionalLobbyFee as bigint) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
                   </p>
                 ) : null}
               </div>
@@ -2415,7 +2339,7 @@ const Lobbies: React.FC = () => {
                   <div className="flex justify-between gap-4">
                     <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
                     <span className="text-amber font-bold shrink-0">
-                      {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
+                      {(Number(additionalLobbyFee as bigint) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
                     </span>
                   </div>
                 ) : null}
@@ -2456,13 +2380,10 @@ const Lobbies: React.FC = () => {
                   )
                 }
                 className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
-                onTransactionSent={(hash) => {
-                  setPendingCreateLobbyHash(hash);
+                onSuccess={() => {
                   setShowCreateForm(false);
                 }}
-                onSuccess={() => {}}
                 onError={(error) => {
-                  setPendingCreateLobbyHash(undefined);
                   console.error("Failed to create lobby:", error);
                 }}
               >

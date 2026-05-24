@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ADDRESSES } from "../config/contracts";
-import { useAccount } from "wagmi";
+import React, { useState } from "react";
+import { useLobbies } from "../hooks/useLobbies";
 import posthog from "posthog-js";
 
 interface LobbyJoinButtonProps {
@@ -15,16 +13,6 @@ interface LobbyJoinButtonProps {
   onError?: (error: Error) => void;
 }
 
-const LOBBY_JOIN_ABI = [
-  {
-    inputs: [{ internalType: "uint256", name: "_lobbyId", type: "uint256" }],
-    name: "joinLobby",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 export function LobbyJoinButton({
   lobbyId,
   children,
@@ -33,34 +21,31 @@ export function LobbyJoinButton({
   onSuccess,
   onError,
 }: LobbyJoinButtonProps) {
-  const { address } = useAccount();
+  const { joinLobby } = useLobbies();
+  const [isPending, setIsPending] = useState(false);
 
-  const validateBeforeTransaction = React.useCallback(() => {
-    if (!address) {
-      return "Please connect your wallet";
+  const handleClick = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await joinLobby(lobbyId);
+      posthog.capture("lobby_joined", { lobby_id: lobbyId.toString() });
+      onSuccess?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsPending(false);
     }
-    return true;
-  }, [address]);
+  };
 
   return (
-    <TransactionButton
-      transactionId={`join-lobby-${lobbyId}-${address}`}
-      contractAddress={CONTRACT_ADDRESSES.LOBBIES as `0x${string}`}
-      abi={LOBBY_JOIN_ABI}
-      functionName="joinLobby"
-      args={[lobbyId]}
+    <button
+      onClick={handleClick}
+      disabled={disabled || isPending}
       className={className}
-      disabled={disabled}
-      loadingText="[JOINING...]"
-      errorText="[ERROR JOINING]"
-      onSuccess={() => {
-        posthog.capture("lobby_joined", { lobby_id: lobbyId.toString() });
-        onSuccess?.();
-      }}
-      onError={onError}
-      validateBeforeTransaction={validateBeforeTransaction}
+      type="button"
     >
-      {children}
-    </TransactionButton>
+      {isPending ? "[JOINING...]" : children}
+    </button>
   );
 }

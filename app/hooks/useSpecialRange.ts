@@ -1,34 +1,14 @@
-import { useMemo } from "react";
-import { useReadContract } from "wagmi";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import type { Abi } from "viem";
-import { useSelectedChainId } from "./useSelectedChainId";
+// Special ranges match the server-side SPECIAL_CONFIG in app/api/games/[id]/action/route.ts
+const SPECIAL_RANGES: Record<number, number> = {
+  1: 3, // EMP
+  2: 2, // Repair
+  3: 3, // Flak
+};
 
 export function useSpecialRange(special: number) {
-  const chainId = useSelectedChainId();
-  const address = useMemo(
-    () => getContractAddresses(chainId).SHIP_ATTRIBUTES as `0x${string}`,
-    [chainId],
-  );
-  const args = useMemo(() => [special] as const, [special]);
-
-  const {
-    data: specialRange,
-    isLoading,
-    error,
-  } = useReadContract({
-    address,
-    abi: CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi,
-    functionName: "getSpecialRange",
-    args,
-    query: {
-      enabled: special > 0,
-    },
-  });
-
   return {
-    specialRange: specialRange as number | undefined,
-    isLoading,
-    error,
+    specialRange: SPECIAL_RANGES[special] as number | undefined,
+    isLoading: false,
+    error: null,
   };
 }

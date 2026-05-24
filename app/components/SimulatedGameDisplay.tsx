@@ -57,19 +57,8 @@ import { calculateDamage } from "../utils/calculateDamage";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
-import {
-  useAccount,
-  usePublicClient,
-  useReadContract,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
-import type { Abi } from "viem";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
+import { useAccount } from "../hooks/useAccount";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
-import { useSwitchToSelectedChainIfNeeded } from "../hooks/useSwitchToSelectedChainIfNeeded";
-import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
 import posthog from "posthog-js";
 import {
   getTutorialGridPanelConfig,
@@ -248,23 +237,11 @@ export function SimulatedGameDisplay({
   onBack,
 }: SimulatedGameDisplayProps) {
   const { address } = useAccount();
-  const { openConnectModal } = useConnectModal();
   const activeChainId = useSelectedChainId();
-  const publicClient = usePublicClient({ chainId: activeChainId });
-  const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
-  const contractAddresses = useMemo(
-    () => getContractAddresses(activeChainId),
-    [activeChainId],
-  );
   const [pendingTutorialClaimPath, setPendingTutorialClaimPath] = useState<
     "win" | "loss" | null
   >(null);
-  const {
-    writeContract: writeTutorialClaim,
-    isPending: isTutorialClaimPending,
-    data: tutorialClaimHash,
-    error: tutorialClaimWriteError,
-  } = useWriteContract();
+  const isTutorialClaimPending = false;
 
   const {
     gameState,
@@ -309,167 +286,38 @@ export function SimulatedGameDisplay({
     toast.success("Cleared local tutorial reward / claim cache for this wallet");
   }, [activeChainId, address]);
 
-  const tutorialClaimContractReady =
-    !!contractAddresses.TUTORIAL_CLAIM &&
-    contractAddresses.TUTORIAL_CLAIM !==
-      "0x0000000000000000000000000000000000000000";
-
-  const shouldReadTutorialCompletedFromChain = useMemo(
-    () =>
-      isTutorialCompletionStep &&
-      !!address &&
-      tutorialClaimContractReady &&
-      !claimCompleteCached,
-    [
-      address,
-      claimCompleteCached,
-      isTutorialCompletionStep,
-      tutorialClaimContractReady,
-    ],
-  );
-
-  const tutorialCompletedReadConfig = useMemo(
-    () => ({
-      address: contractAddresses.TUTORIAL_CLAIM as `0x${string}`,
-      abi: CONTRACT_ABIS.TUTORIAL_CLAIM as Abi,
-      functionName: "tutorialCompleted" as const,
-      args: address ? [address] : undefined,
-      chainId: activeChainId,
-      query: {
-        enabled: shouldReadTutorialCompletedFromChain,
-      },
-    }),
-    [
-      activeChainId,
-      address,
-      contractAddresses.TUTORIAL_CLAIM,
-      shouldReadTutorialCompletedFromChain,
-    ],
-  );
-
-  const { data: tutorialCompletedOnChain } = useReadContract(
-    tutorialCompletedReadConfig,
-  );
-
-  useEffect(() => {
-    if (tutorialCompletedOnChain !== true) return;
-    if (!address) return;
-    persistTutorialClaimCompleted(activeChainId, address);
-    setClaimCompleteCached(true);
-  }, [tutorialCompletedOnChain, activeChainId, address]);
-
-  const isTutorialRewardAlreadyClaimed =
-    claimCompleteCached || tutorialCompletedOnChain === true;
-
-  const tutorialClaimReceiptConfig = useMemo(
-    () => ({
-      hash: tutorialClaimHash,
-      chainId: activeChainId,
-    }),
-    [tutorialClaimHash, activeChainId],
-  );
-  const {
-    isLoading: isTutorialClaimConfirming,
-    isSuccess: isTutorialClaimConfirmed,
-    error: tutorialClaimReceiptError,
-  } = useWaitForTransactionReceipt(tutorialClaimReceiptConfig);
-
-  useEffect(() => {
-    if (!tutorialClaimWriteError) return;
-    const message = tutorialClaimWriteError.message || "Transaction failed";
-    if (
-      message.includes("User rejected") ||
-      message.includes("User denied") ||
-      message.includes("rejected")
-    ) {
-      toast.error("Transaction declined by user");
-    } else {
-      toast.error("Tutorial claim failed");
-    }
-    setPendingTutorialClaimPath(null);
-  }, [tutorialClaimWriteError]);
-
-  useEffect(() => {
-    if (!tutorialClaimReceiptError) return;
-    toast.error("Tutorial claim transaction failed");
-    setPendingTutorialClaimPath(null);
-  }, [tutorialClaimReceiptError]);
-
-  useEffect(() => {
-    if (!isTutorialClaimConfirmed || !address) return;
-    persistTutorialClaimCompleted(activeChainId, address);
-    setClaimCompleteCached(true);
-    toast.success("Tutorial reward claimed");
-    setPendingTutorialClaimPath(null);
-  }, [isTutorialClaimConfirmed, activeChainId, address]);
+  // Tutorial claim is now a local-only operation (no on-chain tx)
+  const isTutorialRewardAlreadyClaimed = claimCompleteCached;
+  const isTutorialClaimConfirming = false;
 
   const runTutorialClaimTx = useCallback(
-    async (
-      path: "win" | "loss",
-      functionName: "completeTutorialWinPath" | "completeTutorialLossPath",
-    ) => {
-      if (!address) {
-        openConnectModal?.();
-        return;
+    async (path: "win" | "loss") => {
+      if (isTutorialClaimPending || isTutorialClaimConfirming) return;
+      setPendingTutorialClaimPath(path);
+      posthog.capture("tutorial_reward_claim_submitted", {
+        claim_path: path,
+        reward_path: path === "win" ? "two_ships_win" : "three_ships_loss",
+        completion_step_id: currentStep?.id,
+        chain_id: activeChainId,
+      });
+      if (address) {
+        persistTutorialClaimCompleted(activeChainId, address);
+        setClaimCompleteCached(true);
       }
-      if (isTutorialRewardAlreadyClaimed) {
-        onBack?.();
-        queueMicrotask(() =>
-          window.dispatchEvent(
-            new CustomEvent("void-tactics-navigate-to-manage-navy"),
-          ),
-        );
-        return;
-      }
-      if (
-        !contractAddresses.TUTORIAL_CLAIM ||
-        contractAddresses.TUTORIAL_CLAIM ===
-          "0x0000000000000000000000000000000000000000"
-      ) {
-        toast.error("Tutorial claim is unavailable on this network");
-        return;
-      }
-      if (isTutorialClaimPending || isTutorialClaimConfirming) {
-        return;
-      }
-      try {
-        await switchToSelectedChainIfNeeded();
-        setPendingTutorialClaimPath(path);
-        posthog.capture("tutorial_reward_claim_submitted", {
-          claim_path: path,
-          reward_path:
-            path === "win" ? "two_ships_win" : "three_ships_loss",
-          completion_step_id: currentStep?.id,
-          contract_function: functionName,
-          chain_id: activeChainId,
-        });
-        writeTutorialClaim({
-          address: contractAddresses.TUTORIAL_CLAIM as `0x${string}`,
-          abi: CONTRACT_ABIS.TUTORIAL_CLAIM as Abi,
-          functionName,
-          chainId: activeChainId,
-          ...(await getLegacyGasPriceOverridesForWrite(
-            activeChainId,
-            publicClient,
-          )),
-        });
-      } catch {
-        toast.error("Could not switch network or send transaction");
-      }
+      toast.success("Tutorial complete!");
+      setPendingTutorialClaimPath(null);
+      onBack?.();
+      queueMicrotask(() =>
+        window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-manage-navy")),
+      );
     },
     [
       address,
       activeChainId,
-      contractAddresses.TUTORIAL_CLAIM,
       currentStep?.id,
       isTutorialClaimPending,
       isTutorialClaimConfirming,
-      isTutorialRewardAlreadyClaimed,
       onBack,
-      openConnectModal,
-      publicClient,
-      switchToSelectedChainIfNeeded,
-      writeTutorialClaim,
     ],
   );
 
@@ -2657,7 +2505,7 @@ export function SimulatedGameDisplay({
                   (isTutorialClaimPending || isTutorialClaimConfirming)
                 ? "Claiming..."
                 : "Claim 2 ships + win",
-          onClick: () => void runTutorialClaimTx("win", "completeTutorialWinPath"),
+          onClick: () => void runTutorialClaimTx("win"),
         },
       };
     }
@@ -2677,7 +2525,7 @@ export function SimulatedGameDisplay({
                 ? "Claiming..."
                 : "Claim 3 ships + loss record",
           onClick: () =>
-            void runTutorialClaimTx("loss", "completeTutorialLossPath"),
+            void runTutorialClaimTx("loss"),
         },
       };
     }

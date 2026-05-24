@@ -9,8 +9,7 @@ import {
   clearAllShipDataCache,
   clearAllShipImageCache,
 } from "../hooks";
-import { useAccount, usePublicClient } from "wagmi";
-import { formatEther } from "viem";
+import { useAccount } from "../hooks/useAccount";
 import { toast } from "react-hot-toast";
 import { Ship } from "../types/types";
 import {
@@ -43,7 +42,6 @@ import type { Abi } from "viem";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
-import { fetchAndPersistShipAttributesCaches } from "../utils/shipAttributesLocalCache";
 import {
   clearManageNavyTutorialCache,
   dismissBuyShipsTutorialForSession,
@@ -88,7 +86,6 @@ const ManageNavy: React.FC = () => {
     () => getContractAddresses(chainId).SHIP_ATTRIBUTES as `0x${string}`,
     [chainId],
   );
-  const publicClient = usePublicClient({ chainId });
   const { transactionState } = useTransaction();
   const { ships, isLoading, error, hasShips, shipCount, refetch } =
     useOwnedShips();
@@ -132,13 +129,8 @@ const ManageNavy: React.FC = () => {
   }, [shipIds]);
 
   const afterShipCostSyncPersistCaches = React.useCallback(() => {
-    if (!publicClient) return;
-    void fetchAndPersistShipAttributesCaches(publicClient, {
-      chainId,
-      shipAttributesAddress: shipAttributesContractAddress,
-      shipIds: shipIdsRef.current,
-    });
-  }, [publicClient, chainId, shipAttributesContractAddress]);
+    // no-op: ship attribute cache sync removed with wagmi
+  }, []);
 
   const {
     attributes: shipAttributes,
@@ -163,7 +155,7 @@ const ManageNavy: React.FC = () => {
   // Note: Ship actions are now handled by ShipActionButton components
 
   // Check if wallet is connecting
-  const isConnecting = status === "connecting" || status === "reconnecting";
+  const isConnecting = status === "connecting";
 
   // Free ship claiming functionality
   const {
@@ -446,8 +438,8 @@ const ManageNavy: React.FC = () => {
     setShowShipPurchase(true);
   }, [address, chainId, showBuyShipsTutorial]);
 
-  const [paymentMethod, setPaymentMethod] = React.useState<"FLOW" | "UTC">(
-    "FLOW",
+  const [paymentMethod, setPaymentMethod] = React.useState<"USD" | "UTC">(
+    "USD",
   );
   const [showRecycleModal, setShowRecycleModal] = React.useState(false);
   const [shipToRecycle, setShipToRecycle] = React.useState<Ship | null>(null);
@@ -1119,7 +1111,7 @@ const ManageNavy: React.FC = () => {
           [MANAGE NAVY]
         </h3>
         <p className="text-warning-red font-mono text-sm tracking-wider">
-          [ERR] Navy data acquisition failed: {error.message}
+          [ERR] Navy data acquisition failed: {error}
         </p>
       </div>
     );
@@ -1547,6 +1539,55 @@ const ManageNavy: React.FC = () => {
                 [BUY NEW SHIPS]
               </button>
 
+              {selectedShips.size > 0 &&
+                (() => {
+                  const recyclableShips = Array.from(selectedShips).filter((id) => {
+                    const ship = ships.find((s) => s.id.toString() === id);
+                    return ship && !ship.shipData.inFleet;
+                  });
+                  return recyclableShips.length > 0 ? (
+                    <ShipActionButton
+                      action="recycle"
+                      shipIds={recyclableShips.map((id) => BigInt(id))}
+                      className="w-full justify-center px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-200 disabled:cursor-not-allowed md:w-auto"
+                      onSuccess={() => {
+                        toast.success("Ships recycled successfully!");
+                        setSelectedShips(new Set());
+                        refetch();
+                      }}
+                    >
+                      {`[RECYCLE ${recyclableShips.length} SHIPS]`}
+                    </ShipActionButton>
+                  ) : (
+                    <div className="w-full px-4 py-3 text-center text-sm font-mono font-bold tracking-wider text-amber opacity-50 sm:px-6 md:w-auto rounded-none border-2 border-amber">
+                      [SELECTED SHIPS ARE IN FLEETS - CANNOT RECYCLE]
+                    </div>
+                  );
+                })()}
+
+              {!canRecycle && isConnected && selectedShips.size === 0 && (
+                <div className="relative w-full md:w-auto">
+                  <div
+                    className="w-full cursor-not-allowed px-6 py-3 text-center font-mono font-bold tracking-wider md:w-auto rounded-none border-2"
+                    style={{
+                      color: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--color-warning-red) 30%, transparent)",
+                    }}
+                  >
+                    [RECYCLE — LOCKED]
+                  </div>
+                  <p
+                    className="absolute top-full mt-1 w-full text-[10px] tracking-wider text-center md:text-left whitespace-nowrap"
+                    style={{
+                      fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+                      color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
+                    }}
+                  >
+                    Unlocks after 10 ship purchases ({amountPurchased ? Number(amountPurchased) : 0}/10)
+                  </p>
+                </div>
+              )}
+
               {showDroneFactoryTutorial && (
                 <div
                   className="pointer-events-auto absolute inset-0 z-20 hidden rounded-none bg-near-black/85 md:block"
@@ -1629,58 +1670,6 @@ const ManageNavy: React.FC = () => {
           </div>
         )}
 
-        {selectedShips.size > 0 &&
-          (() => {
-            // Filter out ships that are in fleets
-            const recyclableShips = Array.from(selectedShips).filter((id) => {
-              const ship = ships.find((s) => s.id.toString() === id);
-              return ship && !ship.shipData.inFleet;
-            });
-
-            return recyclableShips.length > 0 ? (
-              <ShipActionButton
-                action="recycle"
-                shipIds={recyclableShips.map((id) => BigInt(id))}
-                className="w-full justify-center px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-200 disabled:cursor-not-allowed md:w-auto"
-                onSuccess={() => {
-                  // Show success toast
-                  toast.success("Ships recycled successfully!");
-                  // Clear selection and refetch ships data after successful recycling
-                  setSelectedShips(new Set());
-                  refetch();
-                }}
-              >
-                {`[RECYCLE ${recyclableShips.length} SHIPS]`}
-              </ShipActionButton>
-            ) : (
-              <div className="w-full px-4 py-3 text-center text-sm font-mono font-bold tracking-wider text-amber opacity-50 sm:px-6 md:w-auto rounded-none border-2 border-amber">
-                [SELECTED SHIPS ARE IN FLEETS - CANNOT RECYCLE]
-              </div>
-            );
-          })()}
-
-        {!canRecycle && isConnected && (
-          <div className="flex flex-col gap-1">
-            <div
-              className="w-full cursor-not-allowed px-6 py-3 text-center text-sm font-mono font-bold tracking-wider md:w-auto rounded-none border-2"
-              style={{
-                color: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
-                borderColor: "color-mix(in srgb, var(--color-warning-red) 30%, transparent)",
-              }}
-            >
-              [RECYCLE — LOCKED]
-            </div>
-            <p
-              className="text-[10px] tracking-wider text-center md:text-left"
-              style={{
-                fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
-              }}
-            >
-              Unlocks after 10 ship purchases ({amountPurchased ? Number(amountPurchased) : 0}/10)
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Ship Purchase Interface */}
@@ -1706,13 +1695,13 @@ const ManageNavy: React.FC = () => {
                   Ship purchasing
                 </h4>
                 <p
-                  className="text-xs font-mono font-bold uppercase tracking-[0.08em] text-warning-red"
+                  className="text-xs font-mono uppercase tracking-[0.08em] text-text-muted"
                   style={{
                     fontFamily:
                       "var(--font-jetbrains-mono), 'Courier New', monospace",
                   }}
                 >
-                  Prices not yet normalized for all chains
+                  Ships added instantly to your fleet
                 </p>
               </div>
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -1721,17 +1710,15 @@ const ManageNavy: React.FC = () => {
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setPaymentMethod("FLOW")}
+                    onClick={() => setPaymentMethod("USD")}
                     className={`px-3 py-1 border-2 font-mono font-bold tracking-wider transition-all duration-200 text-sm ${
-                      paymentMethod === "FLOW"
+                      paymentMethod === "USD"
                         ? "border-cyan text-cyan bg-cyan/10"
                         : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
                     }`}
-                    style={{
-                      borderRadius: 0, // Square corners for industrial theme
-                    }}
+                    style={{ borderRadius: 0 }}
                   >
-                    TOKENS
+                    USD ($)
                   </button>
                   <button
                     onClick={() => setPaymentMethod("UTC")}
@@ -2569,7 +2556,7 @@ const ManageNavy: React.FC = () => {
                         <span className="text-cyan">
                           Pay out{" "}
                           {recycleReward
-                            ? formatEther(recycleReward as bigint)
+                            ? (Number(recycleReward as bigint) / 1e18).toFixed(4)
                             : "..."}{" "}
                           UTC
                         </span>{" "}

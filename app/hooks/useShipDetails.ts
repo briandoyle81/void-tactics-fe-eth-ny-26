@@ -29,7 +29,7 @@ export function useShipDetails() {
     const averageCost = totalCost / totalShips;
     const shipsInFleet = ships.filter((ship) => ship.shipData.inFleet).length;
     const destroyedShips = ships.filter(
-      (ship) => ship.shipData.timestampDestroyed > 0n
+      (ship) => !!ship.shipData.timestampDestroyed
     ).length;
     const shinyShips = ships.filter((ship) => ship.shipData.shiny).length;
     const totalShipsDestroyed = ships.reduce(

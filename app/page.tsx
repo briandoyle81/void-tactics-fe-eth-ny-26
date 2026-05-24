@@ -8,7 +8,7 @@ import {
   useCallback,
   type CSSProperties,
 } from "react";
-import { useAccount } from "wagmi";
+import { useAccount } from "./hooks/useAccount";
 import Header from "./components/Header";
 import AlphaDiscordNoticeBar from "./components/AlphaDiscordNoticeBar";
 import FlowWalletNoticeBar from "./components/FlowWalletNoticeBar";
@@ -321,7 +321,7 @@ export default function Home() {
     : {};
 
   // Show loading state while wallet is connecting
-  if (status === "connecting" || status === "reconnecting") {
+  if (status === "connecting") {
     return (
       <div
         className="flex min-h-screen flex-col"

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useCurrentUser } from "@/app/hooks/useCurrentUser";
 import { AuthButton } from "./AuthButton";
+import { HeaderUtcWidget } from "./HeaderUtcWidget";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
@@ -213,6 +214,7 @@ const Header: React.FC = () => {
               <HeaderDiscordLink compact />
               <HeaderXLink compact />
             </div>
+            <HeaderUtcWidget />
             <HeaderUserMenu />
           </div>
         </div>

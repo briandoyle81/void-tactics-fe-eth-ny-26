@@ -1,116 +1,69 @@
-import { useReadContract, useWriteContract, useAccount } from "wagmi";
+"use client";
+
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
-import { useSelectedChainId } from "./useSelectedChainId";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/app/lib/apiFetch";
+import { PresetMap } from "../types/types";
 
-export type UseMapsReadOptions = {
-  query?: { enabled?: boolean };
-  /**
-   * "picker" follows the header network dropdown immediately (via `useSelectedChainId`).
-   * "wallet" follows the connected wallet chain when set, else the picker (for in-game / lobby reads).
-   */
-  chainSource?: "wallet" | "picker";
-};
-
-// Maps contract address/abi for the chain selected in the header picker (not module-level frozen).
 export function useMapsContract() {
-  const pickerChainId = useSelectedChainId();
-  const { MAPS } = getContractAddresses(pickerChainId);
-
+  const activeChainId = getSelectedChainId();
+  const { MAPS } = getContractAddresses(activeChainId);
   return {
     address: MAPS as `0x${string}`,
     abi: CONTRACT_ABIS.MAPS as Abi,
-    chainId: pickerChainId,
+    chainId: activeChainId,
   };
 }
 
-// Hook for reading contract data with proper typing
-export function useMapsRead(
-  functionName: string,
-  args?: readonly unknown[],
-  options?: UseMapsReadOptions,
-) {
-  const pickerChainId = useSelectedChainId();
-  const { chainId: walletChainId } = useAccount();
-  const chainSource = options?.chainSource ?? "wallet";
-  const activeChainId =
-    chainSource === "picker"
-      ? pickerChainId
-      : (walletChainId ?? getSelectedChainId());
-  const { MAPS } = getContractAddresses(activeChainId);
-
-  return useReadContract({
-    address: MAPS as `0x${string}`,
-    abi: CONTRACT_ABIS.MAPS as Abi,
-    chainId: activeChainId,
-    functionName,
-    args,
-    query: options?.query,
-  });
-}
-
-// Hook for writing to contract with proper typing
 export function useMapsWrite() {
-  return useWriteContract();
+  return {
+    writeContract: async () => {},
+    writeContractAsync: async () => { throw new Error("blockchain writes disabled"); },
+    isPending: false, isSuccess: false, isError: false, error: null, data: undefined, reset: () => {},
+  };
 }
 
-// Type-safe contract function names
-export type MapsReadFunction =
-  | "mapCount"
-  | "getAllPresetMaps"
-  | "getPresetMap"
-  | "getPresetScoringMap"
-  | "mapExists";
+// ── Read hooks — replaced with API calls ──────────────────────────────────────
 
-// Specific hooks for common functions
-export function useMapCount() {
-  return useMapsRead("mapCount", undefined, { chainSource: "picker" });
+function useMapsQuery() {
+  return useQuery({
+    queryKey: ["maps"],
+    queryFn: () => apiFetch<PresetMap[]>("/api/maps"),
+    staleTime: 60_000,
+  });
 }
 
 export function useGetAllPresetMaps() {
-  return useMapsRead("getAllPresetMaps", undefined, { chainSource: "picker" });
+  const { data, isLoading, error, refetch } = useMapsQuery();
+  return { data: data ?? [], isLoading, error, refetch };
 }
 
-function isValidPositiveInt(n: number) {
-  return Number.isFinite(n) && Number.isInteger(n) && n > 0;
+export function useMapCount() {
+  const { data } = useMapsQuery();
+  return { data: BigInt(data?.length ?? 0) };
 }
 
-export function useGetPresetMap(
-  mapId: number,
-  readOptions?: { chainSource?: "wallet" | "picker" },
-) {
-  const enabled = isValidPositiveInt(mapId);
-  return useMapsRead("getPresetMap", enabled ? [BigInt(mapId)] : undefined, {
-    query: { enabled },
-    chainSource: readOptions?.chainSource ?? "wallet",
-  });
+export function useGetPresetMap(mapId: number, _options?: { chainSource?: string }) {
+  const { data } = useMapsQuery();
+  const map = data?.find((m) => m.id === mapId) ?? null;
+  return { data: map ? map.blockedPositions : null };
 }
 
-export function useGetPresetScoringMap(
-  mapId: number,
-  readOptions?: { chainSource?: "wallet" | "picker" },
-) {
-  const enabled = isValidPositiveInt(mapId);
-  return useMapsRead(
-    "getPresetScoringMap",
-    enabled ? [BigInt(mapId)] : undefined,
-    {
-      query: { enabled },
-      chainSource: readOptions?.chainSource ?? "wallet",
-    },
-  );
+export function useGetPresetScoringMap(mapId: number, _options?: { chainSource?: string }) {
+  const { data } = useMapsQuery();
+  const map = data?.find((m) => m.id === mapId) ?? null;
+  return { data: map ? map.scoringPositions : null };
 }
 
 export function useMapExists(mapId: number) {
-  const enabled = isValidPositiveInt(mapId);
-  return useMapsRead("mapExists", enabled ? [BigInt(mapId)] : undefined, {
-    query: { enabled },
-  });
+  const { data } = useMapsQuery();
+  return { data: data?.some((m) => m.id === mapId) ?? false };
 }
 
-export function useGetGameMapState(gameId: number) {
-  return useMapsRead("getGameMapState", [BigInt(gameId)], {
-    query: { enabled: gameId > 0 },
-  });
+// Game map state is part of the game's state JSON — returned by /api/games/[id]
+// Returns null here; GameDisplay uses game.state directly in Phase 5
+export function useGetGameMapState(_gameId: number) {
+  return { data: null as null, isLoading: false, error: null };
 }

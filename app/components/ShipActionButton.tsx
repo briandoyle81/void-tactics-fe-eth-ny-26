@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ADDRESSES } from "../config/contracts";
-import type { Abi } from "viem";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
 import posthog from "posthog-js";
 
 interface ShipActionButtonProps {
@@ -17,69 +15,6 @@ interface ShipActionButtonProps {
   onError?: (error: Error) => void;
 }
 
-const SHIP_ACTION_CONFIG = {
-  construct: {
-    functionName: "constructShip",
-    abi: [
-      {
-        inputs: [{ internalType: "uint256", name: "_id", type: "uint256" }],
-        name: "constructShip",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-      },
-    ] as Abi,
-  },
-  constructAll: {
-    functionName: "constructAllMyShips",
-    abi: [
-      {
-        inputs: [],
-        name: "constructAllMyShips",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-      },
-    ] as Abi,
-  },
-  constructShips: {
-    functionName: "constructShips",
-    abi: [
-      {
-        inputs: [
-          {
-            internalType: "uint256[]",
-            name: "_ids",
-            type: "uint256[]",
-          },
-        ],
-        name: "constructShips",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-      },
-    ] as Abi,
-  },
-  recycle: {
-    functionName: "shipBreaker",
-    abi: [
-      {
-        inputs: [
-          {
-            internalType: "uint256[]",
-            name: "_shipIds",
-            type: "uint256[]",
-          },
-        ],
-        name: "shipBreaker",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-      },
-    ] as Abi,
-  },
-};
-
 export function ShipActionButton({
   action,
   shipId,
@@ -90,91 +25,72 @@ export function ShipActionButton({
   onSuccess,
   onError,
 }: ShipActionButtonProps) {
-  const config = SHIP_ACTION_CONFIG[action];
+  const [isPending, setIsPending] = useState(false);
 
-  // Generate transaction ID based on action and parameters
-  const transactionId = React.useMemo(() => {
-    switch (action) {
-      case "construct":
-        return `construct-ship-${shipId}`;
-      case "constructAll":
-        return "construct-all-ships";
-      case "constructShips":
-        return `construct-ships-${shipIds?.length || 0}`;
-      case "recycle":
-        return `recycle-ships-${shipIds?.join("-")}`;
-      default:
-        return `ship-action-${action}`;
-    }
-  }, [action, shipId, shipIds]);
+  const handleClick = async () => {
+    setIsPending(true);
+    try {
+      let res: Response;
 
-  // Prepare arguments based on action
-  const args = React.useMemo(() => {
-    switch (action) {
-      case "construct":
-        return shipId ? [shipId] : [];
-      case "constructAll":
-        return [];
-      case "constructShips":
-        return shipIds ? [shipIds] : [];
-      case "recycle":
-        return shipIds ? [shipIds] : [];
-      default:
-        return [];
-    }
-  }, [action, shipId, shipIds]);
+      if (action === "recycle") {
+        const ids = (shipIds ?? []).map(Number);
+        if (ids.length === 0) throw new Error("No ships selected for recycling");
+        res = await fetch("/api/ships/recycle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shipIds: ids }),
+        });
+      } else if (action === "constructAll") {
+        res = await fetch("/api/ships/construct", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ all: true }),
+        });
+      } else if (action === "constructShips") {
+        const ids = (shipIds ?? []).map(Number);
+        if (ids.length === 0) throw new Error("No ships selected for construction");
+        res = await fetch("/api/ships/construct", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shipIds: ids }),
+        });
+      } else {
+        // single construct
+        if (!shipId) throw new Error("No ship ID provided");
+        res = await fetch(`/api/ships/${Number(shipId)}/construct`, {
+          method: "POST",
+        });
+      }
 
-  // Validation function
-  const validateBeforeTransaction = React.useCallback(() => {
-    switch (action) {
-      case "construct":
-        if (!shipId) {
-          return "No ship ID provided";
-        }
-        return true;
-      case "constructAll":
-        return true;
-      case "constructShips":
-        if (!shipIds || shipIds.length === 0) {
-          return "No ships selected for construction";
-        }
-        return true;
-      case "recycle":
-        if (!shipIds || shipIds.length === 0) {
-          return "No ships selected for recycling";
-        }
-        return true;
-      default:
-        return true;
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? "Action failed");
+      }
+
+      posthog.capture(action === "recycle" ? "ships_recycled" : "ships_constructed", {
+        action,
+        ship_count: action === "construct" ? 1 : (shipIds?.length ?? 0),
+      });
+
+      onSuccess?.();
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message);
+      onError?.(e);
+    } finally {
+      setIsPending(false);
     }
-  }, [action, shipId, shipIds]);
+  };
 
   return (
-    <TransactionButton
-      transactionId={transactionId}
-      contractAddress={CONTRACT_ADDRESSES.SHIPS as `0x${string}`}
-      abi={config.abi}
-      functionName={config.functionName}
-      args={args}
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled || isPending}
       className={className}
-      disabled={disabled}
-      loadingText={`[${action.toUpperCase()}...]`}
-      errorText={`[ERROR ${action.toUpperCase()}]`}
-      onSuccess={() => {
-        if (action === "recycle") {
-          posthog.capture("ships_recycled", { ship_count: shipIds?.length ?? 0 });
-        } else {
-          posthog.capture("ships_constructed", {
-            action,
-            ship_count: action === "construct" ? 1 : (shipIds?.length ?? 0),
-          });
-        }
-        onSuccess?.();
-      }}
-      onError={onError}
-      validateBeforeTransaction={validateBeforeTransaction}
+      style={{ borderRadius: 0 }}
     >
-      {children}
-    </TransactionButton>
+      {isPending ? `[${action.toUpperCase()}...]` : children}
+    </button>
   );
 }

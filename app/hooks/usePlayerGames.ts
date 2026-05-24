@@ -1,24 +1,18 @@
-import { useMemo } from "react";
-import { useAccount } from "wagmi";
-import { useGetGamesForPlayer } from "./useGameContract";
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/app/lib/apiFetch";
 import { GameDataView } from "../types/types";
 
 export function usePlayerGames() {
-  const { address } = useAccount();
-
-  const { data: gamesData, isLoading, error, refetch } = useGetGamesForPlayer(
-    address || "0x0",
-  );
-
-  const games = useMemo((): GameDataView[] => {
-    if (!Array.isArray(gamesData)) return [];
-    return (gamesData as GameDataView[]).filter(
-      (g): g is GameDataView => g != null && typeof g === "object",
-    );
-  }, [gamesData]);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["games", "player"],
+    queryFn: () => apiFetch<GameDataView[]>("/api/games"),
+    refetchInterval: 5000,
+  });
 
   return {
-    games,
+    games: data ?? [],
     isLoading,
     error: error?.message ?? null,
     refetch,

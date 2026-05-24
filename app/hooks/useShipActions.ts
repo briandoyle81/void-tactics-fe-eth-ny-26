@@ -1,215 +1,55 @@
-import { useAccount, useConfig, usePublicClient } from "wagmi";
-import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
-import { waitForTransactionReceipt } from "wagmi/actions";
-import { useShipsWrite } from "./useShipsContract";
-import { useOwnedShips } from "./useOwnedShips";
+"use client";
+
+import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiMutate } from "@/app/lib/apiMutate";
 import { toast } from "react-hot-toast";
-import { getContractAddresses } from "../config/contracts";
-import { useEffect } from "react";
-import { useSelectedChainId } from "./useSelectedChainId";
-import { useSwitchToSelectedChainIfNeeded } from "./useSwitchToSelectedChainIfNeeded";
 
 export function useShipActions() {
-  const { address } = useAccount();
-  const config = useConfig();
-  const activeChainId = useSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
-  const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
-  const { refetch } = useOwnedShips();
-  const { writeContractAsync, isPending, error } = useShipsWrite();
-  const publicClient = usePublicClient({ chainId: activeChainId });
+  const queryClient = useQueryClient();
 
-  // Handle write contract errors (including user rejection)
-  useEffect(() => {
-    if (error) {
-      const errorMessage = error.message || "";
-      if (
-        errorMessage.includes("User rejected") ||
-        errorMessage.includes("User denied") ||
-        errorMessage.includes("rejected")
-      ) {
-        toast.error("Transaction declined by user");
-      } else {
-        toast.error("Transaction failed: " + errorMessage);
-      }
-    }
-  }, [error]);
+  const invalidateShips = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["ships"] });
+  }, [queryClient]);
 
-  // Construct a single ship
-  const constructShip = async (shipId: bigint) => {
-    if (!address) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
+  const constructShip = useCallback(async (shipId: bigint) => {
     try {
-      await switchToSelectedChainIfNeeded();
-      const hash = await writeContractAsync({
-        address: contractAddresses.SHIPS as `0x${string}`,
-        abi: [
-          {
-            inputs: [{ internalType: "uint256", name: "_id", type: "uint256" }],
-            name: "constructShip",
-            outputs: [],
-            stateMutability: "nonpayable",
-            type: "function",
-          },
-        ],
-        functionName: "constructShip",
-        args: [shipId],
-        chainId: activeChainId,
-        ...(await getLegacyGasPriceOverridesForWrite(
-          activeChainId,
-          publicClient,
-        )),
-      });
-
-      await waitForTransactionReceipt(config, {
-        hash,
-        chainId: activeChainId,
-      });
-
+      await apiMutate(`/api/ships/${shipId}/construct`, "POST");
       toast.success("Ship constructed!");
-      await refetch();
-      setTimeout(() => {
-        void refetch();
-      }, 1500);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (
-        errorMessage.includes("User rejected") ||
-        errorMessage.includes("User denied") ||
-        errorMessage.includes("rejected")
-      ) {
-        toast.error("Transaction declined by user");
-      } else {
-        toast.error("Failed to construct ship");
-      }
+      await invalidateShips();
+    } catch (err) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
     }
-  };
+  }, [invalidateShips]);
 
-  // Construct all owned ships
-  const constructAllShips = async () => {
-    if (!address) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
+  const constructAllShips = useCallback(async (shipIds: bigint[]) => {
     try {
-      await switchToSelectedChainIfNeeded();
-      const hash = await writeContractAsync({
-        address: contractAddresses.SHIPS as `0x${string}`,
-        abi: [
-          {
-            inputs: [],
-            name: "constructAllMyShips",
-            outputs: [],
-            stateMutability: "nonpayable",
-            type: "function",
-          },
-        ],
-        functionName: "constructAllMyShips",
-        args: [],
-        chainId: activeChainId,
-        ...(await getLegacyGasPriceOverridesForWrite(
-          activeChainId,
-          publicClient,
-        )),
-      });
-
-      await waitForTransactionReceipt(config, {
-        hash,
-        chainId: activeChainId,
-      });
-
-      toast.success("Ships constructed!");
-      await refetch();
-      setTimeout(() => {
-        void refetch();
-      }, 1500);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (
-        errorMessage.includes("User rejected") ||
-        errorMessage.includes("User denied") ||
-        errorMessage.includes("rejected")
-      ) {
-        toast.error("Transaction declined by user");
-      } else {
-        toast.error("Failed to construct ships");
-      }
+      await Promise.all(shipIds.map((id) => apiMutate(`/api/ships/${id}/construct`, "POST")));
+      toast.success("All ships constructed!");
+      await invalidateShips();
+    } catch (err) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
     }
-  };
+  }, [invalidateShips]);
 
-  // Recycle ships for UC tokens
-  const recycleShips = async (shipIds: bigint[]) => {
-    if (!address) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
-    if (shipIds.length === 0) {
-      toast.error("No ships selected for recycling");
-      return;
-    }
-
+  const recycleShips = useCallback(async (shipIds: bigint[]) => {
     try {
-      await switchToSelectedChainIfNeeded();
-      const hash = await writeContractAsync({
-        address: contractAddresses.SHIPS as `0x${string}`,
-        abi: [
-          {
-            inputs: [
-              {
-                internalType: "uint256[]",
-                name: "_shipIds",
-                type: "uint256[]",
-              },
-            ],
-            name: "shipBreaker",
-            outputs: [],
-            stateMutability: "nonpayable",
-            type: "function",
-          },
-        ],
-        functionName: "shipBreaker",
-        args: [shipIds],
-        chainId: activeChainId,
-        ...(await getLegacyGasPriceOverridesForWrite(
-          activeChainId,
-          publicClient,
-        )),
-      });
-
-      await waitForTransactionReceipt(config, {
-        hash,
-        chainId: activeChainId,
-      });
-
-      toast.success(`Recycled ${shipIds.length} ships for UC tokens!`);
-      await refetch();
-      setTimeout(() => {
-        void refetch();
-      }, 1500);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (
-        errorMessage.includes("User rejected") ||
-        errorMessage.includes("User denied") ||
-        errorMessage.includes("rejected")
-      ) {
-        toast.error("Transaction declined by user");
-      } else {
-        toast.error("Failed to recycle ships");
-      }
+      await Promise.all(shipIds.map((id) => apiMutate(`/api/ships/${id}`, "DELETE")));
+      toast.success("Ships recycled.");
+      await invalidateShips();
+    } catch (err) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
     }
-  };
+  }, [invalidateShips]);
 
   return {
     constructShip,
     constructAllShips,
     recycleShips,
-    isPending,
-    error,
+    isPending: false,
+    error: null,
   };
 }

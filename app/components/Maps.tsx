@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useAccount } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import { useGetAllPresetMaps, useMapCount } from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
 import { PresetMap, GRID_DIMENSIONS } from "../types/types";
@@ -17,17 +17,7 @@ export default function Maps() {
     undefined
   );
 
-  const maps = useMemo((): PresetMap[] => {
-    if (!allMapsData || !Array.isArray(allMapsData) || allMapsData.length !== 3) {
-      return [];
-    }
-    const [mapIds, blockedPositionsArray, scoringPositionsArray] = allMapsData;
-    return mapIds.map((mapId: bigint, index: number) => ({
-      id: Number(mapId),
-      blockedPositions: blockedPositionsArray[index] || [],
-      scoringPositions: scoringPositionsArray[index] || [],
-    }));
-  }, [allMapsData]);
+  const maps: PresetMap[] = allMapsData;
 
   const canCreateMaps =
     address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();

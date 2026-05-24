@@ -1,21 +1,18 @@
 "use client";
 
 import React from "react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount } from "../hooks/useAccount";
 import { UTCPurchaseButton } from "./UTCPurchaseButton";
-import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
-import type { Abi } from "viem";
-import { formatEther } from "viem";
 
 interface UTCPurchaseModalProps {
   onClose: () => void;
 }
 
 const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
-  const { address, chainId: walletChainId } = useAccount();
-  const activeChainId = walletChainId ?? getSelectedChainId();
+  const { address } = useAccount();
+  const activeChainId = getSelectedChainId();
   const nativeTokenSymbol = getNativeTokenSymbol(activeChainId);
 
   const {
@@ -26,12 +23,8 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
     purchaserDeployed,
   } = useShipPurchaserPurchaseInfo();
 
-  const { data: utcBalance, refetch: refetchUTCBalance } = useReadContract({
-    address: CONTRACT_ADDRESSES.UNIVERSAL_CREDITS as `0x${string}`,
-    abi: CONTRACT_ABIS.UNIVERSAL_CREDITS as Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-  });
+  const utcBalance = undefined;
+  const refetchUTCBalance = async () => {};
 
   const getTierColors = (tier: number) => {
     switch (tier) {
@@ -111,9 +104,7 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
           <div className="flex justify-between items-center mb-2">
             <p className="text-cyan/80 text-sm font-mono">Current UTC balance</p>
             <p className="text-cyan text-sm font-mono font-bold">
-              {utcBalance
-                ? `${formatEther(utcBalance as bigint)} UTC`
-                : "0.00 UTC"}
+              0.00 UTC
             </p>
           </div>
           <p className="text-cyan/85 text-xs font-mono leading-relaxed">
@@ -156,7 +147,7 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tiers.map((tier, index) => {
             const flowCost = pricesWei[index] ?? 0n;
-            const flowCostFormatted = formatEther(flowCost);
+            const flowCostFormatted = (Number(flowCost) / 1e18).toFixed(4);
             const colors = getTierColors(tier);
             const utcDisplay = flowCostFormatted;
 
