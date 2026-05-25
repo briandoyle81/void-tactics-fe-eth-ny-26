@@ -1,5 +1,3 @@
-import { parseWithBigint, stringifyWithBigint } from "./bigintJson";
-
 type Method = "POST" | "PUT" | "DELETE" | "PATCH";
 
 export async function apiMutate<T = unknown>(
@@ -10,7 +8,7 @@ export async function apiMutate<T = unknown>(
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: body !== undefined ? stringifyWithBigint(body) : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   if (!res.ok) {
@@ -19,5 +17,5 @@ export async function apiMutate<T = unknown>(
     throw new Error(message);
   }
   if (!text) return undefined as T;
-  return parseWithBigint<T>(text);
+  return JSON.parse(text) as T;
 }

@@ -82,12 +82,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const queryClient = useQueryClient();
   const appChainId = useSelectedChainId();
   const { clearAllTransactions } = useTransaction();
-  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [previewPosition, setPreviewPosition] = useState<{
     row: number;
     col: number;
   } | null>(null);
-  const [targetShipId, setTargetShipId] = useState<bigint | null>(null);
+  const [targetShipId, setTargetShipId] = useState<number | null>(null);
   const [isMoveSubmitting, setIsMoveSubmitting] = useState(false);
   const [isTimeoutSubmitting, setIsTimeoutSubmitting] = useState(false);
   // Explicit per-ship action override (e.g. Retreat/Flee)
@@ -104,7 +104,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     Record<string, "weapon" | "special">
   >({});
   const [hoveredCell, setHoveredCell] = useState<{
-    shipId: bigint;
+    shipId: number;
     row: number;
     col: number;
     mouseX: number;
@@ -113,7 +113,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   } | null>(null);
 
   // Drag and drop state
-  const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
+  const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
     row: number;
     col: number;
@@ -333,7 +333,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Track previous game state to detect if state changed after event
   const prevGameStateRef = React.useRef<{
     currentTurn: string;
-    currentRound: bigint;
+    currentRound: number;
   } | null>(null);
 
   // Track if we're expecting a state change (got GameUpdate event)
@@ -469,7 +469,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     lastPollTimeRef.current = Date.now();
 
     // Get turn time from game (in seconds, convert to milliseconds)
-    const turnTimeMs = Number(game.turnState.turnTime || 0n) * 1000;
+    const turnTimeMs = Number(game.turnState.turnTime || 0) * 1000;
     const pollIntervalAfterMove = turnTimeMs / TURN_POLL_DIVISOR;
 
     if (playerMoveTimeRef.current) {
@@ -656,7 +656,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Countdown for remaining turn time (in seconds)
   const [turnSecondsLeft, setTurnSecondsLeft] = React.useState<number>(0);
   const turnTimeSec = React.useMemo(
-    () => Number(game.turnState.turnTime || 0n),
+    () => Number(game.turnState.turnTime || 0),
     [game.turnState.turnTime],
   );
   const turnPercentRemaining = React.useMemo(() => {
@@ -668,8 +668,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   React.useEffect(() => {
     // Helper to compute remaining seconds
     const computeRemaining = (): number => {
-      const turnTimeSec = Number(game.turnState.turnTime || 0n);
-      const turnStartSec = Number(game.turnState.turnStartTime || 0n);
+      const turnTimeSec = Number(game.turnState.turnTime || 0);
+      const turnStartSec = Number(game.turnState.turnStartTime || 0);
       if (!turnTimeSec || !turnStartSec) return 0;
       const nowSec = Math.floor(Date.now() / 1000);
       const elapsed = Math.max(0, nowSec - turnStartSec);
@@ -735,7 +735,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Include active IDs plus any IDs present in shipPositions (destroyed/fled can
   // now be present there and still need metadata for tooltip/render path).
   const allShipIds = React.useMemo(() => {
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
     game.creatorActiveShipIds.forEach((id) => ids.add(id));
     game.joinerActiveShipIds.forEach((id) => ids.add(id));
     game.shipPositions.forEach((shipPosition) => ids.add(shipPosition.shipId));
@@ -748,7 +748,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Create a map of ship ID to ship object for quick lookup
   const shipMap = React.useMemo(() => {
-    const map = new Map<bigint, (typeof gameShips)[0]>();
+    const map = new Map<number, (typeof gameShips)[0]>();
     gameShips.forEach((ship) => {
       map.set(ship.id, ship);
     });
@@ -763,7 +763,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Get ship attributes by ship ID from game data
   const getShipAttributes = React.useCallback(
-    (shipId: bigint): Attributes | null => {
+    (shipId: number): Attributes | null => {
       // Find the ship ID in the shipIds array to get the correct index
       const shipIndex = game.shipIds?.findIndex((id) => id === shipId);
 
@@ -783,7 +783,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   );
 
   const isEnemyDisabledShipId = React.useCallback(
-    (shipId: bigint): boolean => {
+    (shipId: number): boolean => {
       const ship = shipMap.get(shipId);
       if (!ship || !address) return false;
       if (ship.owner === address) return false;
@@ -843,7 +843,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Build a set of shipIds that have already moved this round (from game data)
   const movedShipIdsSet = React.useMemo(() => {
-    const set = new Set<bigint>();
+    const set = new Set<number>();
     // Add creator ships that have moved
     if (game.creatorMovedShipIds) {
       game.creatorMovedShipIds.forEach((id) => set.add(id));
@@ -946,7 +946,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     const shouldShowLastMoveNow =
       game.metadata.winner === "0x0000000000000000000000000000000000000000" &&
       displayedLastMove &&
-      displayedLastMove.shipId !== 0n &&
+      displayedLastMove.shipId !== 0 &&
       selectedShipId === null;
 
     const isShowingProposedMoveNow = (() => {
@@ -1004,7 +1004,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       const isTargetingLastMove =
         displayedLastMove.actionType === ActionType.Shoot ||
         displayedLastMove.actionType === ActionType.Special;
-      if (isTargetingLastMove && displayedLastMove.targetShipId !== 0n) {
+      if (isTargetingLastMove && displayedLastMove.targetShipId !== 0) {
         const destroyedTargetShipPosition = game.shipPositions.find(
           (shipPosition) =>
             shipPosition.shipId === displayedLastMove.targetShipId &&
@@ -1092,10 +1092,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const calculateDamageForShip = React.useCallback(
     (
-      targetShipId: bigint,
+      targetShipId: number,
       weaponType?: "weapon" | "special",
       showReducedDamage?: boolean,
-      shooterShipIdOverride?: bigint,
+      shooterShipIdOverride?: number,
     ) =>
       calculateDamage({
         shooterId: shooterShipIdOverride ?? selectedShipId,
@@ -1138,7 +1138,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       : currentPosition.position.col;
 
     const targets: {
-      shipId: bigint;
+      shipId: number;
       position: { row: number; col: number };
     }[] = [];
 
@@ -1272,8 +1272,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
 
     const targetMap = new Map<
-      bigint,
-      { shipId: bigint; position: { row: number; col: number } }
+      number,
+      { shipId: number; position: { row: number; col: number } }
     >();
 
     for (const { row: startRow, col: startCol } of origins) {
@@ -1652,7 +1652,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     const startCol = dragOverCell.col;
 
     const targets: {
-      shipId: bigint;
+      shipId: number;
       position: { row: number; col: number };
     }[] = [];
 
@@ -1819,7 +1819,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Auto-set Flak to target all ships when Flak is first selected
   // Use a ref to track if we've already set it for this selection
   const flakAutoSetRef = React.useRef<{
-    shipId: bigint | null;
+    shipId: number | null;
     weaponType: string;
   }>({
     shipId: null,
@@ -1840,7 +1840,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
       if (isNewSelection && targetShipId !== null) {
         // Automatically set target to 0n (all ships) for Flak
-        setTargetShipId(0n);
+        setTargetShipId(0);
         flakAutoSetRef.current = {
           shipId: selectedShipId,
           weaponType: selectedWeaponType,
@@ -1865,7 +1865,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Track if we're currently displaying the last move (to avoid infinite loops)
   const isDisplayingLastMoveRef = React.useRef(false);
   const lastDisplayedMoveRef = React.useRef<{
-    shipId: bigint;
+    shipId: number;
     newRow: number;
     newCol: number;
   } | null>(null);
@@ -1881,7 +1881,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
 
     // Don't show if no last move exists
-    if (!displayedLastMove || displayedLastMove.shipId === 0n) {
+    if (!displayedLastMove || displayedLastMove.shipId === 0) {
       return false;
     }
 
@@ -1937,7 +1937,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (game.metadata.winner !== "0x0000000000000000000000000000000000000000") {
       return false;
     }
-    if (!displayedLastMove || displayedLastMove.shipId === 0n) {
+    if (!displayedLastMove || displayedLastMove.shipId === 0) {
       return false;
     }
     if (selectedShipId !== null) {
@@ -1975,7 +1975,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Check if a ship belongs to the current player
   const isShipOwnedByCurrentPlayer = React.useCallback(
-    (shipId: bigint): boolean => {
+    (shipId: number): boolean => {
       const ship = shipMap.get(shipId);
       return ship ? ship.owner === address : false;
     },
@@ -2099,7 +2099,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           col: displayedLastMove.newCol,
         });
         // Set target if there is one
-        if (displayedLastMove.targetShipId !== 0n) {
+        if (displayedLastMove.targetShipId !== 0) {
           setTargetShipId(displayedLastMove.targetShipId);
         } else {
           setTargetShipId(null);
@@ -2264,7 +2264,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     !isShowingProposedMove &&
     ((displayedLastMove.actionType as ActionType) === ActionType.Special ||
       (displayedLastMove.actionType as ActionType) === ActionType.Shoot) &&
-    displayedLastMove.targetShipId !== 0n
+    displayedLastMove.targetShipId !== 0
       ? displayedLastMove.targetShipId
       : null;
 
@@ -2280,7 +2280,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const appendDestroyedTextToLastMove = React.useMemo(() => {
     if (!displayedLastMove) return false;
-    if (displayedLastMove.targetShipId === 0n) return false;
+    if (displayedLastMove.targetShipId === 0) return false;
 
     const isTargetingAction =
       displayedLastMove.actionType === ActionType.Shoot ||
@@ -2294,7 +2294,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const lastMoveTargetPositionDebugSuffix = React.useMemo(() => {
     if (!displayedLastMove) return "";
-    if (displayedLastMove.targetShipId === 0n) return "";
+    if (displayedLastMove.targetShipId === 0) return "";
 
     const targetPos = game.shipPositions.find(
       (sp) => sp.shipId === displayedLastMove.targetShipId,
@@ -2309,7 +2309,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   React.useEffect(() => {
     if (!displayedLastMove) return;
-    if (displayedLastMove.targetShipId === 0n) return;
+    if (displayedLastMove.targetShipId === 0) return;
 
     const targetExists = game.shipPositions.some(
       (sp) => sp.shipId === displayedLastMove.targetShipId,
@@ -2428,11 +2428,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 ? actionOverride
                 : isRammingMovePreview
                   ? ActionType.Pass
-                : targetShipId !== null && targetShipId !== 0n
+                : targetShipId !== null && targetShipId !== 0
                   ? selectedWeaponType === "special"
                     ? ActionType.Special
                     : ActionType.Shoot
-                  : targetShipId === 0n &&
+                  : targetShipId === 0 &&
                       selectedWeaponType === "special" &&
                       specialType === 3
                     ? ActionType.Special
@@ -2507,7 +2507,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       );
                       const oldRow = currentPosition ? currentPosition.position.row : computedRow;
                       const oldCol = currentPosition ? currentPosition.position.col : computedCol;
-                      const submittedTargetShipId = computedActionType === ActionType.Pass ? 0n : (targetShipId || 0n);
+                      const submittedTargetShipId = computedActionType === ActionType.Pass ? 0 : (targetShipId || 0);
 
                       const updatedState = await apiMutate<GameDataView>(
                         `/api/games/${game.metadata.gameId}/action`,
@@ -2530,7 +2530,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         game_id: String(game.metadata.gameId),
                         ship_id: selectedShipId.toString(),
                         move_type: moveTypeLabel,
-                        ...(submittedTargetShipId !== 0n ? { target_ship_id: submittedTargetShipId.toString() } : {}),
+                        ...(submittedTargetShipId !== 0 ? { target_ship_id: submittedTargetShipId.toString() } : {}),
                         chain_id: appChainId,
                       });
 
@@ -2542,7 +2542,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
                         actionType: computedActionType,
                         targetShipId: submittedTargetShipId,
-                        timestamp: BigInt(Date.now()),
+                        timestamp: Number(Date.now()),
                       });
 
                       toast.success("Move submitted!");
@@ -2907,7 +2907,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       | "special";
                     setWeaponTypeFromGrid(newWeaponType);
                     if (newWeaponType === "special" && specialType === 3) {
-                      setTargetShipId(0n);
+                      setTargetShipId(0);
                     } else {
                       setTargetShipId(null);
                     }
@@ -3140,7 +3140,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       title: string;
       titleColor: string;
       ownerAddress: string;
-      shipIds: readonly bigint[];
+      shipIds: readonly number[];
       isCurrentPlayerShip: boolean;
       flipShip: boolean;
     }) => (

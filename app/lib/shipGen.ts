@@ -40,7 +40,7 @@ export function generateShip(
   };
 
   const traits: ShipTraits = {
-    serialNumber: BigInt(seed),
+    serialNumber: seed,
     colors: {
       h1: rng(seed + 5, 360),
       s1: 40 + rng(seed + 6, 40),

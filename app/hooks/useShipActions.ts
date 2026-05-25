@@ -12,7 +12,7 @@ export function useShipActions() {
     await queryClient.invalidateQueries({ queryKey: ["ships"] });
   }, [queryClient]);
 
-  const constructShip = useCallback(async (shipId: bigint) => {
+  const constructShip = useCallback(async (shipId: number) => {
     try {
       await apiMutate(`/api/ships/${shipId}/construct`, "POST");
       toast.success("Ship constructed!");
@@ -23,7 +23,7 @@ export function useShipActions() {
     }
   }, [invalidateShips]);
 
-  const constructAllShips = useCallback(async (shipIds: bigint[]) => {
+  const constructAllShips = useCallback(async (shipIds: number[]) => {
     try {
       await Promise.all(shipIds.map((id) => apiMutate(`/api/ships/${id}/construct`, "POST")));
       toast.success("All ships constructed!");
@@ -34,7 +34,7 @@ export function useShipActions() {
     }
   }, [invalidateShips]);
 
-  const recycleShips = useCallback(async (shipIds: bigint[]) => {
+  const recycleShips = useCallback(async (shipIds: number[]) => {
     try {
       await Promise.all(shipIds.map((id) => apiMutate(`/api/ships/${id}`, "DELETE")));
       toast.success("Ships recycled.");

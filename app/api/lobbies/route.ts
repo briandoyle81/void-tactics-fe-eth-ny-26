@@ -16,6 +16,7 @@ function dbLobbyToLobby(db: {
   creatorGoesFirst: boolean | null;
   createdAt: Date;
   joinedAt: Date | null;
+  fleets?: { id: number; ownerId: string; isComplete: boolean }[];
 }): Lobby {
   const statusMap: Record<string, LobbyStatus> = {
     OPEN: LobbyStatus.Open,
@@ -26,28 +27,30 @@ function dbLobbyToLobby(db: {
   };
   return {
     basic: {
-      id: BigInt(db.id),
+      id: db.id,
       creator: db.creatorId as `0x${string}`,
-      costLimit: BigInt(db.costLimit),
-      createdAt: BigInt(db.createdAt.getTime()),
+      costLimit: db.costLimit,
+      createdAt: db.createdAt.getTime(),
     },
     players: {
       joiner: (db.joinerId ?? "0x0000000000000000000000000000000000000000") as `0x${string}`,
       reservedJoiner: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-      creatorFleetId: 0n,
-      joinerFleetId: 0n,
-      joinedAt: db.joinedAt ? BigInt(db.joinedAt.getTime()) : 0n,
-      joinerFleetSetAt: 0n,
+      creatorFleetId: db.fleets?.find((f) => f.ownerId === db.creatorId && f.isComplete)?.id ?? 0,
+      joinerFleetId: db.joinerId
+        ? (db.fleets?.find((f) => f.ownerId === db.joinerId && f.isComplete)?.id ?? 0)
+        : 0,
+      joinedAt: db.joinedAt ? db.joinedAt.getTime() : 0,
+      joinerFleetSetAt: 0,
     },
     gameConfig: {
       creatorGoesFirst: db.creatorGoesFirst ?? true,
-      turnTime: BigInt(db.turnTimeSeconds),
-      selectedMapId: BigInt(db.mapId ?? 0),
-      maxScore: BigInt(db.maxScore),
+      turnTime: db.turnTimeSeconds,
+      selectedMapId: db.mapId ?? 0,
+      maxScore: db.maxScore,
     },
     state: {
       status: statusMap[db.status] ?? LobbyStatus.Open,
-      gameStartedAt: 0n,
+      gameStartedAt: 0,
     },
   };
 }
@@ -66,6 +69,7 @@ export async function GET() {
     },
     orderBy: { createdAt: "desc" },
     take: 50,
+    include: { fleets: { select: { id: true, ownerId: true, isComplete: true } } },
   });
 
   return new NextResponse(stringifyWithBigint(lobbies.map(dbLobbyToLobby)), {

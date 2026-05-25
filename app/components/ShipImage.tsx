@@ -55,12 +55,12 @@ export function ShipImage({
       isLoading,
       error,
       constructed: ship.shipData.constructed,
-      destroyed: ship.shipData.timestampDestroyed > 0n,
+      destroyed: ship.shipData.timestampDestroyed > 0,
     }
   );
 
   // Check ship state
-  const isDestroyed = ship.shipData.timestampDestroyed > BigInt(0);
+  const isDestroyed = ship.shipData.timestampDestroyed > Number(0);
   const isNotConstructed = !ship.shipData.constructed;
 
   const rankStarsOverlay =

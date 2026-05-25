@@ -99,7 +99,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     const isDisabledInGame =
       showInGameProperties &&
       inGameAttributes &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !(ship.shipData.timestampDestroyed > 0) &&
       inGameAttributes.hullPoints === 0;
 
     if (isInGameView && isDisabledInGame) {
@@ -141,7 +141,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         ? "border-phosphor-green bg-near-black"
         : "border-phosphor-green bg-phosphor-green/20";
     }
-    if (ship.shipData.timestampDestroyed > 0n) {
+    if (ship.shipData.timestampDestroyed > 0) {
       return tooltipMode
         ? "border-warning-red bg-near-black"
         : "border-warning-red bg-black/60";
@@ -154,7 +154,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     if (
       costsVersionStale &&
       ship.shipData.constructed &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !(ship.shipData.timestampDestroyed > 0) &&
       !ship.shipData.inFleet
     ) {
       return tooltipMode
@@ -200,7 +200,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     const isDisabledInGame =
       showInGameProperties &&
       inGameAttributes &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !(ship.shipData.timestampDestroyed > 0) &&
       inGameAttributes.hullPoints === 0;
 
     if (isInGameView && isDisabledInGame) {
@@ -245,7 +245,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (ship.shipData.timestampDestroyed > 0n) {
+    if (ship.shipData.timestampDestroyed > 0) {
       return {
         borderColor: "var(--color-warning-red)",
         borderTopColor: "var(--color-warning-red)",
@@ -264,7 +264,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     if (
       costsVersionStale &&
       ship.shipData.constructed &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !(ship.shipData.timestampDestroyed > 0) &&
       !ship.shipData.inFleet
     ) {
       return {
@@ -736,7 +736,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                         <span className="opacity-60">Status:</span>
                         <span
                           className={`ml-2 ${
-                            ship.shipData.timestampDestroyed > 0n
+                            ship.shipData.timestampDestroyed > 0
                               ? "text-warning-red"
                               : hasMoved
                               ? "text-amber"
@@ -747,7 +747,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                               : "text-phosphor-green"
                           }`}
                         >
-                          {ship.shipData.timestampDestroyed > 0n
+                          {ship.shipData.timestampDestroyed > 0
                             ? `DESTROYED ${formatDestroyedDate(ship.shipData.timestampDestroyed)}`
                             : hasMoved
                             ? "MOVED"
@@ -810,7 +810,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <span className="opacity-60">Status:</span>
                     <span
                       className={`ml-2 ${
-                        ship.shipData.timestampDestroyed > 0n
+                        ship.shipData.timestampDestroyed > 0
                           ? "text-warning-red"
                           : hasMoved
                           ? "text-amber"
@@ -821,7 +821,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                           : "text-phosphor-green"
                       }`}
                     >
-                      {ship.shipData.timestampDestroyed > 0n
+                      {ship.shipData.timestampDestroyed > 0
                         ? `DESTROYED ${formatDestroyedDate(ship.shipData.timestampDestroyed)}`
                         : hasMoved
                         ? "MOVED"

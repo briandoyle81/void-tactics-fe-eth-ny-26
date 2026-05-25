@@ -101,13 +101,13 @@ const ManageNavy: React.FC = () => {
       : null;
 
   const staleCostSyncShipIds = React.useMemo(() => {
-    if (globalCostsVersion === null) return [] as bigint[];
+    if (globalCostsVersion === null) return [] as number[];
     return ships
       .filter((ship) => {
         const shipCv = Number(ship.shipData.costsVersion);
         return (
           ship.shipData.constructed &&
-          ship.shipData.timestampDestroyed === 0n &&
+          !(ship.shipData.timestampDestroyed > 0) &&
           !ship.shipData.inFleet &&
           shipCv !== globalCostsVersion
         );
@@ -140,7 +140,7 @@ const ManageNavy: React.FC = () => {
 
   // Create a map of ship ID to attributes for quick lookup
   const attributesMap = React.useMemo(() => {
-    const map = new Map<bigint, (typeof shipAttributes)[0]>();
+    const map = new Map<number, (typeof shipAttributes)[0]>();
     shipIds.forEach((shipId, index) => {
       if (shipAttributes[index]) {
         map.set(shipId, shipAttributes[index]);
@@ -549,8 +549,8 @@ const ManageNavy: React.FC = () => {
 
     // Apply sorting
     return [...filtered].sort((a, b) => {
-      let aValue: number | bigint;
-      let bValue: number | bigint;
+      let aValue: number | number;
+      let bValue: number | number;
 
       switch (sortBy) {
         case "cost":
@@ -719,7 +719,7 @@ const ManageNavy: React.FC = () => {
           return (
             s &&
             s.shipData.constructed &&
-            s.shipData.timestampDestroyed === 0n
+            !(s.shipData.timestampDestroyed > 0)
           );
         });
         if (nextIds.length !== f.shipIds.length) changed = true;
@@ -765,7 +765,7 @@ const ManageNavy: React.FC = () => {
       if (
         !s ||
         !s.shipData.constructed ||
-        s.shipData.timestampDestroyed > 0n
+        s.shipData.timestampDestroyed > 0
       ) {
         return sum;
       }
@@ -1548,7 +1548,7 @@ const ManageNavy: React.FC = () => {
                   return recyclableShips.length > 0 ? (
                     <ShipActionButton
                       action="recycle"
-                      shipIds={recyclableShips.map((id) => BigInt(id))}
+                      shipIds={recyclableShips.map((id) => Number(id))}
                       className="w-full justify-center px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-200 disabled:cursor-not-allowed md:w-auto"
                       onSuccess={() => {
                         toast.success("Ships recycled successfully!");
@@ -2364,7 +2364,7 @@ const ManageNavy: React.FC = () => {
               const costsVersionStale =
                 globalCostsVersion !== null &&
                 ship.shipData.constructed &&
-                ship.shipData.timestampDestroyed === 0n &&
+                !(ship.shipData.timestampDestroyed > 0) &&
                 !ship.shipData.inFleet &&
                 shipCv !== globalCostsVersion;
 
@@ -2428,7 +2428,7 @@ const ManageNavy: React.FC = () => {
                       return undefined;
                     }
                     const sid = ship.id.toString();
-                    const destroyed = ship.shipData.timestampDestroyed > 0n;
+                    const destroyed = ship.shipData.timestampDestroyed > 0;
                     const inComp =
                       activeCompositionFleet.shipIds.includes(sid);
                     if (!ship.shipData.constructed) return undefined;
@@ -2556,7 +2556,7 @@ const ManageNavy: React.FC = () => {
                         <span className="text-cyan">
                           Pay out{" "}
                           {recycleReward
-                            ? (Number(recycleReward as bigint) / 1e18).toFixed(4)
+                            ? (Number(recycleReward as number) / 1e18).toFixed(4)
                             : "..."}{" "}
                           UTC
                         </span>{" "}

@@ -22,6 +22,9 @@ export async function POST(
   // The winner is the player whose turn it is NOT (the other player let time run out)
   const winnerId = game.currentTurn === game.player1Id ? game.player2Id : game.player1Id;
 
+  const gameFleets = await prisma.fleet.findMany({ where: { lobbyId: game.lobbyId } });
+  const allFleetShipIds = gameFleets.flatMap((f) => f.shipIds as number[]);
+
   await prisma.$transaction([
     prisma.game.update({ where: { id: gameId }, data: { phase: "TIMED_OUT", winnerId } }),
     prisma.playerStats.upsert({
@@ -34,6 +37,9 @@ export async function POST(
       update: { losses: { increment: 1 }, totalGames: { increment: 1 } },
       create: { userId: game.currentTurn, losses: 1, totalGames: 1 },
     }),
+    ...(allFleetShipIds.length > 0
+      ? [prisma.ship.updateMany({ where: { id: { in: allFleetShipIds } }, data: { inFleet: false } })]
+      : []),
   ]);
 
   return NextResponse.json({ winnerId });

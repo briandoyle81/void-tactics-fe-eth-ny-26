@@ -92,26 +92,26 @@ function measureGridCellViewportBounds(
   };
 }
 
-type DamageLabelTarget = { shipId: bigint; row: number; col: number };
+type DamageLabelTarget = { shipId: number; row: number; col: number };
 
 /** Same target list as the floating damage-label overlay (keeps destroy-preview art in sync). */
 function collectDamageLabelTargets(params: {
   grid: (ShipPosition | null)[][];
   allShipPositions?: readonly ShipPosition[];
-  selectedShipId: bigint | null;
-  targetShipId: bigint | null;
-  draggedShipId: bigint | null;
+  selectedShipId: number | null;
+  targetShipId: number | null;
+  draggedShipId: number | null;
   dragOverCell: { row: number; col: number } | null;
   dragValidTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   validTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   labelTargets?: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   selectedWeaponType: "weapon" | "special";
@@ -152,7 +152,7 @@ function collectDamageLabelTargets(params: {
       : null;
 
   const shouldShowTargetLabel = (
-    shipId: bigint,
+    shipId: number,
     fallbackIsCreator?: boolean,
   ) => {
     if (selectedShipSide == null) return true;
@@ -178,7 +178,7 @@ function collectDamageLabelTargets(params: {
   };
 
   const pushTargetIfAllowed = (
-    shipId: bigint,
+    shipId: number,
     row: number,
     col: number,
     fallbackIsCreator?: boolean,
@@ -210,7 +210,7 @@ function collectDamageLabelTargets(params: {
 
   const targetsForLabels = labelTargets ?? validTargets;
   const hasSingleSelectedTarget =
-    targetShipId != null && targetShipId !== 0n;
+    targetShipId != null && targetShipId !== 0;
 
   if (selectedShipId && !hasSingleSelectedTarget) {
     targetsForLabels.forEach((target) => {
@@ -228,74 +228,74 @@ function collectDamageLabelTargets(params: {
 interface GameGridProps {
   grid: (ShipPosition | null)[][];
   allShipPositions?: readonly ShipPosition[];
-  shipMap: Map<bigint, Ship>;
-  selectedShipId: bigint | null;
+  shipMap: Map<number, Ship>;
+  selectedShipId: number | null;
   previewPosition: { row: number; col: number } | null;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   selectedWeaponType: "weapon" | "special";
   hoveredCell: {
-    shipId: bigint;
+    shipId: number;
     row: number;
     col: number;
     mouseX: number;
     mouseY: number;
     isCreator: boolean;
   } | null;
-  draggedShipId: bigint | null;
+  draggedShipId: number | null;
   dragOverCell: { row: number; col: number } | null;
   movementRange: Array<{ row: number; col: number }>;
   shootingRange: Array<{ row: number; col: number }>;
   validTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   labelTargets?: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>; // Optional: when provided (GameDisplay), used for damage labels; otherwise fall back to validTargets
   assistableTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   assistableTargetsFromStart: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   dragShootingRange: Array<{ row: number; col: number }>;
   dragValidTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   isCurrentPlayerTurn: boolean;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  movedShipIdsSet: Set<bigint>;
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  movedShipIdsSet: Set<number>;
   specialType: number;
   blockedGrid: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
   calculateDamage: (
-    targetShipId: bigint,
+    targetShipId: number,
     weaponType?: "weapon" | "special",
     showReducedDamage?: boolean,
-    shooterShipIdOverride?: bigint,
+    shooterShipIdOverride?: number,
   ) => {
     reducedDamage: number;
     willKill: boolean;
     reactorCritical: boolean;
   };
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  getShipAttributes: (shipId: number) => Attributes | null;
   disableTooltips: boolean;
   address: string | undefined;
   currentTurn: string;
   highlightedMovePosition?: { row: number; col: number } | null;
-  lastMoveShipId?: bigint | null; // Ship ID for the last move (to show pulse effect)
+  lastMoveShipId?: number | null; // Ship ID for the last move (to show pulse effect)
   lastMoveOldPosition?: { row: number; col: number } | null; // Old position for last move preview
   // New position for the last move (to position). When playing back weapon
   // effects for the last move, the beam should originate from this "to"
   // position rather than the old position.
   lastMoveNewPosition?: { row: number; col: number } | null;
   lastMoveActionType?: ActionType | null; // When Retreat, show warp collapse at old position
-  lastMoveTargetShipId?: bigint | null; // When last move was Special (e.g. repair), target ship for animation
+  lastMoveTargetShipId?: number | null; // When last move was Special (e.g. repair), target ship for animation
   lastMoveIsCurrentPlayer?: boolean | undefined; // true = blue outline, false = red outline
   /** Ramming preview destination tile. */
   rammingPreviewPosition?: { row: number; col: number } | null;
@@ -303,7 +303,7 @@ interface GameGridProps {
   isRammingMovePreview?: boolean;
   /** When set, last-move EMP replay still shows while a ship is selected (e.g. tutorial ship-destruction). */
   showLastMoveEmpReplayWhenSelected?: boolean;
-  retreatPrepShipId?: bigint | null; // When set, this ship shows flip + engine glow (Retreat selected)
+  retreatPrepShipId?: number | null; // When set, this ship shows flip + engine glow (Retreat selected)
   retreatPrepIsCreator?: boolean | null; // For retreat prep flip direction
   /**
    * **Tutorial highlight**: cells that show a gentle pulsing yellow tint under ships
@@ -321,13 +321,13 @@ interface GameGridProps {
   tutorialDefaultLabel?: string;
   /** Extra clears (e.g. retreat override) after right-click deselect on the grid. */
   onGridRightClickDeselect?: () => void;
-  setSelectedShipId: (shipId: bigint | null) => void;
+  setSelectedShipId: (shipId: number | null) => void;
   setPreviewPosition: (position: { row: number; col: number } | null) => void;
-  setTargetShipId: (shipId: bigint | null) => void;
+  setTargetShipId: (shipId: number | null) => void;
   setSelectedWeaponType: (type: "weapon" | "special") => void;
   setHoveredCell: (
     cell: {
-      shipId: bigint;
+      shipId: number;
       row: number;
       col: number;
       mouseX: number;
@@ -335,7 +335,7 @@ interface GameGridProps {
       isCreator: boolean;
     } | null,
   ) => void;
-  setDraggedShipId: (shipId: bigint | null) => void;
+  setDraggedShipId: (shipId: number | null) => void;
   setDragOverCell: (cell: { row: number; col: number } | null) => void;
 }
 
@@ -460,7 +460,7 @@ export function GameGrid({
       (previewPosition != null ||
         (draggedShipId != null && dragOverCell != null));
     if (stagingOwnShot) {
-      if (targetShipId == null || targetShipId === 0n) return null;
+      if (targetShipId == null || targetShipId === 0) return null;
       return targetShipId;
     }
     return targetShipId || lastMoveTargetShipId || null;
@@ -501,7 +501,7 @@ export function GameGrid({
   ]);
 
   const projectedDamageByShipId = React.useMemo(() => {
-    const map = new Map<bigint, number>();
+    const map = new Map<number, number>();
 
     const shouldShowDamagePreview =
       selectedShipId != null &&
@@ -512,10 +512,10 @@ export function GameGrid({
 
     if (!shouldShowDamagePreview) return map;
 
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
 
     // Selected target (locked shot)
-    if (targetShipId != null && targetShipId !== 0n) {
+    if (targetShipId != null && targetShipId !== 0) {
       ids.add(targetShipId);
     }
 
@@ -559,7 +559,7 @@ export function GameGrid({
   ]);
 
   const projectedRepairByShipId = React.useMemo(() => {
-    const map = new Map<bigint, number>();
+    const map = new Map<number, number>();
 
     const shouldShowRepairPreview =
       selectedShipId != null &&
@@ -570,9 +570,9 @@ export function GameGrid({
 
     if (!shouldShowRepairPreview) return map;
 
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
 
-    if (targetShipId != null && targetShipId !== 0n) {
+    if (targetShipId != null && targetShipId !== 0) {
       ids.add(targetShipId);
     }
 
@@ -607,7 +607,7 @@ export function GameGrid({
   ]);
 
   const destroyPreviewShipIds = React.useMemo(() => {
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
     const targetsToShow = collectDamageLabelTargets({
       grid,
       allShipPositions,
@@ -659,7 +659,7 @@ export function GameGrid({
   ]);
 
   const findShipPositionById = React.useCallback(
-    (shipId: bigint | null | undefined): { row: number; col: number } | null => {
+    (shipId: number | null | undefined): { row: number; col: number } | null => {
       if (shipId == null) return null;
 
       // Primary: find in currently rendered grid.
@@ -967,7 +967,7 @@ export function GameGrid({
                           ) {
                             // Flak affects all targets in range, so we don't need to set a specific target
                             // Just indicate that flak is ready to fire
-                            setTargetShipId(0n); // Use 0 to indicate area-of-effect
+                            setTargetShipId(0); // Use 0 to indicate area-of-effect
                           } else {
                             // EMP and other specials target individual ships
                             setTargetShipId(cell.shipId);
@@ -2773,7 +2773,7 @@ export function GameGrid({
             {selectedShipId &&
               selectedWeaponType === "special" &&
               specialType === 3 &&
-              targetShipId === 0n && (
+              targetShipId === 0 && (
                 <FlakExplosionAnimation
                   gridContainerRef={gridContainerRef}
                   targetCells={flakEffectCells}
@@ -2785,7 +2785,7 @@ export function GameGrid({
               selectedWeaponType === "special" &&
               specialType === 1 &&
               targetShipId != null &&
-              targetShipId !== 0n &&
+              targetShipId !== 0 &&
               !showLastMoveEmpReplayWhenSelected &&
               (() => {
                 // Determine attacker position: preview > drag > current
@@ -2906,7 +2906,7 @@ export function GameGrid({
               selectedWeaponType === "special" &&
               specialType === 2 &&
               targetShipId != null &&
-              targetShipId !== 0n &&
+              targetShipId !== 0 &&
               (() => {
                 // Determine attacker position: preview > drag > current
                 let attackerRow = -1;
@@ -2953,7 +2953,7 @@ export function GameGrid({
             {lastMoveShipId != null &&
               (lastMoveActionType as ActionType) === ActionType.Special &&
               lastMoveTargetShipId != null &&
-              lastMoveTargetShipId !== 0n &&
+              lastMoveTargetShipId !== 0 &&
               shipMap.get(lastMoveShipId)?.equipment.special === 2 &&
               (() => {
                 let attackerRow = -1;
@@ -3326,7 +3326,7 @@ export function GameGrid({
                     const shipId = cell?.shipId;
                     const targetsForLabels = labelTargets ?? validTargets;
                     const hasSingleSelectedTarget =
-                      targetShipId != null && targetShipId !== 0n;
+                      targetShipId != null && targetShipId !== 0;
                     const damageLabelOnThisShip =
                       shipId != null &&
                       selectedShipId != null &&

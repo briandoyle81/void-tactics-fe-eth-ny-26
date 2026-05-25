@@ -6,7 +6,7 @@ import { ActionType, LastMove } from "../types/types";
 interface LastMoveDisplayProps {
   lastMove: LastMove | undefined;
   shipMap: Map<
-    bigint,
+    number,
     { name: string; owner?: string; equipment?: { special: number } }
   >;
   address?: string;
@@ -18,7 +18,7 @@ interface LastMoveDisplayProps {
 function formatLastMoveDescription(
   lastMove: LastMove,
   shipMap: Map<
-    bigint,
+    number,
     { name: string; owner?: string; equipment?: { special: number } }
   >,
   address?: string,
@@ -43,7 +43,7 @@ function formatLastMoveDescription(
   }
 
   if (lastMove.actionType === ActionType.Shoot) {
-    if (lastMove.targetShipId === 0n) {
+    if (lastMove.targetShipId === 0) {
       description += moved ? " and fired AOE" : `${shipName} fired AOE`;
     } else {
       const targetShip = shipMap.get(lastMove.targetShipId);
@@ -53,7 +53,7 @@ function formatLastMoveDescription(
         : `${shipName} fired on ${targetName}`;
     }
   } else if (lastMove.actionType === ActionType.Special) {
-    if (lastMove.targetShipId === 0n) {
+    if (lastMove.targetShipId === 0) {
       description += moved
         ? " and used special ability (AOE)"
         : `${shipName} used special ability (AOE)`;
@@ -93,7 +93,7 @@ export function GameEvents({
   appendDestroyedText = false,
   debugSuffix,
 }: LastMoveDisplayProps) {
-  if (!lastMove || lastMove.shipId === 0n) {
+  if (!lastMove || lastMove.shipId === 0) {
     return (
       <div className="border border-purple bg-black/40 p-4">
         <h3 className="text-lg font-bold text-purple mb-2">

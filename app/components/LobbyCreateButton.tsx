@@ -5,21 +5,18 @@ import { useLobbies } from "../hooks/useLobbies";
 import posthog from "posthog-js";
 
 interface LobbyCreateButtonProps {
-  costLimit: bigint;
-  turnTime: bigint;
+  costLimit: number;
+  turnTime: number;
   creatorGoesFirst: boolean;
-  selectedMapId: bigint;
-  maxScore: bigint;
-  /** Unused in REST backend — kept for call-site compat. */
-  value?: bigint;
-  /** Unused in REST backend — kept for call-site compat. */
+  selectedMapId: number;
+  maxScore: number;
+  value?: number;
   reservedJoiner?: string;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
-  /** Unused in REST backend — kept for call-site compat. */
   onTransactionSent?: (hash: `0x${string}`) => void;
 }
 
@@ -50,9 +47,9 @@ export function LobbyCreateButton({
         maxScore,
       });
       posthog.capture("lobby_created", {
-        turn_time_seconds: turnTime.toString(),
+        turn_time_seconds: turnTime,
         creator_goes_first: creatorGoesFirst,
-        max_score: maxScore.toString(),
+        max_score: maxScore,
       });
       onSuccess?.();
     } catch (err) {

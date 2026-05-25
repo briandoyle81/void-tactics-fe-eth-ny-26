@@ -9,7 +9,7 @@ export function useShipsPurchaseInfo() {
     shipsPerTier: PURCHASE_TIERS.map((t) => t.shipCount),
     pricesUsdCents: PURCHASE_TIERS.map((t) => t.priceUsdCents),
     // kept for interface compat — unused for USD display
-    pricesWei: PURCHASE_TIERS.map((t) => BigInt(t.priceUsdCents)),
+    pricesWei: PURCHASE_TIERS.map((t) => Number(t.priceUsdCents)),
     normalized: null,
     isLoading: false,
     error: null,

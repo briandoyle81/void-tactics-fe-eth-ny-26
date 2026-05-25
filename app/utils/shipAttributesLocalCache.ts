@@ -19,7 +19,7 @@ const CONTRACT_SNAPSHOT_KEY = (chainId: number) =>
 export const SHIP_ATTRIBUTES_LOCAL_CACHE_MS = 365 * 24 * 60 * 60 * 1000;
 
 /** Order-sensitive; must match `useShipAttributesByIds` shipIds string. */
-export function shipIdsToCacheKeyString(shipIds: bigint[]): string {
+export function shipIdsToCacheKeyString(shipIds: number[]): string {
   return shipIds.map((id) => id.toString()).join(",");
 }
 
@@ -34,7 +34,7 @@ export type ShipAttributesContractSnapshotV1 = {
   chainId: number;
   currentCostsVersion: string;
   currentAttributesVersion: string;
-  /** `getCosts()` return; bigints stored as strings. */
+  /** `getCosts()` return; numbers stored as strings. */
   getCosts: unknown;
 };
 
@@ -64,7 +64,7 @@ export function readValidShipAttributesByIdsCache(
 
 export function writeShipAttributesByIdsCache(
   chainId: number,
-  shipIds: bigint[],
+  shipIds: number[],
   data: Attributes[],
 ): void {
   if (typeof window === "undefined") return;
@@ -82,9 +82,7 @@ export function writeShipAttributesByIdsCache(
 }
 
 function jsonStringifyWithBigint(value: unknown): string {
-  return JSON.stringify(value, (_k, v) =>
-    typeof v === "bigint" ? v.toString() : v,
-  );
+  return JSON.stringify(value);
 }
 
 /** Read snapshot written by `fetchAndPersistShipAttributesCaches` (optional UI use). */
@@ -110,7 +108,7 @@ export async function fetchAndPersistShipAttributesCaches(
   params: {
     chainId: number;
     shipAttributesAddress: `0x${string}`;
-    shipIds: bigint[];
+    shipIds: number[];
   },
 ): Promise<void> {
   if (typeof window === "undefined") return;

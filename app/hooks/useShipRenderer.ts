@@ -123,7 +123,7 @@ export function useShipRenderer(ship: Ship): ShipImageState {
 
   shipRef.current = ship;
 
-  const isDestroyed = isValidShip && ship.shipData.timestampDestroyed > BigInt(0);
+  const isDestroyed = isValidShip && ship.shipData.timestampDestroyed > Number(0);
   const isNotConstructed = isValidShip && !ship.shipData.constructed;
 
   useEffect(() => {

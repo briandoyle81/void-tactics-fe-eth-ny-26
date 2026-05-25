@@ -8,11 +8,11 @@ import { toast } from "react-hot-toast";
 import type { Lobby } from "../types/types";
 
 export interface CreateLobbyParams {
-  costLimit?: number | bigint;
-  turnTimeSeconds?: number | bigint;
+  costLimit?: number;
+  turnTimeSeconds?: number;
   creatorGoesFirst?: boolean;
-  selectedMapId?: number | bigint | null;
-  maxScore?: number | bigint;
+  selectedMapId?: number | null;
+  maxScore?: number;
   activeLobbiesCount?: number;
 }
 
@@ -32,50 +32,52 @@ export function useLobbies() {
 
   const createLobby = useCallback(async (params: CreateLobbyParams) => {
     await apiMutate("/api/lobbies", "POST", {
-      costLimit:       Number(params.costLimit ?? 0),
-      turnTimeSeconds: Number(params.turnTimeSeconds ?? 120),
+      costLimit:        params.costLimit ?? 0,
+      turnTimeSeconds:  params.turnTimeSeconds ?? 120,
       creatorGoesFirst: params.creatorGoesFirst ?? true,
-      selectedMapId:   params.selectedMapId ? Number(params.selectedMapId) : null,
-      maxScore:        Number(params.maxScore ?? 3),
+      selectedMapId:    params.selectedMapId ?? null,
+      maxScore:         params.maxScore ?? 3,
     });
     await invalidateLobbies();
   }, [invalidateLobbies]);
 
-  const joinLobby = useCallback(async (lobbyId: bigint) => {
+  const joinLobby = useCallback(async (lobbyId: number) => {
     await apiMutate(`/api/lobbies/${lobbyId}/join`, "POST");
     await invalidateLobbies();
   }, [invalidateLobbies]);
 
-  const leaveLobby = useCallback(async (lobbyId: bigint) => {
+  const leaveLobby = useCallback(async (lobbyId: number) => {
     await apiMutate(`/api/lobbies/${lobbyId}`, "DELETE");
     await invalidateLobbies();
   }, [invalidateLobbies]);
 
   const createFleet = useCallback(async (
-    lobbyId: bigint,
-    shipIds: bigint[],
+    lobbyId: number,
+    shipIds: number[],
     startingPositions: Array<{ row: number; col: number }>,
-  ) => {
-    await apiMutate(`/api/lobbies/${lobbyId}/fleet`, "POST", {
-      shipIds: shipIds.map(Number),
-      startingPositions,
-    });
+  ): Promise<{ id: number; totalCost: number; shipCount: number; gameId: number | null }> => {
+    const result = await apiMutate<{ id: number; totalCost: number; shipCount: number; gameId: number | null }>(
+      `/api/lobbies/${lobbyId}/fleet`, "POST", {
+        shipIds: shipIds.map(Number),
+        startingPositions,
+      });
     await invalidateLobbies();
     await queryClient.invalidateQueries({ queryKey: ["ships"] });
+    return result;
   }, [invalidateLobbies, queryClient]);
 
-  const acceptGame = useCallback(async (lobbyId: bigint) => {
+  const acceptGame = useCallback(async (lobbyId: number) => {
     const result = await apiMutate<{ gameId: number }>(`/api/lobbies/${lobbyId}/accept`, "POST");
     await invalidateLobbies();
     await queryClient.invalidateQueries({ queryKey: ["games"] });
     return result;
   }, [invalidateLobbies, queryClient]);
 
-  const rejectGame = useCallback(async (lobbyId: bigint) => {
+  const rejectGame = useCallback(async (lobbyId: number) => {
     await leaveLobby(lobbyId);
   }, [leaveLobby]);
 
-  const timeoutGame = useCallback(async (gameId: bigint) => {
+  const timeoutGame = useCallback(async (gameId: number) => {
     try {
       await apiMutate(`/api/games/${gameId}/timeout`, "POST");
       await queryClient.invalidateQueries({ queryKey: ["games"] });
@@ -99,10 +101,10 @@ export function useLobbies() {
     rejectGame,
     timeoutGame,
     // Shims for Lobbies.tsx call-site compat
-    playerState: { kickCount: 0n, hasActiveLobby: false, activeLobbiesCount: 0n, activeLobbyId: 0n, lastKickTime: 0n },
-    lobbyCount: BigInt(lobbies.length),
-    freeGamesPerAddress: 1n,
-    additionalLobbyFee: 0n,
+    playerState: { kickCount: 0, hasActiveLobby: false, activeLobbiesCount: 0, activeLobbyId: 0, lastKickTime: 0 },
+    lobbyCount: lobbies.length,
+    freeGamesPerAddress: 1,
+    additionalLobbyFee: 0,
     paused: false,
     lastTransactionHash: undefined as `0x${string}` | undefined,
   };

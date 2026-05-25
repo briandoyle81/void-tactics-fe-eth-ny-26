@@ -6,7 +6,7 @@ import { useGameContract } from "../hooks/useGameContract";
 import { toast } from "react-hot-toast";
 
 interface FleeSafetySwitchProps {
-  gameId: bigint;
+  gameId: number;
   onFlee?: () => void;
   /** When true, lever cannot be toggled (e.g. tutorial). */
   locked?: boolean;

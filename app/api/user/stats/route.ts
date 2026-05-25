@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
-import { stringifyWithBigint } from "@/app/lib/bigintJson";
 
 export async function GET() {
   const { userId, error } = await requireAuth();
@@ -11,12 +10,9 @@ export async function GET() {
     where: { userId: userId! },
   });
 
-  return new NextResponse(
-    stringifyWithBigint({
-      wins: BigInt(stats?.wins ?? 0),
-      losses: BigInt(stats?.losses ?? 0),
-      totalGames: BigInt(stats?.totalGames ?? 0),
-    }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+  return NextResponse.json({
+    wins: stats?.wins ?? 0,
+    losses: stats?.losses ?? 0,
+    totalGames: stats?.totalGames ?? 0,
+  });
 }

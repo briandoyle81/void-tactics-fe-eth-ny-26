@@ -18,14 +18,28 @@ export async function DELETE(
   if (!lobby) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (lobby.creatorId === userId) {
-    // Creator leaving cancels the lobby
-    await prisma.lobby.update({ where: { id: lobbyId }, data: { status: "CANCELLED" } });
+    // Creator leaving cancels the lobby — free all fleet ships
+    const fleets = await prisma.fleet.findMany({ where: { lobbyId } });
+    const allShipIds = fleets.flatMap((f) => f.shipIds as number[]);
+    await prisma.$transaction([
+      prisma.lobby.update({ where: { id: lobbyId }, data: { status: "CANCELLED" } }),
+      ...(allShipIds.length > 0
+        ? [prisma.ship.updateMany({ where: { id: { in: allShipIds } }, data: { inFleet: false } })]
+        : []),
+    ]);
   } else if (lobby.joinerId === userId) {
-    // Joiner leaving resets the lobby to open
-    await prisma.lobby.update({
-      where: { id: lobbyId },
-      data: { joinerId: null, status: "OPEN", joinedAt: null },
-    });
+    // Joiner leaving resets the lobby to open — free joiner's fleet ships
+    const joinerFleet = await prisma.fleet.findFirst({ where: { lobbyId, ownerId: userId } });
+    const joinerShipIds = (joinerFleet?.shipIds ?? []) as number[];
+    await prisma.$transaction([
+      prisma.lobby.update({
+        where: { id: lobbyId },
+        data: { joinerId: null, status: "OPEN", joinedAt: null },
+      }),
+      ...(joinerShipIds.length > 0
+        ? [prisma.ship.updateMany({ where: { id: { in: joinerShipIds } }, data: { inFleet: false } })]
+        : []),
+    ]);
   } else {
     return NextResponse.json({ error: "Not a member of this lobby" }, { status: 403 });
   }

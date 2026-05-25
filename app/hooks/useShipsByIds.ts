@@ -5,7 +5,7 @@ import { apiFetch } from "@/app/lib/apiFetch";
 import { Ship } from "../types/types";
 import { cacheShipsData } from "./useShipDataCache";
 
-export function useShipsByIds(shipIds: bigint[]) {
+export function useShipsByIds(shipIds: number[]) {
   const ids = shipIds.map(String).join(",");
 
   const { data, isLoading, error, refetch } = useQuery({

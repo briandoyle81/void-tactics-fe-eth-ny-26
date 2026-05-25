@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 
 interface ShipPurchaseButtonProps {
   tier: number;
-  price: bigint;
+  price: number;
   paymentMethod: "USD" | "UTC";
   children: React.ReactNode;
   className?: string;

@@ -10,9 +10,9 @@ export function useRetreatModeCancellation({
   setRetreatExplicitByShipId,
 }: {
   actionOverride: ActionType | null;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   previewPosition: { row: number; col: number } | null;
-  selectedShipId: bigint | null;
+  selectedShipId: number | null;
   setActionOverride: (v: ActionType | null) => void;
   setRetreatExplicitByShipId: (
     fn: (prev: Record<string, true>) => Record<string, true>,

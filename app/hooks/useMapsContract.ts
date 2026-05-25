@@ -42,7 +42,7 @@ export function useGetAllPresetMaps() {
 
 export function useMapCount() {
   const { data } = useMapsQuery();
-  return { data: BigInt(data?.length ?? 0) };
+  return { data: data?.length ?? 0 };
 }
 
 export function useGetPresetMap(mapId: number, _options?: { chainSource?: string }) {

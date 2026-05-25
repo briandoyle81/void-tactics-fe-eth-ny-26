@@ -81,26 +81,26 @@ export function hasLineOfSight(
 interface MovementRangeParams {
   gridWidth: number;
   gridHeight: number;
-  selectedShipId: bigint | null;
+  selectedShipId: number | null;
   hasShips: boolean;
-  shipMap: Map<bigint, unknown>;
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  shipMap: Map<number, unknown>;
+  getShipAttributes: (shipId: number) => Attributes | null;
   shipPositions: readonly ShipPosition[];
   previewPosition: { row: number; col: number } | null;
   canEnterOccupiedCell?: (
     row: number,
     col: number,
-    occupyingShipId: bigint,
+    occupyingShipId: number,
   ) => boolean;
 }
 
 interface ShootingRangeParams {
   gridWidth: number;
   gridHeight: number;
-  selectedShipId: bigint | null;
+  selectedShipId: number | null;
   hasShips: boolean;
-  shipMap: Map<bigint, unknown>;
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  shipMap: Map<number, unknown>;
+  getShipAttributes: (shipId: number) => Attributes | null;
   shipPositions: readonly ShipPosition[];
   previewPosition: { row: number; col: number } | null;
   selectedWeaponType: "weapon" | "special";

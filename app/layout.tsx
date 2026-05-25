@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Rajdhani, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-// Ensure BigInt JSON serialization is safe before anything else runs
-import "./utils/bigintJson";
 import { Providers } from "./providers";
 import { Toaster } from "react-hot-toast";
 

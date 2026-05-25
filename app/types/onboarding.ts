@@ -16,7 +16,7 @@ import { Position, Attributes, ActionType } from "./types";
  * - Inside the tutorial (OnboardingTutorial + its children), use
  *   these string/number IDs.
  * - When you need to call real contract or game code that expects
- *   bigint IDs, convert at the boundary with BigInt(idString).
+ *   number IDs.
  */
 
 /** Persisted tutorial step index; presence means Info should resume the sim tutorial. */

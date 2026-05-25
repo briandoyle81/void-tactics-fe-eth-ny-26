@@ -29,7 +29,7 @@ const SVG_END = "</svg>";
 export function renderShip(ship: Ship): string {
   try {
     // Return appropriate image URI based on ship state
-    if (ship.shipData.timestampDestroyed > BigInt(0)) {
+    if (ship.shipData.timestampDestroyed > Number(0)) {
       return DESTROYED_IMAGE;
     } else if (!ship.shipData.constructed) {
       return UNCONSTRUCTED_IMAGE;

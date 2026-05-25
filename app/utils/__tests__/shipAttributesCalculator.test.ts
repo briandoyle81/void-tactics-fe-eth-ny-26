@@ -14,7 +14,7 @@ function makeShip(overrides: {
 }): Ship {
   return {
     name: "Test",
-    id: 1n,
+    id: 1,
     equipment: {
       mainWeapon: overrides.mainWeapon ?? 0,
       armor: overrides.armor ?? 0,
@@ -22,7 +22,7 @@ function makeShip(overrides: {
       special: overrides.special ?? 0,
     },
     traits: {
-      serialNumber: 0n,
+      serialNumber: 0,
       colors: { h1: 0, s1: 0, l1: 0, h2: 0, s2: 0, l2: 0 },
       variant: 0,
       accuracy: overrides.accuracy ?? 0,
@@ -36,7 +36,7 @@ function makeShip(overrides: {
       shiny: false,
       constructed: true,
       inFleet: false,
-      timestampDestroyed: 0n,
+      timestampDestroyed: 0,
     },
     owner: "0x0000000000000000000000000000000000000000",
   };

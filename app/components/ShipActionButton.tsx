@@ -6,8 +6,8 @@ import posthog from "posthog-js";
 
 interface ShipActionButtonProps {
   action: "construct" | "constructAll" | "constructShips" | "recycle";
-  shipId?: bigint;
-  shipIds?: bigint[];
+  shipId?: number;
+  shipIds?: number[];
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;

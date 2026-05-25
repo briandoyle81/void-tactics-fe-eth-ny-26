@@ -60,7 +60,7 @@ export type LobbiesWriteFunction =
   | "rejectGame";
 
 export function useLobby(
-  _lobbyId: bigint,
+  _lobbyId: number,
   _options?: { enabled?: boolean }
 ) {
   return {
@@ -94,6 +94,6 @@ export function useLobbySettings() {
   };
 }
 
-export function useIsLobbyOpenForJoining(_lobbyId: bigint) {
+export function useIsLobbyOpenForJoining(_lobbyId: number) {
   return STUB;
 }

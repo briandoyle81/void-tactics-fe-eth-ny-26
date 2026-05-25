@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useAccount } from "../hooks/useAccount";
 import { useGetAllPresetMaps, useMapCount } from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
 import { PresetMap, GRID_DIMENSIONS } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
-import { MAP_ADMIN_ADDRESS } from "../config/alpha";
+import { MAP_ADMIN_EMAILS } from "../config/alpha";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 export default function Maps() {
-  const { address } = useAccount();
+  const { email } = useCurrentUser();
   const { data: allMapsData } = useGetAllPresetMaps();
   const { data: mapCount } = useMapCount();
   const [showEditor, setShowEditor] = useState(false);
@@ -19,8 +19,7 @@ export default function Maps() {
 
   const maps: PresetMap[] = allMapsData;
 
-  const canCreateMaps =
-    address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
+  const canCreateMaps = !!email && MAP_ADMIN_EMAILS.includes(email);
 
   useEffect(() => {
     const onChainChanged = () => {
@@ -105,7 +104,7 @@ export default function Maps() {
       </div>
 
       <div className="text-sm text-text-muted">
-        Total maps: {mapCount ? Number(mapCount) : 0}
+        Total maps: {mapCount ?? 0}
         {!canCreateMaps && (
           <div className="mt-2 text-amber">
             [!] Map creation is currently restricted to authorized addresses only

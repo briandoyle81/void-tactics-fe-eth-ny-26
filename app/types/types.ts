@@ -2,7 +2,7 @@ import { Address } from "viem";
 
 export interface Ship {
   name: string;
-  id: bigint;
+  id: number;
   equipment: ShipEquipment;
   traits: ShipTraits;
   shipData: ShipData;
@@ -17,7 +17,7 @@ export interface ShipEquipment {
 }
 
 export interface ShipTraits {
-  serialNumber: bigint;
+  serialNumber: number;
   colors: ShipColors;
   variant: number;
   accuracy: number;
@@ -41,12 +41,12 @@ export interface ShipData {
   shiny: boolean;
   constructed: boolean;
   inFleet: boolean;
-  timestampDestroyed: bigint;
+  timestampDestroyed: number;
 }
 
 export type ShipTuple = [
   string, // name
-  bigint, // id
+  number, // id
   ShipEquipment, // equipment
   ShipTraits, // traits
   ShipData, // shipData
@@ -126,31 +126,31 @@ export enum LobbyStatus {
 }
 
 export interface LobbyBasic {
-  id: bigint;
+  id: number;
   creator: Address;
-  costLimit: bigint;
-  createdAt: bigint;
+  costLimit: number;
+  createdAt: number;
 }
 
 export interface LobbyPlayers {
   joiner: Address;
   reservedJoiner: Address; // Address of player this lobby is reserved for (address(0) if open)
-  creatorFleetId: bigint;
-  joinerFleetId: bigint;
-  joinedAt: bigint;
-  joinerFleetSetAt: bigint;
+  creatorFleetId: number;
+  joinerFleetId: number;
+  joinedAt: number;
+  joinerFleetSetAt: number;
 }
 
 export interface LobbyGameConfig {
   creatorGoesFirst: boolean;
-  turnTime: bigint;
-  selectedMapId: bigint;
-  maxScore: bigint; // Maximum score needed to win the game
+  turnTime: number;
+  selectedMapId: number;
+  maxScore: number;
 }
 
 export interface LobbyState {
   status: LobbyStatus;
-  gameStartedAt: bigint;
+  gameStartedAt: number;
 }
 
 export interface Lobby {
@@ -161,35 +161,34 @@ export interface Lobby {
 }
 
 export interface Fleet {
-  id: bigint;
-  lobbyId: bigint;
+  id: number;
+  lobbyId: number;
   owner: Address;
-  shipIds: bigint[];
-  totalCost: bigint;
+  shipIds: number[];
+  totalCost: number;
   isComplete: boolean;
-  // Added: starting positions (immutable once created)
   startingPositions?: Array<{ row: number; col: number }>;
 }
 
 export interface PlayerStats {
-  wins: bigint;
-  losses: bigint;
-  totalGames: bigint;
+  wins: number;
+  losses: number;
+  totalGames: number;
 }
 
 export interface GameResult {
-  gameId: bigint;
+  gameId: number;
   winner: Address;
   loser: Address;
-  timestamp: bigint;
+  timestamp: number;
 }
 
 export interface PlayerLobbyState {
-  activeLobbyId: bigint;
-  activeLobbiesCount: bigint;
+  activeLobbyId: number;
+  activeLobbiesCount: number;
   hasActiveLobby: boolean;
-  kickCount: bigint;
-  lastKickTime: bigint;
+  kickCount: number;
+  lastKickTime: number;
 }
 
 export interface Attributes {
@@ -205,34 +204,34 @@ export interface Attributes {
 }
 
 export interface GameData {
-  gameId: bigint;
-  lobbyId: bigint;
+  gameId: number;
+  lobbyId: number;
   creator: Address;
   joiner: Address;
-  creatorFleetId: bigint;
-  joinerFleetId: bigint;
+  creatorFleetId: number;
+  joinerFleetId: number;
   creatorGoesFirst: boolean;
-  startedAt: bigint;
+  startedAt: number;
   currentTurn: Address;
 }
 
 export interface GameMetadata {
-  gameId: bigint;
-  lobbyId: bigint;
+  gameId: number;
+  lobbyId: number;
   creator: Address;
   joiner: Address;
-  creatorFleetId: bigint;
-  joinerFleetId: bigint;
+  creatorFleetId: number;
+  joinerFleetId: number;
   creatorGoesFirst: boolean;
-  startedAt: bigint;
+  startedAt: number;
   winner: Address;
 }
 
 export interface GameTurnState {
   currentTurn: Address;
-  turnTime: bigint;
-  turnStartTime: bigint;
-  currentRound: bigint;
+  turnTime: number;
+  turnStartTime: number;
+  currentRound: number;
 }
 
 export interface GameGridDimensions {
@@ -242,49 +241,49 @@ export interface GameGridDimensions {
 
 // Tuple types for contract return values
 export type LobbyTuple = [
-  bigint, // id
+  number, // id
   Address, // creator
   Address, // joiner
-  bigint, // costLimit
+  number, // costLimit
   number, // status
-  bigint, // createdAt
-  bigint, // gameStartedAt
-  bigint, // creatorFleetId
-  bigint, // joinerFleetId
+  number, // createdAt
+  number, // gameStartedAt
+  number, // creatorFleetId
+  number, // joinerFleetId
   boolean, // creatorGoesFirst
-  bigint, // turnTime
-  bigint, // joinedAt
-  bigint, // joinerFleetSetAt
-  bigint, // selectedMapId
-  bigint // maxScore
+  number, // turnTime
+  number, // joinedAt
+  number, // joinerFleetSetAt
+  number, // selectedMapId
+  number // maxScore
 ];
 
 export type FleetTuple = [
-  bigint, // id
-  bigint, // lobbyId
+  number, // id
+  number, // lobbyId
   Address, // owner
-  bigint[], // shipIds
-  bigint, // totalCost
+  number[], // shipIds
+  number, // totalCost
   boolean // isComplete
 ];
 
 export type PlayerLobbyStateTuple = [
-  bigint, // activeLobbyId
-  bigint, // activeLobbiesCount
+  number, // activeLobbyId
+  number, // activeLobbiesCount
   boolean, // hasActiveLobby
-  bigint, // kickCount
-  bigint // lastKickTime
+  number, // kickCount
+  number // lastKickTime
 ];
 
 export type GameDataTuple = [
-  bigint, // gameId
-  bigint, // lobbyId
+  number, // gameId
+  number, // lobbyId
   Address, // creator
   Address, // joiner
-  bigint, // creatorFleetId
-  bigint, // joinerFleetId
+  number, // creatorFleetId
+  number, // joinerFleetId
   boolean, // creatorGoesFirst
-  bigint, // startedAt
+  number, // startedAt
   Address // currentTurn
 ];
 
@@ -292,39 +291,39 @@ export type GameDataTuple = [
 export function tupleToLobby(tuple: LobbyTuple): Lobby {
   return {
     basic: {
-      id: tuple[0],
+      id: Number(tuple[0]),
       creator: tuple[1],
-      costLimit: tuple[3],
-      createdAt: tuple[5],
+      costLimit: Number(tuple[3]),
+      createdAt: Number(tuple[5]),
     },
     players: {
       joiner: tuple[2],
-      reservedJoiner: "0x0000000000000000000000000000000000000000" as Address, // Default to zero address if not in tuple
-      creatorFleetId: tuple[7],
-      joinerFleetId: tuple[8],
-      joinedAt: tuple[11],
-      joinerFleetSetAt: tuple[12],
+      reservedJoiner: "0x0000000000000000000000000000000000000000" as Address,
+      creatorFleetId: Number(tuple[7]),
+      joinerFleetId: Number(tuple[8]),
+      joinedAt: Number(tuple[11]),
+      joinerFleetSetAt: Number(tuple[12]),
     },
     gameConfig: {
       creatorGoesFirst: tuple[9],
-      turnTime: tuple[10],
-      selectedMapId: tuple[13],
-      maxScore: tuple[14],
+      turnTime: Number(tuple[10]),
+      selectedMapId: Number(tuple[13]),
+      maxScore: Number(tuple[14]),
     },
     state: {
       status: tuple[4],
-      gameStartedAt: tuple[6],
+      gameStartedAt: Number(tuple[6]),
     },
   };
 }
 
 export function tupleToFleet(tuple: FleetTuple): Fleet {
   return {
-    id: tuple[0],
-    lobbyId: tuple[1],
+    id: Number(tuple[0]),
+    lobbyId: Number(tuple[1]),
     owner: tuple[2],
     shipIds: tuple[3],
-    totalCost: tuple[4],
+    totalCost: Number(tuple[4]),
     isComplete: tuple[5],
   };
 }
@@ -347,8 +346,8 @@ export function tupleToGameData(tuple: GameDataTuple): GameData {
     lobbyId: tuple[1],
     creator: tuple[2],
     joiner: tuple[3],
-    creatorFleetId: tuple[4],
-    joinerFleetId: tuple[5],
+    creatorFleetId: Number(tuple[4]),
+    joinerFleetId: Number(tuple[5]),
     creatorGoesFirst: tuple[6],
     startedAt: tuple[7],
     currentTurn: tuple[8],
@@ -361,7 +360,7 @@ export interface Position {
 }
 
 export interface ShipPosition {
-  shipId: bigint;
+  shipId: number;
   position: Position;
   isCreator: boolean;
   // 0 = alive, 1 = destroyed, 2 = fled
@@ -370,32 +369,31 @@ export interface ShipPosition {
 }
 
 export interface LastMove {
-  shipId: bigint;
+  shipId: number;
   oldRow: number;
   oldCol: number;
   newRow: number;
   newCol: number;
   actionType: ActionType;
-  targetShipId: bigint;
-  timestamp: bigint;
+  targetShipId: number;
+  timestamp: number;
 }
 
 export interface GameDataView {
   metadata: GameMetadata;
   turnState: GameTurnState;
   gridDimensions: GameGridDimensions;
-  maxScore: bigint; // Maximum score needed to win the game
-  creatorScore: bigint; // Current score of the creator player
-  joinerScore: bigint; // Current score of the joiner player
-  shipIds: readonly bigint[]; // Array of ship IDs that corresponds to shipAttributes by index
-  shipAttributes: readonly Attributes[]; // Combined array of all ship attributes indexed by ship ID
-  shipPositions: readonly ShipPosition[]; // All ship positions on the grid
-  creatorActiveShipIds: readonly bigint[];
-  joinerActiveShipIds: readonly bigint[];
-  // Ships that have moved this round
-  creatorMovedShipIds: readonly bigint[]; // Creator ships that have moved this round
-  joinerMovedShipIds: readonly bigint[]; // Joiner ships that have moved this round
-  lastMove?: LastMove; // Last move made in the game
+  maxScore: number;
+  creatorScore: number;
+  joinerScore: number;
+  shipIds: readonly number[];
+  shipAttributes: readonly Attributes[];
+  shipPositions: readonly ShipPosition[];
+  creatorActiveShipIds: readonly number[];
+  joinerActiveShipIds: readonly number[];
+  creatorMovedShipIds: readonly number[];
+  joinerMovedShipIds: readonly number[];
+  lastMove?: LastMove;
 }
 
 export enum ActionType {
@@ -441,41 +439,16 @@ export const GRID_DIMENSIONS = {
   HEIGHT: 11,
 } as const;
 
-// Game contract types
-export interface GameMetadata {
-  gameId: bigint;
-  lobbyId: bigint;
-  creator: Address;
-  joiner: Address;
-  creatorFleetId: bigint;
-  joinerFleetId: bigint;
-  creatorGoesFirst: boolean;
-  startedAt: bigint;
-  winner: Address;
-}
-
-export interface GameTurnState {
-  currentTurn: Address;
-  turnTime: bigint;
-  turnStartTime: bigint;
-  currentRound: bigint;
-}
-
-export interface GameGridDimensions {
-  gridWidth: number;
-  gridHeight: number;
-}
-
 export interface Game {
   metadata: GameMetadata;
   turnState: GameTurnState;
   gridDimensions: GameGridDimensions;
-  maxScore: bigint;
-  creatorScore: bigint;
-  joinerScore: bigint;
-  shipIds: readonly bigint[]; // Array of ship IDs that corresponds to shipAttributes by index
-  shipAttributes: readonly Attributes[]; // Combined array of all ship attributes indexed by ship ID
-  shipPositions: readonly ShipPosition[]; // All ship positions on the grid
-  creatorActiveShipIds: readonly bigint[];
-  joinerActiveShipIds: readonly bigint[];
+  maxScore: number;
+  creatorScore: number;
+  joinerScore: number;
+  shipIds: readonly number[];
+  shipAttributes: readonly Attributes[];
+  shipPositions: readonly ShipPosition[];
+  creatorActiveShipIds: readonly number[];
+  joinerActiveShipIds: readonly number[];
 }

@@ -28,19 +28,21 @@ interface MapDisplayProps {
   showPlayerOverlay?: boolean;
   isCreator?: boolean; // kept for backward compatibility (flips all)
   isCreatorViewer?: boolean; // determines placement validity
-  shipPositions?: Array<{ shipId: bigint; row: number; col: number }>;
-  ships?: Array<Ship | { id: bigint; name: string; imageUrl?: string }>;
-  selectedShipId?: bigint | null;
-  onShipSelect?: (shipId: bigint) => void;
-  onShipMove?: (shipId: bigint, row: number, col: number) => void;
+  shipPositions?: Array<{ shipId: number; row: number; col: number }>;
+  ships?: Array<Ship | { id: number; name: string; imageUrl?: string }>;
+  selectedShipId?: number | null;
+  onShipSelect?: (shipId: number) => void;
+  onShipMove?: (shipId: number, row: number, col: number) => void;
   allowSelection?: boolean;
-  selectableShipIds?: bigint[]; // which ships are allowed to be selected
-  flippedShipIds?: bigint[]; // specific ships to flip horizontally
+  selectableShipIds?: number[]; // which ships are allowed to be selected
+  flippedShipIds?: number[]; // specific ships to flip horizontally
+  onDragStart?: (shipId: number) => void;
+  onDragEnd?: () => void;
   onDragOver?: (row: number, col: number, e: React.DragEvent) => void;
   onDrop?: (row: number, col: number, e?: React.DragEvent) => void;
   dragOverPosition?: { row: number; col: number } | null;
   showDeployZoneLabel?: boolean;
-  pendingPlacementShipId?: bigint | null;
+  pendingPlacementShipId?: number | null;
 }
 
 export function MapDisplay({
@@ -57,6 +59,8 @@ export function MapDisplay({
   allowSelection = true,
   selectableShipIds,
   flippedShipIds = [],
+  onDragStart,
+  onDragEnd,
   onDragOver,
   onDrop,
   dragOverPosition = null,
@@ -150,8 +154,8 @@ export function MapDisplay({
   // Create a map of ship ID to ship object for quick lookup
   const shipMap = React.useMemo(() => {
     const map = new Map<
-      bigint,
-      Ship | { id: bigint; name: string; imageUrl?: string }
+      number,
+      Ship | { id: number; name: string; imageUrl?: string }
     >();
     ships.forEach((ship) => {
       map.set(ship.id, ship);
@@ -174,7 +178,7 @@ export function MapDisplay({
 
   // Create a map of ship ID to attributes for quick lookup
   const attributesMap = React.useMemo(() => {
-    const map = new Map<bigint, Attributes>();
+    const map = new Map<number, Attributes>();
     fullShips.forEach((ship, index) => {
       if (attributes[index]) {
         map.set(ship.id, attributes[index]);
@@ -245,7 +249,7 @@ export function MapDisplay({
 
   // Ship tooltip state
   const [hoveredCell, setHoveredCell] = useState<{
-    shipId: bigint;
+    shipId: number;
     row: number;
     col: number;
     mouseX: number;
@@ -419,10 +423,12 @@ export function MapDisplay({
                   onDragStart={(e) => {
                     if (isShipDraggable && ship && "id" in ship) {
                       e.dataTransfer.effectAllowed = "move";
-                      // Store ship ID in data transfer
                       e.dataTransfer.setData("text/plain", ship.id.toString());
-                      // Note: Parent component will read from dataTransfer in onDrop
+                      onDragStart?.(ship.id);
                     }
+                  }}
+                  onDragEnd={() => {
+                    onDragEnd?.();
                   }}
                 >
                   {mapState.blockedTiles[row][col] && (

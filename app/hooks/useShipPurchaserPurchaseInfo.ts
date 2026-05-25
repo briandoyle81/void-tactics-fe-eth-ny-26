@@ -9,7 +9,7 @@ export function useShipPurchaserPurchaseInfo() {
     shipsPerTier: PURCHASE_TIERS.map((t) => t.shipCount),
     pricesUtc: PURCHASE_TIERS.map((t) => t.priceUtc),
     // kept for interface compat
-    pricesWei: PURCHASE_TIERS.map((t) => BigInt(t.priceUtc)),
+    pricesWei: PURCHASE_TIERS.map((t) => Number(t.priceUtc)),
     normalized: null,
     isLoading: false,
     error: null,

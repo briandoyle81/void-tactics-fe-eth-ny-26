@@ -146,7 +146,7 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
         ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tiers.map((tier, index) => {
-            const flowCost = pricesWei[index] ?? 0n;
+            const flowCost = pricesWei[index] ?? 0;
             const flowCostFormatted = (Number(flowCost) / 1e18).toFixed(4);
             const colors = getTierColors(tier);
             const utcDisplay = flowCostFormatted;

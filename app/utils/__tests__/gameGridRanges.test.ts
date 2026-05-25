@@ -20,7 +20,7 @@ function makeAttrs(overrides: Partial<Attributes> = {}): Attributes {
   };
 }
 
-function makePosition(shipId: bigint, row: number, col: number): ShipPosition {
+function makePosition(shipId: number, row: number, col: number): ShipPosition {
   return { shipId, position: { row, col }, isCreator: true };
 }
 
@@ -28,7 +28,7 @@ function emptyGrid(h = GRID_H, w = GRID_W): boolean[][] {
   return Array.from({ length: h }, () => Array(w).fill(false));
 }
 
-const SHIP_ID = 1n;
+const SHIP_ID = 1;
 
 function baseMovementParams(
   attrs: Attributes,
@@ -123,7 +123,7 @@ describe("computeMovementRange — basic", () => {
   });
 
   it("does not include tiles occupied by other ships", () => {
-    const blocker = makePosition(2n, 4, 8); // directly above ship at (5,8)
+    const blocker = makePosition(2, 4, 8); // directly above ship at (5,8)
     const result = computeMovementRange(
       baseMovementParams(makeAttrs({ movement: 1 }), [blocker])
     );
@@ -131,7 +131,7 @@ describe("computeMovementRange — basic", () => {
   });
 
   it("allows entering occupied tile when canEnterOccupiedCell returns true", () => {
-    const blocker = makePosition(2n, 4, 8);
+    const blocker = makePosition(2, 4, 8);
     const result = computeMovementRange({
       ...baseMovementParams(makeAttrs({ movement: 1 }), [blocker]),
       canEnterOccupiedCell: () => true,
@@ -177,7 +177,7 @@ describe("computeShootingRange — basic", () => {
   });
 
   it("returns empty tiles occupied by other ships", () => {
-    const enemy = makePosition(2n, 5, 11); // within range 3 + movement 2 = 5
+    const enemy = makePosition(2, 5, 11); // within range 3 + movement 2 = 5
     const result = computeShootingRange(
       baseShootingParams(makeAttrs(), [enemy])
     );

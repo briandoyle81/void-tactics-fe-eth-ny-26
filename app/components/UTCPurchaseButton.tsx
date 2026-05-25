@@ -9,7 +9,7 @@ import posthog from "posthog-js";
 
 interface UTCPurchaseButtonProps {
   tier: number;
-  flowCost: bigint;
+  flowCost: number;
   utcAmount: string;
   children: React.ReactNode;
   className?: string;
@@ -73,7 +73,7 @@ export function UTCPurchaseButton({
       functionName="purchaseUTCWithFlow"
       args={[
         address,
-        BigInt(tier), // Tier is 0-based (0-4), uint256 expects BigInt
+        Number(tier), // Tier is 0-based (0-4), uint256 expects BigInt
       ]}
       value={flowCost}
       className={className}

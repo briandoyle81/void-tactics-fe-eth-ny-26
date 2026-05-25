@@ -58,6 +58,7 @@ import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
 import { useAccount } from "../hooks/useAccount";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import posthog from "posthog-js";
 import {
@@ -177,57 +178,57 @@ function clearTutorialClaimCompletedCacheEntry(
  * Player ships whose cells get the **tutorial highlight** on step 3 (select-ship)
  * until the player selects a ship.
  */
-const TUTORIAL_SELECT_SHIP_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [
-  1001n,
-  1002n,
-  1003n,
+const TUTORIAL_SELECT_SHIP_HIGHLIGHT_SHIP_IDS: readonly number[] = [
+  1001,
+  1002,
+  1003,
 ];
 
 /** Enemy ships for tutorial highlight on step 4 (view-enemy) until one is selected. */
-const TUTORIAL_VIEW_ENEMY_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [
-  2001n,
-  2002n,
-  2003n,
+const TUTORIAL_VIEW_ENEMY_HIGHLIGHT_SHIP_IDS: readonly number[] = [
+  2001,
+  2002,
+  2003,
 ];
 
 /** Sentinel (step 5 move-ship) until any ship is selected. */
-const TUTORIAL_MOVE_SHIP_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [1003n];
+const TUTORIAL_MOVE_SHIP_HIGHLIGHT_SHIP_IDS: readonly number[] = [1003];
 
 /** Resolute (step 7 score-points) until selected; allowed-move cells use step config. */
-const TUTORIAL_SCORE_POINTS_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [1001n];
+const TUTORIAL_SCORE_POINTS_HIGHLIGHT_SHIP_IDS: readonly number[] = [1001];
 
 /** Vigilant (step 8 shoot) until a ship is selected. */
-const TUTORIAL_SHOOT_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [1002n];
+const TUTORIAL_SHOOT_HIGHLIGHT_SHIP_IDS: readonly number[] = [1002];
 
 /** Hammer (step 8 shoot) after Vigilant's move is staged, until a shot target is chosen. */
-const TUTORIAL_SHOOT_HIGHLIGHT_ENEMY_SHIP_IDS: readonly bigint[] = [2001n];
+const TUTORIAL_SHOOT_HIGHLIGHT_ENEMY_SHIP_IDS: readonly number[] = [2001];
 
 /** Resolute (step 10 special-emp) until a ship is selected. */
-const TUTORIAL_SPECIAL_EMP_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [1001n];
+const TUTORIAL_SPECIAL_EMP_HIGHLIGHT_SHIP_IDS: readonly number[] = [1001];
 
 /** Anvil (step 10): pulse while arming with weapon first, or after Special if target cleared. */
-const TUTORIAL_SPECIAL_EMP_HIGHLIGHT_TARGET_SHIP_IDS: readonly bigint[] = [
-  2002n,
+const TUTORIAL_SPECIAL_EMP_HIGHLIGHT_TARGET_SHIP_IDS: readonly number[] = [
+  2002,
 ];
 
 /** Resolute + Vigilant (step 12 rescue): both cells pulse for the whole step. */
-const TUTORIAL_RESCUE_CHOICE_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [
-  1001n,
-  1002n,
+const TUTORIAL_RESCUE_CHOICE_HIGHLIGHT_SHIP_IDS: readonly number[] = [
+  1001,
+  1002,
 ];
 
 /** Hammer (step 12 rescue): pulse while Vigilant is selected and no shot target yet. */
-const TUTORIAL_RESCUE_SNIPER_TARGET_HIGHLIGHT_SHIP_IDS: readonly bigint[] = [
-  2001n,
+const TUTORIAL_RESCUE_SNIPER_TARGET_HIGHLIGHT_SHIP_IDS: readonly number[] = [
+  2001,
 ];
 
 /** Step 13 (rescue-outcome-sniper): Sentinel until selected; Hammer after center move is staged, optional shot. */
-const TUTORIAL_RESCUE_OUTCOME_SNIPER_FIGHTER_HIGHLIGHT_SHIP_IDS: readonly bigint[] =
-  [1003n];
-const TUTORIAL_RESCUE_OUTCOME_SNIPER_ENEMY_HIGHLIGHT_SHIP_IDS: readonly bigint[] =
-  [2001n];
+const TUTORIAL_RESCUE_OUTCOME_SNIPER_FIGHTER_HIGHLIGHT_SHIP_IDS: readonly number[] =
+  [1003];
+const TUTORIAL_RESCUE_OUTCOME_SNIPER_ENEMY_HIGHLIGHT_SHIP_IDS: readonly number[] =
+  [2001];
 
-function isTutorialEnemyFleetShipId(shipId: bigint): boolean {
+function isTutorialEnemyFleetShipId(shipId: number): boolean {
   return TUTORIAL_VIEW_ENEMY_HIGHLIGHT_SHIP_IDS.some((id) => id === shipId);
 }
 
@@ -236,7 +237,8 @@ export function SimulatedGameDisplay({
   tutorialContext,
   onBack,
 }: SimulatedGameDisplayProps) {
-  const { address } = useAccount();
+  useAccount();
+  const { userId: address } = useCurrentUser();
   const activeChainId = useSelectedChainId();
   const [pendingTutorialClaimPath, setPendingTutorialClaimPath] = useState<
     "win" | "loss" | null
@@ -321,15 +323,15 @@ export function SimulatedGameDisplay({
     ],
   );
 
-  // For display we follow the main game and keep the selected ship ID as bigint
+  // For display we follow the main game and keep the selected ship ID as number
   // (so GameGrid behavior and animations are identical). When we need to talk
   // to tutorial state, we convert to/from TutorialShipId (string) at the edges.
-  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [previewPosition, setPreviewPosition] = useState<{
     row: number;
     col: number;
   } | null>(null);
-  const [targetShipId, setTargetShipId] = useState<bigint | null>(null);
+  const [targetShipId, setTargetShipId] = useState<number | null>(null);
   const [selectedWeaponType, setSelectedWeaponType] = useState<
     "weapon" | "special"
   >("weapon");
@@ -353,14 +355,14 @@ export function SimulatedGameDisplay({
     setActionOverride(null);
   }, [currentStepIndex]);
   const [hoveredCell, setHoveredCell] = useState<{
-    shipId: bigint;
+    shipId: number;
     row: number;
     col: number;
     mouseX: number;
     mouseY: number;
     isCreator: boolean;
   } | null>(null);
-  const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
+  const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
     row: number;
     col: number;
@@ -439,17 +441,14 @@ export function SimulatedGameDisplay({
   }, []);
   useResetSelectionOnTurnChange(gameState.turnState.currentTurn, resetSelection);
 
-  // Map of onchain ship ID (bigint) to ship object. Tutorial IDs are strings;
-  // when we need a ship we convert TutorialShipId -> bigint for this map only.
+  // Map of onchain ship ID (number) to ship object. Tutorial IDs are strings;
+  // when we need a ship we convert TutorialShipId -> number for this map only.
   // Fingerprint `tutorialShips.ts` content so HMR updates ship objects; `useMemo([])`
   // previously froze the first snapshot and hid equipment changes in ShipImage.
-  const tutorialShipsFingerprint = JSON.stringify(
-    ALL_TUTORIAL_SHIPS,
-    (_, v) => (typeof v === "bigint" ? v.toString() : v),
-  );
+  const tutorialShipsFingerprint = JSON.stringify(ALL_TUTORIAL_SHIPS);
   /* eslint-disable react-hooks/exhaustive-deps -- fingerprint busts stale map when `tutorialShips.ts` HMRs */
   const shipMap = useMemo(() => {
-    return new Map<bigint, Ship>(
+    return new Map<number, Ship>(
       ALL_TUTORIAL_SHIPS.map((ship) => [ship.id, ship]),
     );
   }, [tutorialShipsFingerprint]);
@@ -468,8 +467,8 @@ export function SimulatedGameDisplay({
 
   // Get ship attributes by ship ID from game state (tutorial IDs are strings)
   const getShipAttributes = useCallback(
-    (shipId: TutorialShipId | bigint): Attributes | null => {
-      const idString = typeof shipId === "bigint" ? shipId.toString() : shipId;
+    (shipId: TutorialShipId | number): Attributes | null => {
+      const idString = String(shipId);
       const shipIndex = gameState.shipIds?.findIndex((id) => id === idString);
       if (
         shipIndex === -1 ||
@@ -486,7 +485,7 @@ export function SimulatedGameDisplay({
   const allShipPositionsForGrid = useMemo(
     () =>
       gameState.shipPositions.map((shipPosition) => ({
-        shipId: BigInt(shipPosition.shipId),
+        shipId: Number(shipPosition.shipId),
         position: shipPosition.position,
         isCreator: shipPosition.isCreator,
         isPreview: shipPosition.isPreview,
@@ -533,10 +532,10 @@ export function SimulatedGameDisplay({
   const { specialRange } = useSpecialRange(specialType);
   const { data: specialData } = useSpecialData(specialType);
 
-  // Check if a ship belongs to the tutorial player. GameGrid passes bigint IDs,
-  // so this matches the main game's signature and uses the bigint-based map.
+  // Check if a ship belongs to the tutorial player. GameGrid passes number IDs,
+  // so this matches the main game's signature and uses the number-based map.
   const isShipOwnedByCurrentPlayer = useCallback(
-    (shipId: bigint): boolean => {
+    (shipId: number): boolean => {
       const ship = shipMap.get(shipId);
       return ship ? ship.owner === TUTORIAL_PLAYER_ADDRESS : false;
     },
@@ -731,7 +730,7 @@ export function SimulatedGameDisplay({
 
   const isEnemyDisabledTutorialShipId = useCallback(
     (shipId: TutorialShipId): boolean => {
-      const ship = shipMap.get(BigInt(shipId));
+      const ship = shipMap.get(Number(shipId));
       if (!ship) return false;
       if (ship.owner === TUTORIAL_PLAYER_ADDRESS) return false;
       const attrs = getShipAttributes(shipId);
@@ -831,11 +830,11 @@ export function SimulatedGameDisplay({
       .map(() => Array(GRID_WIDTH).fill(null));
 
     // Place ships on the grid. Convert tutorial string IDs into the
-    // bigint-based ShipPosition shape expected by GameGrid, but keep
+    // number-based ShipPosition shape expected by GameGrid, but keep
     // the original tutorial IDs in gameState.
     aliveShipPositions.forEach((shipPosition) => {
       const { position } = shipPosition;
-      const shipIdBigInt = BigInt(shipPosition.shipId);
+      const shipIdBigInt = Number(shipPosition.shipId);
       if (
         position.row >= 0 &&
         position.row < GRID_HEIGHT &&
@@ -884,7 +883,7 @@ export function SimulatedGameDisplay({
         );
         if (lastMoveShipPosition) {
           newGrid[oldPos.row][oldPos.col] = {
-            shipId: BigInt(lm.shipId),
+            shipId: Number(lm.shipId),
             position: oldPos,
             isCreator: lastMoveShipPosition.isCreator,
             isPreview: true,
@@ -924,7 +923,7 @@ export function SimulatedGameDisplay({
             !newGrid[row][col]
           ) {
             newGrid[row][col] = {
-              shipId: BigInt(destroyedTargetShipPosition.shipId),
+              shipId: Number(destroyedTargetShipPosition.shipId),
               position: destroyedTargetShipPosition.position,
               isCreator: destroyedTargetShipPosition.isCreator,
               isPreview: destroyedTargetShipPosition.isPreview,
@@ -1081,7 +1080,7 @@ export function SimulatedGameDisplay({
     const stepId = currentStep?.id;
     const positions = gameState.shipPositions;
 
-    const cellsForIds = (ids: readonly bigint[]) => {
+    const cellsForIds = (ids: readonly number[]) => {
       const cells: { row: number; col: number }[] = [];
       for (const shipId of ids) {
         const idStr = shipId.toString() as TutorialShipId;
@@ -1336,29 +1335,29 @@ export function SimulatedGameDisplay({
   const lastMoveProps = useMemo(() => {
     if (selectedShipId !== null) {
       return {
-        lastMoveShipId: null as bigint | null,
+        lastMoveShipId: null as number | null,
         lastMoveOldPosition: null as { row: number; col: number } | null,
         lastMoveNewPosition: null as { row: number; col: number } | null,
         lastMoveActionType: null as ActionType | null,
-        lastMoveTargetShipId: null as bigint | null,
+        lastMoveTargetShipId: null as number | null,
         lastMoveIsCurrentPlayer: undefined as boolean | undefined,
       };
     }
     if (!tutorialDisplayLastMove) {
       return {
-        lastMoveShipId: null as bigint | null,
+        lastMoveShipId: null as number | null,
         lastMoveOldPosition: null as { row: number; col: number } | null,
         lastMoveNewPosition: null as { row: number; col: number } | null,
         lastMoveActionType: null as ActionType | null,
-        lastMoveTargetShipId: null as bigint | null,
+        lastMoveTargetShipId: null as number | null,
         lastMoveIsCurrentPlayer: undefined as boolean | undefined,
       };
     }
     const lm = tutorialDisplayLastMove;
-    const ship = shipMap.get(BigInt(lm.shipId));
+    const ship = shipMap.get(Number(lm.shipId));
     const lmAction = Number(lm.actionType);
     return {
-      lastMoveShipId: BigInt(lm.shipId),
+      lastMoveShipId: Number(lm.shipId),
       lastMoveOldPosition: { row: lm.oldRow, col: lm.oldCol },
       lastMoveNewPosition: { row: lm.newRow, col: lm.newCol },
       // Coerce so GameGrid strict checks (e.g. EMP) match after JSON or mixed types
@@ -1367,7 +1366,7 @@ export function SimulatedGameDisplay({
         (lmAction === ActionType.Shoot || lmAction === ActionType.Special) &&
         lm.targetShipId &&
         lm.targetShipId !== "0"
-          ? BigInt(lm.targetShipId)
+          ? Number(lm.targetShipId)
           : null,
       lastMoveIsCurrentPlayer: ship
         ? ship.owner === TUTORIAL_PLAYER_ADDRESS
@@ -1384,20 +1383,20 @@ export function SimulatedGameDisplay({
     if (!tutorialDisplayLastMove) return undefined;
     const lm = tutorialDisplayLastMove;
     return {
-      shipId: BigInt(lm.shipId),
+      shipId: Number(lm.shipId),
       oldRow: lm.oldRow,
       oldCol: lm.oldCol,
       newRow: lm.newRow,
       newCol: lm.newCol,
       actionType: Number(lm.actionType) as ActionType,
-      targetShipId: lm.targetShipId ? BigInt(lm.targetShipId) : 0n,
-      timestamp: 0n,
+      targetShipId: lm.targetShipId ? Number(lm.targetShipId) : 0,
+      timestamp: 0,
     };
   }, [selectedShipId, tutorialDisplayLastMove]);
 
   const calculateDamageForShip = useCallback(
     (
-      targetShipId: bigint,
+      targetShipId: number,
       weaponType?: "weapon" | "special",
       showReducedDamage?: boolean,
     ) =>
@@ -1475,7 +1474,7 @@ export function SimulatedGameDisplay({
         return;
       }
 
-      const ship = shipMap.get(BigInt(shipPosition.shipId));
+      const ship = shipMap.get(Number(shipPosition.shipId));
       if (!ship) return;
 
       // Filter targets based on weapon type
@@ -1570,7 +1569,7 @@ export function SimulatedGameDisplay({
     }[] = [];
 
     gameState.shipPositions.forEach((shipPosition) => {
-      const ship = shipMap.get(BigInt(shipPosition.shipId));
+      const ship = shipMap.get(Number(shipPosition.shipId));
       if (!ship) return;
 
       if (ship.owner !== TUTORIAL_PLAYER_ADDRESS) return;
@@ -1621,7 +1620,7 @@ export function SimulatedGameDisplay({
     }[] = [];
 
     gameState.shipPositions.forEach((shipPosition) => {
-      const ship = shipMap.get(BigInt(shipPosition.shipId));
+      const ship = shipMap.get(Number(shipPosition.shipId));
       if (!ship) return;
 
       if (ship.owner !== TUTORIAL_PLAYER_ADDRESS) return;
@@ -1931,11 +1930,11 @@ export function SimulatedGameDisplay({
     return [];
   }, [draggedShipId, dragOverCell]);
 
-  // Convert tutorial string ids to bigint ids for GameGrid targeting logic.
+  // Convert tutorial string ids to number ids for GameGrid targeting logic.
   const gridValidTargets = useMemo(
     () =>
       validTargets.map((t) => ({
-        shipId: BigInt(t.shipId),
+        shipId: Number(t.shipId),
         position: t.position,
       })),
     [validTargets],
@@ -1944,7 +1943,7 @@ export function SimulatedGameDisplay({
   const gridAssistableTargets = useMemo(
     () =>
       assistableTargets.map((t) => ({
-        shipId: BigInt(t.shipId),
+        shipId: Number(t.shipId),
         position: t.position,
       })),
     [assistableTargets],
@@ -1953,26 +1952,26 @@ export function SimulatedGameDisplay({
   const gridAssistableTargetsFromStart = useMemo(
     () =>
       assistableTargetsFromStart.map((t) => ({
-        shipId: BigInt(t.shipId),
+        shipId: Number(t.shipId),
         position: t.position,
       })),
     [assistableTargetsFromStart],
   );
 
-  // GameGrid expects Set<bigint> for movedShipIdsSet; tutorial state uses string IDs.
+  // GameGrid expects Set<number> for movedShipIdsSet; tutorial state uses string IDs.
   const gridMovedShipIdsSet = useMemo(() => {
-    const set = new Set<bigint>();
+    const set = new Set<number>();
     if (gameState.creatorMovedShipIds) {
-      gameState.creatorMovedShipIds.forEach((id) => set.add(BigInt(id)));
+      gameState.creatorMovedShipIds.forEach((id) => set.add(Number(id)));
     }
     if (gameState.joinerMovedShipIds) {
-      gameState.joinerMovedShipIds.forEach((id) => set.add(BigInt(id)));
+      gameState.joinerMovedShipIds.forEach((id) => set.add(Number(id)));
     }
     return set;
   }, [gameState.creatorMovedShipIds, gameState.joinerMovedShipIds]);
 
   const wrappedSetSelectedShipId = useCallback(
-    (shipId: bigint | null) => {
+    (shipId: number | null) => {
       if (shipId === null) {
         setSelectedShipId(null);
         setPreviewPosition(null);
@@ -2117,8 +2116,8 @@ export function SimulatedGameDisplay({
   );
 
   const wrappedSetTargetShipId = useCallback(
-    (shipId: bigint | null) => {
-      if (!shipId || shipId === 0n) {
+    (shipId: number | null) => {
+      if (!shipId || shipId === 0) {
         setTargetShipId(shipId);
         return;
       }
@@ -3465,7 +3464,7 @@ export function SimulatedGameDisplay({
                             borderRadius: 0,
                           }}
                         >
-                          <FleeSafetySwitch gameId={0n} locked />
+                          <FleeSafetySwitch gameId={0} locked />
                         </div>
                       ) : null}
                     </div>
@@ -3503,7 +3502,7 @@ export function SimulatedGameDisplay({
                       .filter(() => !isMobileJoiner)
                       .concat(gameState.joinerActiveShipIds.filter(() => isMobileJoiner))
                       .map((shipId) => {
-                        const ship = shipMap.get(BigInt(shipId));
+                        const ship = shipMap.get(Number(shipId));
                         const attrs = getShipAttributes(shipId);
                         const hasMoved = movedShipIdsSet.has(shipId);
                         if (!ship || !attrs) return null;
@@ -3544,7 +3543,7 @@ export function SimulatedGameDisplay({
                       .filter(() => isMobileJoiner)
                       .concat(gameState.joinerActiveShipIds.filter(() => !isMobileJoiner))
                       .map((shipId) => {
-                        const ship = shipMap.get(BigInt(shipId));
+                        const ship = shipMap.get(Number(shipId));
                         const attrs = getShipAttributes(shipId);
                         const hasMoved = movedShipIdsSet.has(shipId);
                         if (!ship || !attrs) return null;
@@ -3662,7 +3661,7 @@ export function SimulatedGameDisplay({
                 </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                <FleeSafetySwitch gameId={0n} locked />
+                <FleeSafetySwitch gameId={0} locked />
               </div>
             </div>
             <div
@@ -4036,16 +4035,16 @@ export function SimulatedGameDisplay({
                           <div className={proposedMoveTargetListClass}>
                             {validTargets.map((target) => {
                               const targetShip = shipMap.get(
-                                BigInt(target.shipId),
+                                Number(target.shipId),
                               );
                               const isHammerTargetTutorialHighlight =
                                 currentStep?.id === "shoot" &&
                                 previewPosition !== null &&
                                 targetShipId === null &&
-                                BigInt(target.shipId) === 2001n;
+                                Number(target.shipId) === 2001;
                               const isSelectedTarget =
                                 targetShipId !== null &&
-                                targetShipId === BigInt(target.shipId);
+                                targetShipId === Number(target.shipId);
                               const isRepair =
                                 selectedWeaponType === "special" &&
                                 specialType === 2;
@@ -4075,14 +4074,14 @@ export function SimulatedGameDisplay({
                               const targetButton = (
                                 <button
                                   onClick={() =>
-                                    setTargetShipId(BigInt(target.shipId))
+                                    setTargetShipId(Number(target.shipId))
                                   }
                                   className={proposedMoveTargetBtnClass}
                                   style={targetButtonStyle}
                                 >
                                   {`[>] `}
                                   {targetShip?.name ||
-                                    `#${BigInt(target.shipId).toString()}`}
+                                    `#${Number(target.shipId).toString()}`}
                                 </button>
                               );
                               return (
@@ -4428,7 +4427,7 @@ export function SimulatedGameDisplay({
                   (sp) => sp.shipId === shipId,
                 );
                 const attributes = getShipAttributes(shipId);
-                const ship = shipMap.get(BigInt(shipId));
+                const ship = shipMap.get(Number(shipId));
 
                 if (!shipPosition || !attributes || !ship) return null;
 
@@ -4498,7 +4497,7 @@ export function SimulatedGameDisplay({
                   (sp) => sp.shipId === shipId,
                 );
                 const attributes = getShipAttributes(shipId);
-                const ship = shipMap.get(BigInt(shipId));
+                const ship = shipMap.get(Number(shipId));
 
                 if (!shipPosition || !attributes || !ship) return null;
 

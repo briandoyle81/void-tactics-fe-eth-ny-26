@@ -4,16 +4,15 @@
 
 /**
  * Formats a destroyed timestamp as a locale-aware date string
- * @param timestampDestroyed BigInt timestamp in seconds since epoch
+ * @param timestampDestroyed number timestamp in seconds since epoch
  * @returns Formatted date string like "11/8/25" or "8/11/25" depending on locale
  */
-export function formatDestroyedDate(timestampDestroyed: bigint): string {
-  if (timestampDestroyed <= BigInt(0)) {
+export function formatDestroyedDate(timestampDestroyed: number): string {
+  if (timestampDestroyed <= 0) {
     return "";
   }
 
-  // Convert BigInt seconds to milliseconds for Date constructor
-  const timestampMs = Number(timestampDestroyed) * 1000;
+  const timestampMs = timestampDestroyed;
   const date = new Date(timestampMs);
 
   // Get user's locale from browser, fallback to 'en-US'

@@ -2,10 +2,12 @@
 
 import React, { useMemo } from "react";
 import { useAccount } from "../hooks/useAccount";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 
 const Profile: React.FC = () => {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
+  const { userId: address } = useCurrentUser();
   const { games, isLoading } = usePlayerGames();
 
   // Calculate statistics from finished games
@@ -83,8 +85,8 @@ const Profile: React.FC = () => {
       : game.joinerActiveShipIds.length;
   };
 
-  const formatDate = (timestamp: bigint) => {
-    const date = new Date(Number(timestamp) * 1000);
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",

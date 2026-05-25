@@ -52,7 +52,7 @@ export function useGetGamesForPlayer(_playerAddress: string) {
   return { data, isLoading, error, refetch };
 }
 
-// Kept as shim — gameId is now a number not a bigint in the traditional backend
+// Kept as shim — gameId is now a number not a number in the traditional backend
 export function useGetGamesFromIds(gameIds: number[]) {
   const key = useMemo(() => gameIds.join(","), [gameIds]);
   const { data, isLoading, error, refetch } = useQuery({

@@ -64,14 +64,14 @@ function calculateShipDataHash(ship: Ship): string {
 /**
  * Get cache key for a ship ID
  */
-function getCacheKey(shipId: bigint): string {
+function getCacheKey(shipId: number): string {
   return `${cacheNamespacePrefix()}${shipId.toString()}`;
 }
 
 /**
  * Get cached ship data for a ship ID
  */
-export function getCachedShipData(shipId: bigint): Ship | null {
+export function getCachedShipData(shipId: number): Ship | null {
   if (typeof window === "undefined") return null;
 
   try {
@@ -95,14 +95,14 @@ export function getCachedShipData(shipId: bigint): Ship | null {
     // Convert BigInt strings back to BigInt
     const ship: Ship = {
       ...parsed.ship,
-      id: BigInt(parsed.ship.id),
+      id: Number(parsed.ship.id),
       traits: {
         ...parsed.ship.traits,
-        serialNumber: BigInt(parsed.ship.traits.serialNumber),
+        serialNumber: Number(parsed.ship.traits.serialNumber),
       },
       shipData: {
         ...parsed.ship.shipData,
-        timestampDestroyed: BigInt(parsed.ship.shipData.timestampDestroyed),
+        timestampDestroyed: Number(parsed.ship.shipData.timestampDestroyed),
       },
     };
 
@@ -251,7 +251,7 @@ function cleanupOldCacheEntries(): void {
 /**
  * Clear cache for a specific ship
  */
-export function clearShipDataCache(shipId: bigint): void {
+export function clearShipDataCache(shipId: number): void {
   if (typeof window === "undefined") return;
 
   const cacheKey = getCacheKey(shipId);

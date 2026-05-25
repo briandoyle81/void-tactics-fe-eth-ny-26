@@ -37,7 +37,7 @@ export function calculateTutorialThreatPoints(
 }
 
 export type TutorialShipVisual = {
-  serialNumber: bigint;
+  serialNumber: number;
   colors: ShipColors;
   variant: number;
 };
@@ -69,7 +69,7 @@ function assertContractTraitTiers(
  */
 export function buildTutorialShip(input: {
   name: string;
-  id: bigint;
+  id: number;
   owner: Address;
   equipment: ShipEquipment;
   shipData: ShipData;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
+import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
 
 export async function POST(
   req: NextRequest,
@@ -60,5 +61,24 @@ export async function POST(
   // Mark ships as in-fleet
   await prisma.ship.updateMany({ where: { id: { in: shipIds } }, data: { inFleet: true } });
 
-  return NextResponse.json({ id: fleet.id, totalCost, shipCount: shipIds.length }, { status: 201 });
+  // Auto-start game when both players have submitted complete fleets
+  let gameId: number | null = null;
+  if (lobby.joinerId && lobby.status !== "IN_GAME") {
+    const allFleets = await prisma.fleet.findMany({ where: { lobbyId, isComplete: true } });
+    const creatorFleet = allFleets.find((f) => f.ownerId === lobby.creatorId);
+    const joinerFleet  = allFleets.find((f) => f.ownerId === lobby.joinerId!);
+    if (creatorFleet && joinerFleet) {
+      try {
+        gameId = await createGameFromLobby(
+          { ...lobby, joinerId: lobby.joinerId! },
+          creatorFleet,
+          joinerFleet,
+        );
+      } catch {
+        // Game may have already been created by the other player's concurrent request
+      }
+    }
+  }
+
+  return NextResponse.json({ id: fleet.id, totalCost, shipCount: shipIds.length, gameId }, { status: 201 });
 }

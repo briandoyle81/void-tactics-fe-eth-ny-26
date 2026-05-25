@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/app/lib/apiFetch";
 import { Attributes } from "../types/types";
 
-export function useShipAttributesByIds(shipIds: bigint[]) {
+export function useShipAttributesByIds(shipIds: number[]) {
   const ids = shipIds.map(String).join(",");
 
   const { data, isLoading, error, refetch } = useQuery({

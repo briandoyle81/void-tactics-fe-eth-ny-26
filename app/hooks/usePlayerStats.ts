@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/app/lib/apiFetch";
 
 export interface PlayerStats {
-  wins: bigint;
-  losses: bigint;
-  totalGames: bigint;
+  wins: number;
+  losses: number;
+  totalGames: number;
 }
 
 // address and chainId params are kept for call-site compatibility but ignored —

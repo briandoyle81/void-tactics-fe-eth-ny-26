@@ -113,7 +113,7 @@ export function calculateAttributesFromContracts(ship: Ship): Attributes {
   const baseDamageReduction = calcBaseDamageReduction(ship);
 
   // Rank-based bonuses (same thresholds/multipliers as contract)
-  const rank = getRankFromKills(Number(ship.shipData.shipsDestroyed ?? 0n));
+  const rank = getRankFromKills(ship.shipData.shipsDestroyed ?? 0);
   const rankMultiplier = getRankMultiplier(rank);
 
   const applyPercentBonus = (value: number, percent: number): number =>

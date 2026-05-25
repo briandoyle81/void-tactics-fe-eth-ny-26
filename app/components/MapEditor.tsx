@@ -446,7 +446,7 @@ export function MapEditor({
     if (isEditing) {
       return {
         functionName: "updatePresetMap" as const,
-        args: [BigInt(mapId), blockedPositions, scoringPositions],
+        args: [Number(mapId), blockedPositions, scoringPositions],
       };
     } else {
       return {

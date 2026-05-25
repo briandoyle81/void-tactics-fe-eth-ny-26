@@ -110,7 +110,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
 
   const createPreviewShip = (seed: number, shipsDestroyed: number): Ship => ({
     name: `Preview ${seed}`,
-    id: BigInt(900000 + seed),
+    id: Number(900000 + seed),
     equipment: {
       mainWeapon: seed % 4,
       armor: (seed % 3) + 1,
@@ -118,7 +118,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
       special: (seed + 1) % 4,
     },
     traits: {
-      serialNumber: BigInt(900000 + seed),
+      serialNumber: Number(900000 + seed),
       colors: {
         h1: (seed * 47) % 360,
         s1: 70,
@@ -139,7 +139,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
       shiny: seed % 7 === 0,
       constructed: true,
       inFleet: false,
-      timestampDestroyed: 0n,
+      timestampDestroyed: 0,
     },
     owner: "0x0000000000000000000000000000000000000000",
   });
@@ -242,7 +242,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
             <ShipPurchaseButton
               key={index}
               tier={tier}
-              price={BigInt(price ?? 0)}
+              price={Number(price ?? 0)}
               paymentMethod={paymentMethod}
               className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
               refetch={refetch}

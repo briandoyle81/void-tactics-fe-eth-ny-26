@@ -21,9 +21,9 @@ export function calculateDamage({
   weaponType,
   showReducedDamage,
 }: {
-  shooterId: bigint | null;
-  targetShipId: bigint;
-  getShipAttributes: (id: bigint) => Attributes | null;
+  shooterId: number | null;
+  targetShipId: number;
+  getShipAttributes: (id: number) => Attributes | null;
   selectedWeaponType: "weapon" | "special";
   specialData: SpecialLike | null | undefined;
   specialType: number;

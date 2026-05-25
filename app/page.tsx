@@ -9,6 +9,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useAccount } from "./hooks/useAccount";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import Header from "./components/Header";
 import AlphaDiscordNoticeBar from "./components/AlphaDiscordNoticeBar";
 import FlowWalletNoticeBar from "./components/FlowWalletNoticeBar";
@@ -27,7 +28,7 @@ import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess
 import { useOwnedShips } from "./hooks/useOwnedShips";
 import { usePlayerGames } from "./hooks/usePlayerGames";
 import { TUTORIAL_STEP_STORAGE_KEY } from "./types/onboarding";
-import { MAP_ADMIN_ADDRESS } from "./config/alpha";
+import { MAP_ADMIN_EMAILS } from "./config/alpha";
 import posthog from "posthog-js";
 
 /** Tabs we may persist; includes owner-only names so refresh works before contract reads resolve. */
@@ -45,6 +46,7 @@ const KNOWN_TAB_NAMES = new Set<string>([
 
 export default function Home() {
   const { status, address, isConnected } = useAccount();
+  const { email, userId } = useCurrentUser();
   const { isOwner } = useShipAttributesOwner();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const { ships, isLoading: shipsLoading } = useOwnedShips();
@@ -261,7 +263,7 @@ export default function Home() {
     playerGames.some(
       (g) =>
         g.metadata.winner === ZERO_ADDR &&
-        g.turnState.currentTurn === address,
+        g.turnState.currentTurn === userId,
     );
   const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
   const showCustomizeShip = hasShips || activeTab === "Customize Ship";
@@ -449,7 +451,7 @@ export default function Home() {
                 const tabs = ["Info", "Manage Navy", "Lobbies"];
                 if (showGames) tabs.push("Games");
                 if (showGames) tabs.push("Profile");
-                if (address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() || activeTab === "Maps") {
+                if ((!!email && MAP_ADMIN_EMAILS.includes(email)) || activeTab === "Maps") {
                   tabs.push("Maps");
                 }
                 if (showCustomizeShip) tabs.push("Customize Ship");

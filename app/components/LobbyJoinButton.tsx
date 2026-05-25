@@ -5,7 +5,7 @@ import { useLobbies } from "../hooks/useLobbies";
 import posthog from "posthog-js";
 
 interface LobbyJoinButtonProps {
-  lobbyId: bigint;
+  lobbyId: number;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;

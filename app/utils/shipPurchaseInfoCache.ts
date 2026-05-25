@@ -42,7 +42,7 @@ export function readValidShipPurchaseInfoCache(
       shipsPerTier: parsed.tierShips.map((x) =>
         Math.min(255, Math.max(0, Math.floor(Number(x)))),
       ),
-      pricesWei: parsed.tierPricesWei.map((s) => BigInt(s)),
+      pricesWei: parsed.tierPricesWei.map((s) => Number(s)),
     };
   } catch {
     localStorage.removeItem(storageKey(chainId, kind));

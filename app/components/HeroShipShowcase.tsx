@@ -115,7 +115,7 @@ function generateRandomShip(index: number): Ship {
 
   return {
     name,
-    id: BigInt(index),
+    id: Number(index),
     equipment: {
       mainWeapon,
       armor,
@@ -123,7 +123,7 @@ function generateRandomShip(index: number): Ship {
       special,
     },
     traits: {
-      serialNumber: BigInt(index),
+      serialNumber: Number(index),
       colors: {
         h1,
         s1,
@@ -144,7 +144,7 @@ function generateRandomShip(index: number): Ship {
       shiny,
       constructed: true,
       inFleet: false,
-      timestampDestroyed: BigInt(0),
+      timestampDestroyed: Number(0),
     },
     owner: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   };

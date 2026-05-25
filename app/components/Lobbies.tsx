@@ -8,6 +8,7 @@ import React, {
   useRef,
 } from "react";
 import { useAccount } from "../hooks/useAccount";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useLobbies } from "../hooks/useLobbies";
 import { useOwnedShips } from "../hooks/useOwnedShips";
@@ -81,27 +82,26 @@ function CreatorStats({
 }) {
   const stats = usePlayerStats(address, chainId);
   if (!stats) return null;
-  const wins = Number(stats.wins);
-  const losses = Number(stats.losses);
   return (
     <div
       className="flex items-center gap-2 text-base font-bold tabular-nums"
       style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
     >
-      <span className="text-phosphor-green">{wins}W</span>
+      <span className="text-phosphor-green">{stats.wins}W</span>
       <span
         className="text-[10px] font-normal"
         style={{ color: "color-mix(in srgb, var(--color-text-muted) 40%, transparent)" }}
       >
         /
       </span>
-      <span className="text-warning-red">{losses}L</span>
+      <span className="text-warning-red">{stats.losses}L</span>
     </div>
   );
 }
 
 const Lobbies: React.FC = () => {
   const { address, isConnected } = useAccount();
+  const { userId } = useCurrentUser();
   const chainId = useSelectedChainId();
   const {
     lobbyList,
@@ -154,7 +154,7 @@ const Lobbies: React.FC = () => {
   // Calculate player state from lobby list instead of blockchain
   const playerLobbies = lobbyList.lobbies.filter(
     (lobby) =>
-      lobby.basic.creator === address || lobby.players.joiner === address,
+      lobby.basic.creator === userId || lobby.players.joiner === userId,
   );
   const activeLobbiesCount = playerLobbies.length;
   const hasActiveLobby = activeLobbiesCount > 0;
@@ -162,7 +162,7 @@ const Lobbies: React.FC = () => {
   // Calculate lobby creation permissions
   const canCreateLobby = !paused && isConnected;
   const needsPaymentForLobby =
-    activeLobbiesCount >= Number(freeGamesPerAddress || 0n);
+    activeLobbiesCount >= (freeGamesPerAddress ?? 0);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -171,20 +171,20 @@ const Lobbies: React.FC = () => {
       setShowCreateForm(false);
     }
   }, [needsShipsForLobbyUi, needsConstructForLobbyUi, showCreateForm]);
-  const [selectedLobby, setSelectedLobby] = useState<bigint | null>(null);
-  const selectedLobbyRef = useRef<bigint | null>(null);
+  const [selectedLobby, setSelectedLobby] = useState<number | null>(null);
+  const selectedLobbyRef = useRef<number | null>(null);
   useEffect(() => {
     selectedLobbyRef.current = selectedLobby;
   }, [selectedLobby]);
-  const [selectedShips, setSelectedShips] = useState<bigint[]>([]);
+  const [selectedShips, setSelectedShips] = useState<number[]>([]);
   const [shipPositions, setShipPositions] = useState<
-    Array<{ shipId: bigint; row: number; col: number }>
+    Array<{ shipId: number; row: number; col: number }>
   >([]);
-  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [showFleetConfirmation, setShowFleetConfirmation] = useState(false);
 
   // Drag and drop state
-  const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
+  const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<{
     row: number;
     col: number;
@@ -195,7 +195,7 @@ const Lobbies: React.FC = () => {
   );
 
   // Tap-to-place state for touch devices
-  const [tapPendingShipId, setTapPendingShipId] = useState<bigint | null>(null);
+  const [tapPendingShipId, setTapPendingShipId] = useState<number | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
     setIsTouchDevice(window.matchMedia("(hover: none) and (pointer: coarse)").matches);
@@ -212,7 +212,7 @@ const Lobbies: React.FC = () => {
       const lobby = lobbyList.lobbies.find(
         (l) =>
           l.basic.id === selectedLobby &&
-          (l.basic.creator === address || l.players.joiner === address),
+          (l.basic.creator === userId || l.players.joiner === userId),
       );
       if (!lobby) {
         if (chainId && address) {
@@ -228,10 +228,10 @@ const Lobbies: React.FC = () => {
   const [showLoadFleetMenu, setShowLoadFleetMenu] = useState(false);
   const [pendingLoadFleet, setPendingLoadFleet] = useState<{
     fleet: FleetComposition;
-    availableShipIds: bigint[];
+    availableShipIds: number[];
     unavailableCount: number;
   } | null>(null);
-  const [viewingFleetId, setViewingFleetId] = useState<bigint | null>(null);
+  const [viewingFleetId, setViewingFleetId] = useState<number | null>(null);
   const [viewingFleetOwner, setViewingFleetOwner] = useState<string | null>(
     null,
   );
@@ -243,7 +243,7 @@ const Lobbies: React.FC = () => {
 
   // Live lobby data for the currently selected lobby (avoids relying on lobby list refresh timing)
   const { lobby: selectedLobbyLive, refetch: refetchSelectedLobby } = useLobby(
-    selectedLobby ?? 0n,
+    selectedLobby ?? 0,
     {
       enabled: selectedLobby != null,
     },
@@ -290,8 +290,8 @@ const Lobbies: React.FC = () => {
     if (!live) return fromList;
     if (!fromList) return live;
     const fleetSlots = (L: Lobby) =>
-      (L.players.creatorFleetId > 0n ? 1 : 0) +
-      (L.players.joinerFleetId > 0n ? 1 : 0);
+      (L.players.creatorFleetId > 0 ? 1 : 0) +
+      (L.players.joinerFleetId > 0 ? 1 : 0);
     const listN = fleetSlots(fromList);
     const liveN = fleetSlots(live);
     if (listN > liveN) return fromList;
@@ -303,8 +303,8 @@ const Lobbies: React.FC = () => {
   const currentLobbyForPolling = resolvedLobbyForSelected;
   const isWaitingForOtherFleet =
     currentLobbyForPolling &&
-    (currentLobbyForPolling.players.creatorFleetId === 0n ||
-      currentLobbyForPolling.players.joinerFleetId === 0n);
+    (currentLobbyForPolling.players.creatorFleetId === 0 ||
+      currentLobbyForPolling.players.joinerFleetId === 0);
 
   React.useEffect(() => {
     if (!selectedLobby || !isWaitingForOtherFleet) return;
@@ -322,30 +322,26 @@ const Lobbies: React.FC = () => {
 
   // Determine the player's existing fleet ID when fleet selection modal is open
   const playerFleetId = React.useMemo(() => {
-    if (!selectedLobby || !address) return null;
-    const normalizedAddress = address.toLowerCase();
+    if (!selectedLobby || !userId) return null;
     const lobby = resolvedLobbyForSelected;
     if (!lobby) return null;
-    const isCreator = lobby.basic.creator.toLowerCase() === normalizedAddress;
+    const isCreator = lobby.basic.creator === userId;
     return isCreator
-      ? lobby.players.creatorFleetId > 0n
+      ? lobby.players.creatorFleetId > 0
         ? lobby.players.creatorFleetId
         : null
-      : lobby.players.joinerFleetId > 0n
+      : lobby.players.joinerFleetId > 0
         ? lobby.players.joinerFleetId
         : null;
-  }, [selectedLobby, address, resolvedLobbyForSelected]);
+  }, [selectedLobby, userId, resolvedLobbyForSelected]);
 
   const selectedLobbyPlayerHasFleetOnChain = React.useMemo(() => {
-    if (!resolvedLobbyForSelected || !address) return false;
-    const normalizedAddress = address.toLowerCase();
-    const isCreator =
-      resolvedLobbyForSelected.basic.creator.toLowerCase() ===
-      normalizedAddress;
+    if (!resolvedLobbyForSelected || !userId) return false;
+    const isCreator = resolvedLobbyForSelected.basic.creator === userId;
     return isCreator
-      ? resolvedLobbyForSelected.players.creatorFleetId > 0n
-      : resolvedLobbyForSelected.players.joinerFleetId > 0n;
-  }, [resolvedLobbyForSelected, address]);
+      ? resolvedLobbyForSelected.players.creatorFleetId > 0
+      : resolvedLobbyForSelected.players.joinerFleetId > 0;
+  }, [resolvedLobbyForSelected, userId]);
 
   // Fetch the player's existing fleet data when viewing their own fleet
   const { data: playerFleetIdsAndPositions } = useFleetsRead(
@@ -358,10 +354,10 @@ const Lobbies: React.FC = () => {
   const playerFleetShipIds = React.useMemo(() => {
     if (!playerFleetIdsAndPositions) return [];
     const tuple = playerFleetIdsAndPositions as [
-      bigint[],
+      number[],
       Array<{ row: number; col: number }>,
     ];
-    return (tuple?.[0] || []) as bigint[];
+    return (tuple?.[0] || []) as number[];
   }, [playerFleetIdsAndPositions]);
 
   // Fetch player's fleet Ship objects so they can be displayed on the grid
@@ -396,7 +392,7 @@ const Lobbies: React.FC = () => {
   }, [playerFleetShipsData]);
 
   const resolveFleetPickerShip = useCallback(
-    (shipId: bigint): Ship | undefined =>
+    (shipId: number): Ship | undefined =>
       ships.find((s) => s.id === shipId) ??
       playerFleetShips.find((s) => s.id === shipId),
     [ships, playerFleetShips],
@@ -436,9 +432,9 @@ const Lobbies: React.FC = () => {
   }, [globalCostsVersion, ships, playerFleetShips, resolveFleetPickerShip]);
 
   // Track the last loaded fleet ID to avoid reloading unnecessarily
-  const lastLoadedFleetIdRef = useRef<bigint | null>(null);
+  const lastLoadedFleetIdRef = useRef<number | null>(null);
   /** Avoid re-applying localStorage draft on every render while a lobby stays open. */
-  const lastHydratedDraftLobbyRef = useRef<bigint | null>(null);
+  const lastHydratedDraftLobbyRef = useRef<number | null>(null);
   /**
    * Hydrate updates ship state asynchronously; skip one persist pass so we do not
    * write stale (pre-hydrate) selection over the saved draft.
@@ -466,19 +462,25 @@ const Lobbies: React.FC = () => {
       return;
     }
     if (lastHydratedDraftLobbyRef.current === selectedLobby) return;
+    // Wait until ships are loaded so we can validate availability
+    if (shipsLoading || ships.length === 0) return;
 
     const drafts = readFleetDrafts(chainId, address);
     const raw = drafts[selectedLobby.toString()];
     skipNextDraftPersistRef.current = true;
     if (raw?.shipIds?.length) {
       try {
-        const ids = raw.shipIds.map((s) => BigInt(s));
-        const pos = (raw.positions || []).map((p) => ({
-          shipId: BigInt(p.shipId),
-          row: p.row,
-          col: p.col,
-        }));
-        setSelectedShips(ids);
+        const ids = raw.shipIds.map((s) => Number(s));
+        // Only keep ships that are still available (not inFleet, constructed, not destroyed)
+        const availabilityMap = new Map(ships.map((s) => [s.id.toString(), s]));
+        const validIds = ids.filter((id) => {
+          const s = availabilityMap.get(id.toString());
+          return s && s.shipData.constructed && !(s.shipData.timestampDestroyed > 0) && !s.shipData.inFleet;
+        });
+        const pos = (raw.positions || [])
+          .map((p) => ({ shipId: Number(p.shipId), row: p.row, col: p.col }))
+          .filter((p) => validIds.some((id) => id === p.shipId));
+        setSelectedShips(validIds);
         setShipPositions(pos);
       } catch {
         setSelectedShips([]);
@@ -496,6 +498,8 @@ const Lobbies: React.FC = () => {
     chainId,
     resolvedLobbyForSelected,
     selectedLobbyPlayerHasFleetOnChain,
+    ships,
+    shipsLoading,
   ]);
 
   // Persist draft while picking a fleet (not after fleet exists on-chain)
@@ -541,17 +545,19 @@ const Lobbies: React.FC = () => {
       lastLoadedFleetIdRef.current !== playerFleetId
     ) {
       const tuple = playerFleetIdsAndPositions as [
-        bigint[],
+        number[],
         Array<{ row: number; col: number }>,
       ];
-      const ids: bigint[] = (tuple?.[0] || []) as bigint[];
+      const ids: number[] = (tuple?.[0] || []) as number[];
       const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
         []) as Array<{ row: number; col: number }>;
 
-      if (ids.length > 0) {
-        setSelectedShips(ids);
+      // Ensure IDs are numbers (contract reads can return strings/numbers)
+      const numberIds = ids.map((id) => Number(id));
+      if (numberIds.length > 0) {
+        setSelectedShips(numberIds);
         setShipPositions(
-          ids.map((id, i) => ({
+          numberIds.map((id, i) => ({
             shipId: id,
             row: positions?.[i]?.row ?? 0,
             col: positions?.[i]?.col ?? 0,
@@ -568,12 +574,12 @@ const Lobbies: React.FC = () => {
   // Normalize opponent positions for MapDisplay when viewing a fleet
   const opponentPositions = React.useMemo(() => {
     if (!fleetIdsAndPositions)
-      return [] as Array<{ shipId: bigint; row: number; col: number }>;
+      return [] as Array<{ shipId: number; row: number; col: number }>;
     const tuple = fleetIdsAndPositions as [
-      bigint[],
+      number[],
       Array<{ row: number; col: number }>,
     ];
-    const ids: bigint[] = (tuple?.[0] || []) as bigint[];
+    const ids: number[] = (tuple?.[0] || []) as number[];
     const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
       []) as Array<{ row: number; col: number }>;
     return ids.map((id, i) => ({
@@ -670,13 +676,14 @@ const Lobbies: React.FC = () => {
   };
 
   // Function to add ship to fleet with position
-  const addShipToFleet = (shipId: bigint) => {
+  const addShipToFleet = (shipId: number) => {
+    const normalizedId = Number(shipId);
     const currentLobby = lobbyList.lobbies.find(
       (lobby) => lobby.basic.id === selectedLobby,
     );
     if (!currentLobby) return;
 
-    const isCreator = currentLobby.basic.creator === address;
+    const isCreator = currentLobby.basic.creator === userId;
     const existingPositions = shipPositions.map((pos) => ({
       row: pos.row,
       col: pos.col,
@@ -685,41 +692,43 @@ const Lobbies: React.FC = () => {
     const position = findNextPosition(isCreator, existingPositions);
 
     if (position) {
-      setSelectedShips((prev) => [...prev, shipId]);
-      setShipPositions((prev) => [
-        ...prev,
-        { shipId, row: position.row, col: position.col },
-      ]);
+      setSelectedShips((prev) => prev.some((id) => String(id) === String(normalizedId)) ? prev : [...prev, normalizedId]);
+      setShipPositions((prev) => {
+        return [...prev.filter((pos) => String(pos.shipId) !== String(normalizedId)), { shipId: normalizedId, row: position.row, col: position.col }];
+      });
     }
   };
 
   // Function to remove ship from fleet
-  const removeShipFromFleet = (shipId: bigint) => {
-    setSelectedShips((prev) => prev.filter((id) => id !== shipId));
-    setShipPositions((prev) => prev.filter((pos) => pos.shipId !== shipId));
+  const removeShipFromFleet = (shipId: number) => {
+    const normalizedId = Number(shipId);
+    setSelectedShips((prev) => prev.filter((id) => String(id) !== String(normalizedId)));
+    setShipPositions((prev) => prev.filter((pos) => String(pos.shipId) !== String(normalizedId)));
     // Clear selection if the removed ship was selected
-    if (selectedShipId === shipId) {
+    if (String(selectedShipId) === String(normalizedId)) {
       setSelectedShipId(null);
     }
   };
 
   // Function to handle ship selection on the grid
-  const handleShipSelect = (shipId: bigint) => {
-    setSelectedShipId(shipId);
+  const handleShipSelect = (shipId: number) => {
+    setSelectedShipId(Number(shipId));
     setTapPendingShipId(null);
   };
 
   // Function to handle ship movement on the grid
-  const handleShipMove = (shipId: bigint, row: number, col: number) => {
-    // Check if the ship is already in the fleet
-    if (!selectedShips.includes(shipId)) {
+  const handleShipMove = (shipId: number, row: number, col: number) => {
+    const normalizedShipId = Number(shipId);
+    const isInFleet = selectedShips.some((id) => String(id) === String(normalizedShipId));
+
+    if (!isInFleet) {
       // Ship not in fleet - try to add it
       const currentLobby = lobbyList.lobbies.find(
         (lobby) => lobby.basic.id === selectedLobby,
       );
       if (!currentLobby) return;
 
-      const isCreator = currentLobby.basic.creator === address;
+      const isCreator = currentLobby.basic.creator === userId;
 
       // Same deployment zone rules as MapDisplay: creator left 4 cols (0-3), joiner right 4 cols (13-16)
       const isValidPosition =
@@ -735,13 +744,13 @@ const Lobbies: React.FC = () => {
       const existingPosition = shipPositions.find(
         (pos) => pos.row === row && pos.col === col,
       );
-      if (existingPosition) {
-        return; // Position already occupied
-      }
+      if (existingPosition) return;
 
-      // Add ship to fleet at this position
-      setSelectedShips((prev) => [...prev, shipId]);
-      setShipPositions((prev) => [...prev, { shipId, row, col }]);
+      setSelectedShips((prev) => prev.some((id) => String(id) === String(normalizedShipId)) ? prev : [...prev, normalizedShipId]);
+      setShipPositions((prev) => {
+        const filtered = prev.filter((pos) => String(pos.shipId) !== String(normalizedShipId));
+        return [...filtered, { shipId: normalizedShipId, row, col }];
+      });
       setTapPendingShipId(null);
       return;
     }
@@ -751,7 +760,7 @@ const Lobbies: React.FC = () => {
       (lobby) => lobby.basic.id === selectedLobby,
     );
     if (currentLobbyForMove) {
-      const isCreatorMove = currentLobbyForMove.basic.creator === address;
+      const isCreatorMove = currentLobbyForMove.basic.creator === userId;
       const inDeploymentZone = isCreatorMove
         ? col >= 0 && col <= 3
         : col >= 13 && col <= 16;
@@ -766,18 +775,17 @@ const Lobbies: React.FC = () => {
       }
     }
 
-    // Check if position is already occupied
+    // Check if position is already occupied by a different ship
     const existingPosition = shipPositions.find(
-      (pos) => pos.row === row && pos.col === col,
+      (pos) => pos.row === row && pos.col === col && String(pos.shipId) !== String(normalizedShipId),
     );
-    if (existingPosition) {
-      return; // Position already occupied
-    }
+    if (existingPosition) return;
 
-    // Update the ship's position
-    setShipPositions((prev) =>
-      prev.map((pos) => (pos.shipId === shipId ? { ...pos, row, col } : pos)),
-    );
+    // Update the ship's position: remove all stale/duplicate entries for this ship, add one at the new position
+    setShipPositions((prev) => {
+      const filtered = prev.filter((pos) => String(pos.shipId) !== String(normalizedShipId));
+      return [...filtered, { shipId: normalizedShipId, row, col }];
+    });
 
     // Clear selection and pending placement after moving
     setSelectedShipId(null);
@@ -785,8 +793,8 @@ const Lobbies: React.FC = () => {
   };
 
   // Drag and drop handlers
-  const handleDragStart = (shipId: bigint) => {
-    setDraggedShipId(shipId);
+  const handleDragStart = (shipId: number) => {
+    setDraggedShipId(Number(shipId));
   };
 
   const handleDragEnd = () => {
@@ -817,11 +825,11 @@ const Lobbies: React.FC = () => {
     // If not in state, try to get from dataTransfer (from grid drag)
     if (!shipIdToMove && e) {
       const data = e.dataTransfer.getData("text/plain");
-      if (data) {
+      if (data && /^\d+$/.test(data)) {
         try {
-          shipIdToMove = BigInt(data);
-        } catch (error) {
-          console.error("Failed to parse ship ID from drag data:", error);
+          shipIdToMove = Number(data);
+        } catch {
+          // ignore parse error
         }
       }
     }
@@ -838,15 +846,16 @@ const Lobbies: React.FC = () => {
   };
 
   // Ship list tap handler — desktop adds immediately, touch enters pending-placement mode
-  const handleListShipTap = (shipId: bigint, canSelect: boolean) => {
+  const handleListShipTap = (shipId: number, canSelect: boolean) => {
     if (!canSelect) return;
-    if (selectedShips.includes(shipId)) {
-      removeShipFromFleet(shipId);
+    const normalizedId = Number(shipId);
+    if (selectedShips.some((id) => String(id) === String(normalizedId))) {
+      removeShipFromFleet(normalizedId);
       setTapPendingShipId(null);
     } else if (isTouchDevice) {
-      setTapPendingShipId((prev) => (prev === shipId ? null : shipId));
+      setTapPendingShipId((prev) => (prev === normalizedId ? null : normalizedId));
     } else {
-      addShipToFleet(shipId);
+      addShipToFleet(normalizedId);
     }
   };
 
@@ -944,16 +953,16 @@ const Lobbies: React.FC = () => {
     setPendingLoadFleet(null);
   }, [selectedLobby, address, chainId]);
 
-  const applyLoadedFleetSelection = (shipIdsToLoad: bigint[]) => {
+  const applyLoadedFleetSelection = (shipIdsToLoad: number[]) => {
     if (!selectedLobby) return;
     const currentLobby = lobbyList.lobbies.find(
       (lobby) => lobby.basic.id === selectedLobby,
     );
     if (!currentLobby) return;
-    const isCreator = currentLobby.basic.creator === address;
+    const isCreator = currentLobby.basic.creator === userId;
 
-    const placedShipIds: bigint[] = [];
-    const nextPositions: Array<{ shipId: bigint; row: number; col: number }> = [];
+    const placedShipIds: number[] = [];
+    const nextPositions: Array<{ shipId: number; row: number; col: number }> = [];
     const existingPositions: Array<{ row: number; col: number }> = [];
     for (const shipId of shipIdsToLoad) {
       const position = findNextPosition(isCreator, existingPositions);
@@ -981,7 +990,7 @@ const Lobbies: React.FC = () => {
   };
 
   const handleRequestLoadSavedFleet = (fleet: FleetComposition) => {
-    const availableShipIds: bigint[] = [];
+    const availableShipIds: number[] = [];
     let unavailableCount = 0;
 
     for (const shipIdString of fleet.shipIds) {
@@ -994,7 +1003,7 @@ const Lobbies: React.FC = () => {
         unavailableCount++;
         continue;
       }
-      if (ship.shipData.timestampDestroyed > 0n) {
+      if (ship.shipData.timestampDestroyed > 0) {
         unavailableCount++;
         continue;
       }
@@ -1037,7 +1046,7 @@ const Lobbies: React.FC = () => {
         totalThreat += Number(ship.shipData.cost);
         if (
           ship.shipData.constructed &&
-          ship.shipData.timestampDestroyed === 0n &&
+          !(ship.shipData.timestampDestroyed > 0) &&
           !ship.shipData.inFleet
         ) {
           availableCount++;
@@ -1067,7 +1076,7 @@ const Lobbies: React.FC = () => {
     shipIds.length === 0 ||
     shipAttributes.length === shipIds.length;
   const attributesMap = React.useMemo(() => {
-    const map = new Map<bigint, (typeof shipAttributes)[0]>();
+    const map = new Map<number, (typeof shipAttributes)[0]>();
     if (!attributesAlignedWithShipIds) return map;
     shipIds.forEach((shipId, index) => {
       if (shipAttributes[index]) {
@@ -1198,7 +1207,7 @@ const Lobbies: React.FC = () => {
     // Unless showUnavailable is enabled
     if (!fleetFilters.showUnavailable) {
       if (!ship.shipData.constructed) return false;
-      if (ship.shipData.timestampDestroyed > 0n) return false;
+      if (ship.shipData.timestampDestroyed > 0) return false;
       if (ship.shipData.inFleet) return false;
     }
 
@@ -1303,7 +1312,7 @@ const Lobbies: React.FC = () => {
     [createForm.turnPace],
   );
 
-  // const handleLeaveLobby = async (lobbyId: bigint) => {
+  // const handleLeaveLobby = async (lobbyId: number) => {
   //   if (!isConnected) return;
 
   //   try {
@@ -1313,7 +1322,7 @@ const Lobbies: React.FC = () => {
   //   }
   // };
 
-  const handleCreateFleet = async (lobbyId: bigint) => {
+  const handleCreateFleet = async (lobbyId: number) => {
     if (!isConnected || selectedShips.length === 0) return;
 
     if (selectedShips.length > MAX_SHIPS_PER_FLEET) {
@@ -1360,10 +1369,10 @@ const Lobbies: React.FC = () => {
   };
 
   // Track the last fleet creation lobby ID to show toast when receipt is received
-  const lastFleetCreationLobbyRef = React.useRef<bigint | null>(null);
+  const lastFleetCreationLobbyRef = React.useRef<number | null>(null);
 
 
-  const createFleetWithConfirmation = async (lobbyId: bigint) => {
+  const createFleetWithConfirmation = async (lobbyId: number) => {
     if (!isConnected || selectedShips.length === 0) return;
 
     if (selectedShips.length > MAX_SHIPS_PER_FLEET) {
@@ -1405,18 +1414,22 @@ const Lobbies: React.FC = () => {
         col: pos.col,
       }));
 
-      await createFleet(lobbyId, selectedShips, startingPositions);
+      const fleetResult = await createFleet(lobbyId, selectedShips, startingPositions);
 
-      // Fleet creation is synchronous with the server — handle success here
       lastFleetCreationLobbyRef.current = null;
-      toast.success("Fleet created successfully!");
       setShowFleetView(false);
       setShowFleetConfirmation(false);
       refetchSelectedLobby();
       refetchGames();
       await loadLobbies();
       resetFleetSelectionModalState();
-      navigateToGamesTab();
+
+      if (fleetResult?.gameId) {
+        toast.success("Both fleets ready — game starting!");
+        navigateToGamesTab();
+      } else {
+        toast.success("Fleet submitted! Waiting for opponent to select their fleet.");
+      }
     } catch (error) {
       console.error("Failed to create fleet:", error);
       lastFleetCreationLobbyRef.current = null;
@@ -1469,29 +1482,29 @@ const Lobbies: React.FC = () => {
     if (!selectedLobby) return null;
     const lobby = resolvedLobbyForSelected;
     if (!lobby) return null;
-    const myIsCreator = lobby.basic.creator === address;
+    const myIsCreator = lobby.basic.creator === userId;
     const opponentFleetId = myIsCreator
       ? lobby.players.joinerFleetId
       : lobby.players.creatorFleetId;
-    return opponentFleetId && opponentFleetId > 0n
+    return opponentFleetId && opponentFleetId > 0
       ? `fleet:${opponentFleetId.toString()}`
       : null;
   }, [selectedLobby, address, resolvedLobbyForSelected]);
 
   // Compute opponent fleetId for grid
   const opponentFleetIdForGrid = React.useMemo(() => {
-    if (!selectedLobby) return null as bigint | null;
+    if (!selectedLobby) return null as number | null;
     const lobby = resolvedLobbyForSelected;
     if (!lobby) return null;
-    const myIsCreator = lobby.basic.creator === address;
+    const myIsCreator = lobby.basic.creator === userId;
     const fid = myIsCreator
       ? lobby.players.joinerFleetId
       : lobby.players.creatorFleetId;
-    return fid && fid > 0n ? fid : null;
+    return fid && fid > 0 ? fid : null;
   }, [selectedLobby, address, resolvedLobbyForSelected]);
 
   const [opponentGridPositions, setOpponentGridPositions] = React.useState<
-    Array<{ shipId: bigint; row: number; col: number }>
+    Array<{ shipId: number; row: number; col: number }>
   >([]);
   const [opponentGridShips, setOpponentGridShips] = React.useState<Ship[]>([]);
 
@@ -1505,9 +1518,9 @@ const Lobbies: React.FC = () => {
   // Normalize to positions and ids
   const opponentGridPositionsFromHook = React.useMemo(() => {
     if (!oppIdsPos)
-      return [] as Array<{ shipId: bigint; row: number; col: number }>;
-    const tuple = oppIdsPos as [bigint[], Array<{ row: number; col: number }>];
-    const ids: bigint[] = (tuple?.[0] || []) as bigint[];
+      return [] as Array<{ shipId: number; row: number; col: number }>;
+    const tuple = oppIdsPos as [number[], Array<{ row: number; col: number }>];
+    const ids: number[] = (tuple?.[0] || []) as number[];
     const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
       []) as Array<{ row: number; col: number }>;
     return ids.map((id, i) => ({
@@ -1553,12 +1566,13 @@ const Lobbies: React.FC = () => {
 
   // Combine both fleets for grid view during selection
   const combinedPositions = React.useMemo(
-    () => [
-      ...shipPositions,
-      ...(opponentGridPositionsFromHook.length > 0
-        ? opponentGridPositionsFromHook
-        : []),
-    ],
+    () => {
+      const result = [
+        ...shipPositions,
+        ...(opponentGridPositionsFromHook.length > 0 ? opponentGridPositionsFromHook : []),
+      ];
+      return result;
+    },
     [shipPositions, opponentGridPositionsFromHook],
   );
 
@@ -1569,7 +1583,7 @@ const Lobbies: React.FC = () => {
     const playerFleetShipsArray = playerFleetShips || [];
 
     // Combine all ships, avoiding duplicates by ship ID
-    const shipMap = new Map<bigint, Ship>();
+    const shipMap = new Map<number, Ship>();
 
     // Add owned ships first
     shipsArray.forEach((ship) => {
@@ -1615,7 +1629,7 @@ const Lobbies: React.FC = () => {
   // Base sprite faces left. Flip creator's ships so they face right; joiner's ships stay unflipped (face left)
   const isCreatorViewer = !!(
     selectedLobby &&
-    resolvedLobbyForSelected?.basic.creator === address
+    resolvedLobbyForSelected?.basic.creator === userId
   );
   // Use ship IDs actually on grid: when creator is viewing, creator's ships are in shipPositions
   const flippedShipIds = React.useMemo(
@@ -1645,7 +1659,6 @@ const Lobbies: React.FC = () => {
             Array.isArray(parsed.ships)
           ) {
             setOpponentGridPositions(parsed.positions);
-            // Convert cached ship fields back from string to BigInt
             const shipsFromCache: Ship[] = (parsed.ships as unknown[]).map(
               (raw) => {
                 const s = raw as {
@@ -1655,16 +1668,14 @@ const Lobbies: React.FC = () => {
                 };
                 return {
                   ...(s as unknown as Ship),
-                  id: BigInt(s.id),
+                  id: Number(s.id),
                   traits: {
                     ...s.traits,
-                    serialNumber: BigInt(s.traits.serialNumber),
+                    serialNumber: Number(s.traits.serialNumber),
                   },
                   shipData: {
                     ...s.shipData,
-                    timestampDestroyed: BigInt(
-                      s.shipData.timestampDestroyed,
-                    ),
+                    timestampDestroyed: Number(s.shipData.timestampDestroyed),
                   },
                 };
               },
@@ -1970,7 +1981,7 @@ const Lobbies: React.FC = () => {
                 </button>
                 {needsPaymentForLobby && additionalLobbyFee ? (
                   <p className="text-center text-xs text-amber font-mono">
-                    // Free games used — lobby fee: {(Number(additionalLobbyFee as bigint) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
+                    // Free games used — lobby fee: {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
                   </p>
                 ) : null}
               </div>
@@ -2339,7 +2350,7 @@ const Lobbies: React.FC = () => {
                   <div className="flex justify-between gap-4">
                     <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
                     <span className="text-amber font-bold shrink-0">
-                      {(Number(additionalLobbyFee as bigint) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
+                      {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
                     </span>
                   </div>
                 ) : null}
@@ -2356,16 +2367,12 @@ const Lobbies: React.FC = () => {
             ) : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <LobbyCreateButton
-                costLimit={BigInt(createFormCostLimit)}
-                turnTime={BigInt(createFormTurnTimeSeconds)}
+                costLimit={createFormCostLimit}
+                turnTime={createFormTurnTimeSeconds}
                 creatorGoesFirst={createForm.creatorGoesFirst}
-                selectedMapId={BigInt(createForm.selectedMapId)}
-                maxScore={BigInt(createFormMaxScore)}
-                value={
-                  needsPaymentForLobby
-                    ? (additionalLobbyFee as bigint) || 0n
-                    : 0n
-                }
+                selectedMapId={Number(createForm.selectedMapId)}
+                maxScore={createFormMaxScore}
+                value={0}
                 reservedJoiner={
                   createForm.reservedJoiner.trim()
                     ? (createForm.reservedJoiner.trim() as `0x${string}`)
@@ -2426,9 +2433,9 @@ const Lobbies: React.FC = () => {
         ) : lobbyList.lobbies.length === 0 ? (
           <div className="text-center text-text-muted">
             [NO OPEN ENGAGEMENTS]
-            {lobbyCount && typeof lobbyCount === "bigint" && lobbyCount > 0n ? (
+            {lobbyCount && lobbyCount > 0 ? (
               <div className="mt-2 text-sm">
-                Total lobbies in system: {lobbyCount.toString()}
+                Total lobbies in system: {lobbyCount}
               </div>
             ) : null}
           </div>
@@ -2439,7 +2446,7 @@ const Lobbies: React.FC = () => {
               key={lobby.basic.id.toString()}
               className={`overflow-hidden border ${
                 address &&
-                lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                lobby.basic.creator === userId
                   ? "border-amber bg-amber/5"
                   : "border-cyan bg-black/30"
               }`}
@@ -2449,7 +2456,7 @@ const Lobbies: React.FC = () => {
               <div
                 className={`flex items-center justify-between px-4 py-2 border-b ${
                   address &&
-                  lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                  lobby.basic.creator === userId
                     ? "border-amber/20 bg-amber/5"
                     : "border-cyan/15 bg-cyan/5"
                 }`}
@@ -2458,7 +2465,7 @@ const Lobbies: React.FC = () => {
                   <h5
                     className={`text-base font-black tracking-wider ${
                       address &&
-                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                      lobby.basic.creator === userId
                         ? "text-amber"
                         : "text-cyan"
                     }`}
@@ -2469,9 +2476,7 @@ const Lobbies: React.FC = () => {
                   >
                     LOBBY #{lobby.basic.id.toString()}
                   </h5>
-                  {address &&
-                    lobby.basic.creator.toLowerCase() ===
-                      address.toLowerCase() && (
+                  {userId === lobby.basic.creator && (
                       <span
                         className="text-[10px] font-bold tracking-widest text-amber/60"
                         style={{
@@ -2501,7 +2506,7 @@ const Lobbies: React.FC = () => {
                   <span
                     className={`text-sm font-bold ${
                       address &&
-                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
+                      lobby.basic.creator === userId
                         ? "text-amber"
                         : "text-text-secondary"
                     }`}
@@ -2531,9 +2536,7 @@ const Lobbies: React.FC = () => {
                       </span>
                       <span
                         className={`text-sm font-bold ${
-                          address &&
-                          lobby.players.joiner.toLowerCase() ===
-                            address.toLowerCase()
+                          lobby.players.joiner === userId
                             ? "text-cyan"
                             : "text-text-secondary"
                         }`}
@@ -2616,10 +2619,10 @@ const Lobbies: React.FC = () => {
                 </div>
 
                 {/* Fleet indicators */}
-                {(lobby.players.creatorFleetId > 0n ||
-                  lobby.players.joinerFleetId > 0n) && (
+                {(lobby.players.creatorFleetId > 0 ||
+                  lobby.players.joinerFleetId > 0) && (
                   <div className="flex flex-wrap gap-2 border-t border-gunmetal/40 pt-2">
-                    {lobby.players.creatorFleetId > 0n && (
+                    {lobby.players.creatorFleetId > 0 && (
                       <button
                         onClick={() => {
                           setViewingFleetId(lobby.players.creatorFleetId);
@@ -2627,9 +2630,7 @@ const Lobbies: React.FC = () => {
                           setShowFleetView(true);
                         }}
                         className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-                          address &&
-                          lobby.basic.creator.toLowerCase() ===
-                            address.toLowerCase()
+                          lobby.basic.creator === userId
                             ? "border-amber text-amber hover:bg-amber/10"
                             : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
                         }`}
@@ -2638,7 +2639,7 @@ const Lobbies: React.FC = () => {
                         CMDR FLEET #{lobby.players.creatorFleetId.toString()}
                       </button>
                     )}
-                    {lobby.players.joinerFleetId > 0n && (
+                    {lobby.players.joinerFleetId > 0 && (
                       <button
                         onClick={() => {
                           setViewingFleetId(lobby.players.joinerFleetId);
@@ -2646,9 +2647,7 @@ const Lobbies: React.FC = () => {
                           setShowFleetView(true);
                         }}
                         className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-                          address &&
-                          lobby.players.joiner.toLowerCase() ===
-                            address.toLowerCase()
+                          lobby.players.joiner === userId
                             ? "border-cyan text-cyan hover:bg-cyan/10"
                             : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
                         }`}
@@ -2665,8 +2664,8 @@ const Lobbies: React.FC = () => {
               <div className="border-t border-gunmetal/40 px-4 py-3">
 
               {lobby.state.status === LobbyStatus.Open &&
-                lobby.basic.creator !== address &&
-                lobby.players.joiner !== address && (
+                lobby.basic.creator !== userId &&
+                lobby.players.joiner !== userId && (
                   <div className="space-y-2">
                     {/* Check if lobby is reserved */}
                     {lobby.players.reservedJoiner &&
@@ -2782,10 +2781,11 @@ const Lobbies: React.FC = () => {
                 )}
 
               {/* Show action buttons for creator */}
-              {lobby.basic.creator === address && (
+              {lobby.basic.creator === userId && (
                 <div className="flex flex-col gap-2">
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId > 0n && (
+                  {lobby.state.status === LobbyStatus.FleetSelection &&
+                    lobby.players.creatorFleetId > 0 &&
+                    lobby.players.joinerFleetId > 0 && (
                       <button
                         type="button"
                         onClick={closeFleetModalAndGoToGames}
@@ -2795,26 +2795,13 @@ const Lobbies: React.FC = () => {
                         GO TO GAMES
                       </button>
                     )}
-                  {lobby.players.creatorFleetId === 0n &&
-                    lobby.players.joiner !==
-                      "0x0000000000000000000000000000000000000000" && (
+                  {lobby.state.status === LobbyStatus.FleetSelection && (
                       <button
                         onClick={() => setSelectedLobby(lobby.basic.id)}
                         className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
                         style={{ borderRadius: 0 }}
                       >
                         SELECT FLEET
-                      </button>
-                    )}
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId === 0n && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        VIEW FLEET SELECTION
                       </button>
                     )}
                   {lobby.state.status !== LobbyStatus.InGame && (
@@ -2839,10 +2826,10 @@ const Lobbies: React.FC = () => {
               )}
 
               {/* Show action buttons for joiner */}
-              {lobby.players.joiner === address && (
+              {lobby.players.joiner === userId && (
                 <div className="flex flex-col gap-2">
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId > 0n && (
+                  {lobby.players.creatorFleetId > 0 &&
+                    lobby.players.joinerFleetId > 0 && (
                       <button
                         type="button"
                         onClick={closeFleetModalAndGoToGames}
@@ -2852,7 +2839,7 @@ const Lobbies: React.FC = () => {
                         GO TO GAMES
                       </button>
                     )}
-                  {lobby.players.joinerFleetId === 0n && (
+                  {lobby.state.status === LobbyStatus.FleetSelection && (
                     <button
                       onClick={() => setSelectedLobby(lobby.basic.id)}
                       className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
@@ -2861,17 +2848,6 @@ const Lobbies: React.FC = () => {
                       SELECT FLEET
                     </button>
                   )}
-                  {lobby.players.joinerFleetId > 0n &&
-                    lobby.players.creatorFleetId === 0n && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        VIEW FLEET SELECTION
-                      </button>
-                    )}
                   {lobby.state.status !== LobbyStatus.InGame && (
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
@@ -2897,8 +2873,8 @@ const Lobbies: React.FC = () => {
               {lobby.state.status === LobbyStatus.FleetSelection &&
                 lobby.players.joiner !==
                   "0x0000000000000000000000000000000000000000" &&
-                (lobby.players.creatorFleetId === 0n ||
-                  lobby.players.joinerFleetId === 0n) && (
+                (lobby.players.creatorFleetId === 0 ||
+                  lobby.players.joinerFleetId === 0) && (
                   <div className="space-y-2">
                     <p className="text-sm text-amber">
                       Fleet selection phase - waiting for both players to select
@@ -2923,33 +2899,30 @@ const Lobbies: React.FC = () => {
       {selectedLobby &&
         (() => {
           const currentLobby = resolvedLobbyForSelected;
-          const normalizedAddress = address ? address.toLowerCase() : null;
           const isCreator = currentLobby
-            ? normalizedAddress != null &&
-              currentLobby.basic.creator.toLowerCase() === normalizedAddress
+            ? currentLobby.basic.creator === userId
             : false;
           const isParticipant =
             currentLobby != null
-              ? normalizedAddress != null &&
-                (currentLobby.basic.creator.toLowerCase() === normalizedAddress ||
-                  currentLobby.players.joiner.toLowerCase() === normalizedAddress)
+              ? currentLobby.basic.creator === userId ||
+                currentLobby.players.joiner === userId
               : false;
           const opponentHasFleet =
             currentLobby != null
               ? isCreator
-                ? currentLobby.players.joinerFleetId > 0n
-                : currentLobby.players.creatorFleetId > 0n
+                ? currentLobby.players.joinerFleetId > 0
+                : currentLobby.players.creatorFleetId > 0
               : false;
           const participantHasFleet =
             currentLobby != null
               ? isCreator
-                ? currentLobby.players.creatorFleetId > 0n
-                : currentLobby.players.joinerFleetId > 0n
+                ? currentLobby.players.creatorFleetId > 0
+                : currentLobby.players.joinerFleetId > 0
               : false;
           const bothPlayersHaveFleets =
             currentLobby != null
-              ? currentLobby.players.creatorFleetId > 0n &&
-                currentLobby.players.joinerFleetId > 0n
+              ? currentLobby.players.creatorFleetId > 0 &&
+                currentLobby.players.joinerFleetId > 0
               : false;
           const totalCost = selectedShips.reduce((sum, shipId) => {
             const ship = ships.find((s) => s.id === shipId);
@@ -3605,7 +3578,7 @@ const Lobbies: React.FC = () => {
                                 })
                                 .map((ship) => {
                                   const canSelect =
-                                    ship.shipData.timestampDestroyed === 0n &&
+                                    !(ship.shipData.timestampDestroyed > 0) &&
                                     ship.shipData.constructed &&
                                     !ship.shipData.inFleet;
 
@@ -3620,6 +3593,7 @@ const Lobbies: React.FC = () => {
                                         if (canSelect) {
                                           handleDragStart(ship.id);
                                           e.dataTransfer.effectAllowed = "move";
+                                          e.dataTransfer.setData("text/plain", ship.id.toString());
                                         }
                                       }}
                                       onDragEnd={handleDragEnd}
@@ -3683,9 +3657,9 @@ const Lobbies: React.FC = () => {
                                   ? tapPendingShipId
                                   : null
                               }
-                              isCreator={currentLobby.basic.creator === address}
+                              isCreator={currentLobby.basic.creator === userId}
                               isCreatorViewer={
-                                currentLobby.basic.creator === address
+                                currentLobby.basic.creator === userId
                               }
                               shipPositions={
                                 showFleetView &&
@@ -3729,7 +3703,9 @@ const Lobbies: React.FC = () => {
                               selectableShipIds={
                                 playerFleetId ? undefined : selectableShipIds
                               }
-                              flippedShipIds={flippedShipIds as bigint[]}
+                              flippedShipIds={flippedShipIds as number[]}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
                               onDragOver={handleDragOver}
                               onDrop={handleDrop}
                               dragOverPosition={dragOverPosition}
@@ -3761,9 +3737,9 @@ const Lobbies: React.FC = () => {
                                   ? tapPendingShipId
                                   : null
                               }
-                              isCreator={currentLobby.basic.creator === address}
+                              isCreator={currentLobby.basic.creator === userId}
                               isCreatorViewer={
-                                currentLobby.basic.creator === address
+                                currentLobby.basic.creator === userId
                               }
                               shipPositions={
                                 showFleetView &&
@@ -3807,7 +3783,9 @@ const Lobbies: React.FC = () => {
                               selectableShipIds={
                                 playerFleetId ? undefined : selectableShipIds
                               }
-                              flippedShipIds={flippedShipIds as bigint[]}
+                              flippedShipIds={flippedShipIds as number[]}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
                               onDragOver={handleDragOver}
                               onDrop={handleDrop}
                               dragOverPosition={dragOverPosition}
@@ -3837,7 +3815,7 @@ const Lobbies: React.FC = () => {
                                 })
                                 .map((ship) => {
                                   const canSelect =
-                                    ship.shipData.timestampDestroyed === 0n &&
+                                    !(ship.shipData.timestampDestroyed > 0) &&
                                     ship.shipData.constructed &&
                                     !ship.shipData.inFleet;
 
@@ -3852,6 +3830,7 @@ const Lobbies: React.FC = () => {
                                         if (canSelect) {
                                           handleDragStart(ship.id);
                                           e.dataTransfer.effectAllowed = "move";
+                                          e.dataTransfer.setData("text/plain", ship.id.toString());
                                         }
                                       }}
                                       onDragEnd={handleDragEnd}
@@ -3987,8 +3966,7 @@ const Lobbies: React.FC = () => {
               <p className="text-sm text-text-secondary">
                 <span className="text-cyan">Owner:</span>{" "}
                 {viewingFleetOwner.slice(0, 6)}…{viewingFleetOwner.slice(-4)}
-                {address &&
-                  viewingFleetOwner.toLowerCase() === address.toLowerCase() && (
+                {userId && viewingFleetOwner === userId && (
                     <span className="ml-2 text-cyan font-bold">(You)</span>
                   )}
               </p>
@@ -4117,7 +4095,7 @@ const Lobbies: React.FC = () => {
                           </div>
                         ) : (
                           <div className="text-center text-amber text-sm">
-                            {shipData.shipData?.timestampDestroyed > 0n
+                            {shipData.shipData?.timestampDestroyed > 0
                               ? `DESTROYED ${formatDestroyedDate(shipData.shipData.timestampDestroyed)}`
                               : "UNDER CONSTRUCTION"}
                           </div>

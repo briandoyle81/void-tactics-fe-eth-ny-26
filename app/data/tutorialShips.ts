@@ -36,7 +36,7 @@ function createShipData(
     shiny: false,
     constructed: true,
     inFleet,
-    timestampDestroyed: 0n,
+    timestampDestroyed: 0,
   };
 }
 
@@ -131,39 +131,39 @@ const TONGS_TRAITS: TutorialCombatTraits = {
 export const TUTORIAL_PLAYER_SHIPS: Ship[] = [
   buildTutorialShip({
     name: "Resolute",
-    id: 1001n,
+    id: 1001,
     owner: TUTORIAL_PLAYER_ADDRESS,
     equipment: RESOLUTE_EQUIPMENT,
     shipData: RESOLUTE_SHIP_DATA,
     traits: RESOLUTE_TRAITS,
     visual: {
-      serialNumber: 1001n,
+      serialNumber: 1001,
       colors: createColors(200, 80, 50, 220, 70, 40),
       variant: 1,
     },
   }),
   buildTutorialShip({
     name: "Vigilant",
-    id: 1002n,
+    id: 1002,
     owner: TUTORIAL_PLAYER_ADDRESS,
     equipment: VIGILANT_EQUIPMENT,
     shipData: TUTORIAL_SHIP_DATA_STANDARD,
     traits: VIGILANT_TRAITS,
     visual: {
-      serialNumber: 1002n,
+      serialNumber: 1002,
       colors: createColors(250, 90, 60, 270, 80, 50),
       variant: 1,
     },
   }),
   buildTutorialShip({
     name: "Sentinel",
-    id: 1003n,
+    id: 1003,
     owner: TUTORIAL_PLAYER_ADDRESS,
     equipment: SENTINEL_EQUIPMENT,
     shipData: TUTORIAL_SHIP_DATA_STANDARD,
     traits: SENTINEL_TRAITS,
     visual: {
-      serialNumber: 1003n,
+      serialNumber: 1003,
       colors: createColors(150, 70, 55, 170, 60, 45),
       variant: 1,
     },
@@ -174,39 +174,39 @@ export const TUTORIAL_PLAYER_SHIPS: Ship[] = [
 export const TUTORIAL_OPPONENT_SHIPS: Ship[] = [
   buildTutorialShip({
     name: "Hammer",
-    id: 2001n,
+    id: 2001,
     owner: TUTORIAL_OPPONENT_ADDRESS,
     equipment: HAMMER_EQUIPMENT,
     shipData: TUTORIAL_SHIP_DATA_STANDARD,
     traits: HAMMER_TRAITS,
     visual: {
-      serialNumber: 2001n,
+      serialNumber: 2001,
       colors: createColors(0, 80, 40, 20, 70, 30),
       variant: 1,
     },
   }),
   buildTutorialShip({
     name: "Anvil",
-    id: 2002n,
+    id: 2002,
     owner: TUTORIAL_OPPONENT_ADDRESS,
     equipment: ANVIL_EQUIPMENT,
     shipData: TUTORIAL_SHIP_DATA_STANDARD,
     traits: ANVIL_TRAITS,
     visual: {
-      serialNumber: 2002n,
+      serialNumber: 2002,
       colors: createColors(10, 70, 35, 30, 60, 25),
       variant: 1,
     },
   }),
   buildTutorialShip({
     name: "Tongs",
-    id: 2003n,
+    id: 2003,
     owner: TUTORIAL_OPPONENT_ADDRESS,
     equipment: TONGS_EQUIPMENT,
     shipData: TUTORIAL_SHIP_DATA_STANDARD,
     traits: TONGS_TRAITS,
     visual: {
-      serialNumber: 2003n,
+      serialNumber: 2003,
       colors: createColors(5, 75, 38, 25, 65, 28),
       variant: 1,
     },

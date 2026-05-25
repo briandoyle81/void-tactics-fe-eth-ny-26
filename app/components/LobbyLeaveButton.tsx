@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useLobbies } from "../hooks/useLobbies";
 
 interface LobbyLeaveButtonProps {
-  lobbyId: bigint;
+  lobbyId: number;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;

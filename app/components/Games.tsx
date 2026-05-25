@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAccount } from "../hooks/useAccount";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useContractEvents } from "../hooks/useContractEvents";
 import GameDisplay from "./GameDisplay";
@@ -9,7 +10,8 @@ import { GameDataView } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 
 const Games: React.FC = () => {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
+  const { userId: address } = useCurrentUser();
   const { games, isLoading, error, refetch } = usePlayerGames();
   const [selectedGame, setSelectedGame] = useState<GameDataView | null>(null);
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -33,8 +35,8 @@ const Games: React.FC = () => {
 
   // Helper function to calculate time remaining for a game
   const calculateTimeRemaining = (game: GameDataView): number => {
-    const turnTimeSec = Number(game.turnState.turnTime || 0n);
-    const turnStartSec = Number(game.turnState.turnStartTime || 0n);
+    const turnTimeSec = Number(game.turnState.turnTime || 0);
+    const turnStartSec = Number(game.turnState.turnStartTime || 0);
     if (!turnTimeSec || !turnStartSec) return 0;
     const nowSec = Math.floor(Date.now() / 1000);
     const elapsed = Math.max(0, nowSec - turnStartSec);
@@ -56,8 +58,8 @@ const Games: React.FC = () => {
       const aInProgress = a.metadata.winner === ZERO_ADDRESS ? 1 : 0;
       const bInProgress = b.metadata.winner === ZERO_ADDRESS ? 1 : 0;
       if (aInProgress !== bInProgress) return bInProgress - aInProgress;
-      const aStarted = Number(a.metadata.startedAt || 0n);
-      const bStarted = Number(b.metadata.startedAt || 0n);
+      const aStarted = Number(a.metadata.startedAt || 0);
+      const bStarted = Number(b.metadata.startedAt || 0);
       return bStarted - aStarted;
     });
     return copy;

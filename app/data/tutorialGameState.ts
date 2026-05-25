@@ -27,8 +27,8 @@ const INITIAL_SHIP_POSITIONS: TutorialShipPosition[] = [
 
 // Create initial attributes for all ships
 function createInitialAttributes(shipId: TutorialShipId): Attributes {
-  const idAsBigInt = BigInt(shipId);
-  const ship = ALL_TUTORIAL_SHIPS.find((s) => s.id === idAsBigInt);
+  const idAsNumber = Number(shipId);
+  const ship = ALL_TUTORIAL_SHIPS.find((s) => s.id === idAsNumber);
   if (!ship) {
     throw new Error(`Ship ${shipId} not found`);
   }
@@ -36,7 +36,7 @@ function createInitialAttributes(shipId: TutorialShipId): Attributes {
   const baseAttrs = calculateAttributesFromContracts(ship);
 
   // Resolute (1001) and Anvil (2002) start with reactor overload.
-  if (ship.id === 1001n || ship.id === 2002n) {
+  if (ship.id === 1001 || ship.id === 2002) {
     return {
       ...baseAttrs,
       reactorCriticalTimer: 2,
@@ -44,7 +44,7 @@ function createInitialAttributes(shipId: TutorialShipId): Attributes {
   }
 
   // Sentinel (1003) starts at a fixed 100 HP for tutorial pacing.
-  if (ship.id === 1003n) {
+  if (ship.id === 1003) {
     return {
       ...baseAttrs,
       hullPoints: 100,
@@ -55,7 +55,7 @@ function createInitialAttributes(shipId: TutorialShipId): Attributes {
 }
 
 export function createInitialTutorialGameState(): SimulatedGameState {
-  // String IDs for tutorial-facing state; bigint IDs remain only inside tutorialShips
+  // String IDs for tutorial-facing state; number IDs remain only inside tutorialShips
   const allShipIds: TutorialShipId[] = ALL_TUTORIAL_SHIPS.map((s) =>
     s.id.toString(),
   );

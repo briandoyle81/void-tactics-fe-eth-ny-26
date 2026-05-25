@@ -44,7 +44,7 @@ export type FleetsReadFunction =
 export type FleetsWriteFunction = "createFleet" | "withdrawFleet";
 
 export function useFleetShipIdsAndPositions(
-  _fleetId?: bigint,
+  _fleetId?: number,
   _options?: { query?: { enabled?: boolean } }
 ) {
   return STUB;

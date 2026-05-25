@@ -11,7 +11,7 @@ interface TransactionButtonProps {
   abi: Abi;
   functionName: string;
   args?: unknown[];
-  value?: bigint;
+  value?: number;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
@@ -21,7 +21,7 @@ interface TransactionButtonProps {
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   onTransactionSent?: (hash: `0x${string}`) => void;
-  onReceipt?: (receipt: { gasUsed: bigint }) => void;
+  onReceipt?: (receipt: { gasUsed: number }) => void;
   validateBeforeTransaction?: () => boolean | string;
   style?: React.CSSProperties;
 }

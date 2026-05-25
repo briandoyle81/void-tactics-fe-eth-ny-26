@@ -30,14 +30,14 @@ export function readFleetDrafts(
 export function writeFleetDraft(
   chainId: number,
   address: string,
-  lobbyId: bigint,
-  shipIds: bigint[],
-  positions: Array<{ shipId: bigint; row: number; col: number }>,
+  lobbyId: number,
+  shipIds: number[],
+  positions: Array<{ shipId: number; row: number; col: number }>,
 ): void {
   if (typeof window === "undefined" || !address) return;
   try {
     const all = readFleetDrafts(chainId, address);
-    const id = lobbyId.toString();
+    const id = String(lobbyId);
     if (shipIds.length === 0) {
       delete all[id];
     } else {
@@ -64,7 +64,7 @@ export function writeFleetDraft(
 export function removeFleetDraft(
   chainId: number,
   address: string,
-  lobbyId: bigint,
+  lobbyId: number,
 ): void {
   writeFleetDraft(chainId, address, lobbyId, [], []);
 }
