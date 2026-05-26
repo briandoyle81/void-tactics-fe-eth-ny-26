@@ -1,24 +1,10 @@
 import type { ShipEquipment, ShipTraits } from "../types/types";
 import rawNames from "./shipNames.json";
+import { calcShipCost, CURRENT_COSTS_VERSION } from "./shipCosts";
+
+export { calcShipCost, CURRENT_COSTS_VERSION };
 
 const SHIP_NAMES = rawNames as string[];
-
-// Equipment costs mirror the on-chain Ships contract cost model
-const EQUIPMENT_COST: Record<string, number[]> = {
-  weapon:  [10, 20, 25, 30],  // laser, railgun, missile, plasma
-  armor:   [0,  10, 20, 30],  // none, light, medium, heavy
-  shields: [0,  10, 20, 30],
-  special: [0,  15, 20, 25],
-};
-
-export function calcShipCost(eq: ShipEquipment): number {
-  return (
-    (EQUIPMENT_COST.weapon[eq.mainWeapon]  ?? 10) +
-    (EQUIPMENT_COST.armor[eq.armor]        ?? 0)  +
-    (EQUIPMENT_COST.shields[eq.shields]    ?? 0)  +
-    (EQUIPMENT_COST.special[eq.special]    ?? 0)
-  );
-}
 
 function rng(seed: number, max: number): number {
   // Simple deterministic pseudo-random based on seed
@@ -29,7 +15,8 @@ function rng(seed: number, max: number): number {
 export function generateShip(
   ownerId: string,
   index: number,
-): { name: string; equipment: ShipEquipment; traits: ShipTraits; cost: number; shiny: boolean } {
+  costs?: import("./shipCosts").CostsConfig,
+): { name: string; equipment: ShipEquipment; traits: ShipTraits; cost: number; costsVersion: number; shiny: boolean } {
   const seed = Date.now() + index * 997;
 
   const equipment: ShipEquipment = {
@@ -65,7 +52,8 @@ export function generateShip(
     name: SHIP_NAMES[nameIdx] ?? "Ship",
     equipment,
     traits,
-    cost: calcShipCost(equipment),
+    cost: calcShipCost(equipment, traits, costs),
+    costsVersion: costs?.version ?? CURRENT_COSTS_VERSION,
     shiny,
   };
 }

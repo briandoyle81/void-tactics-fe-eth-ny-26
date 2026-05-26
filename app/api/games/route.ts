@@ -13,10 +13,16 @@ export async function GET() {
       phase: "ACTIVE",
       OR: [{ player1Id: userId! }, { player2Id: userId! }],
     },
+    include: { lobby: { select: { mapId: true } } },
     orderBy: { createdAt: "desc" },
   });
 
-  const gameViews = games.map((g) => g.state as unknown as GameDataView);
+  const gameViews = games.map((g) => {
+    const state = g.state as unknown as GameDataView;
+    // Patch mapId from lobby for games created before this field was added to state
+    if (!state.mapId && g.lobby.mapId) state.mapId = g.lobby.mapId;
+    return state;
+  });
   return new NextResponse(stringifyWithBigint(gameViews), {
     headers: { "Content-Type": "application/json" },
   });

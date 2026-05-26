@@ -23,7 +23,6 @@ import Maps from "./components/Maps";
 import ShipAttributes from "./components/ShipAttributes";
 import ShipConstructor from "./components/ShipConstructor";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
-import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
 import { useOwnedShips } from "./hooks/useOwnedShips";
 import { usePlayerGames } from "./hooks/usePlayerGames";
@@ -47,7 +46,7 @@ const KNOWN_TAB_NAMES = new Set<string>([
 export default function Home() {
   const { status, address, isConnected } = useAccount();
   const { email, userId } = useCurrentUser();
-  const { isOwner } = useShipAttributesOwner();
+  const isAdmin = !!email && MAP_ADMIN_EMAILS.includes(email);
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const { ships, isLoading: shipsLoading } = useOwnedShips();
   const { games: playerGames, isLoading: gamesLoading } = usePlayerGames();
@@ -279,7 +278,7 @@ export default function Home() {
   }, [
     updateTabScrollHints,
     activeTab,
-    isOwner,
+    isAdmin,
     canAdminShipPurchasePrices,
     showGames,
     showCustomizeShip,
@@ -451,19 +450,10 @@ export default function Home() {
                 const tabs = ["Info", "Manage Navy", "Lobbies"];
                 if (showGames) tabs.push("Games");
                 if (showGames) tabs.push("Profile");
-                if ((!!email && MAP_ADMIN_EMAILS.includes(email)) || activeTab === "Maps") {
-                  tabs.push("Maps");
-                }
+                if (isAdmin || activeTab === "Maps") tabs.push("Maps");
                 if (showCustomizeShip) tabs.push("Customize Ship");
-                if (isOwner || activeTab === "Ship Attributes") {
-                  tabs.push("Ship Attributes");
-                }
-                if (
-                  canAdminShipPurchasePrices ||
-                  activeTab === "Purchase Prices"
-                ) {
-                  tabs.push("Purchase Prices");
-                }
+                if (isAdmin || activeTab === "Ship Attributes") tabs.push("Ship Attributes");
+                if (isAdmin || canAdminShipPurchasePrices || activeTab === "Purchase Prices") tabs.push("Purchase Prices");
                 return tabs;
               })().map((tab) => {
                 const isActive = activeTab === tab;

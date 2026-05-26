@@ -37,6 +37,7 @@ model Ship {
   // traits: { serialNumber, colors: { h1,s1,l1,h2,s2,l2 }, variant, accuracy, hull, speed }
   traits         Json
   cost           Int       @default(0)
+  costsVersion   Int       @default(0)
   shiny          Boolean   @default(false)
   constructed    Boolean   @default(false)
   inFleet        Boolean   @default(false)
@@ -150,6 +151,15 @@ model Map {
   createdAt    DateTime @default(now())
 
   lobbies      Lobby[]
+}
+
+// ── System Config ──────────────────────────────────────────────────────────────
+// Key/value store for admin-managed settings (e.g. ship cost tables).
+
+model Config {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
 
 // ── Player Stats ───────────────────────────────────────────────────────────────

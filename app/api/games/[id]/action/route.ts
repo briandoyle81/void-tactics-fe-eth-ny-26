@@ -144,6 +144,7 @@ export async function POST(
   const now = Date.now();
   let newState: GameDataView = {
     ...state,
+    mapId: state.mapId || game.lobby.mapId || 0,
     shipPositions: [...state.shipPositions],
     shipAttributes: [...state.shipAttributes],
     creatorActiveShipIds: [...state.creatorActiveShipIds],
@@ -311,7 +312,7 @@ export async function POST(
           metadata: { ...newState.metadata, winner: roundEndWin.winner as Address },
         };
       } else {
-        // Start next round
+        // Start next round — turn goes to whoever goes first
         const firstPlayerNextRound = newState.metadata.creatorGoesFirst
           ? newState.metadata.creator
           : newState.metadata.joiner;
@@ -327,17 +328,12 @@ export async function POST(
           },
         };
       }
-    } else if (isCreator && allCreatorMoved) {
-      // Creator done, switch to joiner
+    } else {
+      // One ship per turn: always pass to the opponent after each move
+      const nextTurn = isCreator ? newState.metadata.joiner : newState.metadata.creator;
       newState = {
         ...newState,
-        turnState: { ...newState.turnState, currentTurn: newState.metadata.joiner, turnStartTime: Date.now() },
-      };
-    } else if (!isCreator && allJoinerMoved) {
-      // Joiner done, switch to creator
-      newState = {
-        ...newState,
-        turnState: { ...newState.turnState, currentTurn: newState.metadata.creator, turnStartTime: Date.now() },
+        turnState: { ...newState.turnState, currentTurn: nextTurn, turnStartTime: Date.now() },
       };
     }
   }

@@ -12,9 +12,9 @@ import {
   LastMove,
   GRID_DIMENSIONS,
 } from "../types/types";
-import { useShipsByIds } from "../hooks/useShipsByIds";
+import { useGameShips } from "../hooks/useGameShips";
 import ShipCard from "./ShipCard";
-import { useGetGameMapState } from "../hooks/useMapsContract";
+import { useGetAllPresetMaps } from "../hooks/useMapsContract";
 import { useGetGame } from "../hooks/useGameContract";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { apiMutate } from "../lib/apiMutate";
@@ -705,46 +705,28 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
   }, [gameData, initialGame]);
 
-  // Get game map state directly from the Maps contract
-  const { data: gameMapState, isLoading: mapLoading } = useGetGameMapState(
-    Number(game.metadata.gameId),
+  // Look up the map for this game from the preset maps list
+  const { data: allPresetMaps, isLoading: mapLoading } = useGetAllPresetMaps();
+  const gamePresetMap = React.useMemo(
+    () => allPresetMaps.find((m) => m.id === game.mapId) ?? null,
+    [allPresetMaps, game.mapId],
   );
 
-  // Create grids from contract map (same format as tutorial map grids)
+  // Create grids from the preset map
   const { blockedGrid, scoringGrid, onlyOnceGrid } = React.useMemo(() => {
-    const gameMapData = (gameMapState ?? undefined) as
-      | [
-          Array<{ row: number; col: number }>,
-          Array<{
-            row: number;
-            col: number;
-            points: number;
-            onlyOnce: boolean;
-          }>,
-        ]
-      | undefined;
     return buildMapGridsFromContractMap(
-      gameMapData?.[0],
-      gameMapData?.[1],
+      gamePresetMap?.blockedPositions,
+      gamePresetMap?.scoringPositions,
       GRID_WIDTH,
       GRID_HEIGHT,
     );
-  }, [gameMapState]);
+  }, [gamePresetMap]);
 
-  // Get all ship IDs that may need rendering in this view.
-  // Include active IDs plus any IDs present in shipPositions (destroyed/fled can
-  // now be present there and still need metadata for tooltip/render path).
-  const allShipIds = React.useMemo(() => {
-    const ids = new Set<number>();
-    game.creatorActiveShipIds.forEach((id) => ids.add(id));
-    game.joinerActiveShipIds.forEach((id) => ids.add(id));
-    game.shipPositions.forEach((shipPosition) => ids.add(shipPosition.shipId));
-    return Array.from(ids);
-  }, [game.creatorActiveShipIds, game.joinerActiveShipIds, game.shipPositions]);
-
-  // Fetch ship details for all ships in the game
-  const { ships: gameShips, isLoading: shipsLoading } =
-    useShipsByIds(allShipIds);
+  // Fetch ship details for all ships in the game via the game-scoped endpoint
+  // (returns both players' ships, not just the current user's)
+  const { ships: gameShips, isLoading: shipsLoading } = useGameShips(
+    game.metadata.gameId,
+  );
 
   // Create a map of ship ID to ship object for quick lookup
   const shipMap = React.useMemo(() => {

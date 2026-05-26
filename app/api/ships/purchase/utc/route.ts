@@ -3,6 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
 import { PURCHASE_TIERS } from "@/app/lib/purchaseTiers";
+import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
 
 export async function POST(req: NextRequest) {
   const { userId, error } = await requireAuth();
@@ -22,13 +23,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Insufficient UTC balance" }, { status: 402 });
   }
 
+  const costs = await getCurrentCosts();
+
   const [, ...ships] = await prisma.$transaction([
     prisma.user.update({
       where: { id: userId! },
       data: { creditBalance: { decrement: tierConfig.priceUtc } },
     }),
     ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
-      const { name, equipment, traits, cost, shiny } = generateShip(userId!, i);
+      const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
       return prisma.ship.create({
         data: {
           ownerId: userId!,
@@ -36,6 +39,7 @@ export async function POST(req: NextRequest) {
           equipment: equipment as never,
           traits: { ...traits, serialNumber: traits.serialNumber.toString() } as never,
           cost,
+          costsVersion,
           shiny,
           constructed: false,
         },

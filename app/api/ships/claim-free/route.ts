@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
+import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
 
 const FREE_SHIPS_PER_CLAIM = 10;
 // Cooldown before a user can claim again (28 days in ms)
@@ -24,9 +25,11 @@ export async function POST() {
     }
   }
 
+  const costs = await getCurrentCosts();
+
   const ships = await prisma.$transaction(
     Array.from({ length: FREE_SHIPS_PER_CLAIM }, (_, i) => {
-      const { name, equipment, traits, cost, shiny } = generateShip(userId!, i);
+      const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
       return prisma.ship.create({
         data: {
           ownerId: userId!,
@@ -36,6 +39,7 @@ export async function POST() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           traits: { ...traits, serialNumber: traits.serialNumber.toString() } as any,
           cost,
+          costsVersion,
           shiny,
           constructed: false,
         },

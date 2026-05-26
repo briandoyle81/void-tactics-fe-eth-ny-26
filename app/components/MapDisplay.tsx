@@ -424,6 +424,7 @@ export function MapDisplay({
                     if (isShipDraggable && ship && "id" in ship) {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", ship.id.toString());
+                      setHoveredCell(null);
                       onDragStart?.(ship.id);
                     }
                   }}

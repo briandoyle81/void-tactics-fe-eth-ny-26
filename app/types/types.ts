@@ -383,6 +383,7 @@ export interface GameDataView {
   metadata: GameMetadata;
   turnState: GameTurnState;
   gridDimensions: GameGridDimensions;
+  mapId: number;
   maxScore: number;
   creatorScore: number;
   joinerScore: number;

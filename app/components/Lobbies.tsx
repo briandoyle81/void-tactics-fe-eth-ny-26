@@ -250,32 +250,26 @@ const Lobbies: React.FC = () => {
   );
 
   // Fleet ship data fetching
-  const { data: fleetShipIds, isLoading: fleetShipIdsLoading } = useFleetsRead(
-    "getFleetShipIds",
-    viewingFleetId ? [viewingFleetId] : undefined,
-  );
-  // Also fetch positions together when available
-  const { data: fleetIdsAndPositions } = useFleetsRead(
-    "getFleetShipIdsAndPositions",
-    viewingFleetId ? [viewingFleetId] : undefined,
-  );
+  const [viewingFleetShips, setViewingFleetShips] = React.useState<Ship[]>([]);
+  const [fleetShipsLoading, setFleetShipsLoading] = React.useState(false);
 
-  const { data: fleetShips, isLoading: fleetShipsLoading } = useShipsRead(
-    "getShipsByIds",
-    fleetShipIds && Array.isArray(fleetShipIds) && fleetShipIds.length > 0
-      ? [fleetShipIds]
-      : undefined,
-  );
-
-  // Cache fleet ships data
   React.useEffect(() => {
-    if (fleetShips && Array.isArray(fleetShips)) {
-      const ships = fleetShips as Ship[];
-      if (ships.length > 0) {
-        cacheShipsData(ships);
-      }
-    }
-  }, [fleetShips]);
+    if (!viewingFleetId) { setViewingFleetShips([]); return; }
+    let cancelled = false;
+    setFleetShipsLoading(true);
+    fetch(`/api/fleets/${viewingFleetId}`)
+      .then((r) => r.json())
+      .then((data: { ships?: Ship[] }) => {
+        if (!cancelled) {
+          const ships = data.ships ?? [];
+          setViewingFleetShips(ships);
+          if (ships.length > 0) cacheShipsData(ships);
+        }
+      })
+      .catch(() => { if (!cancelled) setViewingFleetShips([]); })
+      .finally(() => { if (!cancelled) setFleetShipsLoading(false); });
+    return () => { cancelled = true; };
+  }, [viewingFleetId]);
 
   /**
    * Single-lobby reads (`useLobby` / getLobby) can lag the player's lobby list right
@@ -344,52 +338,41 @@ const Lobbies: React.FC = () => {
   }, [resolvedLobbyForSelected, userId]);
 
   // Fetch the player's existing fleet data when viewing their own fleet
-  const { data: playerFleetIdsAndPositions } = useFleetsRead(
-    "getFleetShipIdsAndPositions",
-    playerFleetId ? [playerFleetId] : undefined,
-    { query: { enabled: !!playerFleetId } },
-  );
+  // Fetch the player's own submitted fleet (ships + positions) from the API
+  const [playerFleetData, setPlayerFleetData] = React.useState<{
+    ships: Ship[];
+    positions: Array<{ shipId: number; row: number; col: number }>;
+  } | null>(null);
+  const lastLoadedPlayerFleetId = React.useRef<number | null>(null);
 
-  // Extract player fleet ship IDs for fetching Ship objects
-  const playerFleetShipIds = React.useMemo(() => {
-    if (!playerFleetIdsAndPositions) return [];
-    const tuple = playerFleetIdsAndPositions as [
-      number[],
-      Array<{ row: number; col: number }>,
-    ];
-    return (tuple?.[0] || []) as number[];
-  }, [playerFleetIdsAndPositions]);
-
-  // Fetch player's fleet Ship objects so they can be displayed on the grid
-  const { data: playerFleetShipsData } = useShipsRead(
-    "getShipsByIds",
-    playerFleetShipIds.length > 0 ? [playerFleetShipIds] : undefined,
-  );
-
-  // Cache player fleet ships data
   React.useEffect(() => {
-    if (playerFleetShipsData && Array.isArray(playerFleetShipsData)) {
-      const ships = playerFleetShipsData as Ship[];
-      if (ships.length > 0) {
-        cacheShipsData(ships);
-      }
+    if (!playerFleetId) {
+      setPlayerFleetData(null);
+      lastLoadedPlayerFleetId.current = null;
+      return;
     }
-  }, [playerFleetShipsData]);
+    if (lastLoadedPlayerFleetId.current === playerFleetId) return;
+    fetch(`/api/fleets/${playerFleetId}`)
+      .then((r) => r.json())
+      .then((data: { ships?: Ship[]; positions?: Array<{ shipId: number; row: number; col: number }> }) => {
+        const ships = data.ships ?? [];
+        const positions = data.positions ?? [];
+        setPlayerFleetData({ ships, positions });
+        if (ships.length > 0) cacheShipsData(ships);
+        lastLoadedPlayerFleetId.current = playerFleetId;
+      })
+      .catch(() => {});
+  }, [playerFleetId]);
+
+  const playerFleetIdsAndPositions = playerFleetData;
 
   // Normalize player fleet ships
-  const playerFleetShips = React.useMemo(() => {
-    const ships = (playerFleetShipsData as Ship[]) || [];
-    // Ensure all ships have the required structure
-    return ships.filter(
-      (ship): ship is Ship =>
-        !!ship &&
-        !!ship.id &&
-        !!ship.equipment &&
-        !!ship.shipData &&
-        !!ship.traits &&
-        !!ship.owner,
-    );
-  }, [playerFleetShipsData]);
+  const playerFleetShips = React.useMemo(
+    () => playerFleetData?.ships.filter(
+      (ship): ship is Ship => !!ship?.id && !!ship.equipment && !!ship.shipData && !!ship.traits && !!ship.owner,
+    ) ?? [],
+    [playerFleetData],
+  );
 
   const resolveFleetPickerShip = useCallback(
     (shipId: number): Ship | undefined =>
@@ -536,58 +519,30 @@ const Lobbies: React.FC = () => {
     shipPositions,
   ]);
 
-  // Load player's existing fleet into selection state when modal opens
+  // Load player's existing fleet into selection state when fleet data arrives
   useEffect(() => {
     if (
       selectedLobby &&
       playerFleetId &&
-      playerFleetIdsAndPositions &&
+      playerFleetData &&
       lastLoadedFleetIdRef.current !== playerFleetId
     ) {
-      const tuple = playerFleetIdsAndPositions as [
-        number[],
-        Array<{ row: number; col: number }>,
-      ];
-      const ids: number[] = (tuple?.[0] || []) as number[];
-      const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
-        []) as Array<{ row: number; col: number }>;
-
-      // Ensure IDs are numbers (contract reads can return strings/numbers)
-      const numberIds = ids.map((id) => Number(id));
-      if (numberIds.length > 0) {
-        setSelectedShips(numberIds);
-        setShipPositions(
-          numberIds.map((id, i) => ({
-            shipId: id,
-            row: positions?.[i]?.row ?? 0,
-            col: positions?.[i]?.col ?? 0,
-          })),
-        );
+      const { ships, positions } = playerFleetData;
+      const shipIds = ships.map((s) => s.id);
+      if (shipIds.length > 0) {
+        setSelectedShips(shipIds);
+        setShipPositions(positions);
         lastLoadedFleetIdRef.current = playerFleetId;
       }
     } else if (!selectedLobby || !playerFleetId) {
-      // Clear the ref when modal closes or no fleet exists
       lastLoadedFleetIdRef.current = null;
     }
-  }, [selectedLobby, playerFleetId, playerFleetIdsAndPositions]);
+  }, [selectedLobby, playerFleetId, playerFleetData]);
 
-  // Normalize opponent positions for MapDisplay when viewing a fleet
-  const opponentPositions = React.useMemo(() => {
-    if (!fleetIdsAndPositions)
-      return [] as Array<{ shipId: number; row: number; col: number }>;
-    const tuple = fleetIdsAndPositions as [
-      number[],
-      Array<{ row: number; col: number }>,
-    ];
-    const ids: number[] = (tuple?.[0] || []) as number[];
-    const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
-      []) as Array<{ row: number; col: number }>;
-    return ids.map((id, i) => ({
-      shipId: id,
-      row: positions?.[i]?.row ?? 0,
-      col: positions?.[i]?.col ?? 0,
-    }));
-  }, [fleetIdsAndPositions]);
+  const opponentPositions = React.useMemo(
+    () => [] as Array<{ shipId: number; row: number; col: number }>,
+    [],
+  );
 
   // Load opponent ship objects using existing ships contract reader
   const { data: opponentShipsData } = useShipsRead(
@@ -801,6 +756,30 @@ const Lobbies: React.FC = () => {
     setDraggedShipId(null);
     setDragOverPosition(null);
     lastDragOverPositionRef.current = null;
+  };
+
+  const [isDraggingOverList, setIsDraggingOverList] = React.useState(false);
+
+  const handleListDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setIsDraggingOverList(true);
+  };
+
+  const handleListDragLeave = () => {
+    setIsDraggingOverList(false);
+  };
+
+  const handleListDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverList(false);
+    const data = e.dataTransfer.getData("text/plain");
+    const shipId = draggedShipId ?? (data && /^\d+$/.test(data) ? Number(data) : null);
+    if (!shipId) return;
+    setSelectedShips((prev) => prev.filter((id) => id !== shipId));
+    setShipPositions((prev) => prev.filter((p) => p.shipId !== shipId));
+    setDraggedShipId(null);
+    setDragOverPosition(null);
   };
 
   const handleDragOver = (row: number, col: number, e: React.DragEvent) => {
@@ -1508,45 +1487,34 @@ const Lobbies: React.FC = () => {
   >([]);
   const [opponentGridShips, setOpponentGridShips] = React.useState<Ship[]>([]);
 
-  // Hook read for ids+positions when opponent fleet exists
-  const { data: oppIdsPos } = useFleetsRead(
-    "getFleetShipIdsAndPositions",
-    opponentFleetIdForGrid ? [opponentFleetIdForGrid] : undefined,
-    { query: { enabled: !!opponentFleetIdForGrid } },
-  );
+  // Fetch opponent fleet ships + positions when their fleet ID becomes known
+  const opponentGridPositionsFromHook = opponentGridPositions;
+  const opponentGridShipsData = opponentGridShips;
 
-  // Normalize to positions and ids
-  const opponentGridPositionsFromHook = React.useMemo(() => {
-    if (!oppIdsPos)
-      return [] as Array<{ shipId: number; row: number; col: number }>;
-    const tuple = oppIdsPos as [number[], Array<{ row: number; col: number }>];
-    const ids: number[] = (tuple?.[0] || []) as number[];
-    const positions: Array<{ row: number; col: number }> = (tuple?.[1] ||
-      []) as Array<{ row: number; col: number }>;
-    return ids.map((id, i) => ({
-      shipId: id,
-      row: positions?.[i]?.row ?? 0,
-      col: positions?.[i]?.col ?? 0,
-    }));
-  }, [oppIdsPos]);
+  const lastFetchedOpponentFleetId = React.useRef<number | null>(null);
 
-  // Fetch opponent ships when we have ids
-  const { data: opponentGridShipsData } = useShipsRead(
-    "getShipsByIds",
-    opponentGridPositionsFromHook.length > 0
-      ? [opponentGridPositionsFromHook.map((p) => p.shipId)]
-      : undefined,
-  );
-
-  // Cache opponent grid ships data
   React.useEffect(() => {
-    if (opponentGridShipsData && Array.isArray(opponentGridShipsData)) {
-      const ships = opponentGridShipsData as Ship[];
-      if (ships.length > 0) {
-        cacheShipsData(ships);
-      }
+    if (!opponentFleetIdForGrid) {
+      setOpponentGridPositions([]);
+      setOpponentGridShips([]);
+      lastFetchedOpponentFleetId.current = null;
+      return;
     }
-  }, [opponentGridShipsData]);
+    // Skip if we already have this fleet loaded
+    if (lastFetchedOpponentFleetId.current === opponentFleetIdForGrid) return;
+
+    fetch(`/api/fleets/${opponentFleetIdForGrid}`)
+      .then((r) => r.json())
+      .then((data: { ships?: Ship[]; positions?: Array<{ shipId: number; row: number; col: number }> }) => {
+        const ships = data.ships ?? [];
+        const positions = data.positions ?? [];
+        setOpponentGridPositions(positions);
+        setOpponentGridShips(ships);
+        if (ships.length > 0) cacheShipsData(ships);
+        lastFetchedOpponentFleetId.current = opponentFleetIdForGrid;
+      })
+      .catch(() => {});
+  }, [opponentFleetIdForGrid]);
 
   // Opponent attributes (grid preview)
   const opponentGridShipIds = React.useMemo(
@@ -1612,6 +1580,10 @@ const Lobbies: React.FC = () => {
   }, [ships, opponentGridShipsData, playerFleetShips]);
 
   // Get attributes for player's fleet ships
+  const playerFleetShipIds = React.useMemo(
+    () => playerFleetShips.map((s) => s.id),
+    [playerFleetShips],
+  );
   const { attributes: playerFleetAttributes } =
     useShipAttributesByIds(playerFleetShipIds);
 
@@ -3559,7 +3531,12 @@ const Lobbies: React.FC = () => {
                         {/* Ship Selection Grid - 1/4 width */}
                         {!playerFleetId && (
                           <div className="w-1/4 h-full">
-                            <div className="grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh]">
+                            <div
+                              className={`grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh] ${isDraggingOverList ? "ring-2 ring-inset ring-warning-red/50" : ""}`}
+                              onDragOver={handleListDragOver}
+                              onDragLeave={handleListDragLeave}
+                              onDrop={handleListDrop}
+                            >
                               {filteredShips
                                 .sort((a, b) => {
                                   // Selected ships first
@@ -3796,7 +3773,12 @@ const Lobbies: React.FC = () => {
                         {/* Ship Selection Grid - 1/4 width (right for joiner) */}
                         {!playerFleetId && (
                           <div className="w-1/4 h-full">
-                            <div className="grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh]">
+                            <div
+                              className={`grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh] ${isDraggingOverList ? "ring-2 ring-inset ring-warning-red/50" : ""}`}
+                              onDragOver={handleListDragOver}
+                              onDragLeave={handleListDragLeave}
+                              onDrop={handleListDrop}
+                            >
                               {filteredShips
                                 .sort((a, b) => {
                                   // Selected ships first
@@ -3973,16 +3955,13 @@ const Lobbies: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {fleetShipIdsLoading || fleetShipsLoading ? (
+              {fleetShipsLoading ? (
                 <div className="py-8 font-mono text-xs text-text-muted tracking-widest animate-pulse text-center">
                   &gt;&gt; ACQUIRING FLEET DATA...
                 </div>
-              ) : fleetShips &&
-                Array.isArray(fleetShips) &&
-                fleetShips.length > 0 ? (
+              ) : viewingFleetShips.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {fleetShips.map((ship: unknown, index: number) => {
-                    const shipData = ship as Ship;
+                  {viewingFleetShips.map((shipData: Ship, index: number) => {
                     return (
                       <div
                         key={shipData.id?.toString() || index}

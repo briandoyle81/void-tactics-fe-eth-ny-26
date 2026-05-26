@@ -18,7 +18,7 @@ export function dbShipToShip(db: DbShip): Ship {
 
   const shipData: ShipData = {
     shipsDestroyed: db.shipsDestroyed,
-    costsVersion: 1,
+    costsVersion: db.costsVersion,
     cost: db.cost,
     shiny: db.shiny,
     constructed: db.constructed,

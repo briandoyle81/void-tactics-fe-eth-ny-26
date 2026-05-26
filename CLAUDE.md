@@ -85,6 +85,14 @@ Only true dependencies belong in dependency arrays — don't include stable refe
 
 `@/*` maps to the repo root (e.g., `@/app/config/contracts` resolves to `./app/config/contracts`).
 
+## Security & Admin
+
+API route security mirrors the smart contract pattern: `requireAuth()` establishes identity; DB queries filter by `userId`/`ownerId` so a caller gets 404/403 rather than another player's data. See `SECURITY_AND_ADMIN.md` for the full model.
+
+**Admin access** is email-gated via `MAP_ADMIN_EMAILS` in `app/config/alpha.ts`. The admin email (`briandoyle81@gmail.com`) sees a **[SHIP ATTRIBUTES]** tab with an editable ship cost table. Saving bumps `costsVersion` and recalculates every ship in the DB.
+
+**Ship costs** live in `app/lib/shipCosts.ts` (code defaults) and the DB `Config` table (key `"ship_costs"`, admin-editable at runtime). `calcShipCost()` is the single source of truth used by ship generation and recalculation. When the contract's `setCosts` changes: update via the admin panel → Save & Recalculate.
+
 ## Game Display Parity Rule
 
 `SimulatedGameDisplay.tsx` (tutorial game view) and `GameDisplay.tsx` (live game view) must always look and feel identical. Any visual or layout change to one must be applied to the other.
