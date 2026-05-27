@@ -36,11 +36,20 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as { costs: CostsConfig };
   const { costs } = body;
 
-  // Basic validation
+  // Basic validation — lengths must match DEFAULT_COSTS exactly
+  const EXPECTED_LENGTHS: Record<string, number> = {
+    accuracy: DEFAULT_COSTS.accuracy.length,
+    hull: DEFAULT_COSTS.hull.length,
+    speed: DEFAULT_COSTS.speed.length,
+    mainWeapon: DEFAULT_COSTS.mainWeapon.length,
+    armor: DEFAULT_COSTS.armor.length,
+    shields: DEFAULT_COSTS.shields.length,
+    special: DEFAULT_COSTS.special.length,
+  };
   const arrays = ["accuracy", "hull", "speed", "mainWeapon", "armor", "shields", "special"] as const;
   for (const key of arrays) {
-    if (!Array.isArray(costs[key]) || costs[key].some((v) => typeof v !== "number" || v < 0)) {
-      return NextResponse.json({ error: `Invalid ${key}` }, { status: 400 });
+    if (!Array.isArray(costs[key]) || costs[key].length !== EXPECTED_LENGTHS[key] || costs[key].some((v) => typeof v !== "number" || v < 0)) {
+      return NextResponse.json({ error: `Invalid ${key}: must be an array of ${EXPECTED_LENGTHS[key]} non-negative numbers` }, { status: 400 });
     }
   }
   if (typeof costs.baseCost !== "number" || costs.baseCost < 0) {

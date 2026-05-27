@@ -15,9 +15,17 @@ export async function POST(
 
   const game = await prisma.game.findFirst({
     where: { id: gameId, OR: [{ player1Id: userId! }, { player2Id: userId! }] },
+    include: { lobby: true },
   });
   if (!game) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (game.phase !== "ACTIVE") return NextResponse.json({ error: "Game not active" }, { status: 409 });
+
+  const state = game.state as { turnState?: { turnStartTime?: number } };
+  const turnStartTime = state.turnState?.turnStartTime ?? 0;
+  const elapsedMs = turnStartTime > 0 ? Date.now() - turnStartTime : Infinity;
+  if (elapsedMs < game.lobby.turnTimeSeconds * 1000) {
+    return NextResponse.json({ error: "Turn has not timed out yet" }, { status: 409 });
+  }
 
   // The winner is the player whose turn it is NOT (the other player let time run out)
   const winnerId = game.currentTurn === game.player1Id ? game.player2Id : game.player1Id;

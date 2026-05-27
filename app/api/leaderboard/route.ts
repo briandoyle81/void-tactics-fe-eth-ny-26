@@ -21,7 +21,7 @@ export async function GET() {
 
   const entries = rows.map((row, idx) => ({
     rank: idx + 1,
-    displayName: row.user.username ?? row.user.email.split("@")[0],
+    displayName: row.user.username ?? `Player_${row.user.id.slice(0, 6)}`,
     wins: row.wins,
     losses: row.losses,
     draws: row.draws,

@@ -44,9 +44,13 @@ export function validateCustomization(
   equipment: ShipEquipmentInput,
   traits: ShipTraitsInput,
 ): string | null {
-  if (traits.accuracy > 2 || traits.accuracy < 0) return "Accuracy must be 0, 1, or 2";
-  if (traits.hull > 2 || traits.hull < 0) return "Hull must be 0, 1, or 2";
-  if (traits.speed > 2 || traits.speed < 0) return "Speed must be 0, 1, or 2";
+  if (!Number.isInteger(traits.accuracy) || traits.accuracy < 0 || traits.accuracy > 2) return "Accuracy must be 0, 1, or 2";
+  if (!Number.isInteger(traits.hull) || traits.hull < 0 || traits.hull > 2) return "Hull must be 0, 1, or 2";
+  if (!Number.isInteger(traits.speed) || traits.speed < 0 || traits.speed > 2) return "Speed must be 0, 1, or 2";
+  if (!Number.isInteger(equipment.mainWeapon) || equipment.mainWeapon < 0 || equipment.mainWeapon > 3) return "mainWeapon must be 0–3";
+  if (!Number.isInteger(equipment.armor) || equipment.armor < 0 || equipment.armor > 3) return "armor must be 0–3";
+  if (!Number.isInteger(equipment.shields) || equipment.shields < 0 || equipment.shields > 3) return "shields must be 0–3";
+  if (!Number.isInteger(equipment.special) || equipment.special < 0 || equipment.special > 3) return "special must be 0–3";
   if (equipment.armor > 0 && equipment.shields > 0) return "Cannot equip both armor and shields";
   return null;
 }

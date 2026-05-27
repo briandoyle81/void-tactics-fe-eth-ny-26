@@ -94,6 +94,16 @@ export async function POST(req: NextRequest) {
     maxScore = 3,
   } = body;
 
+  if (!Number.isInteger(turnTimeSeconds) || turnTimeSeconds < 60 || turnTimeSeconds > 86400) {
+    return NextResponse.json({ error: "turnTimeSeconds must be between 60 and 86400" }, { status: 400 });
+  }
+  if (!Number.isInteger(maxScore) || maxScore < 50 || maxScore > 200) {
+    return NextResponse.json({ error: "maxScore must be between 50 and 200" }, { status: 400 });
+  }
+  if (!Number.isInteger(costLimit) || costLimit < 500 || costLimit > 3000) {
+    return NextResponse.json({ error: "costLimit must be between 500 and 3000" }, { status: 400 });
+  }
+
   const [economy, user] = await Promise.all([
     getEconomyConfig(),
     prisma.user.findUnique({ where: { id: userId! } }),

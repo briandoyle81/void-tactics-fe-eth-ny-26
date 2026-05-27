@@ -112,6 +112,14 @@ export async function POST(
   const { shipId, row, col, actionType, targetShipId } = body;
   const specialType = body.specialType ?? 0;
 
+  // Validate numeric fields — reject NaN, floats, and out-of-range enums
+  if (!Number.isInteger(shipId) || shipId <= 0) return NextResponse.json({ error: "Invalid shipId" }, { status: 400 });
+  if (!Number.isInteger(row) || row < 0 || row > 99) return NextResponse.json({ error: "Invalid row" }, { status: 400 });
+  if (!Number.isInteger(col) || col < 0 || col > 99) return NextResponse.json({ error: "Invalid col" }, { status: 400 });
+  if (!Number.isInteger(actionType) || actionType < 0 || actionType > 6) return NextResponse.json({ error: "Invalid actionType" }, { status: 400 });
+  if (!Number.isInteger(targetShipId) || targetShipId < 0) return NextResponse.json({ error: "Invalid targetShipId" }, { status: 400 });
+  if (!Number.isInteger(specialType) || specialType < 0 || specialType > 3) return NextResponse.json({ error: "Invalid specialType" }, { status: 400 });
+
   const [game, economy] = await Promise.all([
     prisma.game.findFirst({
       where: {
@@ -219,7 +227,11 @@ export async function POST(
       moveShipTo(shipId, row, col);
 
       if (specialType === 1) {
-        // EMP: add status effect + always tick reactor timer (EMP bypasses HP)
+        // EMP: target must be an enemy ship
+        const opponentActiveIds = isCreator ? state.joinerActiveShipIds : state.creatorActiveShipIds;
+        if (!opponentActiveIds.some((id) => id === targetShipId)) {
+          return NextResponse.json({ error: "Can only use EMP on enemy ships" }, { status: 400 });
+        }
         const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
         if (targetIdx !== -1) {
           const newAttrs = [...newState.shipAttributes];
@@ -239,7 +251,10 @@ export async function POST(
           }
         }
       } else if (specialType === 2) {
-        // Repair: heal target
+        // Repair: target must be your own ship
+        if (!myActiveShipIds.some((id) => id === targetShipId)) {
+          return NextResponse.json({ error: "Can only repair your own ships" }, { status: 400 });
+        }
         const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
         if (targetIdx !== -1) {
           const newAttrs = [...newState.shipAttributes];
@@ -279,6 +294,9 @@ export async function POST(
     case ActionType.Assist: {
       if (!targetShipId) {
         return NextResponse.json({ error: "Target required for assist" }, { status: 400 });
+      }
+      if (!myActiveShipIds.some((id) => id === targetShipId)) {
+        return NextResponse.json({ error: "Can only assist your own ships" }, { status: 400 });
       }
       moveShipTo(shipId, row, col);
       const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
@@ -524,7 +542,7 @@ export async function POST(
         });
       }
       await tx.ship.update({
-        where: { id: shipId },
+        where: { id: shipId, ownerId: userId! },
         data: { shipsDestroyed: { increment: killCount } },
       });
     }
