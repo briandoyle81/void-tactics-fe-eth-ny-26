@@ -19,10 +19,13 @@ export function generateShip(
 ): { name: string; equipment: ShipEquipment; traits: ShipTraits; cost: number; costsVersion: number; shiny: boolean } {
   const seed = Date.now() + index * 997;
 
+  // armor and shields are mutually exclusive: roll a shared defense level and a type
+  const defenseLevel = rng(seed + 2, 4); // 0–3
+  const preferArmor  = rng(seed + 3, 2) === 0; // 50/50 armor vs shields
   const equipment: ShipEquipment = {
     mainWeapon: rng(seed + 1, 4),
-    armor:      rng(seed + 2, 4),
-    shields:    rng(seed + 3, 4),
+    armor:      defenseLevel > 0 && preferArmor  ? defenseLevel : 0,
+    shields:    defenseLevel > 0 && !preferArmor ? defenseLevel : 0,
     special:    rng(seed + 4, 4),
   };
 

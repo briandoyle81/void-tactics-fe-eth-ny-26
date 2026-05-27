@@ -514,6 +514,8 @@ export async function POST(
   );
   const killCount = [...opponentActivesBefore].filter((id) => !opponentActivesAfter.has(id)).length;
 
+  const submittedRound = Number(state.turnState.currentRound);
+
   // Persist
   await prisma.$transaction(async (tx) => {
     await tx.game.update({
@@ -525,6 +527,16 @@ export async function POST(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         phase: gamePhase as any,
         winnerId,
+      },
+    });
+
+    await tx.gameTurn.create({
+      data: {
+        gameId,
+        playerId: userId!,
+        round: submittedRound,
+        actions: [{ actionType, shipId, row, col, oldRow, oldCol, targetShipId, specialType }],
+        snapshot: newState as object,
       },
     });
 

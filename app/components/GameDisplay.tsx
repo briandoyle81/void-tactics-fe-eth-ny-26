@@ -18,6 +18,7 @@ import { useGetAllPresetMaps } from "../hooks/useMapsContract";
 import { useGetGame } from "../hooks/useGameContract";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { apiMutate } from "../lib/apiMutate";
+import { apiFetch } from "../lib/apiFetch";
 import { useGameStream } from "../hooks/useGameStream";
 import {
   useContractEvents,
@@ -164,9 +165,88 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Use the fetched game data if available, otherwise fall back to initial game
   const game = gameData || initialGame;
+
+  // ── Replay ──────────────────────────────────────────────────────────────────
+  type ReplayTurn = {
+    id: number;
+    playerId: string;
+    round: number;
+    actions: unknown;
+    snapshot: unknown;
+    submittedAt: string;
+  };
+  const [replayStep, setReplayStep] = useState<number | null>(null); // null=live, -1=initial, 0+=turn index
+  const [replayTurns, setReplayTurns] = useState<ReplayTurn[]>([]);
+  const [replayInitialState, setReplayInitialState] = useState<GameDataView | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayAutoPlay, setReplayAutoPlay] = useState(false);
+  const replayAutoPlayRef = React.useRef(false);
+  const isReplaying = replayStep !== null;
+
+  const replaySnapshotGame: GameDataView | null = React.useMemo(() => {
+    if (!isReplaying) return null;
+    if (replayStep < 0) return replayInitialState;
+    const turn = replayTurns[replayStep];
+    if (!turn?.snapshot) return null;
+    return turn.snapshot as GameDataView;
+  }, [isReplaying, replayStep, replayInitialState, replayTurns]);
+
+  const displayGame: GameDataView = replaySnapshotGame ?? game;
+
+  const fetchAndStartReplay = React.useCallback(async () => {
+    if (replayLoading) return;
+    setReplayLoading(true);
+    try {
+      const data = await apiFetch<{ initialState: GameDataView | null; turns: ReplayTurn[] }>(
+        `/api/games/${game.metadata.gameId}/replay`,
+      );
+      setReplayInitialState(data.initialState);
+      setReplayTurns(data.turns);
+      setReplayStep(-1);
+    } catch {
+      // ignore fetch errors
+    } finally {
+      setReplayLoading(false);
+    }
+  }, [game.metadata.gameId, replayLoading]);
+
+  const exitReplay = React.useCallback(() => {
+    setReplayStep(null);
+    setReplayAutoPlay(false);
+    replayAutoPlayRef.current = false;
+  }, []);
+
+  React.useEffect(() => {
+    replayAutoPlayRef.current = replayAutoPlay;
+  }, [replayAutoPlay]);
+
+  React.useEffect(() => {
+    if (!replayAutoPlay || !isReplaying) return;
+    const total = replayTurns.length;
+    const id = setInterval(() => {
+      if (!replayAutoPlayRef.current) {
+        clearInterval(id);
+        return;
+      }
+      setReplayStep((prev) => {
+        if (prev === null) return null;
+        const next = prev + 1;
+        if (next >= total) {
+          setReplayAutoPlay(false);
+          replayAutoPlayRef.current = false;
+          clearInterval(id);
+          return total - 1;
+        }
+        return next;
+      });
+    }, 1200);
+    return () => clearInterval(id);
+  }, [replayAutoPlay, isReplaying, replayTurns.length]);
+  // ────────────────────────────────────────────────────────────────────────────
+
   const aliveShipPositions = React.useMemo(
-    () => game.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
-    [game.shipPositions],
+    () => displayGame.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
+    [displayGame.shipPositions],
   );
 
   /** Matches fleet card grids `grid-cols-1 sm:grid-cols-2` (Tailwind sm = 640px). */
@@ -740,25 +820,22 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const { specialRange } = useSpecialRange(specialType);
   const { data: specialData } = useSpecialData(specialType);
 
-  // Get ship attributes by ship ID from game data
+  // Get ship attributes by ship ID from game data (uses displayGame for replay support)
   const getShipAttributes = React.useCallback(
     (shipId: number): Attributes | null => {
-      // Find the ship ID in the shipIds array to get the correct index
-      const shipIndex = game.shipIds?.findIndex((id) => id === shipId);
+      const shipIndex = displayGame.shipIds?.findIndex((id) => id === shipId);
 
       if (
         shipIndex === -1 ||
-        !game.shipAttributes ||
-        !game.shipAttributes[shipIndex]
+        !displayGame.shipAttributes ||
+        !displayGame.shipAttributes[shipIndex]
       ) {
         return null;
       }
 
-      const attributes = game.shipAttributes[shipIndex];
-
-      return attributes;
+      return displayGame.shipAttributes[shipIndex];
     },
-    [game.shipAttributes, game.shipIds],
+    [displayGame.shipAttributes, displayGame.shipIds],
   );
 
   const isEnemyDisabledShipId = React.useCallback(
@@ -3347,8 +3424,56 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     </div>
                   </div>
                   {game.metadata.winner !== ZERO_ADDR ? (
-                    <div className="text-sm text-text-primary">
-                      Result: {game.metadata.winner === TIE_ADDR ? "Draw" : game.metadata.winner === address ? "Victory" : "Defeat"}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-text-primary">
+                        Result: {game.metadata.winner === TIE_ADDR ? "Draw" : game.metadata.winner === address ? "Victory" : "Defeat"}
+                      </span>
+                      {!isReplaying ? (
+                        <button
+                          onClick={fetchAndStartReplay}
+                          disabled={replayLoading}
+                          className="px-2 py-0.5 text-[10px] uppercase tracking-wider border border-solid"
+                          style={{
+                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            borderColor: "var(--color-steel)",
+                            color: "var(--color-text-secondary)",
+                            backgroundColor: "var(--color-near-black)",
+                            borderRadius: 0,
+                          }}
+                        >
+                          {replayLoading ? "…" : "Replay"}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {isReplaying ? (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      <button
+                        onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                        disabled={replayStep <= -1}
+                        className="px-1.5 py-0.5 text-[10px] uppercase border border-solid disabled:opacity-40"
+                        style={{ borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
+                      >◀</button>
+                      <span className="text-[10px] font-mono text-text-muted">
+                        {replayStep < 0 ? "Start" : `${replayStep + 1}/${replayTurns.length}`}
+                      </span>
+                      <button
+                        onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                        disabled={replayStep >= replayTurns.length - 1}
+                        className="px-1.5 py-0.5 text-[10px] uppercase border border-solid disabled:opacity-40"
+                        style={{ borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
+                      >▶</button>
+                      <button
+                        onClick={() => setReplayAutoPlay((p) => !p)}
+                        disabled={replayStep >= replayTurns.length - 1}
+                        className="px-1.5 py-0.5 text-[10px] uppercase border border-solid disabled:opacity-40"
+                        style={{ borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)", color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
+                      >{replayAutoPlay ? "⏸" : "▶▶"}</button>
+                      <button
+                        onClick={exitReplay}
+                        className="px-1.5 py-0.5 text-[10px] uppercase border border-solid"
+                        style={{ borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
+                      >✕</button>
                     </div>
                   ) : null}
                 </div>
@@ -3530,7 +3655,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   <div className="absolute inset-0 min-h-0 overflow-hidden">
                     <GameGrid
                       grid={grid}
-                      allShipPositions={game.shipPositions}
+                      allShipPositions={displayGame.shipPositions}
                       shipMap={shipMap}
                       selectedShipId={selectedShipId}
                       previewPosition={previewPosition}
@@ -3871,25 +3996,118 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 <div className="text-sm text-text-muted">
                   {game.metadata.winner !==
                     ZERO_ADDR && (
-                    <span
-                      className="uppercase font-bold tracking-wider"
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        color:
-                          game.metadata.winner === TIE_ADDR
-                            ? "var(--color-purple)"
-                            : game.metadata.winner === address
-                              ? "var(--color-phosphor-green)"
-                              : "var(--color-warning-red)",
-                      }}
-                    >
-                      {game.metadata.winner === TIE_ADDR ? "DRAW" : game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <span
+                        className="uppercase font-bold tracking-wider"
+                        style={{
+                          fontFamily:
+                            "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          color:
+                            game.metadata.winner === TIE_ADDR
+                              ? "var(--color-purple)"
+                              : game.metadata.winner === address
+                                ? "var(--color-phosphor-green)"
+                                : "var(--color-warning-red)",
+                        }}
+                      >
+                        {game.metadata.winner === TIE_ADDR ? "DRAW" : game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
+                      </span>
+                      {!isReplaying ? (
+                        <button
+                          onClick={fetchAndStartReplay}
+                          disabled={replayLoading}
+                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid transition-colors"
+                          style={{
+                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            borderColor: "var(--color-steel)",
+                            color: "var(--color-text-secondary)",
+                            backgroundColor: "var(--color-near-black)",
+                            borderRadius: 0,
+                          }}
+                        >
+                          {replayLoading ? "Loading…" : "Replay"}
+                        </button>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
+            {/* Replay controls — shown when replaying a completed game */}
+            {isReplaying && (
+              <div
+                className="flex items-center gap-2 flex-wrap border border-solid px-2 py-1.5"
+                style={{
+                  borderColor: "var(--color-gunmetal)",
+                  borderTopColor: "var(--color-steel)",
+                  backgroundColor: "var(--color-near-black)",
+                  borderRadius: 0,
+                }}
+              >
+                <button
+                  onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                  disabled={replayStep <= -1}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-cyan)",
+                    backgroundColor: "var(--color-near-black)",
+                    borderRadius: 0,
+                  }}
+                >
+                  ◀ Prev
+                </button>
+                <span
+                  className="text-[11px] font-mono text-text-muted flex-1 text-center min-w-[5rem]"
+                >
+                  {replayStep < 0
+                    ? "Start"
+                    : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${(replayTurns[replayStep] as ReplayTurn | undefined)?.round ?? ""}`}
+                </span>
+                <button
+                  onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                  disabled={replayStep >= replayTurns.length - 1}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-cyan)",
+                    backgroundColor: "var(--color-near-black)",
+                    borderRadius: 0,
+                  }}
+                >
+                  Next ▶
+                </button>
+                <button
+                  onClick={() => setReplayAutoPlay((p) => !p)}
+                  disabled={replayStep >= replayTurns.length - 1}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
+                    color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
+                    backgroundColor: "var(--color-near-black)",
+                    borderRadius: 0,
+                  }}
+                >
+                  {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
+                </button>
+                <button
+                  onClick={exitReplay}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: "var(--color-warning-red)",
+                    color: "var(--color-warning-red)",
+                    backgroundColor: "var(--color-near-black)",
+                    borderRadius: 0,
+                  }}
+                >
+                  ✕ Exit
+                </button>
+              </div>
+            )}
           </div>
           <div
             className={
@@ -4294,7 +4512,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             <div className="absolute inset-0 min-h-0 overflow-hidden">
         <GameGrid
           grid={grid}
-                allShipPositions={game.shipPositions}
+                allShipPositions={displayGame.shipPositions}
           shipMap={shipMap}
           selectedShipId={selectedShipId}
           previewPosition={previewPosition}
@@ -4347,6 +4565,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           setDragOverCell={setDragOverCell}
         />
             </div>
+          {isReplaying && (
+            <div className="pointer-events-none absolute top-1 left-1 z-[230] px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
+              style={{
+                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                color: "var(--color-cyan)",
+                backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
+                border: "1px solid var(--color-steel)",
+              }}
+            >
+              {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
+            </div>
+          )}
           {game.metadata.winner ===
             ZERO_ADDR &&
             process.env.NODE_ENV === "development" && (

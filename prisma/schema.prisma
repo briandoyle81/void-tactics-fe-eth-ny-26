@@ -54,6 +54,9 @@ model Ship {
   shipsDestroyed Int       @default(0)
   destroyedAt    DateTime?
   createdAt      DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([ownerId, destroyed])
 }
 
 // ── Fleets ─────────────────────────────────────────────────────────────────────
@@ -72,6 +75,9 @@ model Fleet {
   // Starting grid positions: [{ row, col }] indexed to match shipIds
   startingPositions Json?
   createdAt         DateTime @default(now())
+
+  @@index([lobbyId])
+  @@index([lobbyId, ownerId])
 }
 
 // ── Lobbies ────────────────────────────────────────────────────────────────────
@@ -97,6 +103,10 @@ model Lobby {
 
   fleets            Fleet[]
   game              Game?
+
+  @@index([creatorId])
+  @@index([joinerId])
+  @@index([status])
 }
 
 enum LobbyStatus {
@@ -119,6 +129,7 @@ model Game {
   player2      User      @relation("GamePlayer2", fields: [player2Id], references: [id])
   // Full serialised GameDataView — served directly to the client
   state        Json
+  initialState Json?     // GameDataView at game start — used for replay
   currentTurn  String // userId of the player whose turn it is
   currentRound Int       @default(1)
   phase        GamePhase @default(ACTIVE)
@@ -127,6 +138,9 @@ model Game {
   updatedAt    DateTime  @updatedAt
 
   turns        GameTurn[]
+
+  @@index([player1Id])
+  @@index([player2Id])
 }
 
 enum GamePhase {
@@ -144,6 +158,8 @@ model GameTurn {
   round       Int
   // Array of actions submitted this turn: [{ type, shipId, targetRow, targetCol, ... }]
   actions     Json
+  // Full GameDataView snapshot after this action — used for step-through replay
+  snapshot    Json?
   submittedAt DateTime @default(now())
 
   @@index([gameId, round])
@@ -183,4 +199,6 @@ model PlayerStats {
   losses     Int    @default(0)
   draws      Int    @default(0)
   totalGames Int    @default(0)
+
+  @@index([wins])
 }

@@ -107,6 +107,7 @@ export async function createGameFromLobby(
         player1Id: lobby.creatorId,
         player2Id: lobby.joinerId,
         state: gameState as object,
+        initialState: gameState as object,
         currentTurn: firstTurnPlayerId,
         currentRound: 1,
         phase: "ACTIVE",

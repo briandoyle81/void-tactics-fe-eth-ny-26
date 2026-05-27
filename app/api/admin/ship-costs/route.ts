@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
-import { DEFAULT_COSTS, calcShipCost, type CostsConfig } from "@/app/lib/shipCosts";
+import { DEFAULT_COSTS, type CostsConfig } from "@/app/lib/shipCosts";
 import { MAP_ADMIN_EMAILS } from "@/app/config/alpha";
 
 const CONFIG_KEY = "ship_costs";
@@ -68,22 +68,5 @@ export async function POST(req: NextRequest) {
     update: { value: newCosts as object },
   });
 
-  // Recalculate all ships
-  const ships = await prisma.ship.findMany({
-    select: { id: true, equipment: true, traits: true },
-  });
-
-  const updates = ships.flatMap((ship) => {
-    const equipment = ship.equipment as { mainWeapon: number; armor: number; shields: number; special: number };
-    const traits = ship.traits as { accuracy: number; hull: number; speed: number };
-    if (equipment.mainWeapon === undefined || traits.accuracy === undefined) return [];
-    return [prisma.ship.update({
-      where: { id: ship.id },
-      data: { cost: calcShipCost(equipment, traits, newCosts), costsVersion: newCosts.version },
-    })];
-  });
-
-  await prisma.$transaction(updates);
-
-  return NextResponse.json({ costs: newCosts, updated: updates.length });
+  return NextResponse.json({ costs: newCosts });
 }
