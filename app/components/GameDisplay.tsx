@@ -2513,6 +2513,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       // Hydrate React Query cache immediately — no extra round-trip
                       queryClient.setQueryData(["games", Number(game.metadata.gameId)], updatedState);
 
+                      // Skip logic may keep the turn with us (e.g. opponent has no unmoved ships).
+                      // The effect that clears awaitingTurnSyncAfterSubmit only fires on !isMyTurn,
+                      // so unblock the UI here when the server confirms it's still our turn.
+                      if (String(updatedState.turnState.currentTurn) === address) {
+                        setAwaitingTurnSyncAfterSubmit(false);
+                      }
+
                       const moveTypeLabel = ActionType[computedActionType] ?? String(computedActionType);
                       posthog.capture("game_move_submitted", {
                         game_id: String(game.metadata.gameId),

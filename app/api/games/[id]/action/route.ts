@@ -45,8 +45,8 @@ function applyShootDamage(
     targetAttrs.hullPoints = Math.max(0, targetAttrs.hullPoints - damage);
   }
 
-  // Shooting a 0-HP ship increments reactor timer; timer reaches 3 → ship destroyed
-  if (wasDisabled || targetAttrs.hullPoints === 0) {
+  // Shooting a ship that was already at 0 HP increments reactor timer; timer reaches 3 → ship destroyed
+  if (wasDisabled) {
     targetAttrs.reactorCriticalTimer = (targetAttrs.reactorCriticalTimer || 0) + 1;
   }
 

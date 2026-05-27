@@ -656,7 +656,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
             </span>
           )}
           {/* Rank */}
-          {ship.shipData.constructed && !hideRankLabel && (
+          {(ship.shipData.constructed || ship.shipData.shipsDestroyed > 0) && !hideRankLabel && (
             <div className="relative group">
               <span
                 className={`text-xs px-2 py-1 border border-solid uppercase font-semibold tracking-wider cursor-default ${getRankColor(
@@ -691,8 +691,8 @@ const ShipCard: React.FC<ShipCardProps> = ({
       </div>
 
       {/* Rank progress — only in manage-navy (non-game, non-tooltip) */}
-      {ship.shipData.constructed && !hideRankLabel && !gameViewMode && !tooltipMode && (
-        <div className="mt-1.5 space-y-0.5">
+      {(ship.shipData.constructed || ship.shipData.shipsDestroyed > 0) && !hideRankLabel && !gameViewMode && !tooltipMode && (
+        <div className="mt-1.5 mb-2 space-y-0.5">
           <div className="flex items-center justify-between text-[10px] font-mono"
             style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
           >

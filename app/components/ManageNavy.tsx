@@ -395,7 +395,7 @@ const ManageNavy: React.FC = () => {
   const [sortBy, setSortBy] = React.useState<
     "id" | "cost" | "accuracy" | "hull" | "speed"
   >("id");
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("asc");
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
   const [showDebugButtons, setShowDebugButtons] = React.useState(false);
   const [isMobileManageNavyLayout, setIsMobileManageNavyLayout] =
     React.useState(false);
@@ -574,6 +574,14 @@ const ManageNavy: React.FC = () => {
       let aValue: number | number;
       let bValue: number | number;
 
+      // Unconstructed ships always float first in default (id) sort
+      if (sortBy === "id") {
+        const aUnconstructed = !a.shipData.constructed ? 0 : 1;
+        const bUnconstructed = !b.shipData.constructed ? 0 : 1;
+        if (aUnconstructed !== bUnconstructed) return aUnconstructed - bUnconstructed;
+        return sortOrder === "asc" ? a.id - b.id : b.id - a.id;
+      }
+
       switch (sortBy) {
         case "cost":
           aValue = a.shipData.cost;
@@ -591,7 +599,7 @@ const ManageNavy: React.FC = () => {
           aValue = a.traits.speed;
           bValue = b.traits.speed;
           break;
-        default: // 'id'
+        default:
           aValue = a.id;
           bValue = b.id;
       }
@@ -1809,6 +1817,7 @@ const ManageNavy: React.FC = () => {
 
           <ShipPurchaseInterface
             onClose={() => setShowShipPurchase(false)}
+            onSuccess={() => setShowShipPurchase(false)}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={setPaymentMethod}
           />

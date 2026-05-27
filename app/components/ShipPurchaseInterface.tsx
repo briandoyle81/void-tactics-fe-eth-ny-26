@@ -10,6 +10,7 @@ import type { Ship } from "../types/types";
 
 interface ShipPurchaseInterfaceProps {
   onClose: () => void;
+  onSuccess?: () => void;
   paymentMethod?: "USD" | "UTC";
   onPaymentMethodChange?: (method: "USD" | "UTC") => void;
 }
@@ -62,6 +63,7 @@ const TIER_CALLOUTS = [
 
 const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   paymentMethod: externalPaymentMethod,
+  onSuccess,
 }) => {
   const shipsPack = useShipsPurchaseInfo();
   const utcPack = useShipPurchaserPurchaseInfo();
@@ -248,6 +250,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
               paymentMethod={paymentMethod}
               className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
               refetch={refetch}
+              onSuccess={onSuccess}
             >
               <div className="flex h-full flex-col gap-2 text-left">
                 {badge && (

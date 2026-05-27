@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
-import { PURCHASE_TIERS } from "@/app/lib/purchaseTiers";
+import { PURCHASE_TIERS, getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
 import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
 
 export async function POST(req: NextRequest) {
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     }),
     ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
       const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
+      const shipsDestroyed = getGuaranteedKillsForTierShip(tierConfig.tier, i);
       return prisma.ship.create({
         data: {
           ownerId: userId!,
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
           shiny,
           isFree: false,
           constructed: false,
+          shipsDestroyed,
         },
       });
     }),

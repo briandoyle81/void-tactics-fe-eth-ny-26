@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       destroyed: false,
       ...(ids ? { id: { in: ids } } : {}),
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return new NextResponse(stringifyWithBigint(dbShips.map(dbShipToShip)), {
