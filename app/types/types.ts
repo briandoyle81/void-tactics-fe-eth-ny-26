@@ -1,12 +1,10 @@
-import { Address } from "viem";
-
 export interface Ship {
   name: string;
   id: number;
   equipment: ShipEquipment;
   traits: ShipTraits;
   shipData: ShipData;
-  owner: Address;
+  owner: string;
 }
 
 export interface ShipEquipment {
@@ -52,7 +50,7 @@ export type ShipTuple = [
   ShipEquipment, // equipment
   ShipTraits, // traits
   ShipData, // shipData
-  Address // owner
+  string // owner
 ];
 
 export function tupleToShip(tuple: ShipTuple): Ship {
@@ -129,14 +127,14 @@ export enum LobbyStatus {
 
 export interface LobbyBasic {
   id: number;
-  creator: Address;
+  creator: string;
   costLimit: number;
   createdAt: number;
 }
 
 export interface LobbyPlayers {
-  joiner: Address;
-  reservedJoiner: Address; // Address of player this lobby is reserved for (address(0) if open)
+  joiner: string;
+  reservedJoiner: string; // Address of player this lobby is reserved for (address(0) if open)
   creatorFleetId: number;
   joinerFleetId: number;
   joinedAt: number;
@@ -165,7 +163,7 @@ export interface Lobby {
 export interface Fleet {
   id: number;
   lobbyId: number;
-  owner: Address;
+  owner: string;
   shipIds: number[];
   totalCost: number;
   isComplete: boolean;
@@ -181,8 +179,8 @@ export interface PlayerStats {
 
 export interface GameResult {
   gameId: number;
-  winner: Address;
-  loser: Address;
+  winner: string;
+  loser: string;
   timestamp: number;
 }
 
@@ -209,29 +207,29 @@ export interface Attributes {
 export interface GameData {
   gameId: number;
   lobbyId: number;
-  creator: Address;
-  joiner: Address;
+  creator: string;
+  joiner: string;
   creatorFleetId: number;
   joinerFleetId: number;
   creatorGoesFirst: boolean;
   startedAt: number;
-  currentTurn: Address;
+  currentTurn: string;
 }
 
 export interface GameMetadata {
   gameId: number;
   lobbyId: number;
-  creator: Address;
-  joiner: Address;
+  creator: string;
+  joiner: string;
   creatorFleetId: number;
   joinerFleetId: number;
   creatorGoesFirst: boolean;
   startedAt: number;
-  winner: Address;
+  winner: string;
 }
 
 export interface GameTurnState {
-  currentTurn: Address;
+  currentTurn: string;
   turnTime: number;
   turnStartTime: number;
   currentRound: number;
@@ -245,8 +243,8 @@ export interface GameGridDimensions {
 // Tuple types for contract return values
 export type LobbyTuple = [
   number, // id
-  Address, // creator
-  Address, // joiner
+  string, // creator
+  string, // joiner
   number, // costLimit
   number, // status
   number, // createdAt
@@ -264,7 +262,7 @@ export type LobbyTuple = [
 export type FleetTuple = [
   number, // id
   number, // lobbyId
-  Address, // owner
+  string, // owner
   number[], // shipIds
   number, // totalCost
   boolean // isComplete
@@ -281,13 +279,13 @@ export type PlayerLobbyStateTuple = [
 export type GameDataTuple = [
   number, // gameId
   number, // lobbyId
-  Address, // creator
-  Address, // joiner
+  string, // creator
+  string, // joiner
   number, // creatorFleetId
   number, // joinerFleetId
   boolean, // creatorGoesFirst
   number, // startedAt
-  Address // currentTurn
+  string // currentTurn
 ];
 
 // Helper functions to convert tuples to objects
@@ -301,7 +299,7 @@ export function tupleToLobby(tuple: LobbyTuple): Lobby {
     },
     players: {
       joiner: tuple[2],
-      reservedJoiner: "0x0000000000000000000000000000000000000000" as Address,
+      reservedJoiner: "0x0000000000000000000000000000000000000000",
       creatorFleetId: Number(tuple[7]),
       joinerFleetId: Number(tuple[8]),
       joinedAt: Number(tuple[11]),

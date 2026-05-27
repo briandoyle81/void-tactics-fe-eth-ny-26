@@ -1,4 +1,3 @@
-import type { Address } from "viem";
 import type {
   Ship,
   ShipColors,
@@ -70,7 +69,7 @@ function assertContractTraitTiers(
 export function buildTutorialShip(input: {
   name: string;
   id: number;
-  owner: Address;
+  owner: string;
   equipment: ShipEquipment;
   shipData: ShipData;
   traits: TutorialCombatTraits;

@@ -20,7 +20,7 @@ interface TransactionContextType {
   transactionState: TransactionState;
   startTransaction: (transactionId: string) => void;
   // Kept for backward-compat with TransactionButton (wagmi path) — no-op in REST path
-  setTransactionHash: (transactionId: string, hash: `0x${string}`) => void;
+  setTransactionHash: (transactionId: string, hash: string) => void;
   completeTransaction: (transactionId: string, success: boolean, error?: Error) => void;
   clearError: (transactionId: string) => void;
   clearAllTransactions: () => void;
@@ -59,7 +59,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // No-op for REST path; TransactionButton (wagmi) still calls this
   const setTransactionHash = useCallback(
-    (_transactionId: string, _hash: `0x${string}`) => {},
+    (_transactionId: string, _hash: string) => {},
     [],
   );
 

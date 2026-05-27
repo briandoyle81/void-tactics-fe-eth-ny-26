@@ -9,11 +9,8 @@ import React, {
 } from "react";
 import { useAccount } from "../hooks/useAccount";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useLobbies } from "../hooks/useLobbies";
 import { useOwnedShips } from "../hooks/useOwnedShips";
-import { useFleetsRead } from "../hooks/useFleetsContract";
-import { useShipsRead } from "../hooks/useShipsContract";
 import {
   LobbyStatus,
   Lobby,
@@ -22,7 +19,6 @@ import {
   GRID_DIMENSIONS,
 } from "../types/types";
 import { toast } from "react-hot-toast";
-import { cacheShipsData } from "../hooks/useShipDataCache";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
 import {
@@ -37,12 +33,10 @@ import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { LobbyAcceptButton } from "./LobbyAcceptButton";
 import { LobbyRejectButton } from "./LobbyRejectButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
-import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { calculateShipRank, getRankColor } from "../utils/shipLevel";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { MapDisplay } from "./MapDisplay";
 import { usePlayerGames } from "../hooks/usePlayerGames";
-import { useLobby } from "../hooks/useLobbiesContract";
 import { useUtcBalance } from "../hooks/useUtcBalance";
 import {
   readFleetDrafts,
@@ -53,7 +47,6 @@ import {
   readFleetCompositionPersisted,
   type FleetComposition,
 } from "../utils/fleetCompositionStorage";
-import { VOID_TACTICS_CHAIN_CHANGED_EVENT, getNativeTokenSymbol } from "../config/networks";
 import {
   IMMEDIATE_GAME_TURN_SECONDS,
   CORRESPONDENCE_GAME_TURN_SECONDS,
@@ -78,7 +71,7 @@ function CreatorStats({
   address,
   chainId,
 }: {
-  address: `0x${string}`;
+  address: string;
   chainId: number;
 }) {
   const stats = usePlayerStats(address, chainId);
@@ -103,7 +96,7 @@ function CreatorStats({
 const Lobbies: React.FC = () => {
   const { address, isConnected } = useAccount();
   const { userId } = useCurrentUser();
-  const chainId = useSelectedChainId();
+  const chainId = 0; // chain selection removed in REST architecture
   const {
     lobbyList,
     playerState,
@@ -147,11 +140,7 @@ const Lobbies: React.FC = () => {
     constructedReadyCount < MIN_SHIPS_FOR_LOBBIES;
   const lobbyUiLoadingShips = isConnected && shipsLoading;
 
-  const { data: currentCostsVersion } = useCurrentCostsVersion();
-  const globalCostsVersion =
-    currentCostsVersion !== undefined && currentCostsVersion !== null
-      ? Number(currentCostsVersion)
-      : null;
+  const globalCostsVersion = null; // costs version check removed with blockchain
   const { games: playerGames, refetch: refetchGames } = usePlayerGames();
   const { balance: utcBalance, refetch: refetchUtcBalance } = useUtcBalance();
 
@@ -245,13 +234,9 @@ const Lobbies: React.FC = () => {
     return readFleetCompositionPersisted(chainId, address).fleets;
   }, [chainId, address]);
 
-  // Live lobby data for the currently selected lobby (avoids relying on lobby list refresh timing)
-  const { lobby: selectedLobbyLive, refetch: refetchSelectedLobby } = useLobby(
-    selectedLobby ?? 0,
-    {
-      enabled: selectedLobby != null,
-    },
-  );
+  // Live lobby data — stub: useLobby removed with blockchain
+  const selectedLobbyLive = undefined;
+  const refetchSelectedLobby = async () => {};
 
   // Fleet ship data fetching
   const [viewingFleetShips, setViewingFleetShips] = React.useState<Ship[]>([]);
@@ -267,7 +252,6 @@ const Lobbies: React.FC = () => {
         if (!cancelled) {
           const ships = data.ships ?? [];
           setViewingFleetShips(ships);
-          if (ships.length > 0) cacheShipsData(ships);
         }
       })
       .catch(() => { if (!cancelled) setViewingFleetShips([]); })
@@ -362,7 +346,6 @@ const Lobbies: React.FC = () => {
         const ships = data.ships ?? [];
         const positions = data.positions ?? [];
         setPlayerFleetData({ ships, positions });
-        if (ships.length > 0) cacheShipsData(ships);
         lastLoadedPlayerFleetId.current = playerFleetId;
       })
       .catch(() => {});
@@ -548,28 +531,8 @@ const Lobbies: React.FC = () => {
     [],
   );
 
-  // Load opponent ship objects using existing ships contract reader
-  const { data: opponentShipsData } = useShipsRead(
-    "getShipsByIds",
-    opponentPositions.length > 0
-      ? [opponentPositions.map((p) => p.shipId)]
-      : undefined,
-  );
-
-  // Cache opponent ships data
-  React.useEffect(() => {
-    if (opponentShipsData && Array.isArray(opponentShipsData)) {
-      const ships = opponentShipsData as Ship[];
-      if (ships.length > 0) {
-        cacheShipsData(ships);
-      }
-    }
-  }, [opponentShipsData]);
-  // Use existing image caching via ShipImage component; just shape into array
-  const opponentShips = React.useMemo(
-    () => (opponentShipsData as Ship[]) || [],
-    [opponentShipsData],
-  );
+  // Opponent ships: blockchain read removed; always empty in REST architecture
+  const opponentShips: Ship[] = [];
 
   // Fleet selection filters
   const [fleetFilters, setFleetFilters] = useState({
@@ -893,26 +856,7 @@ const Lobbies: React.FC = () => {
     });
   }, [address, chainId]);
 
-  useEffect(() => {
-    const onChainChanged = () => {
-      setShowCreateForm(false);
-      resetFleetSelectionModalState();
-      setShowFleetView(false);
-      setIsCreatingFleet(false);
-      setViewingFleetId(null);
-      setViewingFleetOwner(null);
-      setDraggedShipId(null);
-      setDragOverPosition(null);
-      setPendingLoadFleet(null);
-    };
-    window.addEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, onChainChanged);
-    return () => {
-      window.removeEventListener(
-        VOID_TACTICS_CHAIN_CHANGED_EVENT,
-        onChainChanged,
-      );
-    };
-  }, [resetFleetSelectionModalState]);
+  // Chain-changed event handler removed (no longer using chain selection)
 
   /** Close the fleet modal but keep in-memory and saved draft selection. */
   const closeFleetModalOnly = useCallback(() => {
@@ -1496,7 +1440,6 @@ const Lobbies: React.FC = () => {
         const positions = data.positions ?? [];
         setOpponentGridPositions(positions);
         setOpponentGridShips(ships);
-        if (ships.length > 0) cacheShipsData(ships);
         lastFetchedOpponentFleetId.current = opponentFleetIdForGrid;
       })
       .catch(() => {});
@@ -1912,7 +1855,7 @@ const Lobbies: React.FC = () => {
                 </button>
                 {needsPaymentForLobby && additionalLobbyFee ? (
                   <p className="text-center text-xs text-amber font-mono">
-                    // Free games used — lobby fee: {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
+                    Lobby fee: {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} FLOW
                   </p>
                 ) : null}
               </div>
@@ -2280,7 +2223,7 @@ const Lobbies: React.FC = () => {
                 <div className="flex justify-between gap-4">
                   <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
                   <span className="text-amber font-bold shrink-0">
-                    {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
+                    {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} FLOW
                   </span>
                 </div>
               ) : null}
@@ -2449,7 +2392,7 @@ const Lobbies: React.FC = () => {
                     {lobby.basic.creator.slice(0, 6)}…{lobby.basic.creator.slice(-4)}
                   </span>
                   <CreatorStats
-                    address={lobby.basic.creator as `0x${string}`}
+                    address={lobby.basic.creator}
                     chainId={chainId}
                   />
                 </div>
@@ -2480,7 +2423,7 @@ const Lobbies: React.FC = () => {
                       </span>
                     </div>
                     <CreatorStats
-                      address={lobby.players.joiner as `0x${string}`}
+                      address={lobby.players.joiner}
                       chainId={chainId}
                     />
                   </div>

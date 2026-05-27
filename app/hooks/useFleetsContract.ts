@@ -1,13 +1,8 @@
-import { getContractAddresses } from "../config/contracts";
-import { getSelectedChainId } from "../config/networks";
-
 export function useFleetsContract() {
-  const chainId = getSelectedChainId();
-  const { FLEETS } = getContractAddresses(chainId);
   return {
-    address: FLEETS as `0x${string}`,
+    address: "0x0000000000000000000000000000000000000000",
     abi: [] as const,
-    chainId,
+    chainId: 0,
   };
 }
 

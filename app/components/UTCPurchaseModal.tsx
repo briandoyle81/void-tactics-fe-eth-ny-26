@@ -3,7 +3,6 @@
 import React from "react";
 import { useAccount } from "../hooks/useAccount";
 import { UTCPurchaseButton } from "./UTCPurchaseButton";
-import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
 
 interface UTCPurchaseModalProps {
@@ -12,8 +11,7 @@ interface UTCPurchaseModalProps {
 
 const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
   const { address } = useAccount();
-  const activeChainId = getSelectedChainId();
-  const nativeTokenSymbol = getNativeTokenSymbol(activeChainId);
+  const nativeTokenSymbol = "FLOW"; // chain selection removed in REST architecture
 
   const {
     tiers,

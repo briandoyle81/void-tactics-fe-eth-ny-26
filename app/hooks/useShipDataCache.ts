@@ -1,12 +1,11 @@
 import { Ship } from "../types/types";
-import { CONTRACT_ADDRESSES } from "../config/contracts";
 
 // Cache configuration
 const CACHE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_CACHE_SIZE = 1000; // Can cache many more ships since data is smaller
 const CACHE_KEY_PREFIX = "void-tactics-ship-data-";
 function currentShipsContractAddress(): string {
-  return String(CONTRACT_ADDRESSES.SHIPS ?? "").toLowerCase();
+  return "legacy";
 }
 
 function cacheNamespacePrefix(): string {

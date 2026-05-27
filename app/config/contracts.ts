@@ -8,14 +8,13 @@ import ShipAttributesContract from "../contracts/DeployModule#ShipAttributes.jso
 import DroneYardContract from "../contracts/DeployModule#DroneYard.json";
 import TutorialClaimContract from "../contracts/DeployModule#TutorialClaim.json";
 import ShipPurchaserContract from "../contracts/DeployModule#ShipPurchaser.json";
-import { baseSepolia, flowTestnet, saigon } from "viem/chains";
-import { getSelectedChainId, xaiTestnet } from "./networks";
+import { getSelectedChainId, flowTestnet, saigon, baseSepolia, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
 import baseSepoliaDeployedAddresses from "../contracts/base-sepolia/deployed_addresses.json";
 import roninSaigonDeployedAddresses from "../contracts/ronin-saigon/deployed_addresses.json";
 import xaiTestnetDeployedAddresses from "../contracts/xai-testnet/deployed_addresses.json";
 
-type DeployedAddresses = Record<string, `0x${string}`>;
+type DeployedAddresses = Record<string, string>;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 

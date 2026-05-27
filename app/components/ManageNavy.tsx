@@ -6,8 +6,6 @@ import {
   useShipDetails,
   useContractEvents,
   useFreeShipClaiming,
-  clearAllShipDataCache,
-  clearAllShipImageCache,
 } from "../hooks";
 import { useAccount } from "../hooks/useAccount";
 import { toast } from "react-hot-toast";
@@ -34,11 +32,6 @@ import ShipPurchaseInterface from "./ShipPurchaseInterface";
 import { FreeShipClaimButton } from "./FreeShipClaimButton";
 import { ShipActionButton } from "./ShipActionButton";
 import ShipCard from "./ShipCard";
-import { useTransaction } from "../providers/TransactionContext";
-import { useShipsRead } from "../hooks/useShipsContract";
-import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import type { Abi } from "viem";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
@@ -92,48 +85,16 @@ import {
 const ManageNavy: React.FC = () => {
   const { address, isConnected, status } = useAccount();
   const chainId = useSelectedChainId();
-  const shipsContractAddress = React.useMemo(
-    () => getContractAddresses(chainId).SHIPS as `0x${string}`,
-    [chainId],
-  );
-  const shipAttributesContractAddress = React.useMemo(
-    () => getContractAddresses(chainId).SHIP_ATTRIBUTES as `0x${string}`,
-    [chainId],
-  );
-  const { transactionState } = useTransaction();
   const { ships, isLoading, error, hasShips, shipCount, refetch } =
     useOwnedShips();
   const { fleetStats, shipsByStatus } = useShipDetails();
 
-  // Read the recycle reward amount from the contract
-  const { data: recycleReward } = useShipsRead("recycleReward");
+  const staleCostSyncShipIds: number[] = [];
+  const globalCostsVersion: number | null = null; // costs version check removed with blockchain
 
-  const { data: currentCostsVersion } = useCurrentCostsVersion();
-  const globalCostsVersion =
-    currentCostsVersion !== undefined && currentCostsVersion !== null
-      ? Number(currentCostsVersion)
-      : null;
-
-  const staleCostSyncShipIds = React.useMemo(() => {
-    if (globalCostsVersion === null) return [] as number[];
-    return ships
-      .filter((ship) => {
-        const shipCv = Number(ship.shipData.costsVersion);
-        return (
-          ship.shipData.constructed &&
-          !(ship.shipData.timestampDestroyed > 0) &&
-          !ship.shipData.inFleet &&
-          shipCv !== globalCostsVersion
-        );
-      })
-      .map((s) => s.id);
-  }, [ships, globalCostsVersion]);
-
-  // Read the user's purchase count
-  const { data: amountPurchased } = useShipsRead(
-    "amountPurchased",
-    address ? [address] : undefined,
-  );
+  const afterShipCostSyncPersistCaches = React.useCallback(() => {
+    // no-op: ship attribute cache sync removed with wagmi
+  }, []);
 
   // Get ship attributes for in-game properties
   const shipIds = ships.map((ship) => ship.id);
@@ -142,17 +103,13 @@ const ManageNavy: React.FC = () => {
     shipIdsRef.current = shipIds;
   }, [shipIds]);
 
-  const afterShipCostSyncPersistCaches = React.useCallback(() => {
-    // no-op: ship attribute cache sync removed with wagmi
-  }, []);
-
   const {
     attributesMap,
     isLoading: attributesLoading,
   } = useShipAttributesByIds(shipIds);
 
-  // Check if user can recycle (minimum 10 purchases required)
-  const canRecycle = amountPurchased ? Number(amountPurchased) >= 10 : false;
+  // Check if user can recycle (minimum 10 purchases required — disabled, blockchain removed)
+  const canRecycle = false;
 
   // Note: Ship actions are now handled by ShipActionButton components
 
@@ -356,13 +313,7 @@ const ManageNavy: React.FC = () => {
   // Phase 3: Real-time updates
   const { isListening } = useContractEvents();
 
-  // Clear cache when user disconnects
-  useEffect(() => {
-    if (!address) {
-      clearAllShipDataCache();
-      clearAllShipImageCache();
-    }
-  }, [address]);
+  // Cache clear on disconnect: no-op (ship image cache removed with wagmi)
 
   // State for ship selection and filtering
   const [selectedShips, setSelectedShips] = React.useState<Set<string>>(
@@ -1250,39 +1201,7 @@ const ManageNavy: React.FC = () => {
     </div>
   );
 
-  const staleCostBulkButton =
-    staleCostSyncShipIds.length === 0 ? null : (
-      <TransactionButton
-        transactionId="manage-navy-sync-stale-costs-bulk"
-        contractAddress={shipsContractAddress}
-        abi={CONTRACT_ABIS.SHIPS as Abi}
-        functionName="syncShipCosts"
-        args={[
-          staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
-            ? staleCostSyncShipIds.slice(0, STALE_COST_SYNC_BATCH_CAP)
-            : staleCostSyncShipIds,
-        ]}
-        disabled={transactionState.isPending}
-        className="w-full justify-center px-6 py-3 rounded-none border-2 border-amber text-amber hover:bg-amber/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
-        style={{ borderRadius: 0 }}
-        onSuccess={() => {
-          toast.success(
-            staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
-              ? "150 ships cost version update started!"
-              : "Ship cost versions updated!",
-          );
-          afterShipCostSyncPersistCaches();
-          setTimeout(() => refetch(), 1000);
-        }}
-        onError={() => {
-          toast.error("Failed to update ship cost versions");
-        }}
-      >
-        {staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
-          ? "[UPDATE 150 SHIPS]"
-          : "[UPDATE ALL SHIPS]"}
-      </TransactionButton>
-    );
+  const staleCostBulkButton = null; // blockchain writes removed
 
   const fleetCompositionSelectControl = (
     <div className="flex w-full min-w-0 flex-col gap-1 md:w-auto">
@@ -1465,7 +1384,7 @@ const ManageNavy: React.FC = () => {
               <button
                 type="button"
                 onClick={handleBuyNewShipsClick}
-                disabled={transactionState.isPending}
+                disabled={false}
                 className="w-full justify-center px-6 py-3 border-2 border-cyan text-cyan hover:border-cyan/80 hover:text-cyan/80 hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                 style={{
                   borderRadius: 0,
@@ -1530,7 +1449,7 @@ const ManageNavy: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleBuyNewShipsClick}
-                  disabled={transactionState.isPending}
+                  disabled={false}
                   className="w-full justify-center px-6 py-3 border-2 border-cyan text-cyan hover:border-cyan/80 hover:text-cyan/80 hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   style={{
                     borderRadius: 0,
@@ -1587,7 +1506,7 @@ const ManageNavy: React.FC = () => {
               <button
                 type="button"
                 onClick={handleBuyNewShipsClick}
-                disabled={transactionState.isPending}
+                disabled={false}
                 className="w-full justify-center px-6 py-3 border-2 border-cyan text-cyan hover:border-cyan/80 hover:text-cyan/80 hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                 style={{
                   borderRadius: 0,
@@ -1640,7 +1559,7 @@ const ManageNavy: React.FC = () => {
                       color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
                     }}
                   >
-                    Unlocks after 10 ship purchases ({amountPurchased ? Number(amountPurchased) : 0}/10)
+                    Recycling not available in this version
                   </p>
                 </div>
               )}
@@ -1685,8 +1604,6 @@ const ManageNavy: React.FC = () => {
           <div className="hidden w-full flex-col flex-wrap gap-2 md:flex md:flex-row md:justify-center md:gap-2">
             <button
               onClick={() => {
-                clearAllShipDataCache();
-                clearAllShipImageCache();
                 toast.success(`Cleared all ship cache`);
                 window.location.reload();
               }}
@@ -2438,39 +2355,7 @@ const ManageNavy: React.FC = () => {
                   nameBlockMinHeightPx={
                     nameBlockMinHeights[ship.id.toString()]
                   }
-                  costVersionSyncButton={
-                    costsVersionStale ? (
-                      <TransactionButton
-                        transactionId={`sync-ship-costs-${ship.id.toString()}`}
-                        contractAddress={shipsContractAddress}
-                        abi={CONTRACT_ABIS.SHIPS as Abi}
-                        // Ships.syncShipCosts(uint256[]): permissionless; applies
-                        // getCurrentCostsVersion + calculateShipCost. Not setCostOfShip
-                        // (owner / game only). Reverts onchain if ship is in fleet.
-                        functionName="syncShipCosts"
-                        args={[[ship.id]]}
-                        className="w-full px-2 py-1.5 border-2 border-solid text-xs font-bold uppercase tracking-wider transition-colors duration-150"
-                        style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          borderColor: "var(--color-amber)",
-                          color: "var(--color-amber)",
-                          backgroundColor: "var(--color-near-black)",
-                          borderRadius: 0,
-                        }}
-                        onSuccess={() => {
-                          toast.success("Ship cost version updated");
-                          afterShipCostSyncPersistCaches();
-                          setTimeout(() => refetch(), 1000);
-                        }}
-                        onError={() => {
-                          toast.error("Failed to update ship cost version");
-                        }}
-                      >
-                        Update Ship Version
-                      </TransactionButton>
-                    ) : undefined
-                  }
+                  costVersionSyncButton={undefined}
                   fleetCompositionControls={(() => {
                     if (
                       !fleetCompositionSelectedId ||
@@ -2605,13 +2490,9 @@ const ManageNavy: React.FC = () => {
                       <li>
                         •{" "}
                         <span className="text-cyan">
-                          Pay out{" "}
-                          {recycleReward
-                            ? (Number(recycleReward as number) / 1e18).toFixed(4)
-                            : "..."}{" "}
-                          UTC
+                          Pay out UTC per ship recycled
                         </span>{" "}
-                        per ship recycled
+                        (recycling not available in this version)
                       </li>
                       <li>
                         •{" "}
@@ -2635,9 +2516,7 @@ const ManageNavy: React.FC = () => {
                       any ships.
                     </p>
                     <p className="text-sm text-amber mt-2 font-bold">
-                      Current purchases:{" "}
-                      {amountPurchased ? Number(amountPurchased) : 0} / 10
-                      required
+                      Recycling is not available in this version.
                     </p>
                   </div>
                 </>
@@ -2649,47 +2528,7 @@ const ManageNavy: React.FC = () => {
                 >
                   CANCEL
                 </button>
-                {canRecycle && (
-                  <TransactionButton
-                    transactionId={`recycle-ship-${shipToRecycle.id}`}
-                    contractAddress={shipsContractAddress}
-                    abi={[
-                      {
-                        inputs: [
-                          {
-                            internalType: "uint256[]",
-                            name: "_shipIds",
-                            type: "uint256[]",
-                          },
-                        ],
-                        name: "shipBreaker",
-                        outputs: [],
-                        stateMutability: "nonpayable",
-                        type: "function",
-                      },
-                    ]}
-                    functionName="shipBreaker"
-                    args={[[shipToRecycle.id]]}
-                    className="px-6 py-2 border border-warning-red text-warning-red hover:bg-warning-red/10 rounded-none font-mono font-bold transition-all duration-200"
-                    onSuccess={() => {
-                      // Show success toast
-                      toast.success("Ship recycled successfully!");
-                      // Close modal and refetch ships data
-                      setShowRecycleModal(false);
-                      setShipToRecycle(null);
-                      // Add a small delay to ensure blockchain state is updated
-                      setTimeout(() => {
-                        refetch();
-                      }, 1000);
-                    }}
-                    onError={() => {
-                      // Keep modal open on error so user can try again
-                      console.error("Failed to recycle ship");
-                    }}
-                  >
-                    DESTROY SHIP
-                  </TransactionButton>
-                )}
+                {/* Recycle (blockchain) removed in REST architecture */}
               </div>
             </div>
           </div>

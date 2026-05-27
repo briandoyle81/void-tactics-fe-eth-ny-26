@@ -1,6 +1,5 @@
 import type { Ship as DbShip } from "../generated/prisma";
 import type { Ship, ShipEquipment, ShipTraits, ShipData } from "../types/types";
-import type { Address } from "viem";
 
 export function dbShipToShip(db: DbShip): Ship {
   const equipment = db.equipment as unknown as ShipEquipment;
@@ -34,6 +33,6 @@ export function dbShipToShip(db: DbShip): Ship {
     equipment,
     traits,
     shipData,
-    owner: db.ownerId as Address,
+    owner: db.ownerId,
   };
 }

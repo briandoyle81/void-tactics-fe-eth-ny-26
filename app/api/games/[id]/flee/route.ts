@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import type { GameDataView } from "@/app/types/types";
-import type { Address } from "viem";
 
 export async function POST(
   _req: NextRequest,
@@ -32,7 +31,7 @@ export async function POST(
 
   const newState: GameDataView = {
     ...state,
-    metadata: { ...state.metadata, winner: winnerId as Address },
+    metadata: { ...state.metadata, winner: winnerId },
   };
 
   await prisma.$transaction(async (tx) => {

@@ -1,16 +1,12 @@
-import { getContractAddresses } from "../config/contracts";
 import { Lobby, PlayerLobbyState } from "../types/types";
-import { useSelectedChainId } from "./useSelectedChainId";
 
 const STUB = { data: undefined as unknown, isLoading: false, error: null as Error | null, refetch: async () => {} };
 
 export function useLobbiesChainParams() {
-  const activeChainId = useSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
   return {
-    address: contractAddresses.LOBBIES as `0x${string}`,
+    address: "0x0000000000000000000000000000000000000000",
     abi: [] as const,
-    chainId: activeChainId,
+    chainId: 0,
   } as const;
 }
 

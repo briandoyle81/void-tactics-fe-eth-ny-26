@@ -1,23 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { useAccount } from "./useAccount";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import type { Abi } from "viem";
-import { getSelectedChainId } from "../config/networks";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/app/lib/apiFetch";
 import { GameDataView } from "../types/types";
 
-// Contract params — still needed for wagmi write calls until Phase 4
+// Contract params — stub; blockchain writes disabled
 export function useGameContract() {
-  const { chainId: walletChainId } = useAccount();
-  const activeChainId = walletChainId ?? getSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
   return {
-    address: contractAddresses.GAME as `0x${string}`,
-    abi: CONTRACT_ABIS.GAME as Abi,
-    chainId: activeChainId,
+    address: "0x0000000000000000000000000000000000000000",
+    abi: [] as const,
+    chainId: 0,
   };
 }
 

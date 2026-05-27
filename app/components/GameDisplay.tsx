@@ -28,7 +28,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 // TransactionButton removed — actions go through REST API
 import { toast } from "react-hot-toast";
-import { useTransaction } from "../providers/TransactionContext";
 import {
   GAME_VIEW_SIDE_ROOT_CLASS,
   useGameViewChromeLayout,
@@ -61,8 +60,6 @@ const POLL_INTERVAL_UNFOCUSED_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_HIDDEN_MS = 60 * 60 * 1000;
 const TURN_POLL_DIVISOR = 10;
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
-import { useSelectedChainId } from "../hooks/useSelectedChainId";
-
 interface GameDisplayProps {
   game: GameDataView;
   onBack: () => void;
@@ -82,8 +79,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [disableTooltips, setDisableTooltips] = React.useState(false);
   const { userId: address } = useCurrentUser();
   const queryClient = useQueryClient();
-  const appChainId = useSelectedChainId();
-  const { clearAllTransactions } = useTransaction();
+  const clearAllTransactions = () => {}; // no-op: useTransaction removed
   const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [previewPosition, setPreviewPosition] = useState<{
     row: number;
@@ -2537,7 +2533,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         ship_id: selectedShipId.toString(),
                         move_type: moveTypeLabel,
                         ...(submittedTargetShipId !== 0 ? { target_ship_id: submittedTargetShipId.toString() } : {}),
-                        chain_id: appChainId,
                       });
 
                       setOptimisticLastMove({

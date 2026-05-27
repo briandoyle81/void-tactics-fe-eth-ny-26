@@ -40,7 +40,7 @@ export function useShipAttributesWrite() {
 
 export function useShipAttributesOwner() {
   const { userId } = useCurrentUser();
-  return { owner: undefined as `0x${string}` | undefined, isOwner: false, userId };
+  return { owner: undefined as string | undefined, isOwner: false, userId };
 }
 
 export function useCurrentAttributesVersion() { return STUB; }

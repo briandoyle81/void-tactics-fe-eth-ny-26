@@ -1,4 +1,3 @@
-import { Address } from "viem";
 import { Position, Attributes, ActionType } from "./types";
 
 /**
@@ -106,16 +105,16 @@ export interface SimulatedGameState {
   gameId: string;
   metadata: {
     gameId: string;
-    creator: Address;
-    joiner: Address;
+    creator: string;
+    joiner: string;
     creatorFleetId: number;
     joinerFleetId: number;
     creatorGoesFirst: boolean;
     startedAt: number; // unix seconds
-    winner: Address;
+    winner: string;
   };
   turnState: {
-    currentTurn: Address;
+    currentTurn: string;
     turnTime: number; // seconds
     turnStartTime: number; // unix seconds
     currentRound: number;

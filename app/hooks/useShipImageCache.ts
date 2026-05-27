@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
-import type { Abi } from "viem";
 import { Ship } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
-
-const SHIPS_ABI = CONTRACT_ABIS.SHIPS as Abi;
 
 // Cache configuration
 const CACHE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -24,7 +20,7 @@ const DEBUG_CACHE = false;
 const USE_LOCAL_RENDERING_KEY = "void-tactics-use-local-rendering";
 
 function currentShipsContractAddress(): string {
-  return String(CONTRACT_ADDRESSES.SHIPS ?? "").toLowerCase();
+  return "legacy";
 }
 
 function imageCachePrefix(): string {
@@ -302,8 +298,8 @@ export function useShipImageCache(ship: Ship) {
         // Call tokenURI directly
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tokenURI = await (publicClient as any).readContract({
-          address: CONTRACT_ADDRESSES.SHIPS as `0x${string}`,
-          abi: SHIPS_ABI,
+          address: "0x0000000000000000000000000000000000000000",
+          abi: [],
           functionName: "tokenURI",
           args: [ship.id],
         });
@@ -746,9 +742,9 @@ const initializeCacheSystem = () => {
     // Check and cleanup cache
     checkAndCleanupCache();
 
-    // Flush cache if Ships contract address changed
+    // Flush cache if Ships contract address changed (no-op: contracts removed)
     try {
-      const currentAddress = (CONTRACT_ADDRESSES.SHIPS as string) || "";
+      const currentAddress = "";
       const storedAddress = localStorage.getItem(SHIPS_ADDRESS_STORAGE_KEY);
       if (storedAddress && storedAddress !== currentAddress) {
         clearAllShipImageCache();

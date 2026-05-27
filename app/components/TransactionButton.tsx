@@ -1,14 +1,13 @@
 "use client";
 
 import React from "react";
-import type { Abi } from "viem";
 
 // TransactionButton stub: blockchain writes removed in REST backend migration.
-// Renders a disabled button so callers compile without wagmi.
+// Renders a disabled button so callers compile without wagmi/viem.
 interface TransactionButtonProps {
   transactionId: string;
-  contractAddress: `0x${string}`;
-  abi: Abi;
+  contractAddress: string;
+  abi: unknown[];
   functionName: string;
   args?: unknown[];
   value?: number;
@@ -20,7 +19,7 @@ interface TransactionButtonProps {
   errorText?: string;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
-  onTransactionSent?: (hash: `0x${string}`) => void;
+  onTransactionSent?: (hash: string) => void;
   onReceipt?: (receipt: { gasUsed: number }) => void;
   validateBeforeTransaction?: () => boolean | string;
   style?: React.CSSProperties;

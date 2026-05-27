@@ -1,13 +1,8 @@
-import { getContractAddresses } from "../config/contracts";
-import { useSelectedChainId } from "./useSelectedChainId";
-
 export function useShipsContract() {
-  const activeChainId = useSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
   return {
-    address: contractAddresses.SHIPS as `0x${string}`,
+    address: "0x0000000000000000000000000000000000000000",
     abi: [] as const,
-    chainId: activeChainId,
+    chainId: 0,
   };
 }
 

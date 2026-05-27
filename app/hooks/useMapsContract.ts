@@ -1,19 +1,14 @@
 "use client";
 
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import type { Abi } from "viem";
-import { getSelectedChainId } from "../config/networks";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/app/lib/apiFetch";
 import { PresetMap } from "../types/types";
 
 export function useMapsContract() {
-  const activeChainId = getSelectedChainId();
-  const { MAPS } = getContractAddresses(activeChainId);
   return {
-    address: MAPS as `0x${string}`,
-    abi: CONTRACT_ABIS.MAPS as Abi,
-    chainId: activeChainId,
+    address: "0x0000000000000000000000000000000000000000",
+    abi: [] as const,
+    chainId: 0,
   };
 }
 

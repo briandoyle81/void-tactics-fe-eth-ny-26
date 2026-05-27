@@ -2,7 +2,6 @@ import { prisma } from "./prisma";
 import { dbShipToShip } from "./dbToType";
 import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 import type { GameDataView, ShipPosition } from "../types/types";
-import type { Address } from "viem";
 
 type FleetWithShips = {
   id: number;
@@ -72,16 +71,16 @@ export async function createGameFromLobby(
     metadata: {
       gameId,
       lobbyId:         lobby.id,
-      creator:         lobby.creatorId as Address,
-      joiner:          lobby.joinerId as Address,
+      creator:         lobby.creatorId,
+      joiner:          lobby.joinerId,
       creatorFleetId:  creatorFleet.id,
       joinerFleetId:   joinerFleet.id,
       creatorGoesFirst,
       startedAt:       now,
-      winner:          "0x0000000000000000000000000000000000000000" as Address,
+      winner:          "0x0000000000000000000000000000000000000000",
     },
     turnState: {
-      currentTurn:    firstTurnPlayerId as Address,
+      currentTurn:    firstTurnPlayerId,
       turnTime:       lobby.turnTimeSeconds,
       turnStartTime:  now,
       currentRound:   1,

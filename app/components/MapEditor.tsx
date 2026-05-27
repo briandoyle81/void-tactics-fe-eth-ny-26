@@ -8,11 +8,9 @@ import {
   GRID_DIMENSIONS,
 } from "../types/types";
 import {
-  useMapsContract,
   useGetPresetMap,
   useGetPresetScoringMap,
 } from "../hooks/useMapsContract";
-import { TransactionButton } from "./TransactionButton";
 
 interface MapEditorProps {
   mapId?: number;
@@ -28,8 +26,6 @@ export function MapEditor({
   canEdit = true,
 }: MapEditorProps) {
   const isEditing = mapId !== undefined;
-  const mapsContract = useMapsContract();
-
   // Load map data when editing
   const { data: blockedPositions } = useGetPresetMap(mapId || 0, {
     chainSource: "picker",
@@ -1045,25 +1041,20 @@ export function MapEditor({
         >
           Clear All
         </button>
-        <TransactionButton
-          transactionId={`map-${isEditing ? "update" : "create"}-${
-            mapId || "new"
-          }`}
-          contractAddress={mapsContract.address}
-          abi={mapsContract.abi}
-          functionName={getTransactionData().functionName}
-          args={getTransactionData().args}
-          onSuccess={handleTransactionSuccess}
-          validateBeforeTransaction={validateBeforeTransaction}
+        <button
           disabled={!canEdit}
           className={`px-4 py-2 rounded-none font-mono ${
             !canEdit
               ? "bg-steel text-text-muted cursor-not-allowed"
               : "border border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
           }`}
+          onClick={() => {
+            if (!canEdit) return;
+            // Map creation via blockchain removed — no-op in REST architecture
+          }}
         >
           {isEditing ? "Update Map" : "Create Map"}
-        </TransactionButton>
+        </button>
         <button
           onClick={onCancel}
           className="px-4 py-2 bg-steel text-text-primary rounded-none font-mono hover:bg-gunmetal"

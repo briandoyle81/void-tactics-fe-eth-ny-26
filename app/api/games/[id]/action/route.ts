@@ -3,7 +3,6 @@ import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { ActionType } from "@/app/types/types";
 import type { GameDataView, LastMove } from "@/app/types/types";
-import type { Address } from "viem";
 import { buildMapGridsFromContractMap } from "@/app/utils/mapGridUtils";
 import { getEconomyConfig } from "@/app/lib/economyConfig";
 
@@ -398,7 +397,7 @@ export async function POST(
     winnerId = earlyWin.winner;
     newState = {
       ...newState,
-      metadata: { ...newState.metadata, winner: earlyWin.winner as Address },
+      metadata: { ...newState.metadata, winner: earlyWin.winner },
     };
   } else {
     // Turn advancement
@@ -466,7 +465,7 @@ export async function POST(
         winnerId = roundEndWin.winner;
         newState = {
           ...newState,
-          metadata: { ...newState.metadata, winner: roundEndWin.winner as Address },
+          metadata: { ...newState.metadata, winner: roundEndWin.winner },
         };
       } else {
         // Start next round — alternate who goes first each round

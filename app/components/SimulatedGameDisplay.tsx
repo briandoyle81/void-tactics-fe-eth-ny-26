@@ -59,7 +59,6 @@ import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnC
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
 import { useAccount } from "../hooks/useAccount";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import posthog from "posthog-js";
 import {
@@ -240,7 +239,7 @@ export function SimulatedGameDisplay({
 }: SimulatedGameDisplayProps) {
   useAccount();
   const { userId: address } = useCurrentUser();
-  const activeChainId = useSelectedChainId();
+  const activeChainId = 0; // chain selection removed in REST architecture
   const queryClient = useQueryClient();
   const [pendingTutorialClaimPath, setPendingTutorialClaimPath] = useState<
     "win" | "loss" | null

@@ -1,5 +1,4 @@
 import { Ship, ShipColors, ShipData, ShipEquipment } from "../types/types";
-import { Address } from "viem";
 import {
   buildTutorialShip,
   type TutorialCombatTraits,
@@ -7,9 +6,9 @@ import {
 
 // Tutorial player address (simulated)
 export const TUTORIAL_PLAYER_ADDRESS =
-  "0x1111111111111111111111111111111111111111" as Address;
+  "0x1111111111111111111111111111111111111111";
 export const TUTORIAL_OPPONENT_ADDRESS =
-  "0x2222222222222222222222222222222222222222" as Address;
+  "0x2222222222222222222222222222222222222222";
 
 // Helper to create ship colors (NFT / renderer only; not ShipAttributes traits)
 function createColors(
