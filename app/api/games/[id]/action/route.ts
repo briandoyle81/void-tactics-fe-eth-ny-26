@@ -451,12 +451,14 @@ export async function POST(
           metadata: { ...newState.metadata, winner: roundEndWin.winner as Address },
         };
       } else {
-        // Start next round — turn goes to whoever goes first
-        const firstPlayerNextRound = newState.metadata.creatorGoesFirst
+        // Start next round — alternate who goes first each round
+        const nextCreatorGoesFirst = !newState.metadata.creatorGoesFirst;
+        const firstPlayerNextRound = nextCreatorGoesFirst
           ? newState.metadata.creator
           : newState.metadata.joiner;
         newState = {
           ...newState,
+          metadata: { ...newState.metadata, creatorGoesFirst: nextCreatorGoesFirst },
           creatorMovedShipIds: [],
           joinerMovedShipIds: [],
           turnState: {

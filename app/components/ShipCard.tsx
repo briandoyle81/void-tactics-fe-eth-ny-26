@@ -56,6 +56,12 @@ interface ShipCardProps {
   hideOuterFrame?: boolean;
 }
 
+const SPECIAL_RANGES: Record<number, number> = {
+  1: 3, // EMP
+  2: 2, // Repair
+  3: 3, // Flak
+};
+
 const ShipCard: React.FC<ShipCardProps> = ({
   ship,
   isStarred,
@@ -755,7 +761,12 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="opacity-60">Range:</span>
-                      <span className="ml-2">{inGameAttributes.range}</span>
+                      <span className="ml-2">
+                        {inGameAttributes.range}
+                        {ship.equipment.special > 0 && (
+                          <span className="opacity-50"> / {SPECIAL_RANGES[ship.equipment.special] ?? "?"}</span>
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="opacity-60">Damage:</span>
@@ -852,6 +863,17 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     {getMainWeaponName(ship.equipment.mainWeapon)}
                   </span>
                 </div>
+                {inGameAttributes && (
+                  <div className="flex justify-between">
+                    <span className="opacity-60">Rng:</span>
+                    <span className="ml-2">
+                      {inGameAttributes.range}
+                      {ship.equipment.special > 0 && (
+                        <span className="opacity-50"> / {SPECIAL_RANGES[ship.equipment.special] ?? "?"}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="opacity-60">
                     {ship.equipment.shields > 0 ? "Shd:" : "Arm:"}

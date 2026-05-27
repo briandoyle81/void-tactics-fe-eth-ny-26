@@ -21,6 +21,7 @@ import {
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
+import { computeMovementRange, computeShootingRange } from "../utils/gameGridRanges";
 
 interface MapDisplayProps {
   mapId: number;
@@ -173,19 +174,58 @@ export function MapDisplay({
     () => fullShips.map((ship) => ship.id),
     [fullShips]
   );
-  const { attributes, isLoading: attributesLoading } =
+  const { attributesMap, isLoading: attributesLoading } =
     useShipAttributesByIds(shipIds);
 
-  // Create a map of ship ID to attributes for quick lookup
-  const attributesMap = React.useMemo(() => {
-    const map = new Map<number, Attributes>();
-    fullShips.forEach((ship, index) => {
-      if (attributes[index]) {
-        map.set(ship.id, attributes[index]);
-      }
-    });
-    return map;
-  }, [fullShips, attributes]);
+  // Convert flat shipPositions to ShipPosition format for range utilities
+  const shipPositionsForRange = React.useMemo(
+    () =>
+      (shipPositions ?? []).map((p) => ({
+        shipId: p.shipId,
+        position: { row: p.row, col: p.col },
+        isCreator: false,
+      })),
+    [shipPositions],
+  );
+
+  const getShipAttributesForRange = React.useCallback(
+    (id: number) => attributesMap.get(id) ?? null,
+    [attributesMap],
+  );
+
+  const movementRange = React.useMemo(
+    () =>
+      computeMovementRange({
+        gridWidth: GRID_DIMENSIONS.WIDTH,
+        gridHeight: GRID_DIMENSIONS.HEIGHT,
+        selectedShipId: selectedShipId ?? null,
+        hasShips: ships.length > 0,
+        shipMap,
+        getShipAttributes: getShipAttributesForRange,
+        shipPositions: shipPositionsForRange,
+        previewPosition: null,
+      }),
+    [selectedShipId, ships.length, shipMap, getShipAttributesForRange, shipPositionsForRange],
+  );
+
+  const shootingRange = React.useMemo(
+    () =>
+      computeShootingRange({
+        gridWidth: GRID_DIMENSIONS.WIDTH,
+        gridHeight: GRID_DIMENSIONS.HEIGHT,
+        selectedShipId: selectedShipId ?? null,
+        hasShips: ships.length > 0,
+        shipMap,
+        getShipAttributes: getShipAttributesForRange,
+        shipPositions: shipPositionsForRange,
+        previewPosition: null,
+        selectedWeaponType: "weapon",
+        specialRange: undefined,
+        specialType: 0,
+        blockedGrid: mapState.blockedTiles,
+      }),
+    [selectedShipId, ships.length, shipMap, getShipAttributesForRange, shipPositionsForRange, mapState.blockedTiles],
+  );
 
   // Helper function to get ship at a position
   const getShipAtPosition = (row: number, col: number) => {
@@ -456,6 +496,16 @@ export function MapDisplay({
                     >
                       {mapState.scoringTiles[row][col]}
                     </div>
+                  )}
+
+                  {/* Movement range highlight */}
+                  {movementRange.some((p) => p.row === row && p.col === col) && (
+                    <div className="absolute inset-0 z-[3] border-1 border-phosphor-green/50 bg-phosphor-green/10 pointer-events-none" />
+                  )}
+
+                  {/* Shooting range highlight */}
+                  {shootingRange.some((p) => p.row === row && p.col === col) && (
+                    <div className="absolute inset-0 z-[3] border-1 border-amber/50 bg-amber/10 pointer-events-none" />
                   )}
 
                   {/* Ship display */}

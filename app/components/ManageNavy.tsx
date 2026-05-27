@@ -147,21 +147,9 @@ const ManageNavy: React.FC = () => {
   }, []);
 
   const {
-    attributes: shipAttributes,
+    attributesMap,
     isLoading: attributesLoading,
-    isFromCache,
   } = useShipAttributesByIds(shipIds);
-
-  // Create a map of ship ID to attributes for quick lookup
-  const attributesMap = React.useMemo(() => {
-    const map = new Map<number, (typeof shipAttributes)[0]>();
-    shipIds.forEach((shipId, index) => {
-      if (shipAttributes[index]) {
-        map.set(shipId, shipAttributes[index]);
-      }
-    });
-    return map;
-  }, [shipIds, shipAttributes]);
 
   // Check if user can recycle (minimum 10 purchases required)
   const canRecycle = amountPurchased ? Number(amountPurchased) >= 10 : false;
@@ -1994,14 +1982,6 @@ const ManageNavy: React.FC = () => {
                 }}
               >
                 IN-GAME PROPERTIES
-                {isFromCache && (
-                  <span
-                    className="text-xs ml-1"
-                    style={{ color: "var(--color-phosphor-green)" }}
-                  >
-                    (cached)
-                  </span>
-                )}
               </span>
             </label>
           </div>

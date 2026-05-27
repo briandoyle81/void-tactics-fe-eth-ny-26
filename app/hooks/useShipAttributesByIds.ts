@@ -9,15 +9,18 @@ export function useShipAttributesByIds(shipIds: number[]) {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["ships", "attributes", ids],
-    queryFn: () => apiFetch<Attributes[]>(`/api/ships/attributes?ids=${ids}`),
+    queryFn: () => apiFetch<Record<string, Attributes>>(`/api/ships/attributes?ids=${ids}`),
     enabled: shipIds.length > 0,
     staleTime: 30_000,
   });
 
+  const attributesMap = new Map<number, Attributes>(
+    Object.entries(data ?? {}).map(([id, attrs]) => [Number(id), attrs])
+  );
+
   return {
-    attributes: data ?? [],
+    attributesMap,
     isLoading,
-    isFromCache: false,
     error,
     refetch,
   };

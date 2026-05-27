@@ -596,9 +596,8 @@ const Lobbies: React.FC = () => {
   const shipIds = React.useMemo(() => ships.map((ship) => ship.id), [ships]);
   // Ship attributes (movement, weapon range, etc.) from contract – same source and calculation for creator and joiner
   const {
-    attributes: shipAttributes,
+    attributesMap,
     isLoading: attributesLoading,
-    isFromCache,
   } = useShipAttributesByIds(shipIds);
 
   // Helper function to find next available position for a ship
@@ -1053,24 +1052,7 @@ const Lobbies: React.FC = () => {
     navigateToGamesTab();
   }, [resetFleetSelectionModalState, navigateToGamesTab]);
 
-  // Create a map of ship ID to attributes for quick lookup (only when rows align
-  // with shipIds so we never show another ship's stats on the wrong card).
-  const attributesAlignedWithShipIds =
-    shipIds.length === 0 ||
-    shipAttributes.length === shipIds.length;
-  const attributesMap = React.useMemo(() => {
-    const map = new Map<number, (typeof shipAttributes)[0]>();
-    if (!attributesAlignedWithShipIds) return map;
-    shipIds.forEach((shipId, index) => {
-      if (shipAttributes[index]) {
-        map.set(shipId, shipAttributes[index]);
-      }
-    });
-    return map;
-  }, [shipIds, shipAttributes, attributesAlignedWithShipIds]);
-
-  const fleetSelectionAttributesLoading =
-    attributesLoading || !attributesAlignedWithShipIds;
+  const fleetSelectionAttributesLoading = attributesLoading;
 
   const [dragging, setDragging] = useState<{
     type:
@@ -1520,21 +1502,11 @@ const Lobbies: React.FC = () => {
       .catch(() => {});
   }, [opponentFleetIdForGrid]);
 
-  // Opponent attributes (grid preview)
+  // Opponent grid ship IDs (used for flippedShipIds)
   const opponentGridShipIds = React.useMemo(
     () => opponentGridPositionsFromHook.map((p) => p.shipId),
     [opponentGridPositionsFromHook],
   );
-  const { attributes: opponentGridAttributes } =
-    useShipAttributesByIds(opponentGridShipIds);
-
-  // Opponent attributes (modal view)
-  const opponentViewShipIds = React.useMemo(
-    () => opponentPositions.map((p) => p.shipId),
-    [opponentPositions],
-  );
-  const { attributes: opponentViewAttributes } =
-    useShipAttributesByIds(opponentViewShipIds);
 
   // Combine both fleets for grid view during selection
   const combinedPositions = React.useMemo(
@@ -1582,23 +1554,6 @@ const Lobbies: React.FC = () => {
 
     return Array.from(shipMap.values());
   }, [ships, opponentGridShipsData, playerFleetShips]);
-
-  // Get attributes for player's fleet ships
-  const playerFleetShipIds = React.useMemo(
-    () => playerFleetShips.map((s) => s.id),
-    [playerFleetShips],
-  );
-  const { attributes: playerFleetAttributes } =
-    useShipAttributesByIds(playerFleetShipIds);
-
-  const combinedAttributes = React.useMemo(
-    () => [
-      ...(shipAttributes as Attributes[]),
-      ...(((playerFleetAttributes as Attributes[]) ?? []) as Attributes[]),
-      ...(((opponentGridAttributes as Attributes[]) ?? []) as Attributes[]),
-    ],
-    [shipAttributes, playerFleetAttributes, opponentGridAttributes],
-  );
 
   // Selection allowed only on current builder's ships
   const selectableShipIds = selectedShips;
@@ -3507,11 +3462,6 @@ const Lobbies: React.FC = () => {
                             />
                             <span className="text-sm font-bold text-cyan">
                               IN-GAME PROPERTIES
-                              {isFromCache && (
-                                <span className="text-xs text-phosphor-green ml-1">
-                                  (cached)
-                                </span>
-                              )}
                             </span>
                           </label>
                         </div>

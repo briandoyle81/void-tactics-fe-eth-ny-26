@@ -23,8 +23,11 @@ export async function GET(req: NextRequest) {
     where: { id: { in: ids }, ownerId: userId! },
   });
 
-  const attributes = dbShips.map((db) => calculateAttributesFromContracts(dbShipToShip(db)));
-  return new NextResponse(stringifyWithBigint(attributes), {
+  const result: Record<string, ReturnType<typeof calculateAttributesFromContracts>> = {};
+  for (const db of dbShips) {
+    result[db.id] = calculateAttributesFromContracts(dbShipToShip(db));
+  }
+  return new NextResponse(stringifyWithBigint(result), {
     headers: { "Content-Type": "application/json" },
   });
 }
