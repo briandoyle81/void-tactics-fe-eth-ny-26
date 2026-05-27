@@ -13,6 +13,7 @@ export async function GET() {
   return NextResponse.json({
     wins: stats?.wins ?? 0,
     losses: stats?.losses ?? 0,
+    draws: stats?.draws ?? 0,
     totalGames: stats?.totalGames ?? 0,
   });
 }

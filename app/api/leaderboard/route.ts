@@ -24,6 +24,7 @@ export async function GET() {
     displayName: row.user.username ?? row.user.email.split("@")[0],
     wins: row.wins,
     losses: row.losses,
+    draws: row.draws,
     totalGames: row.totalGames,
     winRate: row.totalGames > 0 ? Math.round((row.wins / row.totalGames) * 100) : 0,
     isMe: currentUserId !== null && row.user.id === currentUserId,

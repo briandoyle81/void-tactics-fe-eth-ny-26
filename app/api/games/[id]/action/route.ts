@@ -62,6 +62,8 @@ function applyShootDamage(
   return { ...state, shipAttributes: newAttrs, creatorActiveShipIds: newCreatorActive, joinerActiveShipIds: newJoinerActive };
 }
 
+const TIE_ADDR = "0x0000000000000000000000000000000000000001";
+
 function checkWinConditions(state: GameDataView): { winner: string | null; reason: string | null } {
   if (state.creatorActiveShipIds.length === 0) {
     return { winner: state.metadata.joiner as string, reason: "all_destroyed" };
@@ -69,10 +71,21 @@ function checkWinConditions(state: GameDataView): { winner: string | null; reaso
   if (state.joinerActiveShipIds.length === 0) {
     return { winner: state.metadata.creator as string, reason: "all_destroyed" };
   }
-  if (state.creatorScore >= state.maxScore) {
+  const creatorDone = state.creatorScore >= state.maxScore;
+  const joinerDone = state.joinerScore >= state.maxScore;
+  if (creatorDone && joinerDone) {
+    if (state.creatorScore > state.joinerScore) {
+      return { winner: state.metadata.creator as string, reason: "score" };
+    } else if (state.joinerScore > state.creatorScore) {
+      return { winner: state.metadata.joiner as string, reason: "score" };
+    } else {
+      return { winner: TIE_ADDR, reason: "tie" };
+    }
+  }
+  if (creatorDone) {
     return { winner: state.metadata.creator as string, reason: "score" };
   }
-  if (state.joinerScore >= state.maxScore) {
+  if (joinerDone) {
     return { winner: state.metadata.joiner as string, reason: "score" };
   }
   return { winner: null, reason: null };
@@ -238,9 +251,24 @@ export async function POST(
           newState = { ...newState, shipAttributes: newAttrs };
         }
       } else if (specialType === 3) {
-        // Flak: deal gun damage, no LOS check
-        if (targetShipId) {
-          newState = applyShootDamage(newState, shipId, targetShipId);
+        // Flak: deal gun damage to every active ship within range except the firing ship — no LOS check, friendly fire included
+        const flakRange = SPECIAL_CONFIG[3]!.range;
+        const allActiveIds = [
+          ...newState.creatorActiveShipIds,
+          ...newState.joinerActiveShipIds,
+        ];
+        for (const targetId of allActiveIds) {
+          if (targetId === shipId) continue;
+          const targetPos = newState.shipPositions.find(
+            (p) => p.shipId === targetId,
+          );
+          if (!targetPos) continue;
+          const dist =
+            Math.abs(targetPos.position.row - row) +
+            Math.abs(targetPos.position.col - col);
+          if (dist <= flakRange) {
+            newState = applyShootDamage(newState, shipId, targetId);
+          }
         }
       }
 
@@ -500,17 +528,30 @@ export async function POST(
     }
 
     if (gamePhase === "COMPLETED" && winnerId && winnerId !== game.winnerId) {
-      const loserId = winnerId === game.player1Id ? game.player2Id : game.player1Id;
-      await tx.playerStats.upsert({
-        where: { userId: winnerId },
-        update: { wins: { increment: 1 }, totalGames: { increment: 1 } },
-        create: { userId: winnerId, wins: 1, totalGames: 1 },
-      });
-      await tx.playerStats.upsert({
-        where: { userId: loserId },
-        update: { losses: { increment: 1 }, totalGames: { increment: 1 } },
-        create: { userId: loserId, losses: 1, totalGames: 1 },
-      });
+      if (winnerId === TIE_ADDR) {
+        await tx.playerStats.upsert({
+          where: { userId: game.player1Id },
+          update: { draws: { increment: 1 }, totalGames: { increment: 1 } },
+          create: { userId: game.player1Id, draws: 1, totalGames: 1 },
+        });
+        await tx.playerStats.upsert({
+          where: { userId: game.player2Id },
+          update: { draws: { increment: 1 }, totalGames: { increment: 1 } },
+          create: { userId: game.player2Id, draws: 1, totalGames: 1 },
+        });
+      } else {
+        const loserId = winnerId === game.player1Id ? game.player2Id : game.player1Id;
+        await tx.playerStats.upsert({
+          where: { userId: winnerId },
+          update: { wins: { increment: 1 }, totalGames: { increment: 1 } },
+          create: { userId: winnerId, wins: 1, totalGames: 1 },
+        });
+        await tx.playerStats.upsert({
+          where: { userId: loserId },
+          update: { losses: { increment: 1 }, totalGames: { increment: 1 } },
+          create: { userId: loserId, losses: 1, totalGames: 1 },
+        });
+      }
       // Free all ships used in this game so players can use them again
       const gameFleets = await tx.fleet.findMany({ where: { lobbyId: game.lobbyId } });
       const allFleetShipIds = gameFleets.flatMap((f) => f.shipIds as number[]);

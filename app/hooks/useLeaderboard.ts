@@ -7,6 +7,7 @@ export interface LeaderboardEntry {
   displayName: string;
   wins: number;
   losses: number;
+  draws: number;
   totalGames: number;
   winRate: number;
   isMe: boolean;

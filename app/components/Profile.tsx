@@ -6,6 +6,9 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useLeaderboard } from "../hooks/useLeaderboard";
 
+const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+const TIE_ADDR = "0x0000000000000000000000000000000000000001";
+
 const Profile: React.FC = () => {
   const { isConnected } = useAccount();
   const { userId: address } = useCurrentUser();
@@ -15,36 +18,36 @@ const Profile: React.FC = () => {
   // Calculate statistics from finished games
   const stats = useMemo(() => {
     if (!address || !games.length) {
-      return { wins: 0, losses: 0, inProgress: 0, winRate: 0 };
+      return { wins: 0, losses: 0, draws: 0, inProgress: 0, winRate: 0 };
     }
 
     const finishedGames = games.filter(
-      (game) =>
-        game.metadata.winner !==
-        "0x0000000000000000000000000000000000000000"
+      (game) => game.metadata.winner !== ZERO_ADDR
     );
 
     const wins = finishedGames.filter(
       (game) => game.metadata.winner.toLowerCase() === address.toLowerCase()
     ).length;
 
-    const losses = finishedGames.length - wins;
+    const draws = finishedGames.filter(
+      (game) => game.metadata.winner === TIE_ADDR
+    ).length;
+
+    const losses = finishedGames.length - wins - draws;
     const inProgress = games.length - finishedGames.length;
     const winRate =
       finishedGames.length > 0
         ? Math.round((wins / finishedGames.length) * 100)
         : 0;
 
-    return { wins, losses, inProgress, winRate };
+    return { wins, losses, draws, inProgress, winRate };
   }, [games, address]);
 
   // Sort games: finished first (by startedAt desc), then in progress
   const sortedGames = useMemo(() => {
     return [...games].sort((a, b) => {
-      const aFinished =
-        a.metadata.winner !== "0x0000000000000000000000000000000000000000";
-      const bFinished =
-        b.metadata.winner !== "0x0000000000000000000000000000000000000000";
+      const aFinished = a.metadata.winner !== ZERO_ADDR;
+      const bFinished = b.metadata.winner !== ZERO_ADDR;
 
       if (aFinished && !bFinished) return -1;
       if (!aFinished && bFinished) return 1;
@@ -55,10 +58,11 @@ const Profile: React.FC = () => {
   }, [games]);
 
   const getGameOutcome = (game: typeof games[0]) => {
-    if (
-      game.metadata.winner === "0x0000000000000000000000000000000000000000"
-    ) {
+    if (game.metadata.winner === ZERO_ADDR) {
       return { text: "IN PROGRESS", color: "text-amber" };
+    }
+    if (game.metadata.winner === TIE_ADDR) {
+      return { text: "DRAW", color: "text-purple" };
     }
     if (address && game.metadata.winner.toLowerCase() === address.toLowerCase()) {
       return { text: "VICTORY", color: "text-phosphor-green" };
@@ -126,6 +130,12 @@ const Profile: React.FC = () => {
                 <span className="data-readout-label">Losses</span>
                 <span className="font-bold text-warning-red font-mono text-xs">{stats.losses}</span>
               </div>
+              {stats.draws > 0 && (
+                <div className="data-readout">
+                  <span className="data-readout-label">Draws</span>
+                  <span className="font-bold text-purple font-mono text-xs">{stats.draws}</span>
+                </div>
+              )}
               <div className="data-readout">
                 <span className="data-readout-label">Win Rate</span>
                 <span className="font-bold font-mono text-xs">{stats.winRate}%</span>
@@ -179,7 +189,7 @@ const Profile: React.FC = () => {
                 const opponent = getOpponentAddress(game);
                 const activeShips = getActiveShips(game);
                 const round = Number(game.turnState.currentRound);
-                const inProgress = game.metadata.winner === "0x0000000000000000000000000000000000000000";
+                const inProgress = game.metadata.winner === ZERO_ADDR;
                 return (
                   <div
                     key={game.metadata.gameId.toString()}
@@ -255,11 +265,12 @@ const Profile: React.FC = () => {
         ) : (
           <>
             {/* Header row */}
-            <div className="grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3.5rem] gap-x-2 mb-1 px-2 text-[10px] font-mono tracking-widest opacity-50 uppercase">
+            <div className="grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3rem_3.5rem] gap-x-2 mb-1 px-2 text-[10px] font-mono tracking-widest opacity-50 uppercase">
               <span>#</span>
               <span>Player</span>
               <span className="text-right">W</span>
               <span className="text-right">L</span>
+              <span className="text-right">D</span>
               <span className="text-right">GP</span>
               <span className="text-right">Win%</span>
             </div>
@@ -274,7 +285,7 @@ const Profile: React.FC = () => {
                 return (
                   <div
                     key={entry.rank}
-                    className={`grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3.5rem] gap-x-2 px-2 py-1 text-xs font-mono transition-colors ${
+                    className={`grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3rem_3.5rem] gap-x-2 px-2 py-1 text-xs font-mono transition-colors ${
                       isMe
                         ? "bg-amber/10 border border-amber/40"
                         : "border border-transparent hover:border-gunmetal"
@@ -290,6 +301,7 @@ const Profile: React.FC = () => {
                     </span>
                     <span className="text-right text-phosphor-green font-bold">{entry.wins}</span>
                     <span className="text-right text-warning-red">{entry.losses}</span>
+                    <span className="text-right text-purple">{entry.draws}</span>
                     <span className="text-right opacity-60">{entry.totalGames}</span>
                     <span className="text-right opacity-80">{entry.winRate}%</span>
                   </div>

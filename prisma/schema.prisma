@@ -181,5 +181,6 @@ model PlayerStats {
   user       User   @relation(fields: [userId], references: [id])
   wins       Int    @default(0)
   losses     Int    @default(0)
+  draws      Int    @default(0)
   totalGames Int    @default(0)
 }

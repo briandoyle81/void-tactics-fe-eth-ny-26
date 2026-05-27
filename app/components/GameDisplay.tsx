@@ -53,6 +53,8 @@ import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation"
 
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
 const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
+const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+const TIE_ADDR = "0x0000000000000000000000000000000000000001";
 
 const POLL_INTERVAL_FOCUSED_MS = 30 * 1000;
 const POLL_INTERVAL_UNFOCUSED_MS = 5 * 60 * 1000;
@@ -669,11 +671,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     // Helper to compute remaining seconds
     const computeRemaining = (): number => {
       const turnTimeSec = Number(game.turnState.turnTime || 0);
-      const turnStartSec = Number(game.turnState.turnStartTime || 0);
-      if (!turnTimeSec || !turnStartSec) return 0;
-      const nowSec = Math.floor(Date.now() / 1000);
-      const elapsed = Math.max(0, nowSec - turnStartSec);
-      return Math.max(0, turnTimeSec - elapsed);
+      const turnStartMs = Number(game.turnState.turnStartTime || 0);
+      if (!turnTimeSec || !turnStartMs) return 0;
+      const elapsedSec = Math.max(0, (Date.now() - turnStartMs) / 1000);
+      return Math.max(0, turnTimeSec - elapsedSec);
     };
 
     // Initialize immediately
@@ -926,7 +927,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     // Check conditions directly to avoid dependency order issues
     const isMyTurnNow = game.turnState.currentTurn === address;
     const shouldShowLastMoveNow =
-      game.metadata.winner === "0x0000000000000000000000000000000000000000" &&
+      game.metadata.winner === ZERO_ADDR &&
       displayedLastMove &&
       displayedLastMove.shipId !== 0 &&
       selectedShipId === null;
@@ -1874,7 +1875,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // - It's their turn AND they have proposed but not submitted a move
   const shouldShowLastMove = React.useMemo(() => {
     // Don't show if game is won
-    if (game.metadata.winner !== "0x0000000000000000000000000000000000000000") {
+    if (game.metadata.winner !== ZERO_ADDR) {
       return false;
     }
 
@@ -1932,7 +1933,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Last-move arrow, borders, and replay overlays: same visibility as ghost tiles.
   // Hide whenever any ship is selected so the grid focuses on the active selection.
   const shouldShowLastMoveOnGrid = React.useMemo(() => {
-    if (game.metadata.winner !== "0x0000000000000000000000000000000000000000") {
+    if (game.metadata.winner !== ZERO_ADDR) {
       return false;
     }
     if (!displayedLastMove || displayedLastMove.shipId === 0) {
@@ -2495,7 +2496,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       );
                       const oldRow = currentPosition ? currentPosition.position.row : computedRow;
                       const oldCol = currentPosition ? currentPosition.position.col : computedCol;
-                      const submittedTargetShipId = computedActionType === ActionType.Pass ? 0 : (targetShipId || 0);
+                      const submittedTargetShipId =
+                        computedActionType === ActionType.Pass
+                          ? 0
+                          : computedActionType === ActionType.Ram
+                            ? (aliveShipPositions.find(
+                                (pos) =>
+                                  pos.position.row === computedRow &&
+                                  pos.position.col === computedCol &&
+                                  pos.shipId !== selectedShipId,
+                              )?.shipId ?? 0)
+                            : (targetShipId || 0);
 
                       const updatedState = await apiMutate<GameDataView>(
                         `/api/games/${game.metadata.gameId}/action`,
@@ -3086,10 +3097,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       : game.creatorScore?.toString() || "0";
   const maxScore = game.maxScore?.toString() || "0";
   const mobileTurnLabel =
-    game.metadata.winner !== "0x0000000000000000000000000000000000000000"
-      ? game.metadata.winner === address
-        ? "Victory"
-        : "Defeat"
+    game.metadata.winner !== ZERO_ADDR
+      ? game.metadata.winner === TIE_ADDR
+        ? "Draw"
+        : game.metadata.winner === address
+          ? "Victory"
+          : "Defeat"
       : isMyTurnEffective
         ? "Your turn"
         : "Opponent turn";
@@ -3338,9 +3351,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
                     </div>
                   </div>
-                  {game.metadata.winner !== "0x0000000000000000000000000000000000000000" ? (
+                  {game.metadata.winner !== ZERO_ADDR ? (
                     <div className="text-sm text-text-primary">
-                      Result: {game.metadata.winner === address ? "Victory" : "Defeat"}
+                      Result: {game.metadata.winner === TIE_ADDR ? "Draw" : game.metadata.winner === address ? "Victory" : "Defeat"}
                     </div>
                   ) : null}
                 </div>
@@ -3575,7 +3588,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       setDragOverCell={setDragOverCell}
                     />
                   </div>
-                {game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
+                {game.metadata.winner === ZERO_ADDR ? (
                   <div
                     className={`pointer-events-none absolute top-1 z-[230] ${
                       isMobileJoiner ? "left-1" : "right-1"
@@ -3846,7 +3859,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
                 {game.metadata.winner ===
-                  "0x0000000000000000000000000000000000000000" && (
+                  ZERO_ADDR && (
                   <FleeSafetySwitch
                     gameId={game.metadata.gameId}
                     onFlee={() => {
@@ -3862,19 +3875,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div className="w-4/5 min-w-0 text-right">
                 <div className="text-sm text-text-muted">
                   {game.metadata.winner !==
-                    "0x0000000000000000000000000000000000000000" && (
+                    ZERO_ADDR && (
                     <span
                       className="uppercase font-bold tracking-wider"
                       style={{
                         fontFamily:
                           "var(--font-rajdhani), 'Arial Black', sans-serif",
                         color:
-                          game.metadata.winner === address
-                            ? "var(--color-phosphor-green)"
-                            : "var(--color-warning-red)",
+                          game.metadata.winner === TIE_ADDR
+                            ? "var(--color-purple)"
+                            : game.metadata.winner === address
+                              ? "var(--color-phosphor-green)"
+                              : "var(--color-warning-red)",
                       }}
                     >
-                      {game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
+                      {game.metadata.winner === TIE_ADDR ? "DRAW" : game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
                     </span>
                   )}
                 </div>
@@ -3895,7 +3910,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </h1>
             {/* Turn Indicator and Countdown / Seize Turn */}
             {game.metadata.winner ===
-              "0x0000000000000000000000000000000000000000" &&
+              ZERO_ADDR &&
               (() => {
                 const isParticipant =
                   game.metadata.creator === address ||
@@ -4338,7 +4353,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         />
             </div>
           {game.metadata.winner ===
-            "0x0000000000000000000000000000000000000000" &&
+            ZERO_ADDR &&
             process.env.NODE_ENV === "development" && (
               <div className="absolute bottom-0 left-0 z-[220] pointer-events-none">
                 <div className="pointer-events-auto">
@@ -4603,7 +4618,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 {formatSeconds(Math.max(0, turnSecondsLeft))}
               </div>
               {game.metadata.winner ===
-              "0x0000000000000000000000000000000000000000" ? (
+              ZERO_ADDR ? (
                 <FleeSafetySwitch
                   gameId={game.metadata.gameId}
                   onFlee={() => {
@@ -4613,7 +4628,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 />
               ) : (
                 <div className="text-sm text-text-primary">
-                  Result: {game.metadata.winner === address ? "Victory" : "Defeat"}
+                  Result: {game.metadata.winner === TIE_ADDR ? "Draw" : game.metadata.winner === address ? "Victory" : "Defeat"}
                 </div>
               )}
             </div>

@@ -15,6 +15,7 @@ const Games: React.FC = () => {
   const { games, isLoading, error, refetch } = usePlayerGames();
   const [selectedGame, setSelectedGame] = useState<GameDataView | null>(null);
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+  const TIE_ADDRESS = "0x0000000000000000000000000000000000000001";
 
   // Track if component has mounted (client-side only)
   const [isMounted, setIsMounted] = useState(false);
@@ -297,12 +298,13 @@ const Games: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {sortedGames.map((game) => {
               const isFinished = game.metadata.winner !== ZERO_ADDRESS;
-              const isVictory = isFinished && game.metadata.winner === address;
+              const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
+              const isVictory = isFinished && !isDraw && game.metadata.winner === address;
               const accentClass = isFinished
-                ? isVictory ? "border-phosphor-green" : "border-warning-red"
+                ? isDraw ? "border-purple" : isVictory ? "border-phosphor-green" : "border-warning-red"
                 : "border-amber";
               const accentColor = isFinished
-                ? isVictory ? "var(--color-phosphor-green)" : "var(--color-warning-red)"
+                ? isDraw ? "var(--color-purple)" : isVictory ? "var(--color-phosphor-green)" : "var(--color-warning-red)"
                 : "var(--color-amber)";
               const remaining = isFinished ? 0 : calculateTimeRemaining(game);
               return (
@@ -319,13 +321,15 @@ const Games: React.FC = () => {
                   <span
                     className={`shrink-0 border px-2 py-0.5 font-mono text-xs font-bold tracking-wider rounded-none ${
                       isFinished
-                        ? isVictory
-                          ? "border-phosphor-green/50 bg-phosphor-green/10 text-phosphor-green"
-                          : "border-warning-red/50 bg-warning-red/10 text-warning-red"
+                        ? isDraw
+                          ? "border-purple/50 bg-purple/10 text-purple"
+                          : isVictory
+                            ? "border-phosphor-green/50 bg-phosphor-green/10 text-phosphor-green"
+                            : "border-warning-red/50 bg-warning-red/10 text-warning-red"
                         : "border-amber/50 bg-amber/10 text-amber"
                     }`}
                   >
-                    {isFinished ? (isVictory ? "VICTORY" : "DEFEAT") : "IN PROGRESS"}
+                    {isFinished ? (isDraw ? "DRAW" : isVictory ? "VICTORY" : "DEFEAT") : "IN PROGRESS"}
                   </span>
                 </div>
 

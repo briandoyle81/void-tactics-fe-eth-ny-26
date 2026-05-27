@@ -9,11 +9,20 @@ interface FlakExplosionAnimationProps {
   targetCells: GridCell[];
 }
 
+type Shard = {
+  angle: number;
+  distance: number;
+  width: number;
+  length: number;
+};
+
 type Burst = {
   id: number;
   left: number;
   top: number;
-  size: number;
+  fireballSize: number;
+  flashSize: number;
+  shards: Shard[];
 };
 
 export function FlakExplosionAnimation({
@@ -39,7 +48,6 @@ export function FlakExplosionAnimation({
   }, [targetCells]);
 
   const shuffleCells = useCallback((cells: GridCell[]) => {
-    // Fisher–Yates shuffle
     const arr = [...cells];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -62,11 +70,9 @@ export function FlakExplosionAnimation({
         cellHeight,
       };
     },
-    [gridContainerRef]
+    [gridContainerRef],
   );
 
-  // Maintain a single “storm” order across all tiles, so the effect spreads across
-  // the whole affected area rather than repeating per-tile.
   useEffect(() => {
     cellOrderRef.current = shuffleCells(uniqueCells);
     cellIndexRef.current = 0;
@@ -78,11 +84,10 @@ export function FlakExplosionAnimation({
 
     const next: Burst[] = [];
 
-    // Spawn a “slice” of the affected tiles each tick. This makes it feel like
-    // one distributed AoE effect rather than identical animations per square.
+    // Fewer tiles per tick since each burst now spawns many elements
     const tilesPerTick = Math.min(
       uniqueCells.length,
-      Math.max(6, Math.ceil(uniqueCells.length / 8))
+      Math.max(1, Math.ceil(uniqueCells.length / 20)),
     );
 
     let order = cellOrderRef.current;
@@ -94,30 +99,44 @@ export function FlakExplosionAnimation({
 
     for (let i = 0; i < tilesPerTick; i++) {
       if (cellIndexRef.current >= order.length) {
-        // Start a new pass with a new shuffle to avoid visible repetition.
         order = shuffleCells(uniqueCells);
         cellOrderRef.current = order;
         cellIndexRef.current = 0;
       }
       const cell = order[cellIndexRef.current++];
-      const rect = getCellRect(cell.row, cell.col);
+      const rect = getCellRect(cell!.row, cell!.col);
       if (!rect) continue;
 
-      // 1-2 pops on a subset of tiles per tick
-      const pops = 1 + (Math.random() < 0.35 ? 1 : 0);
-      for (let p = 0; p < pops; p++) {
-        const size = 8 + Math.floor(Math.random() * 12); // 8-19px
-        const jitterX = (Math.random() - 0.5) * rect.cellWidth * 0.5;
-        const jitterY = (Math.random() - 0.5) * rect.cellHeight * 0.5;
+      const burstCount = Math.random() < 0.35 ? 2 : 1;
+      for (let p = 0; p < burstCount; p++) {
+        const fireballSize = 14 + Math.floor(Math.random() * 10);
+        const flashSize = Math.floor(fireballSize * 0.6);
 
-        const left = rect.cellLeft + rect.cellWidth / 2 + jitterX - size / 2;
-        const top = rect.cellTop + rect.cellHeight / 2 + jitterY - size / 2;
+        const jitterX = (Math.random() - 0.5) * rect.cellWidth * 0.55;
+        const jitterY = (Math.random() - 0.5) * rect.cellHeight * 0.55;
+        const left = rect.cellLeft + rect.cellWidth / 2 + jitterX;
+        const top = rect.cellTop + rect.cellHeight / 2 + jitterY;
+
+        const shardCount = 5 + Math.floor(Math.random() * 4);
+        const baseAngle = Math.random() * 360;
+        const shards: Shard[] = Array.from({ length: shardCount }, (_, si) => ({
+          angle:
+            (baseAngle +
+              (360 / shardCount) * si +
+              (Math.random() - 0.5) * 30) %
+            360,
+          distance: 10 + Math.floor(Math.random() * 16),
+          width: Math.random() < 0.35 ? 2 : 1,
+          length: 5 + Math.floor(Math.random() * 10),
+        }));
 
         next.push({
           id: burstIdRef.current++,
           left,
           top,
-          size,
+          fireballSize,
+          flashSize,
+          shards,
         });
       }
     }
@@ -125,17 +144,15 @@ export function FlakExplosionAnimation({
     if (next.length === 0) return;
     setBursts((prev) => [...prev, ...next]);
 
-    // Bursts are short-lived; remove after animation completes.
     const idsToRemove = next.map((b) => b.id);
     setTimeout(() => {
       setBursts((prev) => prev.filter((b) => !idsToRemove.includes(b.id)));
-    }, 450);
-  }, [getCellRect, gridContainerRef, uniqueCells]);
+    }, 600);
+  }, [getCellRect, gridContainerRef, uniqueCells, shuffleCells]);
 
   useEffect(() => {
-    // Spawn immediately, then rapidly while flak is selected.
     spawnBursts();
-    const interval = setInterval(spawnBursts, 90);
+    const interval = setInterval(spawnBursts, 45);
     return () => clearInterval(interval);
   }, [spawnBursts]);
 
@@ -157,16 +174,74 @@ export function FlakExplosionAnimation({
       {bursts.map((b) => (
         <div
           key={b.id}
-          className="flak-explosion"
           style={{
+            position: "absolute",
             left: `${b.left}px`,
             top: `${b.top}px`,
-            width: `${b.size}px`,
-            height: `${b.size}px`,
+            width: 0,
+            height: 0,
           }}
-        />
+        >
+          {/* Bright initial flash */}
+          <div
+            className="flak-flash"
+            style={{
+              left: -(b.flashSize / 2),
+              top: -(b.flashSize / 2),
+              width: b.flashSize,
+              height: b.flashSize,
+            }}
+          />
+          {/* Expanding fireball */}
+          <div
+            className="flak-fireball"
+            style={{
+              left: -(b.fireballSize / 2),
+              top: -(b.fireballSize / 2),
+              width: b.fireballSize,
+              height: b.fireballSize,
+            }}
+          />
+          {/* Trailing smoke puff */}
+          <div
+            className="flak-smoke"
+            style={{
+              left: -(b.fireballSize * 0.9),
+              top: -(b.fireballSize * 0.9),
+              width: b.fireballSize * 1.8,
+              height: b.fireballSize * 1.8,
+            }}
+          />
+          {/* Debris shards — each wrapper rotates to point the shard outward */}
+          {b.shards.map((s, si) => (
+            <div
+              key={si}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: 0,
+                height: 0,
+                transform: `rotate(${s.angle}deg)`,
+              }}
+            >
+              <div
+                className="flak-shard"
+                style={
+                  {
+                    position: "absolute",
+                    left: 0,
+                    top: -(s.width / 2),
+                    width: s.length,
+                    height: s.width,
+                    "--sd": `${s.distance}px`,
+                  } as React.CSSProperties
+                }
+              />
+            </div>
+          ))}
+        </div>
       ))}
     </div>
   );
 }
-
