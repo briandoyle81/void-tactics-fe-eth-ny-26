@@ -42,6 +42,8 @@ export interface ShipData {
   constructed: boolean;
   inFleet: boolean;
   timestampDestroyed: number;
+  modifiedCount: number;
+  isFree: boolean;
 }
 
 export type ShipTuple = [
@@ -404,6 +406,7 @@ export enum ActionType {
   Assist,
   Special,
   ClaimPoints,
+  Ram,
 }
 
 // Maps contract types

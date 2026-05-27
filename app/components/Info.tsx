@@ -482,9 +482,9 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          Level up your ships by destroying enemy ships in battle. For every
-          enemy you kill, collect part of the salvage reward and make your fleet
-          stronger over time.
+          Each kill earns your ship experience and a UTC salvage reward. Ranks
+          unlock combat bonuses — range, damage, and hull all scale up as a
+          ship climbs the ranks.
         </p>
         <ul
           className="text-sm space-y-1 opacity-100"
@@ -493,9 +493,12 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          <li>• Ships level up from destroying enemies</li>
-          <li>• Salvage reward for each kill</li>
-          <li>• Grow your fleet&apos;s power over time</li>
+          <li>• R1 (0–9 kills) — baseline stats</li>
+          <li>• R2 (10–29) — +10% range, damage, hull</li>
+          <li>• R3 (30–99) — +20%</li>
+          <li>• R4 (100–299) — +30%</li>
+          <li>• R5 (300–999) — +40%</li>
+          <li>• R6 (1000+ kills) — +50% — max rank</li>
         </ul>
       </article>
 

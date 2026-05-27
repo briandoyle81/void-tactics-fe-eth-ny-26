@@ -10,7 +10,6 @@ export async function GET() {
 
   const games = await prisma.game.findMany({
     where: {
-      phase: "ACTIVE",
       OR: [{ player1Id: userId! }, { player2Id: userId! }],
     },
     include: { lobby: { select: { mapId: true } } },

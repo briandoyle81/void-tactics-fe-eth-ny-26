@@ -4,11 +4,13 @@ import React, { useMemo } from "react";
 import { useAccount } from "../hooks/useAccount";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGames } from "../hooks/usePlayerGames";
+import { useLeaderboard } from "../hooks/useLeaderboard";
 
 const Profile: React.FC = () => {
   const { isConnected } = useAccount();
   const { userId: address } = useCurrentUser();
   const { games, isLoading } = usePlayerGames();
+  const { entries: leaderboard, isLoading: leaderboardLoading } = useLeaderboard();
 
   // Calculate statistics from finished games
   const stats = useMemo(() => {
@@ -237,6 +239,66 @@ const Profile: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Leaderboard */}
+      <div
+        className="corner-bracket border bg-black/40 p-4 mt-6"
+        style={{ borderColor: "var(--color-amber)", borderRadius: 0 }}
+      >
+        <h4 className="text-lg font-bold text-amber mb-4 tracking-widest">
+          [LEADERBOARD]
+        </h4>
+        {leaderboardLoading ? (
+          <p className="text-sm font-mono text-text-muted animate-pulse tracking-widest">&gt;&gt; RETRIEVING RANKINGS...</p>
+        ) : leaderboard.length === 0 ? (
+          <p className="text-sm font-mono text-text-muted">[NO RECORDS YET — BE THE FIRST TO PLAY]</p>
+        ) : (
+          <>
+            {/* Header row */}
+            <div className="grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3.5rem] gap-x-2 mb-1 px-2 text-[10px] font-mono tracking-widest opacity-50 uppercase">
+              <span>#</span>
+              <span>Player</span>
+              <span className="text-right">W</span>
+              <span className="text-right">L</span>
+              <span className="text-right">GP</span>
+              <span className="text-right">Win%</span>
+            </div>
+            <div className="space-y-0.5">
+              {leaderboard.map((entry) => {
+                const isMe = entry.isMe;
+                const rankColor =
+                  entry.rank === 1 ? "text-amber" :
+                  entry.rank === 2 ? "text-text-secondary" :
+                  entry.rank === 3 ? "text-phosphor-green" :
+                  "text-text-muted";
+                return (
+                  <div
+                    key={entry.rank}
+                    className={`grid grid-cols-[2rem_1fr_3rem_3rem_3rem_3.5rem] gap-x-2 px-2 py-1 text-xs font-mono transition-colors ${
+                      isMe
+                        ? "bg-amber/10 border border-amber/40"
+                        : "border border-transparent hover:border-gunmetal"
+                    }`}
+                    style={{ borderRadius: 0 }}
+                  >
+                    <span className={`font-bold ${rankColor}`}>{entry.rank}</span>
+                    <span
+                      className={`truncate ${isMe ? "text-amber font-bold" : "text-text-primary"}`}
+                      title={entry.displayName}
+                    >
+                      {isMe ? `${entry.displayName} [YOU]` : entry.displayName}
+                    </span>
+                    <span className="text-right text-phosphor-green font-bold">{entry.wins}</span>
+                    <span className="text-right text-warning-red">{entry.losses}</span>
+                    <span className="text-right opacity-60">{entry.totalGames}</span>
+                    <span className="text-right opacity-80">{entry.winRate}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

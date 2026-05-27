@@ -60,6 +60,7 @@ import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation"
 import { useAccount } from "../hooks/useAccount";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import posthog from "posthog-js";
 import {
   getTutorialGridPanelConfig,
@@ -240,10 +241,10 @@ export function SimulatedGameDisplay({
   useAccount();
   const { userId: address } = useCurrentUser();
   const activeChainId = useSelectedChainId();
+  const queryClient = useQueryClient();
   const [pendingTutorialClaimPath, setPendingTutorialClaimPath] = useState<
     "win" | "loss" | null
   >(null);
-  const isTutorialClaimPending = false;
 
   const {
     gameState,
@@ -262,17 +263,23 @@ export function SimulatedGameDisplay({
     resetTutorial,
   } = tutorialContext;
 
-  const [claimCompleteCached, setClaimCompleteCached] = useState(false);
+  // Fetch server-side completion status; fall back to localStorage cache if not logged in
+  const { data: tutorialStatus } = useQuery({
+    queryKey: ["tutorial-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/tutorial");
+      if (!res.ok) return null;
+      return res.json() as Promise<{ completed: boolean; path: string | null }>;
+    },
+    enabled: !!address,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    if (!address) {
-      setClaimCompleteCached(false);
-      return;
-    }
-    setClaimCompleteCached(
-      isTutorialClaimCompletedCached(activeChainId, address),
-    );
-  }, [activeChainId, address]);
+  const isTutorialRewardAlreadyClaimed =
+    tutorialStatus?.completed ??
+    (address ? isTutorialClaimCompletedCached(activeChainId, address) : false);
+  const isTutorialClaimPending = pendingTutorialClaimPath !== null;
+  const isTutorialClaimConfirming = false;
 
   const isTutorialCompletionStep =
     currentStep?.id === "completion-retreat" ||
@@ -280,21 +287,21 @@ export function SimulatedGameDisplay({
 
   const handleClearTutorialRewardCache = useCallback(() => {
     if (!address) {
-      toast.error("Connect a wallet to clear the reward cache");
+      toast.error("Log in to clear the reward cache");
       return;
     }
     clearTutorialClaimCompletedCacheEntry(activeChainId, address);
-    setClaimCompleteCached(false);
-    toast.success("Cleared local tutorial reward / claim cache for this wallet");
-  }, [activeChainId, address]);
-
-  // Tutorial claim is now a local-only operation (no on-chain tx)
-  const isTutorialRewardAlreadyClaimed = claimCompleteCached;
-  const isTutorialClaimConfirming = false;
+    void queryClient.invalidateQueries({ queryKey: ["tutorial-status"] });
+    toast.success("Cleared local tutorial reward cache for this account");
+  }, [activeChainId, address, queryClient]);
 
   const runTutorialClaimTx = useCallback(
     async (path: "win" | "loss") => {
       if (isTutorialClaimPending || isTutorialClaimConfirming) return;
+      if (!address) {
+        toast.error("Log in to claim your reward ships");
+        return;
+      }
       setPendingTutorialClaimPath(path);
       posthog.capture("tutorial_reward_claim_submitted", {
         claim_path: path,
@@ -302,11 +309,31 @@ export function SimulatedGameDisplay({
         completion_step_id: currentStep?.id,
         chain_id: activeChainId,
       });
-      if (address) {
-        persistTutorialClaimCompleted(activeChainId, address);
-        setClaimCompleteCached(true);
+      try {
+        const res = await fetch("/api/tutorial", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { shipCount: number };
+          persistTutorialClaimCompleted(activeChainId, address);
+          await queryClient.invalidateQueries({ queryKey: ["tutorial-status"] });
+          await queryClient.invalidateQueries({ queryKey: ["ships"] });
+          toast.success(`Tutorial complete! ${data.shipCount} reward ships added to your fleet.`);
+        } else if (res.status === 409) {
+          // Already completed — still navigate away
+          toast.success("Tutorial already completed. Your reward ships are in your fleet.");
+        } else {
+          toast.error("Failed to record tutorial completion. Please try again.");
+          setPendingTutorialClaimPath(null);
+          return;
+        }
+      } catch {
+        toast.error("Network error. Please try again.");
+        setPendingTutorialClaimPath(null);
+        return;
       }
-      toast.success("Tutorial complete!");
       setPendingTutorialClaimPath(null);
       onBack?.();
       queueMicrotask(() =>
@@ -319,6 +346,7 @@ export function SimulatedGameDisplay({
       currentStep?.id,
       isTutorialClaimPending,
       isTutorialClaimConfirming,
+      queryClient,
       onBack,
     ],
   );
@@ -558,22 +586,17 @@ export function SimulatedGameDisplay({
   // main game's behavior: it appears as soon as you select one of your ships
   // that can act this round, even before choosing a destination.
   const isShowingProposedMove = useMemo(() => {
-    if (selectedShipId === null) {
-      return false;
-    }
+    if (selectedShipId === null) return false;
     if (!isShipOwnedByCurrentPlayer(selectedShipId)) return false;
     // Keep the panel visible during the simulated wallet approval flow.
-    if (isTransactionDialogOpen) {
-      return true;
-    }
-    if (!isMyTurn) {
-      return false;
-    }
+    if (isTransactionDialogOpen) return true;
+    if (!isMyTurn) return false;
+
     const idString = selectedShipId.toString() as TutorialShipId;
     if (movedShipIdsSet.has(idString)) {
+      // Disabled ships can still retreat even after being marked moved
       const attrs = getShipAttributes(idString);
-      const isDisabled = attrs && attrs.hullPoints === 0;
-      if (!isDisabled) return false;
+      if (!(attrs && attrs.hullPoints === 0)) return false;
     }
     return true;
   }, [
@@ -753,7 +776,8 @@ export function SimulatedGameDisplay({
     return ship ? ship.owner === TUTORIAL_PLAYER_ADDRESS : null;
   }, [retreatPrepShipId, shipMap]);
 
-  // Disabled ships: always Retreat. Healthy ships: Retreat only if the player chose it for that ship.
+  // Disabled ships: pre-stage Retreat (player can submit or cancel and leave the ship on field).
+  // Healthy ships: Retreat only if the player explicitly chose it for that ship.
   useEffect(() => {
     if (selectedShipId === null) return;
     const attrs = getShipAttributes(selectedShipId);
@@ -1839,8 +1863,24 @@ export function SimulatedGameDisplay({
             // We need to check if there's a valid move position that has line of sight to this target
             let canShootFromSomewhere = false;
 
-            // Check all possible move positions
-            for (
+            // First check the current position itself — ships can always stay and shoot
+            if (distance <= shootingRange) {
+              const shouldCheckCurrentLOS =
+                distance > 1 &&
+                (selectedWeaponType !== "special" ||
+                  (specialType !== 1 &&
+                    specialType !== 2 &&
+                    specialType !== 3));
+              if (
+                !shouldCheckCurrentLOS ||
+                hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+              ) {
+                canShootFromSomewhere = true;
+              }
+            }
+
+            // Check all possible move positions (skipped if current position already covers this cell)
+            if (!canShootFromSomewhere) for (
               let moveRow = Math.max(0, startRow - movementRange);
               moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
               moveRow++

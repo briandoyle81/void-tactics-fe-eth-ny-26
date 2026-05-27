@@ -409,8 +409,24 @@ export function computeShootingRange({
           // We need to check if there's a valid move position that has line of sight to this target
           let canShootFromSomewhere = false;
 
-          // Check all possible move positions
-          for (
+          // First check the current position itself — ships can always stay and shoot
+          if (distance <= shootingRange) {
+            const shouldCheckCurrentLOS =
+              distance > 1 &&
+              (selectedWeaponType !== "special" ||
+                (specialType !== 1 &&
+                  specialType !== 2 &&
+                  specialType !== 3));
+            if (
+              !shouldCheckCurrentLOS ||
+              hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+            ) {
+              canShootFromSomewhere = true;
+            }
+          }
+
+          // Check all possible move positions (skipped if current position already covers this cell)
+          if (!canShootFromSomewhere) for (
             let moveRow = Math.max(0, startRow - movementRange);
             moveRow <= Math.min(gridHeight - 1, startRow + movementRange);
             moveRow++

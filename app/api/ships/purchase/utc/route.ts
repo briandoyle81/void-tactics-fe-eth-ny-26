@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
   const [, ...ships] = await prisma.$transaction([
     prisma.user.update({
       where: { id: userId! },
-      data: { creditBalance: { decrement: tierConfig.priceUtc } },
+      data: {
+        creditBalance: { decrement: tierConfig.priceUtc },
+        purchasedShipCount: { increment: tierConfig.shipCount },
+      },
     }),
     ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
       const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
@@ -41,6 +44,7 @@ export async function POST(req: NextRequest) {
           cost,
           costsVersion,
           shiny,
+          isFree: false,
           constructed: false,
         },
       });

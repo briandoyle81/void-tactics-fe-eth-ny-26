@@ -24,6 +24,8 @@ export function dbShipToShip(db: DbShip): Ship {
     constructed: db.constructed,
     inFleet: db.inFleet,
     timestampDestroyed: db.destroyedAt ? db.destroyedAt.getTime() : 0,
+    modifiedCount: db.modifiedCount,
+    isFree: db.isFree,
   };
 
   return {

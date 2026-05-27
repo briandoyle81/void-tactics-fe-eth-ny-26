@@ -37,6 +37,8 @@ function createShipData(
     constructed: true,
     inFleet,
     timestampDestroyed: 0,
+    modifiedCount: 0,
+    isFree: false,
   };
 }
 

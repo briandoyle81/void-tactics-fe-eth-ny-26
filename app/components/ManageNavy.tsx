@@ -73,6 +73,20 @@ import {
   type FleetComposition,
 } from "../utils/fleetCompositionStorage";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
+import { useUtcBalance } from "../hooks/useUtcBalance";
+import { apiMutate } from "../lib/apiMutate";
+import {
+  countNewModifications,
+  calculateCustomizeCost,
+  type ShipEquipmentInput,
+  type ShipTraitsInput,
+} from "../lib/customizeCost";
+import {
+  getMainWeaponName,
+  getArmorName,
+  getShieldName,
+  getSpecialName,
+} from "../types/types";
 
 
 const ManageNavy: React.FC = () => {
@@ -443,6 +457,14 @@ const ManageNavy: React.FC = () => {
   );
   const [showRecycleModal, setShowRecycleModal] = React.useState(false);
   const [shipToRecycle, setShipToRecycle] = React.useState<Ship | null>(null);
+
+  const { balance: utcBalance, refetch: refetchUtcBalance } = useUtcBalance();
+  const [showCustomizeModal, setShowCustomizeModal] = React.useState(false);
+  const [shipToCustomize, setShipToCustomize] = React.useState<Ship | null>(null);
+  const [customizeEquipment, setCustomizeEquipment] = React.useState<ShipEquipmentInput>({ mainWeapon: 0, armor: 0, shields: 0, special: 0 });
+  const [customizeTraits, setCustomizeTraits] = React.useState<ShipTraitsInput>({ accuracy: 0, hull: 0, speed: 0 });
+  const [customizeShiny, setCustomizeShiny] = React.useState(false);
+  const [isCustomizing, setIsCustomizing] = React.useState(false);
 
   const [fleetCompositions, setFleetCompositions] = React.useState<
     FleetComposition[]
@@ -961,6 +983,45 @@ const ManageNavy: React.FC = () => {
   const handleRecycleCancel = () => {
     setShowRecycleModal(false);
     setShipToRecycle(null);
+  };
+
+  const handleCustomizeClick = (ship: Ship) => {
+    setShipToCustomize(ship);
+    setCustomizeEquipment({ ...ship.equipment });
+    setCustomizeTraits({
+      accuracy: ship.traits.accuracy,
+      hull: ship.traits.hull,
+      speed: ship.traits.speed,
+    });
+    setCustomizeShiny(ship.shipData.shiny);
+    setShowCustomizeModal(true);
+  };
+
+  const handleCustomizeCancel = () => {
+    setShowCustomizeModal(false);
+    setShipToCustomize(null);
+    setIsCustomizing(false);
+  };
+
+  const handleCustomizeConfirm = async () => {
+    if (!shipToCustomize || isCustomizing) return;
+    setIsCustomizing(true);
+    try {
+      await apiMutate(`/api/ships/${shipToCustomize.id}/customize`, "POST", {
+        equipment: customizeEquipment,
+        traits: customizeTraits,
+        shiny: customizeShiny,
+      });
+      toast.success("Ship modified successfully!");
+      setShowCustomizeModal(false);
+      setShipToCustomize(null);
+      refetchUtcBalance();
+      setTimeout(() => refetch(), 500);
+    } catch (err) {
+      toast.error(`Modification failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsCustomizing(false);
+    }
   };
 
   // Handle bulk actions - now handled by ShipActionButton components
@@ -2379,6 +2440,7 @@ const ManageNavy: React.FC = () => {
                     toggleShipSelection(ship.id.toString())
                   }
                   onRecycleClick={() => handleRecycleClick(ship)}
+                  onCustomizeClick={() => handleCustomizeClick(ship)}
                   showInGameProperties={showInGameProperties}
                   inGameAttributes={attributesMap.get(ship.id)}
                   attributesLoading={attributesLoading}
@@ -2644,6 +2706,147 @@ const ManageNavy: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Customize / Modify Ship Modal */}
+      {showCustomizeModal && shipToCustomize && (() => {
+        const currentEquip = { ...shipToCustomize.equipment } as ShipEquipmentInput;
+        const currentTraits: ShipTraitsInput = {
+          accuracy: shipToCustomize.traits.accuracy,
+          hull: shipToCustomize.traits.hull,
+          speed: shipToCustomize.traits.speed,
+        };
+        const newMods = countNewModifications(
+          { equipment: currentEquip, traits: currentTraits, shiny: shipToCustomize.shipData.shiny },
+          { equipment: customizeEquipment, traits: customizeTraits, shiny: customizeShiny },
+        );
+        const cost = calculateCustomizeCost(shipToCustomize.shipData.modifiedCount, newMods);
+        const armorShieldConflict = customizeEquipment.armor > 0 && customizeEquipment.shields > 0;
+        const noChanges = newMods === 0;
+        const canAfford = utcBalance >= cost;
+        const canSubmit = !armorShieldConflict && !noChanges && canAfford && !isCustomizing;
+
+        const EquipSelect = ({ label, value, options, onChange, disabled }: {
+          label: string; value: number; options: { v: number; label: string }[];
+          onChange: (v: number) => void; disabled?: boolean;
+        }) => (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider">{label}</span>
+            <div className="flex gap-1 flex-wrap">
+              {options.map(({ v, label: ol }) => (
+                <button key={v} type="button"
+                  onClick={() => onChange(v)}
+                  disabled={disabled}
+                  className={`px-2 py-1 text-xs font-mono border rounded-none transition-colors ${
+                    value === v
+                      ? "border-cyan bg-cyan/20 text-cyan"
+                      : "border-steel bg-transparent text-text-muted hover:border-text-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  }`}
+                >{ol}</button>
+              ))}
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="hazard-border w-full max-w-lg">
+              <div className="bg-near-black p-6 space-y-4">
+                <div className="text-center">
+                  <span className="text-[10px] font-mono text-text-muted tracking-widest">// DRONE YARD //</span>
+                </div>
+                <h2 className="text-cyan font-mono text-xl font-bold text-center tracking-widest">
+                  [MODIFY SHIP]
+                </h2>
+                <p className="text-text-secondary font-mono text-xs text-center">
+                  {shipToCustomize.name} — {shipToCustomize.shipData.modifiedCount} prior modification{shipToCustomize.shipData.modifiedCount !== 1 ? "s" : ""}
+                </p>
+
+                {/* Equipment */}
+                <div className="space-y-3 border border-gunmetal p-3">
+                  <p className="text-[10px] font-mono text-text-muted tracking-widest uppercase">// Equipment</p>
+                  <EquipSelect label="Main Weapon" value={customizeEquipment.mainWeapon}
+                    options={[0,1,2,3].map(v => ({ v, label: getMainWeaponName(v) }))}
+                    onChange={v => setCustomizeEquipment(e => ({ ...e, mainWeapon: v }))} />
+                  <EquipSelect label="Armor" value={customizeEquipment.armor}
+                    options={[0,1,2,3].map(v => ({ v, label: getArmorName(v) }))}
+                    onChange={v => setCustomizeEquipment(e => ({ ...e, armor: v }))} />
+                  <EquipSelect label="Shields" value={customizeEquipment.shields}
+                    options={[0,1,2,3].map(v => ({ v, label: getShieldName(v) }))}
+                    onChange={v => setCustomizeEquipment(e => ({ ...e, shields: v }))} />
+                  <EquipSelect label="Special" value={customizeEquipment.special}
+                    options={[0,1,2,3].map(v => ({ v, label: getSpecialName(v) }))}
+                    onChange={v => setCustomizeEquipment(e => ({ ...e, special: v }))} />
+                  {armorShieldConflict && (
+                    <p className="text-warning-red font-mono text-xs">[ERR] Cannot equip both armor and shields.</p>
+                  )}
+                </div>
+
+                {/* Traits */}
+                <div className="space-y-3 border border-gunmetal p-3">
+                  <p className="text-[10px] font-mono text-text-muted tracking-widest uppercase">// Traits</p>
+                  <EquipSelect label="Accuracy" value={customizeTraits.accuracy}
+                    options={[0,1,2].map(v => ({ v, label: String(v) }))}
+                    onChange={v => setCustomizeTraits(t => ({ ...t, accuracy: v }))} />
+                  <EquipSelect label="Hull" value={customizeTraits.hull}
+                    options={[0,1,2].map(v => ({ v, label: String(v) }))}
+                    onChange={v => setCustomizeTraits(t => ({ ...t, hull: v }))} />
+                  <EquipSelect label="Speed" value={customizeTraits.speed}
+                    options={[0,1,2].map(v => ({ v, label: String(v) }))}
+                    onChange={v => setCustomizeTraits(t => ({ ...t, speed: v }))} />
+                </div>
+
+                {/* Shiny toggle */}
+                <div className="flex items-center justify-between border border-gunmetal p-3">
+                  <span className="text-xs font-mono text-text-secondary uppercase tracking-wider">Shiny</span>
+                  <button type="button" onClick={() => setCustomizeShiny(s => !s)}
+                    className={`relative flex h-5 w-10 items-center rounded-none border-2 transition-all ${
+                      customizeShiny ? "border-amber bg-amber/20" : "border-steel bg-transparent"
+                    }`}>
+                    <div className={`h-3 w-3 rounded-none transition-all ${
+                      customizeShiny ? "translate-x-5 bg-amber" : "translate-x-0.5 bg-steel"
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Cost summary */}
+                <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                  <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-text-secondary">Modifications</span>
+                    <span className="text-text-primary">{newMods} new ({shipToCustomize.shipData.modifiedCount} existing)</span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-t border-amber/30 pt-1 mt-1">
+                    <span className="text-text-secondary">Modification cost</span>
+                    <span className={`font-bold ${noChanges ? "text-text-muted" : "text-amber"}`}>
+                      {noChanges ? "—" : `${cost} UTC`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-text-muted">Your UTC balance</span>
+                    <span className={`font-bold ${canAfford || noChanges ? "text-phosphor-green" : "text-warning-red"}`}>
+                      {utcBalance} UTC
+                    </span>
+                  </div>
+                  {!canAfford && !noChanges && (
+                    <p className="text-warning-red font-bold pt-1">[ERR] Insufficient UTC balance.</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button type="button" onClick={handleCustomizeCancel} disabled={isCustomizing}
+                    className="flex-1 px-4 py-2 bg-steel hover:bg-gunmetal text-white font-mono rounded-none border border-gunmetal transition-colors tracking-wider">
+                    CANCEL
+                  </button>
+                  <button type="button" onClick={handleCustomizeConfirm} disabled={!canSubmit}
+                    className="flex-1 px-4 py-2 bg-cyan/10 hover:bg-cyan/20 text-cyan font-mono font-bold rounded-none border border-cyan transition-colors tracking-wider disabled:opacity-40 disabled:cursor-not-allowed">
+                    {isCustomizing ? "MODIFYING..." : "CONFIRM"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {isMobileManageNavyLayout && showConstructDeliveryTutorial && (
         <ManageNavyMobileTutorialSheet

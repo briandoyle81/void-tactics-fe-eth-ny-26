@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiMutate } from "@/app/lib/apiMutate";
 import { useLobbyList } from "./useLobbyList";
 import { toast } from "react-hot-toast";
 import type { Lobby } from "../types/types";
+import { useCurrentUser } from "./useCurrentUser";
 
 export interface CreateLobbyParams {
   costLimit?: number;
@@ -22,12 +23,37 @@ export interface LobbyListState {
   error: string | null;
 }
 
+interface PlayerLobbyState {
+  kickCount: number;
+  kickTimeoutUntil: string | null;
+  lobbiesCreatedCount: number;
+  freeGamesPerAddress: number;
+  lobbyCreationCostUtc: number;
+}
+
+async function fetchPlayerState(): Promise<PlayerLobbyState> {
+  const res = await fetch("/api/lobbies/player-state");
+  if (!res.ok) throw new Error("Failed to fetch player lobby state");
+  return res.json();
+}
+
 export function useLobbies() {
   const queryClient = useQueryClient();
   const { lobbies, isLoading, error, refetch } = useLobbyList();
+  const { userId } = useCurrentUser();
+
+  const { data: playerStateData } = useQuery({
+    queryKey: ["lobby-player-state"],
+    queryFn: fetchPlayerState,
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
 
   const invalidateLobbies = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["lobbies"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["lobbies"] }),
+      queryClient.invalidateQueries({ queryKey: ["lobby-player-state"] }),
+    ]);
   }, [queryClient]);
 
   const createLobby = useCallback(async (params: CreateLobbyParams) => {
@@ -74,8 +100,31 @@ export function useLobbies() {
   }, [invalidateLobbies, queryClient]);
 
   const rejectGame = useCallback(async (lobbyId: number) => {
-    await leaveLobby(lobbyId);
-  }, [leaveLobby]);
+    await apiMutate(`/api/lobbies/${lobbyId}/reject`, "POST");
+    await invalidateLobbies();
+  }, [invalidateLobbies]);
+
+  const timeoutJoiner = useCallback(async (lobbyId: number) => {
+    try {
+      await apiMutate(`/api/lobbies/${lobbyId}/timeout-joiner`, "POST");
+      await invalidateLobbies();
+      toast.success("Joiner timed out. Lobby is open again.");
+    } catch (err) {
+      toast.error(`Timeout failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
+  }, [invalidateLobbies]);
+
+  const quitWithPenalty = useCallback(async (lobbyId: number) => {
+    try {
+      await apiMutate(`/api/lobbies/${lobbyId}/quit-with-penalty`, "POST");
+      await invalidateLobbies();
+      toast.success("Left lobby. Creator has been penalized.");
+    } catch (err) {
+      toast.error(`Quit failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
+  }, [invalidateLobbies]);
 
   const timeoutGame = useCallback(async (gameId: number) => {
     try {
@@ -88,6 +137,11 @@ export function useLobbies() {
     }
   }, [queryClient]);
 
+  const freeGamesPerAddress = playerStateData?.freeGamesPerAddress ?? 1;
+  const kickTimeoutUntilMs = playerStateData?.kickTimeoutUntil
+    ? new Date(playerStateData.kickTimeoutUntil).getTime()
+    : 0;
+
   const lobbyList: LobbyListState = { lobbies, isLoading, error };
 
   return {
@@ -99,11 +153,19 @@ export function useLobbies() {
     createFleet,
     acceptGame,
     rejectGame,
+    timeoutJoiner,
+    quitWithPenalty,
     timeoutGame,
-    // Shims for Lobbies.tsx call-site compat
-    playerState: { kickCount: 0, hasActiveLobby: false, activeLobbiesCount: 0, activeLobbyId: 0, lastKickTime: 0 },
+    playerState: {
+      kickCount: playerStateData?.kickCount ?? 0,
+      kickTimeoutUntil: kickTimeoutUntilMs,
+      hasActiveLobby: false,
+      activeLobbiesCount: 0,
+      activeLobbyId: 0,
+      lastKickTime: kickTimeoutUntilMs,
+    },
     lobbyCount: lobbies.length,
-    freeGamesPerAddress: 1,
+    freeGamesPerAddress,
     additionalLobbyFee: 0,
     paused: false,
     lastTransactionHash: undefined as `0x${string}` | undefined,

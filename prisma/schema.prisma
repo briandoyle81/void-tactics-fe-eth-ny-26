@@ -10,19 +10,26 @@ datasource db {
 // ── Users ──────────────────────────────────────────────────────────────────────
 
 model User {
-  id            String   @id // Google OAuth sub (user.id from NextAuth)
-  email         String   @unique
-  username      String?
-  creditBalance Int      @default(0)
-  createdAt     DateTime @default(now())
+  id                 String    @id // Google OAuth sub (user.id from NextAuth)
+  email              String    @unique
+  username           String?
+  creditBalance      Int       @default(0)
+  purchasedShipCount Int       @default(0)
+  lobbiesCreatedCount  Int      @default(0) // total lobby creations; first freeGamesPerAddress are free
+  kickCount            Int      @default(0) // cumulative times timed out/kicked from lobbies
+  kickTimeoutUntil     DateTime? // locked out of creating/joining lobbies until this time
+  tutorialCompleted    Boolean  @default(false)
+  tutorialPath         String?  // "win" | "loss" — which branch the player finished
+  createdAt            DateTime @default(now())
 
-  ships          Ship[]
-  lobbiesCreated Lobby[]       @relation("LobbyCreator")
-  lobbiesJoined  Lobby[]       @relation("LobbyJoiner")
-  gamesAsPlayer1 Game[]        @relation("GamePlayer1")
-  gamesAsPlayer2 Game[]        @relation("GamePlayer2")
-  fleets         Fleet[]
-  stats          PlayerStats?
+  ships           Ship[]
+  lobbiesCreated  Lobby[]       @relation("LobbyCreator")
+  lobbiesJoined   Lobby[]       @relation("LobbyJoiner")
+  lobbiesReserved Lobby[]       @relation("LobbyReservedJoiner")
+  gamesAsPlayer1  Game[]        @relation("GamePlayer1")
+  gamesAsPlayer2  Game[]        @relation("GamePlayer2")
+  fleets          Fleet[]
+  stats           PlayerStats?
 }
 
 // ── Ships ──────────────────────────────────────────────────────────────────────
@@ -38,6 +45,8 @@ model Ship {
   traits         Json
   cost           Int       @default(0)
   costsVersion   Int       @default(0)
+  isFree         Boolean   @default(false)
+  modifiedCount  Int       @default(0)
   shiny          Boolean   @default(false)
   constructed    Boolean   @default(false)
   inFleet        Boolean   @default(false)
@@ -68,23 +77,26 @@ model Fleet {
 // ── Lobbies ────────────────────────────────────────────────────────────────────
 
 model Lobby {
-  id               Int         @id @default(autoincrement())
-  creatorId        String
-  creator          User        @relation("LobbyCreator", fields: [creatorId], references: [id])
-  joinerId         String?
-  joiner           User?       @relation("LobbyJoiner", fields: [joinerId], references: [id])
-  mapId            Int?
-  map              Map?        @relation(fields: [mapId], references: [id])
-  status           LobbyStatus @default(OPEN)
-  costLimit        Int         @default(0) // max total fleet cost
-  turnTimeSeconds  Int         @default(120)
-  maxScore         Int         @default(3)
-  creatorGoesFirst Boolean?
-  createdAt        DateTime    @default(now())
-  joinedAt         DateTime?
+  id                Int         @id @default(autoincrement())
+  creatorId         String
+  creator           User        @relation("LobbyCreator", fields: [creatorId], references: [id])
+  joinerId          String?
+  joiner            User?       @relation("LobbyJoiner", fields: [joinerId], references: [id])
+  reservedJoinerId  String?     // pre-set joiner for private lobbies
+  reservedJoiner    User?       @relation("LobbyReservedJoiner", fields: [reservedJoinerId], references: [id])
+  mapId             Int?
+  map               Map?        @relation(fields: [mapId], references: [id])
+  status            LobbyStatus @default(OPEN)
+  costLimit         Int         @default(0) // max total fleet cost
+  turnTimeSeconds   Int         @default(120)
+  maxScore          Int         @default(3)
+  creatorGoesFirst  Boolean?
+  createdAt         DateTime    @default(now())
+  joinedAt          DateTime?
+  joinerFleetSetAt  DateTime?   // when joiner submitted their fleet (for quitWithPenalty check)
 
-  fleets           Fleet[]
-  game             Game?
+  fleets            Fleet[]
+  game              Game?
 }
 
 enum LobbyStatus {

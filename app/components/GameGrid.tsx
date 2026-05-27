@@ -867,23 +867,20 @@ export function GameGrid({
                         previewPosition === null || previewAtCurrentPos || alreadyRamming;
 
                       if (inMoveRange && inWeaponRange && noMoveElsewhere) {
-                        if (targetShipId === cell.shipId) {
-                          // 2nd click: weapon → ramming
-                          setPreviewPosition({ row: rowIndex, col: colIndex });
-                          setTargetShipId(null);
-                          return;
-                        }
                         if (alreadyRamming) {
-                          // 3rd click: ramming → weapon targeting (shoot from current pos)
+                          // 2nd click: ramming → weapon targeting (shoot from current pos)
                           if (selRow >= 0) setPreviewPosition({ row: selRow, col: selCol });
                           setTargetShipId(cell.shipId);
                           return;
                         }
-                        // 1st click: fall through to weapon targeting below
+                        // 1st click: ram
+                        setPreviewPosition({ row: rowIndex, col: colIndex });
+                        setTargetShipId(cell.shipId);
+                        return;
                       } else if (inMoveRange) {
                         // In movement range only (not weapon range): always ram
                         setPreviewPosition({ row: rowIndex, col: colIndex });
-                        setTargetShipId(null);
+                        setTargetShipId(cell.shipId);
                         return;
                       }
                       // In weapon range only (or out of both): fall through to normal targeting
@@ -2018,14 +2015,15 @@ export function GameGrid({
                           const attributes = getShipAttributes(cell.shipId);
                           if (!attributes) return null;
 
-                          const isRammingToCell =
+                          // Ramming damages the RAMMING ship's reactor, not the rammed ship's.
+                          // Show the +1 preview on the ramming ship at its current (pre-move) cell.
+                          const isRammingFromCell =
                             isRammingMovePreview &&
-                            rammingPreviewPosition != null &&
-                            rowIndex === rammingPreviewPosition.row &&
-                            colIndex === rammingPreviewPosition.col;
+                            cell.shipId === selectedShipId &&
+                            !cell.isPreview;
                           const previewReactorLevel =
                             attributes.reactorCriticalTimer +
-                            (isRammingToCell ? 1 : 0);
+                            (isRammingFromCell ? 1 : 0);
                           if (previewReactorLevel <= 0) return null;
                           const skullCount = Math.min(previewReactorLevel, 3);
                           const skullLevels = Array.from(
@@ -2033,9 +2031,7 @@ export function GameGrid({
                             (_, index) => index,
                           );
 
-                          const skullAnchorIsCreator = isRammingToCell
-                            ? (selectedShipCreatorSide ?? cell.isCreator)
-                            : cell.isCreator;
+                          const skullAnchorIsCreator = cell.isCreator;
                           return (
                             <div
                               className={`pointer-events-none absolute z-[22] ${
@@ -2050,7 +2046,7 @@ export function GameGrid({
                             >
                               {skullLevels.map((level) => {
                                 const isNewFromRam =
-                                  isRammingToCell && level === skullCount - 1;
+                                  isRammingFromCell && level === skullCount - 1;
                                 return (
                                   <div
                                     key={level}

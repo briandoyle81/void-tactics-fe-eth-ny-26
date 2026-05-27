@@ -17,8 +17,12 @@ export async function POST(req: NextRequest) {
 
   const costs = await getCurrentCosts();
 
-  const ships = await prisma.$transaction(
-    Array.from({ length: tierConfig.shipCount }, (_, i) => {
+  const [, ...ships] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId! },
+      data: { purchasedShipCount: { increment: tierConfig.shipCount } },
+    }),
+    ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
       const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
       return prisma.ship.create({
         data: {
@@ -29,11 +33,12 @@ export async function POST(req: NextRequest) {
           cost,
           costsVersion,
           shiny,
+          isFree: false,
           constructed: false,
         },
       });
     }),
-  );
+  ]);
 
   return NextResponse.json(
     { ships: ships.map((s) => ({ id: s.id, name: s.name })) },

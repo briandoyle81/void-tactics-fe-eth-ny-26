@@ -58,8 +58,14 @@ export async function POST(
     });
   }
 
-  // Mark ships as in-fleet
-  await prisma.ship.updateMany({ where: { id: { in: shipIds } }, data: { inFleet: true } });
+  // Mark ships as in-fleet; if this is the joiner, record when they submitted their fleet
+  const isJoiner = lobby.joinerId === userId;
+  await Promise.all([
+    prisma.ship.updateMany({ where: { id: { in: shipIds } }, data: { inFleet: true } }),
+    ...(isJoiner
+      ? [prisma.lobby.update({ where: { id: lobbyId }, data: { joinerFleetSetAt: new Date() } })]
+      : []),
+  ]);
 
   // Auto-start game when both players have submitted complete fleets
   let gameId: number | null = null;

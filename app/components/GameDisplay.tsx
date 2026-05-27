@@ -1537,8 +1537,24 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             // We need to check if there's a valid move position that has line of sight to this target
             let canShootFromSomewhere = false;
 
-            // Check all possible move positions
-            for (
+            // First check the current position itself — ships can always stay and shoot
+            if (distance <= shootingRange) {
+              const shouldCheckCurrentLOS =
+                distance > 1 &&
+                (selectedWeaponType !== "special" ||
+                  (specialType !== 1 &&
+                    specialType !== 2 &&
+                    specialType !== 3));
+              if (
+                !shouldCheckCurrentLOS ||
+                hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+              ) {
+                canShootFromSomewhere = true;
+              }
+            }
+
+            // Check all possible move positions (skipped if current position already covers this cell)
+            if (!canShootFromSomewhere) for (
               let moveRow = Math.max(0, startRow - movementRange);
               moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
               moveRow++
@@ -1966,25 +1982,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Track if we're showing a proposed move (not last move)
   const isShowingProposedMove = React.useMemo(() => {
-    // Show move submission UI whenever it's your turn and you have one of your
-    // ships selected that hasn't moved yet, OR a disabled (0 HP) ship selected
-    // that can only Retreat.
-    if (selectedShipId === null) {
-      return false;
-    }
+    if (selectedShipId === null) return false;
     if (!isShipOwnedByCurrentPlayer(selectedShipId)) return false;
 
     const waitingOnMoveTx = isMoveSubmitting || awaitingTurnSyncAfterSubmit;
 
     if (movedShipIdsSet.has(selectedShipId)) {
+      // Disabled ships can still retreat even after being marked moved (they're never required to move)
       const attrs = getShipAttributes(selectedShipId);
-      const isDisabled = attrs && attrs.hullPoints === 0;
-      if (!isDisabled) return false;
+      if (!(attrs && attrs.hullPoints === 0)) return false;
     }
 
-    if (!canActInGame && !waitingOnMoveTx) {
-      return false;
-    }
+    if (!canActInGame && !waitingOnMoveTx) return false;
     return true;
   }, [
     selectedShipId,
@@ -2021,7 +2030,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return !!attrs && attrs.hullPoints === 0;
   }, [selectedShipId, getShipAttributes]);
 
-  // Disabled ships: always Retreat. Healthy ships: Retreat only if the player chose it for that ship.
+  // Disabled ships: pre-stage Retreat (player can submit or cancel and leave the ship on field).
+  // Healthy ships: Retreat only if the player explicitly chose it for that ship.
   React.useEffect(() => {
     if (selectedShipId === null) return;
     const attrs = getShipAttributes(selectedShipId);
@@ -2046,11 +2056,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       if (isDisplayingLastMoveRef.current) {
         isDisplayingLastMoveRef.current = false;
         lastDisplayedMoveRef.current = null;
-        // Only clear preview if we're not showing a proposed move
-        if (!isShowingProposedMove) {
-          setPreviewPosition(null);
-          setTargetShipId(null);
-        }
+        setPreviewPosition(null);
+        setTargetShipId(null);
       }
       return;
     }
@@ -2103,7 +2110,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, [
     shouldShowLastMove,
     displayedLastMove,
-    isShowingProposedMove,
     shipMap,
     selectedShipId,
   ]);
@@ -2409,7 +2415,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               actionOverride != null
                 ? actionOverride
                 : isRammingMovePreview
-                  ? ActionType.Pass
+                  ? ActionType.Ram
                 : targetShipId !== null && targetShipId !== 0
                   ? selectedWeaponType === "special"
                     ? ActionType.Special

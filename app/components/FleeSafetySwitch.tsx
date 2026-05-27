@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { TransactionButton } from "./TransactionButton";
-import { useGameContract } from "../hooks/useGameContract";
+import { apiMutate } from "../lib/apiMutate";
 import { toast } from "react-hot-toast";
 
 interface FleeSafetySwitchProps {
@@ -17,9 +16,9 @@ export function FleeSafetySwitch({
   onFlee,
   locked = false,
 }: FleeSafetySwitchProps) {
-  const gameContract = useGameContract();
   const [isLeverOpen, setIsLeverOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isFleeing, setIsFleeing] = useState(false);
 
   const handleLeverToggle = () => {
     if (locked) return;
@@ -33,10 +32,20 @@ export function FleeSafetySwitch({
     setShowConfirmModal(true);
   };
 
-  const handleConfirmFlee = () => {
-    setShowConfirmModal(false);
-    setIsLeverOpen(false);
-    onFlee?.();
+  const handleConfirmFlee = async () => {
+    if (isFleeing) return;
+    setIsFleeing(true);
+    try {
+      await apiMutate(`/api/games/${gameId}/flee`, "POST");
+      setShowConfirmModal(false);
+      setIsLeverOpen(false);
+      onFlee?.();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`Retreat failed: ${message}`);
+    } finally {
+      setIsFleeing(false);
+    }
   };
 
   const handleCancelFlee = () => {
@@ -114,40 +123,22 @@ export function FleeSafetySwitch({
 
                 <div className="flex space-x-4">
                   <button
+                    type="button"
                     onClick={handleCancelFlee}
+                    disabled={isFleeing}
                     className="flex-1 px-4 py-2 bg-steel hover:bg-gunmetal text-white font-mono rounded-none border border-gunmetal transition-colors tracking-wider"
                   >
                     STAND DOWN
                   </button>
 
-                  <TransactionButton
-                    transactionId={`flee-game-${gameId}`}
-                    contractAddress={gameContract.address}
-                    abi={gameContract.abi}
-                    functionName="flee"
-                    args={[gameId]}
-                    onSuccess={() => {
-                      toast.success("Disengaged from battle.");
-                      handleConfirmFlee();
-                    }}
-                    onError={(error) => {
-                      console.error("Error disengaging:", error);
-                      const errorMessage = error.message || String(error);
-                      if (
-                        errorMessage.includes("User rejected") ||
-                        errorMessage.includes("User denied")
-                      ) {
-                        toast.error("Transaction declined");
-                      } else {
-                        toast.error("[ERR] Disengage failed: " + errorMessage);
-                      }
-                    }}
+                  <button
+                    type="button"
+                    onClick={handleConfirmFlee}
+                    disabled={isFleeing}
                     className="flex-1 px-4 py-2 bg-warning-red/20 hover:bg-warning-red/30 text-white font-mono font-bold rounded-none border border-warning-red transition-colors tracking-wider"
-                    loadingText="DISENGAGING..."
-                    errorText="[ERR]"
                   >
-                    CONFIRM
-                  </TransactionButton>
+                    {isFleeing ? "RETREATING..." : "CONFIRM"}
+                  </button>
                 </div>
               </div>
             </div>

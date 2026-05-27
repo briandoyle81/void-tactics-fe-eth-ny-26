@@ -41,6 +41,7 @@ export async function POST() {
           cost,
           costsVersion,
           shiny,
+          isFree: true,
           constructed: false,
         },
       });

@@ -145,6 +145,8 @@ function generateRandomShip(index: number): Ship {
       constructed: true,
       inFleet: false,
       timestampDestroyed: Number(0),
+      modifiedCount: 0,
+      isFree: false,
     },
     owner: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   };

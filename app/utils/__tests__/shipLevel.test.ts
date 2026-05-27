@@ -34,6 +34,8 @@ function makeShip(overrides: {
       constructed: true,
       inFleet: false,
       timestampDestroyed: 0,
+      modifiedCount: 0,
+      isFree: false,
     },
     owner: "0x0000000000000000000000000000000000000000",
   };

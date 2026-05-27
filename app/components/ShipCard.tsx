@@ -20,6 +20,7 @@ interface ShipCardProps {
   isSelected: boolean;
   onToggleSelection: () => void;
   onRecycleClick: () => void;
+  onCustomizeClick?: () => void;
   showInGameProperties: boolean;
   inGameAttributes?: Attributes;
   attributesLoading?: boolean;
@@ -62,6 +63,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
   isSelected,
   onToggleSelection,
   onRecycleClick,
+  onCustomizeClick,
   showInGameProperties,
   inGameAttributes,
   attributesLoading = false,
@@ -317,6 +319,14 @@ const ShipCard: React.FC<ShipCardProps> = ({
           ? "var(--color-amber)"
           : "var(--color-warning-red)";
 
+  // Rank progress bar (shown below badge in manage-navy view)
+  const RANK_THRESHOLDS = [0, 10, 30, 100, 300, 1000] as const;
+  const rankStart = RANK_THRESHOLDS[rankInfo.rank - 1] ?? 0;
+  const rankEnd: number | null = rankInfo.rank < 6 ? (RANK_THRESHOLDS[rankInfo.rank] ?? null) : null;
+  const rankProgressPct = rankEnd !== null
+    ? Math.min(100, Math.round(((rankInfo.shipsDestroyed - rankStart) / (rankEnd - rankStart)) * 100))
+    : 100;
+
   return (
     <div
       className={`${
@@ -534,6 +544,29 @@ const ShipCard: React.FC<ShipCardProps> = ({
           </h5>
         </div>
         <div className="flex items-center gap-2">
+          {/* Modify / customize icon */}
+          {onCustomizeClick && ship.shipData.constructed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCustomizeClick();
+              }}
+              disabled={ship.shipData.inFleet}
+              className="p-1 text-cyan hover:text-cyan hover:bg-cyan/10 rounded-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                ship.shipData.inFleet
+                  ? "Cannot modify ship in fleet"
+                  : "Modify ship"
+              }
+            >
+              {/* wrench icon */}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          )}
           {/* Recycle icon */}
           {!hideRecycle && (
             <button
@@ -656,6 +689,30 @@ const ShipCard: React.FC<ShipCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Rank progress — only in manage-navy (non-game, non-tooltip) */}
+      {ship.shipData.constructed && !hideRankLabel && !gameViewMode && !tooltipMode && (
+        <div className="mt-1.5 space-y-0.5">
+          <div className="flex items-center justify-between text-[10px] font-mono"
+            style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
+          >
+            <span className="opacity-60">
+              {rankInfo.shipsDestroyed === 1 ? "1 kill" : `${rankInfo.shipsDestroyed} kills`}
+            </span>
+            {rankEnd !== null ? (
+              <span className="opacity-60">{rankInfo.killsToNextRank} to R{rankInfo.nextRank}</span>
+            ) : (
+              <span style={{ color: rankTooltipAccent }} className="font-semibold">MAX RANK</span>
+            )}
+          </div>
+          <div className="h-1 w-full" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+            <div
+              className="h-1 transition-all"
+              style={{ width: `${rankProgressPct}%`, backgroundColor: rankTooltipAccent }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Compact Stats or Construction Message */}
       <div className="space-y-2 text-sm">
@@ -782,6 +839,12 @@ const ShipCard: React.FC<ShipCardProps> = ({
                 <div className="flex justify-between">
                   <span className="opacity-60">Speed:</span>
                   <span className="ml-2">{ship.traits.speed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-60">Kills:</span>
+                  <span className="ml-2 font-semibold" style={{ color: rankInfo.shipsDestroyed > 0 ? rankTooltipAccent : undefined }}>
+                    {rankInfo.shipsDestroyed}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">Wpn:</span>

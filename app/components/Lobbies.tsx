@@ -43,6 +43,7 @@ import { formatDestroyedDate } from "../utils/dateUtils";
 import { MapDisplay } from "./MapDisplay";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useLobby } from "../hooks/useLobbiesContract";
+import { useUtcBalance } from "../hooks/useUtcBalance";
 import {
   readFleetDrafts,
   writeFleetDraft,
@@ -112,6 +113,8 @@ const Lobbies: React.FC = () => {
     paused,
     createFleet,
     loadLobbies,
+    timeoutJoiner,
+    quitWithPenalty,
   } = useLobbies();
 
 
@@ -150,6 +153,7 @@ const Lobbies: React.FC = () => {
       ? Number(currentCostsVersion)
       : null;
   const { games: playerGames, refetch: refetchGames } = usePlayerGames();
+  const { balance: utcBalance, refetch: refetchUtcBalance } = useUtcBalance();
 
   // Calculate player state from lobby list instead of blockchain
   const playerLobbies = lobbyList.lobbies.filter(
@@ -2310,33 +2314,31 @@ const Lobbies: React.FC = () => {
                 player who creates their fleet first will go first in the game.
               </p>
             </div>
-            {/* Cost summary — only shown when fees apply */}
-            {(needsPaymentForLobby && additionalLobbyFee) ||
-            (createForm.reservedJoiner.trim() &&
-              address &&
-              createForm.reservedJoiner.trim().toLowerCase() !==
-                address.toLowerCase()) ? (
-              <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
-                <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
-                {needsPaymentForLobby && additionalLobbyFee ? (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
-                    <span className="text-amber font-bold shrink-0">
-                      {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
-                    </span>
-                  </div>
-                ) : null}
-                {createForm.reservedJoiner.trim() &&
-                address &&
-                createForm.reservedJoiner.trim().toLowerCase() !==
-                  address.toLowerCase() ? (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-text-secondary">Reservation fee (private lobby)</span>
-                    <span className="text-amber font-bold shrink-0">1 UTC</span>
-                  </div>
-                ) : null}
+            {/* Cost summary — always shown (lobby creation costs 1 UTC) */}
+            <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+              <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
+              <div className="flex justify-between gap-4">
+                <span className="text-text-secondary">Lobby creation fee</span>
+                <span className="text-amber font-bold shrink-0">1 UTC</span>
               </div>
-            ) : null}
+              {needsPaymentForLobby && additionalLobbyFee ? (
+                <div className="flex justify-between gap-4">
+                  <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                  <span className="text-amber font-bold shrink-0">
+                    {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} {getNativeTokenSymbol(chainId)}
+                  </span>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-4 border-t border-amber/30 pt-1 mt-1">
+                <span className="text-text-muted">Your UTC balance</span>
+                <span className={`font-bold shrink-0 ${utcBalance < 1 ? "text-warning-red" : "text-phosphor-green"}`}>
+                  {utcBalance} UTC
+                </span>
+              </div>
+              {utcBalance < 1 && (
+                <p className="text-warning-red font-bold tracking-wider pt-1">[ERR] Insufficient UTC balance — visit the store to top up.</p>
+              )}
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <LobbyCreateButton
                 costLimit={createFormCostLimit}
@@ -2351,6 +2353,7 @@ const Lobbies: React.FC = () => {
                     : undefined
                 }
                 disabled={
+                  utcBalance < 1 ||
                   !!(
                     createForm.reservedJoiner.trim() &&
                     address &&
@@ -2361,6 +2364,7 @@ const Lobbies: React.FC = () => {
                 className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
                 onSuccess={() => {
                   setShowCreateForm(false);
+                  refetchUtcBalance();
                 }}
                 onError={(error) => {
                   console.error("Failed to create lobby:", error);
@@ -2776,6 +2780,18 @@ const Lobbies: React.FC = () => {
                         SELECT FLEET
                       </button>
                     )}
+                  {lobby.state.status === LobbyStatus.FleetSelection &&
+                    lobby.players.joinerFleetId === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => timeoutJoiner(lobby.basic.id)}
+                        className="w-full px-4 py-2.5 border border-amber/60 text-amber/70 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
+                        title={`Kick joiner if they haven\'t selected a fleet within ${lobby.gameConfig.turnTime}s of joining`}
+                      >
+                        TIMEOUT JOINER
+                      </button>
+                    )}
                   {lobby.state.status !== LobbyStatus.InGame && (
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
@@ -2820,6 +2836,19 @@ const Lobbies: React.FC = () => {
                       SELECT FLEET
                     </button>
                   )}
+                  {lobby.state.status === LobbyStatus.FleetSelection &&
+                    lobby.players.joinerFleetId > 0 &&
+                    lobby.players.creatorFleetId === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => quitWithPenalty(lobby.basic.id)}
+                        className="w-full px-4 py-2.5 border border-amber/60 text-amber/70 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        style={{ borderRadius: 0 }}
+                        title={`Leave and penalize creator if they haven\'t selected a fleet within ${lobby.gameConfig.turnTime}s of you submitting yours`}
+                      >
+                        QUIT WITH PENALTY
+                      </button>
+                    )}
                   {lobby.state.status !== LobbyStatus.InGame && (
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
