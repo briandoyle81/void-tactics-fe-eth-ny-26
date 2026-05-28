@@ -363,9 +363,9 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          Acquire ships through buying, selling, and trading on a global open
-          market. Customize loadouts and traits, or recycle ships you no longer
-          need. Think TCG economy with real ownership.
+          Claim ships to grow your fleet. Each hull has a distinct loadout —
+          weapons, armor, shields, and special systems — that defines its role
+          in combat. Recycle ships you no longer need to free up capacity.
         </p>
         <ul
           className="text-sm space-y-1 opacity-100"
@@ -374,9 +374,9 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          <li>• Global open market: buy, sell, trade</li>
-          <li>• Customizable ships (equipment, traits)</li>
-          <li>• Recycling mechanics</li>
+          <li>• Claim free ships on a regular cooldown</li>
+          <li>• Distinct equipment per hull (weapons, armor, shields, specials)</li>
+          <li>• Recycle unwanted ships</li>
         </ul>
       </article>
 
@@ -443,8 +443,9 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          Fight in turn-based strategic battles where positioning, range, and
-          weapon selection determine the outcome. Plan your moves carefully.
+          Fight turn-based battles on a tactical grid. Every decision — where
+          you move, what you shoot, when you use a special — matters. One wrong
+          read and your flank collapses.
         </p>
         <ul
           className="text-sm space-y-1 opacity-100"
@@ -453,9 +454,10 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          <li>• Turn-based PvP battles</li>
-          <li>• Strategic positioning system</li>
-          <li>• Multiple weapon and defense types</li>
+          <li>• Turn-based PvP on a tactical grid</li>
+          <li>• Weapons: laser, railgun, missile, plasma</li>
+          <li>• Specials: EMP, repair drones, and more</li>
+          <li>• Ram disabled ships off the battlefield</li>
         </ul>
       </article>
 
@@ -473,7 +475,7 @@ const Info: React.FC = () => {
             color: "var(--color-warning-red)",
           }}
         >
-          [COLLECT THE REWARDS]
+          [RANK UP]
         </h3>
         <p
           className="text-base mb-4 opacity-100"
@@ -482,24 +484,11 @@ const Info: React.FC = () => {
             color: "var(--color-text-primary)",
           }}
         >
-          Each kill earns your ship experience and a UTC salvage reward. Ranks
-          unlock combat bonuses — range, damage, and hull all scale up as a
-          ship climbs the ranks.
+          Every kill earns your ship a UTC salvage reward and advances it
+          through six ranks. Higher ranks apply an increasing percentage bonus
+          to all combat stats — range, damage, hull, movement, and damage
+          reduction — up to +50% at max rank.
         </p>
-        <ul
-          className="text-sm space-y-1 opacity-100"
-          style={{
-            fontFamily: "var(--font-mono), monospace",
-            color: "var(--color-text-primary)",
-          }}
-        >
-          <li>• R1 (0–9 kills) — baseline stats</li>
-          <li>• R2 (10–29) — +10% range, damage, hull</li>
-          <li>• R3 (30–99) — +20%</li>
-          <li>• R4 (100–299) — +30%</li>
-          <li>• R5 (300–999) — +40%</li>
-          <li>• R6 (1000+ kills) — +50% — max rank</li>
-        </ul>
       </article>
 
       {/* Getting Started Section */}
@@ -532,8 +521,8 @@ const Info: React.FC = () => {
             {
               n: "02",
               color: "var(--color-amber)",
-              cmd: "ACQUIRE_FLEET",
-              desc: "Claim free ships or purchase units — configure loadout to doctrine",
+              cmd: "CLAIM_FLEET",
+              desc: "Claim your first ships for free — run the tutorial to earn starter hulls",
             },
             {
               n: "03",
