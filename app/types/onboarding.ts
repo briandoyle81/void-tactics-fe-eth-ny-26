@@ -157,8 +157,6 @@ export interface TutorialContextValue {
   rescueCompletionBranch: TutorialRescueBranch;
   currentStep: TutorialStep | null;
   gameState: SimulatedGameState;
-  isTransactionDialogOpen: boolean;
-  pendingAction: TutorialAction | null;
   isStepComplete: boolean;
   isStepHydrated: boolean;
   updateGameState: (
@@ -170,10 +168,6 @@ export interface TutorialContextValue {
   executeAction: (action: TutorialAction) => void;
   nextStep: () => void;
   previousStep: () => void;
-  openTransactionDialog: (action: TutorialAction) => void;
-  closeTransactionDialog: () => void;
-  approveTransaction: () => void;
-  rejectTransaction: () => void;
   resetTutorial: () => void;
 }
 

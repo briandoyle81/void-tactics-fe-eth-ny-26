@@ -1482,7 +1482,11 @@ export function GameGrid({
 
                     {/* Shooting range highlight */}
                     {isShootingTile && (
-                      <div className="absolute inset-0 z-[3] border-1 border-amber/50 bg-amber/10 pointer-events-none" />
+                      <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
+                        selectedWeaponType === "special" && specialType === 2
+                          ? "border-cyan/50 bg-cyan/10"
+                          : "border-amber/50 bg-amber/10"
+                      }`} />
                     )}
 
                     {/* Drag range highlight - show range from drag position */}
@@ -1491,7 +1495,11 @@ export function GameGrid({
                         {dragShootingRange.some(
                           (pos) => pos.row === rowIndex && pos.col === colIndex,
                         ) && (
-                          <div className="absolute inset-0 z-[3] border-1 border-amber/50 bg-amber/10 pointer-events-none" />
+                          <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
+                            selectedWeaponType === "special" && specialType === 2
+                              ? "border-cyan/50 bg-cyan/10"
+                              : "border-amber/50 bg-amber/10"
+                          }`} />
                         )}
                         {/* Green outline on the cell being dragged over */}
                         {dragOverCell.row === rowIndex &&

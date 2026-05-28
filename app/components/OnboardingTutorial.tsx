@@ -7,7 +7,6 @@ import {
   TUTORIAL_STEP_STORAGE_KEY,
   getTutorialAnalyticsRewardPath,
 } from "../types/onboarding";
-import { SimulatedTransactionDialog } from "./SimulatedTransactionDialog";
 import { SimulatedGameDisplay } from "./SimulatedGameDisplay";
 import posthog from "posthog-js";
 
@@ -40,10 +39,6 @@ export function OnboardingTutorial({
     currentStepIndex,
     displayStepNumber,
     rescueCompletionBranch,
-    isTransactionDialogOpen,
-    pendingAction,
-    approveTransaction,
-    rejectTransaction,
   } = tutorialContext;
 
   const handleSkip = () => {
@@ -80,12 +75,6 @@ export function OnboardingTutorial({
               onBack={handleSkip}
             />
 
-            <SimulatedTransactionDialog
-              isOpen={isTransactionDialogOpen}
-              action={pendingAction}
-              onApprove={approveTransaction}
-              onReject={rejectTransaction}
-            />
           </>
         )}
       </div>

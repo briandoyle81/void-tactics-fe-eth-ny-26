@@ -44,10 +44,6 @@ export function useOnboardingTutorial() {
     }
     return 0;
   });
-  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<TutorialAction | null>(
-    null,
-  );
   const [lastAction, setLastAction] = useState<TutorialAction | null>(null);
   const [isStepHydrated, setIsStepHydrated] = useState(false);
   const displayTotalSteps = 14;
@@ -295,80 +291,34 @@ export function useOnboardingTutorial() {
         return { success: false, message: validation.message };
       }
 
-      // If step requires transaction and should show after, execute first then show dialog
-      // Only show transaction dialog for moveShip actions, not for selectShip
-      if (
-        currentStep?.requiresTransaction &&
-        currentStep?.showTransactionAfter &&
-        action.type === "moveShip"
-      ) {
+      // selectShip never requires a transaction; apply immediately
+      if (action.type === "selectShip") {
         applyAction(action);
-        setLastAction(action); // Track the last action for step completion checking
-        setPendingAction(action);
-        // Delay showing the transaction dialog to allow the UI to update first
-        // Use requestAnimationFrame to ensure the ship has visually moved
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setIsTransactionDialogOpen(true);
-          });
-        });
-        return { success: true, pending: true };
+        setLastAction(action);
+        return { success: true };
       }
 
-      // For the "shoot" step, follow the desired sequence:
-      // 1) select ship, 2) propose move (staged in UI), 3) select target,
-      // 4) click Submit to execute the composite action (move + shoot) in a
-      // single simulated transaction. The move is applied immediately with no
-      // transaction; only the shoot opens the simulated tx.
-      if (currentStep?.id === "shoot") {
-        if (action.type === "moveShip") {
-          // Apply the move immediately without any transaction dialog.
-          applyAction(action);
-          return { success: true };
-        }
-        if (action.type === "shoot") {
-          setPendingAction(action);
-          setIsTransactionDialogOpen(true);
-          return { success: true, pending: true };
-        }
+      // For the "shoot" step: the move is applied immediately;
+      // the shoot action is handled below as a transaction-completing action.
+      if (currentStep?.id === "shoot" && action.type === "moveShip") {
+        applyAction(action);
+        return { success: true };
       }
 
-      // If step requires transaction, show dialog first
-      // Only show transaction dialog for actions that require it (not selectShip)
-      if (currentStep?.requiresTransaction && action.type !== "selectShip") {
-        setPendingAction(action);
-        setIsTransactionDialogOpen(true);
-        return { success: true, pending: true };
+      // Non-transaction steps: apply and track
+      if (!currentStep?.requiresTransaction) {
+        applyAction(action);
+        setLastAction(action);
+        return { success: true };
       }
 
-      // Otherwise, execute immediately
-      applyAction(action);
-      setLastAction(action); // Track the last action for step completion checking
-
-      return { success: true };
-    },
-    [currentStep, validateAction, applyAction],
-  );
-
-  const approveTransaction = useCallback(() => {
-    if (!pendingAction) return;
-
-    const action = pendingAction;
-
-    setIsTransactionDialogOpen(false);
-
-    // If action was already executed (showTransactionAfter), just close the dialog.
-    // Otherwise, execute the action now.
-    let stepCompletionAction: TutorialAction = action;
-    if (!currentStep?.showTransactionAfter) {
-      // Standard tx behavior: apply the pending action.
+      // Transaction steps: apply action, handle chained actions, then auto-advance
+      let stepCompletionAction: TutorialAction = action;
       applyAction(action);
 
-      // Special handling for step 13 (rescue-outcome-sniper):
-      // the tx is for the move, and we optionally chain a shot based on
-      // targetShipId embedded on the pending move action.
+      // rescue-outcome-sniper: chain a shoot after the move
       if (
-        currentStep?.id === "rescue-outcome-sniper" &&
+        currentStep.id === "rescue-outcome-sniper" &&
         action.type === "moveShip" &&
         action.targetShipId
       ) {
@@ -384,84 +334,60 @@ export function useOnboardingTutorial() {
       } else {
         setLastAction(action);
       }
-    }
 
-    setPendingAction(null);
+      // Auto-advance when step completion condition is met
+      if (
+        typeof currentStep.onStepComplete === "function" &&
+        currentStep.onStepComplete(stepCompletionAction)
+      ) {
+        addCompletedStepId(currentStep.id);
+        setCurrentStepIndex((prev) => {
+          let nextIndex = Math.min(prev + 1, TUTORIAL_STEPS.length - 1);
 
-    // After a simulated transaction is approved, automatically advance to the
-    // next tutorial step when this step's completion condition is satisfied.
-    if (
-      currentStep?.requiresTransaction &&
-      typeof currentStep.onStepComplete === "function" &&
-      currentStep.onStepComplete(stepCompletionAction)
-    ) {
-      addCompletedStepId(currentStep.id);
-      setCurrentStepIndex((prev) => {
-        let nextIndex = Math.min(prev + 1, TUTORIAL_STEPS.length - 1);
+          if (currentStep.id === "rescue") {
+            const retreatOutcomeIndex = TUTORIAL_STEPS.findIndex(
+              (s) => s.id === "rescue-outcome-retreat",
+            );
+            const sniperOutcomeIndex = TUTORIAL_STEPS.findIndex(
+              (s) => s.id === "rescue-outcome-sniper",
+            );
+            const empRetreat =
+              action.type === "moveShip" &&
+              action.shipId === "1001" &&
+              action.actionType === ActionType.Retreat;
 
-        // Step 13 fork variants after rescue tx approval.
-        if (currentStep.id === "rescue") {
-          const retreatOutcomeIndex = TUTORIAL_STEPS.findIndex(
-            (s) => s.id === "rescue-outcome-retreat",
-          );
-          const sniperOutcomeIndex = TUTORIAL_STEPS.findIndex(
-            (s) => s.id === "rescue-outcome-sniper",
-          );
-          const empRetreat =
-            action.type === "moveShip" &&
-            action.shipId === "1001" &&
-            action.actionType === ActionType.Retreat;
+            persistRescueCompletionBranch(empRetreat ? "retreat" : "sniper");
 
-          persistRescueCompletionBranch(empRetreat ? "retreat" : "sniper");
-
-          if (empRetreat && retreatOutcomeIndex !== -1) {
-            nextIndex = retreatOutcomeIndex;
-          } else if (sniperOutcomeIndex !== -1) {
-            nextIndex = sniperOutcomeIndex;
+            if (empRetreat && retreatOutcomeIndex !== -1) {
+              nextIndex = retreatOutcomeIndex;
+            } else if (sniperOutcomeIndex !== -1) {
+              nextIndex = sniperOutcomeIndex;
+            }
           }
-        }
 
-        // Route Step 13 outcomes to the correct Step 14 variant.
-        if (currentStep.id === "rescue-outcome-retreat") {
-          const completionIndex = TUTORIAL_STEPS.findIndex(
-            (s) => s.id === "completion-retreat",
-          );
-          if (completionIndex !== -1) nextIndex = completionIndex;
-        } else if (currentStep.id === "rescue-outcome-sniper") {
-          const completionIndex = TUTORIAL_STEPS.findIndex(
-            (s) => s.id === "completion-sniper",
-          );
-          if (completionIndex !== -1) nextIndex = completionIndex;
-        }
+          if (currentStep.id === "rescue-outcome-retreat") {
+            const completionIndex = TUTORIAL_STEPS.findIndex(
+              (s) => s.id === "completion-retreat",
+            );
+            if (completionIndex !== -1) nextIndex = completionIndex;
+          } else if (currentStep.id === "rescue-outcome-sniper") {
+            const completionIndex = TUTORIAL_STEPS.findIndex(
+              (s) => s.id === "completion-sniper",
+            );
+            if (completionIndex !== -1) nextIndex = completionIndex;
+          }
 
-        if (nextIndex !== prev) {
-          setLastAction(null);
-        }
-        return nextIndex;
-      });
-    }
-  }, [
-    pendingAction,
-    currentStep,
-    applyAction,
-    addCompletedStepId,
-    persistRescueCompletionBranch,
-  ]);
+          if (nextIndex !== prev) {
+            setLastAction(null);
+          }
+          return nextIndex;
+        });
+      }
 
-  const rejectTransaction = useCallback(() => {
-    setIsTransactionDialogOpen(false);
-    setPendingAction(null);
-  }, []);
-
-  const openTransactionDialog = useCallback((action: TutorialAction) => {
-    setPendingAction(action);
-    setIsTransactionDialogOpen(true);
-  }, []);
-
-  const closeTransactionDialog = useCallback(() => {
-    setIsTransactionDialogOpen(false);
-    setPendingAction(null);
-  }, []);
+      return { success: true };
+    },
+    [currentStep, validateAction, applyAction, addCompletedStepId, persistRescueCompletionBranch],
+  );
 
   const nextStep = useCallback(() => {
     const leaving = TUTORIAL_STEPS[currentStepIndex];
@@ -639,8 +565,6 @@ export function useOnboardingTutorial() {
   ]);
 
   const resetTutorial = useCallback(() => {
-    setIsTransactionDialogOpen(false);
-    setPendingAction(null);
     setLastAction(null);
     resetState();
     setCompletedStepIds(new Set());
@@ -733,21 +657,13 @@ export function useOnboardingTutorial() {
       rescueCompletionBranch,
       currentStep,
       gameState,
-      isTransactionDialogOpen,
-      pendingAction,
       isStepComplete,
       updateGameState,
       validateAction,
       executeAction,
       nextStep,
       previousStep,
-      openTransactionDialog,
-      closeTransactionDialog,
-      approveTransaction,
-      rejectTransaction,
       resetTutorial,
-      // Expose whether the current step state has been fully hydrated
-      // so the UI can avoid flickering when switching steps.
       isStepHydrated,
     }),
     [
@@ -758,18 +674,12 @@ export function useOnboardingTutorial() {
       rescueCompletionBranch,
       currentStep,
       gameState,
-      isTransactionDialogOpen,
-      pendingAction,
       isStepComplete,
       updateGameState,
       validateAction,
       executeAction,
       nextStep,
       previousStep,
-      openTransactionDialog,
-      closeTransactionDialog,
-      approveTransaction,
-      rejectTransaction,
       resetTutorial,
       isStepHydrated,
     ],

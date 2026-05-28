@@ -256,7 +256,6 @@ export function SimulatedGameDisplay({
     validateAction,
     executeAction,
     isStepHydrated,
-    isTransactionDialogOpen,
     nextStep,
     previousStep,
     resetTutorial,
@@ -587,8 +586,6 @@ export function SimulatedGameDisplay({
   const isShowingProposedMove = useMemo(() => {
     if (selectedShipId === null) return false;
     if (!isShipOwnedByCurrentPlayer(selectedShipId)) return false;
-    // Keep the panel visible during the simulated wallet approval flow.
-    if (isTransactionDialogOpen) return true;
     if (!isMyTurn) return false;
 
     const idString = selectedShipId.toString() as TutorialShipId;
@@ -601,7 +598,6 @@ export function SimulatedGameDisplay({
   }, [
     selectedShipId,
     isMyTurn,
-    isTransactionDialogOpen,
     isShipOwnedByCurrentPlayer,
     movedShipIdsSet,
     getShipAttributes,
@@ -673,11 +669,7 @@ export function SimulatedGameDisplay({
    * when a tx step is ready to confirm: staged inputs present, dialog not open.
    */
   const shouldPulseSubmitMoveButton = useMemo(() => {
-    if (
-      !currentStep?.requiresTransaction ||
-      !isShowingProposedMove ||
-      isTransactionDialogOpen
-    ) {
+    if (!currentStep?.requiresTransaction || !isShowingProposedMove) {
       return false;
     }
 
@@ -721,7 +713,6 @@ export function SimulatedGameDisplay({
   }, [
     currentStep,
     isShowingProposedMove,
-    isTransactionDialogOpen,
     previewPosition,
     targetShipId,
     selectedWeaponType,
