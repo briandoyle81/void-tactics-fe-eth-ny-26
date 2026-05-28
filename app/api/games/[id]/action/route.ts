@@ -508,11 +508,16 @@ export async function POST(
     }
   }
 
-  // Count enemy ships killed this action (direct + any round-end reactor ticks)
+  // Count enemy ships killed this action (direct + any round-end reactor ticks).
+  // Rammed ships are force-retreated, not killed — exclude them from kill credit.
   const opponentActivesAfter = new Set<number>(
     isCreator ? newState.joinerActiveShipIds : newState.creatorActiveShipIds,
   );
-  const killCount = [...opponentActivesBefore].filter((id) => !opponentActivesAfter.has(id)).length;
+  const killCount = [...opponentActivesBefore].filter((id) => {
+    if (opponentActivesAfter.has(id)) return false;
+    if (actionType === ActionType.Ram && id === targetShipId) return false;
+    return true;
+  }).length;
 
   const submittedRound = Number(state.turnState.currentRound);
 

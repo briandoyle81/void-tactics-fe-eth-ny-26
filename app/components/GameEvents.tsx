@@ -71,6 +71,12 @@ function formatLastMoveDescription(
           : `${shipName} used special ability on ${targetName}`;
       }
     }
+  } else if (lastMove.actionType === ActionType.Ram) {
+    const targetShip = lastMove.targetShipId ? shipMap.get(lastMove.targetShipId) : null;
+    const targetName = targetShip?.name ?? (lastMove.targetShipId ? `Ship #${lastMove.targetShipId}` : "a disabled ship");
+    description += moved
+      ? ` and rammed ${targetName}`
+      : `${shipName} rammed ${targetName}`;
   } else if (lastMove.actionType === ActionType.Pass) {
     description = moved ? `${description} and passed` : `${shipName} passed`;
   } else if (lastMove.actionType === ActionType.ClaimPoints) {

@@ -994,13 +994,17 @@ export function GameGrid({
                         setPreviewPosition({ row: rowIndex, col: colIndex });
                         setTargetShipId(cell.shipId);
                         return;
-                      } else if (inMoveRange) {
-                        // In movement range only (not weapon range): always ram
+                      } else if (inMoveRange && noMoveElsewhere) {
+                        // In movement range only (not weapon range): ram — but only if
+                        // the player hasn't already staged a move somewhere else. When a
+                        // move is staged, fall through so normal target selection can fire
+                        // at this ship from the staged position instead.
                         setPreviewPosition({ row: rowIndex, col: colIndex });
                         setTargetShipId(cell.shipId);
                         return;
                       }
-                      // In weapon range only (or out of both): fall through to normal targeting
+                      // In weapon range only, out of both, or move already staged elsewhere:
+                      // fall through to normal targeting
                     }
                     // Check for repair drone auto-switch FIRST (before any other logic)
                     if (
@@ -1697,8 +1701,9 @@ export function GameGrid({
                         {(() => {
                           const shouldPreviewDestroyedTarget =
                             destroyPreviewShipIds.has(cell.shipId);
+                          const isForceRetreating = false;
                           const imageClassName = `w-full h-full relative z-0 ${
-                            retreatPrepShipId === cell.shipId
+                            retreatPrepShipId === cell.shipId || isForceRetreating
                               ? "opacity-0 pointer-events-none"
                               : cell.isCreator
                                 ? "scale-x-[-1]"

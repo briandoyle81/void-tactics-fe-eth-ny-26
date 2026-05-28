@@ -2357,6 +2357,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const lastMoveTargetPositionDebugSuffix = React.useMemo(() => {
     if (!displayedLastMove) return "";
     if (displayedLastMove.targetShipId === 0) return "";
+    // Ram removes the target from shipPositions by design — not a missing-data error.
+    if (displayedLastMove.actionType === ActionType.Ram) return "";
 
     const targetPos = game.shipPositions.find(
       (sp) => sp.shipId === displayedLastMove.targetShipId,
@@ -2372,6 +2374,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   React.useEffect(() => {
     if (!displayedLastMove) return;
     if (displayedLastMove.targetShipId === 0) return;
+    if (displayedLastMove.actionType === ActionType.Ram) return;
 
     const targetExists = game.shipPositions.some(
       (sp) => sp.shipId === displayedLastMove.targetShipId,

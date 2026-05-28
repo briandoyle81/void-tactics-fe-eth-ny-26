@@ -27,24 +27,9 @@ The most-queried columns in the app have no explicit indexes. PostgreSQL will se
 
 ## ~~High — `recalculate-costs` Loads All Ships Into Memory~~
 
-`app/api/admin/recalculate-costs/route.ts` and the recalculate step in `app/api/admin/ship-costs/route.ts` both do:
+**Fixed via lazy per-player recalculation.** `app/api/admin/recalculate-costs/route.ts` was deleted. The admin `POST /api/admin/ship-costs` endpoint now only saves the new config (bumping `costsVersion`); it does not touch any ships.
 
-```typescript
-const ships = await prisma.ship.findMany({ select: { id, equipment, traits } });
-const updates = ships.map((ship) => prisma.ship.update({ where: { id } ... }));
-await prisma.$transaction(updates);
-```
-
-This is O(N) memory + N individual SQL round-trips inside one transaction. At a few thousand ships it will exceed serverless memory limits and/or hit the Prisma transaction timeout. Fix with chunked batches:
-
-```typescript
-const BATCH = 500;
-for (let i = 0; i < ships.length; i += BATCH) {
-  await prisma.$transaction(
-    ships.slice(i, i + BATCH).map((ship) => prisma.ship.update(...))
-  );
-}
-```
+Instead, `app/lib/recalcStaleShips.ts` recalculates costs on demand: whenever a player fetches their ships (`GET /api/ships`) or submits a fleet (`POST /api/lobbies/[id]/fleet`), any of their ships whose `costsVersion` is behind the current config version are recalculated and updated at that moment. Work is distributed across players rather than done all at once, and each batch is scoped to a single player's page of ships (≤ 100), so there is no O(N-all-ships) operation anywhere.
 
 ---
 
