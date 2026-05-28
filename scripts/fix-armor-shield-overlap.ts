@@ -33,7 +33,7 @@ async function main() {
   });
 
   const affected = ships.filter((s) => {
-    const eq = s.equipment as ShipEquipment;
+    const eq = s.equipment as unknown as ShipEquipment;
     return eq.armor > 0 && eq.shields > 0;
   });
 
@@ -46,7 +46,7 @@ async function main() {
   }
 
   const updates = affected.map((s) => {
-    const eq = s.equipment as ShipEquipment;
+    const eq = s.equipment as unknown as ShipEquipment;
     const keepArmor = eq.armor >= eq.shields; // armor wins ties
     const newEquipment: ShipEquipment = {
       ...eq,
