@@ -53,7 +53,7 @@ async function main() {
       armor:   keepArmor ? eq.armor   : 0,
       shields: keepArmor ? 0          : eq.shields,
     };
-    const newCost = calcShipCost(newEquipment, s.traits as ShipTraits, costs);
+    const newCost = calcShipCost(newEquipment, s.traits as unknown as ShipTraits, costs);
     return { id: s.id, oldEq: eq, newEquipment, oldCost: s.cost, newCost };
   });
 
