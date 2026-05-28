@@ -3431,23 +3431,23 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       <span className="text-sm text-text-primary">
                         Result: {game.metadata.winner === TIE_ADDR ? "Draw" : game.metadata.winner === address ? "Victory" : "Defeat"}
                       </span>
-                      {!isReplaying ? (
-                        <button
-                          onClick={fetchAndStartReplay}
-                          disabled={replayLoading}
-                          className="px-2 py-0.5 text-[10px] uppercase tracking-wider border border-solid"
-                          style={{
-                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                            borderColor: "var(--color-steel)",
-                            color: "var(--color-text-secondary)",
-                            backgroundColor: "var(--color-near-black)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          {replayLoading ? "…" : "Replay"}
-                        </button>
-                      ) : null}
                     </div>
+                  ) : null}
+                  {!isReplaying ? (
+                    <button
+                      onClick={fetchAndStartReplay}
+                      disabled={replayLoading}
+                      className="px-2 py-0.5 text-[10px] uppercase tracking-wider border border-solid"
+                      style={{
+                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        borderColor: "var(--color-steel)",
+                        color: "var(--color-text-secondary)",
+                        backgroundColor: "var(--color-near-black)",
+                        borderRadius: 0,
+                      }}
+                    >
+                      {replayLoading ? "…" : "Replay"}
+                    </button>
                   ) : null}
                   {isReplaying ? (
                     <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -4015,28 +4015,31 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       >
                         {game.metadata.winner === TIE_ADDR ? "DRAW" : game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
                       </span>
-                      {!isReplaying ? (
-                        <button
-                          onClick={fetchAndStartReplay}
-                          disabled={replayLoading}
-                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid transition-colors"
-                          style={{
-                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                            borderColor: "var(--color-steel)",
-                            color: "var(--color-text-secondary)",
-                            backgroundColor: "var(--color-near-black)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          {replayLoading ? "Loading…" : "Replay"}
-                        </button>
-                      ) : null}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-            {/* Replay controls — shown when replaying a completed game */}
+            {/* Replay button — available during live games and after completion */}
+            {!isReplaying && (
+              <div className="flex justify-end px-2 py-1">
+                <button
+                  onClick={fetchAndStartReplay}
+                  disabled={replayLoading}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid transition-colors"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-text-secondary)",
+                    backgroundColor: "var(--color-near-black)",
+                    borderRadius: 0,
+                  }}
+                >
+                  {replayLoading ? "Loading…" : "Replay"}
+                </button>
+              </div>
+            )}
+            {/* Replay controls */}
             {isReplaying && (
               <div
                 className="flex items-center gap-2 flex-wrap border border-solid px-2 py-1.5"
