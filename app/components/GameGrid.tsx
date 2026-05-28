@@ -3123,7 +3123,11 @@ export function GameGrid({
                 });
 
                 const shouldShowRammingLabels =
-                  isRammingMovePreview && rammingPreviewPosition != null;
+                  (isRammingMovePreview && rammingPreviewPosition != null) ||
+                  (lastMoveActionNum === ActionType.Ram &&
+                    lastMoveNewPosition != null &&
+                    lastMoveNewPosition.row >= 0 &&
+                    lastMoveNewPosition.col >= 0);
                 const shouldShowHoldPositionLabel =
                   lastMoveActionType != null &&
                   Number(lastMoveActionType) !== ActionType.Retreat &&
@@ -3282,6 +3286,7 @@ export function GameGrid({
                       );
                     })}
                     {(() => {
+                      // Staged ram preview labels
                       if (!isRammingMovePreview || !rammingPreviewPosition) {
                         return null;
                       }
@@ -3299,6 +3304,67 @@ export function GameGrid({
                           },
                         );
                       const isTopGridRow = rammingPreviewPosition.row === 0;
+                      const labelTopPx = isTopGridRow ? cellBottom : cellTop;
+                      const labelTransform = isTopGridRow
+                        ? "translate(-50%, 0)"
+                        : "translate(-50%, -100%)";
+                      return (
+                        <>
+                          <div
+                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-white whitespace-nowrap border border-warning-red bg-warning-red/60"
+                            style={{
+                              left: `${cellX}px`,
+                              top: `${labelTopPx}px`,
+                              transform: `${labelTransform} translateY(${
+                                isTopGridRow ? 0 : -30
+                              }px)`,
+                            }}
+                          >
+                            RAMMING SPEED
+                          </div>
+                          <div
+                            className="absolute rounded-none px-2 py-1 text-xs font-mono text-center text-white whitespace-nowrap flex items-center gap-1"
+                            style={{
+                              left: `${cellX}px`,
+                              top: `${labelTopPx}px`,
+                              transform: labelTransform,
+                              backgroundColor: "rgba(255, 119, 0, 0.75)",
+                              borderWidth: 1,
+                              borderStyle: "solid",
+                              borderColor: "#ff7700",
+                            }}
+                          >
+                            <span className="flex shrink-0 items-center justify-center rounded-full bg-warning-red/90 leading-none" style={{ width: 10, height: 10, fontSize: 7 }}>✕</span>
+                            WARNING: OVERLOAD
+                            <span className="flex shrink-0 items-center justify-center rounded-full bg-warning-red/90 leading-none" style={{ width: 10, height: 10, fontSize: 7 }}>✕</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    {(() => {
+                      // Last-move ram labels — same two labels as staged preview, at the to-position
+                      if (
+                        lastMoveActionNum !== ActionType.Ram ||
+                        !lastMoveNewPosition ||
+                        lastMoveNewPosition.row < 0 ||
+                        lastMoveNewPosition.col < 0
+                      ) {
+                        return null;
+                      }
+                      const { cx: cellX, cellTop, cellBottom } =
+                        measureGridCellLabelAnchor(
+                          containerRect,
+                          gridLayoutRef.current,
+                          lastMoveNewPosition.row,
+                          lastMoveNewPosition.col,
+                          {
+                            originX,
+                            originY,
+                            cellWidth,
+                            cellHeight,
+                          },
+                        );
+                      const isTopGridRow = lastMoveNewPosition.row === 0;
                       const labelTopPx = isTopGridRow ? cellBottom : cellTop;
                       const labelTransform = isTopGridRow
                         ? "translate(-50%, 0)"
