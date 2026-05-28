@@ -1174,6 +1174,29 @@ const Lobbies: React.FC = () => {
     return true;
   });
 
+  const FLEET_PICKER_PAGE_SIZE = 100;
+  const [fleetShipPage, setFleetShipPage] = useState(0);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setFleetShipPage(0);
+  }, [fleetFilters]);
+
+  const selectedFilteredShips = React.useMemo(
+    () => filteredShips.filter((s) => selectedShips.includes(s.id)).sort((a, b) => Number(a.id - b.id)),
+    [filteredShips, selectedShips],
+  );
+
+  const unselectedFilteredShips = React.useMemo(
+    () => filteredShips.filter((s) => !selectedShips.includes(s.id)).sort((a, b) => Number(a.id - b.id)),
+    [filteredShips, selectedShips],
+  );
+
+  const paginatedUnselectedShips = React.useMemo(
+    () => unselectedFilteredShips.slice(fleetShipPage * FLEET_PICKER_PAGE_SIZE, (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE),
+    [unselectedFilteredShips, fleetShipPage],
+  );
+
   const selectedFleetHasStaleCostsVersion = useMemo(() => {
     if (globalCostsVersion === null) return false;
     return selectedShips.some((id) => {
@@ -3412,7 +3435,10 @@ const Lobbies: React.FC = () => {
 
                       <div className="mt-3 flex justify-between items-center text-xs">
                         <span className="text-text-muted">
-                          Showing {filteredShips.length} of {ships.length} ships
+                          {selectedFilteredShips.length > 0
+                            ? `${selectedFilteredShips.length} selected · `
+                            : ""}
+                          Showing {Math.min(paginatedUnselectedShips.length + selectedFilteredShips.length, filteredShips.length)} of {ships.length} ships
                         </span>
                         <button
                           onClick={() =>
@@ -3459,77 +3485,128 @@ const Lobbies: React.FC = () => {
                               onDragLeave={handleListDragLeave}
                               onDrop={handleListDrop}
                             >
-                              {filteredShips
-                                .sort((a, b) => {
-                                  // Selected ships first
-                                  const aSelected = selectedShips.includes(
-                                    a.id,
-                                  );
-                                  const bSelected = selectedShips.includes(
-                                    b.id,
-                                  );
-
-                                  if (aSelected && !bSelected) return -1;
-                                  if (!aSelected && bSelected) return 1;
-
-                                  // Within each group, sort by ship ID
-                                  return Number(a.id - b.id);
-                                })
-                                .map((ship) => {
-                                  const canSelect =
-                                    !(ship.shipData.timestampDestroyed > 0) &&
-                                    ship.shipData.constructed &&
-                                    !ship.shipData.inFleet;
-
-                                  const handleCardClick = () => handleListShipTap(ship.id, canSelect);
-                                  const isPending = tapPendingShipId === ship.id;
-
-                                  return (
-                                    <div
-                                      key={ship.id.toString()}
-                                      draggable={canSelect && !isTouchDevice}
-                                      onDragStart={(e) => {
-                                        if (canSelect) {
-                                          handleDragStart(ship.id);
-                                          e.dataTransfer.effectAllowed = "move";
-                                          e.dataTransfer.setData("text/plain", ship.id.toString());
-                                        }
-                                      }}
-                                      onDragEnd={handleDragEnd}
-                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
-                                    >
-                                      <ShipCard
-                                        ship={ship}
-                                        isStarred={false}
-                                        onToggleStar={() => {}}
-                                        isSelected={selectedShips.includes(
-                                          ship.id,
-                                        )}
-                                        onToggleSelection={() => {
-                                          if (canSelect) {
-                                            handleCardClick();
-                                          }
-                                        }}
-                                        onRecycleClick={() => {}}
-                                        showInGameProperties={
-                                          showInGameProperties
-                                        }
-                                        inGameAttributes={attributesMap.get(
-                                          ship.id,
-                                        )}
-                                        attributesLoading={
-                                          fleetSelectionAttributesLoading
-                                        }
-                                        selectionMode={true}
-                                        hideRecycle={true}
-                                        hideCheckbox={true}
-                                        onCardClick={handleCardClick}
-                                        canSelect={canSelect}
-                                        flipShip={isCreator}
-                                      />
-                                    </div>
-                                  );
-                                })}
+                              {selectedFilteredShips.map((ship) => {
+                                const canSelect =
+                                  !(ship.shipData.timestampDestroyed > 0) &&
+                                  ship.shipData.constructed &&
+                                  !ship.shipData.inFleet;
+                                const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                const isPending = tapPendingShipId === ship.id;
+                                return (
+                                  <div
+                                    key={ship.id.toString()}
+                                    draggable={canSelect && !isTouchDevice}
+                                    onDragStart={(e) => {
+                                      if (canSelect) {
+                                        handleDragStart(ship.id);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData("text/plain", ship.id.toString());
+                                      }
+                                    }}
+                                    onDragEnd={handleDragEnd}
+                                    className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
+                                  >
+                                    <ShipCard
+                                      ship={ship}
+                                      isStarred={false}
+                                      onToggleStar={() => {}}
+                                      isSelected={true}
+                                      onToggleSelection={() => { if (canSelect) handleCardClick(); }}
+                                      onRecycleClick={() => {}}
+                                      showInGameProperties={showInGameProperties}
+                                      inGameAttributes={attributesMap.get(ship.id)}
+                                      attributesLoading={fleetSelectionAttributesLoading}
+                                      selectionMode={true}
+                                      hideRecycle={true}
+                                      hideCheckbox={true}
+                                      onCardClick={handleCardClick}
+                                      canSelect={canSelect}
+                                      flipShip={isCreator}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {selectedFilteredShips.length > 0 && unselectedFilteredShips.length > 0 && (
+                                <div className="border-t border-gunmetal my-1" />
+                              )}
+                              {paginatedUnselectedShips.map((ship) => {
+                                const canSelect =
+                                  !(ship.shipData.timestampDestroyed > 0) &&
+                                  ship.shipData.constructed &&
+                                  !ship.shipData.inFleet;
+                                const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                const isPending = tapPendingShipId === ship.id;
+                                return (
+                                  <div
+                                    key={ship.id.toString()}
+                                    draggable={canSelect && !isTouchDevice}
+                                    onDragStart={(e) => {
+                                      if (canSelect) {
+                                        handleDragStart(ship.id);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData("text/plain", ship.id.toString());
+                                      }
+                                    }}
+                                    onDragEnd={handleDragEnd}
+                                    className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
+                                  >
+                                    <ShipCard
+                                      ship={ship}
+                                      isStarred={false}
+                                      onToggleStar={() => {}}
+                                      isSelected={false}
+                                      onToggleSelection={() => { if (canSelect) handleCardClick(); }}
+                                      onRecycleClick={() => {}}
+                                      showInGameProperties={showInGameProperties}
+                                      inGameAttributes={attributesMap.get(ship.id)}
+                                      attributesLoading={fleetSelectionAttributesLoading}
+                                      selectionMode={true}
+                                      hideRecycle={true}
+                                      hideCheckbox={true}
+                                      onCardClick={handleCardClick}
+                                      canSelect={canSelect}
+                                      flipShip={isCreator}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {unselectedFilteredShips.length > FLEET_PICKER_PAGE_SIZE && (
+                                <div className="flex items-center justify-between pt-1">
+                                  <button
+                                    onClick={() => setFleetShipPage((p) => Math.max(0, p - 1))}
+                                    disabled={fleetShipPage === 0}
+                                    className="px-2 py-1 border border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                                    style={{
+                                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                      borderColor: fleetShipPage === 0 ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                                      color: fleetShipPage === 0 ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                                      backgroundColor: "var(--color-steel)",
+                                      borderRadius: 0,
+                                      opacity: fleetShipPage === 0 ? 0.4 : 1,
+                                    }}
+                                  >
+                                    &lt; PREV
+                                  </button>
+                                  <span className="text-xs" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: "var(--color-text-secondary)" }}>
+                                    {fleetShipPage + 1}/{Math.ceil(unselectedFilteredShips.length / FLEET_PICKER_PAGE_SIZE)}
+                                  </span>
+                                  <button
+                                    onClick={() => setFleetShipPage((p) => Math.min(Math.ceil(unselectedFilteredShips.length / FLEET_PICKER_PAGE_SIZE) - 1, p + 1))}
+                                    disabled={(fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length}
+                                    className="px-2 py-1 border border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                                    style={{
+                                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                      borderColor: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                                      color: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                                      backgroundColor: "var(--color-steel)",
+                                      borderRadius: 0,
+                                      opacity: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? 0.4 : 1,
+                                    }}
+                                  >
+                                    NEXT &gt;
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -3701,77 +3778,128 @@ const Lobbies: React.FC = () => {
                               onDragLeave={handleListDragLeave}
                               onDrop={handleListDrop}
                             >
-                              {filteredShips
-                                .sort((a, b) => {
-                                  // Selected ships first
-                                  const aSelected = selectedShips.includes(
-                                    a.id,
-                                  );
-                                  const bSelected = selectedShips.includes(
-                                    b.id,
-                                  );
-
-                                  if (aSelected && !bSelected) return -1;
-                                  if (!aSelected && bSelected) return 1;
-
-                                  // Within each group, sort by ship ID
-                                  return Number(a.id - b.id);
-                                })
-                                .map((ship) => {
-                                  const canSelect =
-                                    !(ship.shipData.timestampDestroyed > 0) &&
-                                    ship.shipData.constructed &&
-                                    !ship.shipData.inFleet;
-
-                                  const handleCardClick = () => handleListShipTap(ship.id, canSelect);
-                                  const isPending = tapPendingShipId === ship.id;
-
-                                  return (
-                                    <div
-                                      key={ship.id.toString()}
-                                      draggable={canSelect && !isTouchDevice}
-                                      onDragStart={(e) => {
-                                        if (canSelect) {
-                                          handleDragStart(ship.id);
-                                          e.dataTransfer.effectAllowed = "move";
-                                          e.dataTransfer.setData("text/plain", ship.id.toString());
-                                        }
-                                      }}
-                                      onDragEnd={handleDragEnd}
-                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
-                                    >
-                                      <ShipCard
-                                        ship={ship}
-                                        isStarred={false}
-                                        onToggleStar={() => {}}
-                                        isSelected={selectedShips.includes(
-                                          ship.id,
-                                        )}
-                                        onToggleSelection={() => {
-                                          if (canSelect) {
-                                            handleCardClick();
-                                          }
-                                        }}
-                                        onRecycleClick={() => {}}
-                                        showInGameProperties={
-                                          showInGameProperties
-                                        }
-                                        inGameAttributes={attributesMap.get(
-                                          ship.id,
-                                        )}
-                                        attributesLoading={
-                                          fleetSelectionAttributesLoading
-                                        }
-                                        selectionMode={true}
-                                        hideRecycle={true}
-                                        hideCheckbox={true}
-                                        onCardClick={handleCardClick}
-                                        canSelect={canSelect}
-                                        flipShip={isCreator}
-                                      />
-                                    </div>
-                                  );
-                                })}
+                              {selectedFilteredShips.map((ship) => {
+                                const canSelect =
+                                  !(ship.shipData.timestampDestroyed > 0) &&
+                                  ship.shipData.constructed &&
+                                  !ship.shipData.inFleet;
+                                const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                const isPending = tapPendingShipId === ship.id;
+                                return (
+                                  <div
+                                    key={ship.id.toString()}
+                                    draggable={canSelect && !isTouchDevice}
+                                    onDragStart={(e) => {
+                                      if (canSelect) {
+                                        handleDragStart(ship.id);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData("text/plain", ship.id.toString());
+                                      }
+                                    }}
+                                    onDragEnd={handleDragEnd}
+                                    className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
+                                  >
+                                    <ShipCard
+                                      ship={ship}
+                                      isStarred={false}
+                                      onToggleStar={() => {}}
+                                      isSelected={true}
+                                      onToggleSelection={() => { if (canSelect) handleCardClick(); }}
+                                      onRecycleClick={() => {}}
+                                      showInGameProperties={showInGameProperties}
+                                      inGameAttributes={attributesMap.get(ship.id)}
+                                      attributesLoading={fleetSelectionAttributesLoading}
+                                      selectionMode={true}
+                                      hideRecycle={true}
+                                      hideCheckbox={true}
+                                      onCardClick={handleCardClick}
+                                      canSelect={canSelect}
+                                      flipShip={isCreator}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {selectedFilteredShips.length > 0 && unselectedFilteredShips.length > 0 && (
+                                <div className="border-t border-gunmetal my-1" />
+                              )}
+                              {paginatedUnselectedShips.map((ship) => {
+                                const canSelect =
+                                  !(ship.shipData.timestampDestroyed > 0) &&
+                                  ship.shipData.constructed &&
+                                  !ship.shipData.inFleet;
+                                const handleCardClick = () => handleListShipTap(ship.id, canSelect);
+                                const isPending = tapPendingShipId === ship.id;
+                                return (
+                                  <div
+                                    key={ship.id.toString()}
+                                    draggable={canSelect && !isTouchDevice}
+                                    onDragStart={(e) => {
+                                      if (canSelect) {
+                                        handleDragStart(ship.id);
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData("text/plain", ship.id.toString());
+                                      }
+                                    }}
+                                    onDragEnd={handleDragEnd}
+                                    className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
+                                  >
+                                    <ShipCard
+                                      ship={ship}
+                                      isStarred={false}
+                                      onToggleStar={() => {}}
+                                      isSelected={false}
+                                      onToggleSelection={() => { if (canSelect) handleCardClick(); }}
+                                      onRecycleClick={() => {}}
+                                      showInGameProperties={showInGameProperties}
+                                      inGameAttributes={attributesMap.get(ship.id)}
+                                      attributesLoading={fleetSelectionAttributesLoading}
+                                      selectionMode={true}
+                                      hideRecycle={true}
+                                      hideCheckbox={true}
+                                      onCardClick={handleCardClick}
+                                      canSelect={canSelect}
+                                      flipShip={isCreator}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {unselectedFilteredShips.length > FLEET_PICKER_PAGE_SIZE && (
+                                <div className="flex items-center justify-between pt-1">
+                                  <button
+                                    onClick={() => setFleetShipPage((p) => Math.max(0, p - 1))}
+                                    disabled={fleetShipPage === 0}
+                                    className="px-2 py-1 border border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                                    style={{
+                                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                      borderColor: fleetShipPage === 0 ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                                      color: fleetShipPage === 0 ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                                      backgroundColor: "var(--color-steel)",
+                                      borderRadius: 0,
+                                      opacity: fleetShipPage === 0 ? 0.4 : 1,
+                                    }}
+                                  >
+                                    &lt; PREV
+                                  </button>
+                                  <span className="text-xs" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: "var(--color-text-secondary)" }}>
+                                    {fleetShipPage + 1}/{Math.ceil(unselectedFilteredShips.length / FLEET_PICKER_PAGE_SIZE)}
+                                  </span>
+                                  <button
+                                    onClick={() => setFleetShipPage((p) => Math.min(Math.ceil(unselectedFilteredShips.length / FLEET_PICKER_PAGE_SIZE) - 1, p + 1))}
+                                    disabled={(fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length}
+                                    className="px-2 py-1 border border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                                    style={{
+                                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                      borderColor: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                                      color: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                                      backgroundColor: "var(--color-steel)",
+                                      borderRadius: 0,
+                                      opacity: (fleetShipPage + 1) * FLEET_PICKER_PAGE_SIZE >= unselectedFilteredShips.length ? 0.4 : 1,
+                                    }}
+                                  >
+                                    NEXT &gt;
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
