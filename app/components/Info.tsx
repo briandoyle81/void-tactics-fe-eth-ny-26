@@ -192,7 +192,7 @@ const Info: React.FC = () => {
                         "var(--font-jetbrains-mono), 'Courier New', monospace",
                     }}
                   >
-                    &gt; Connect wallet to claim free ships
+                    &gt; Log in to claim free ships
                   </p>
                 )}
                 {isConnected &&
