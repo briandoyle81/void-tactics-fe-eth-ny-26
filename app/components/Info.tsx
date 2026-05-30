@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useLayoutEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { OnboardingTutorial } from "./OnboardingTutorial";
 import {
   TUTORIAL_STEP_STORAGE_KEY,
   TUTORIAL_COMPLETED_STEPS_KEY,
 } from "../types/onboarding";
 import { useAccount } from "../hooks/useAccount";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import posthog from "posthog-js";
 import { HeroShipShowcase } from "./HeroShipShowcase";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
@@ -15,6 +17,7 @@ import { FreeShipClaimButton } from "./FreeShipClaimButton";
 
 const Info: React.FC = () => {
   const { isConnected, address } = useAccount();
+  const { isLoggedIn } = useCurrentUser();
   const { refetch } = useOwnedShips();
   const {
     isEligible,
@@ -34,8 +37,8 @@ const Info: React.FC = () => {
     return false;
   });
 
-  // Check if the tutorial has ever been completed (fix 5)
-  const [tutorialCompleted] = useState(() => {
+  // Check localStorage for tutorial completion (works when logged out)
+  const localTutorialCompleted = useState(() => {
     if (typeof window === "undefined") return false;
     const raw = localStorage.getItem(TUTORIAL_COMPLETED_STEPS_KEY);
     if (!raw) return false;
@@ -45,7 +48,17 @@ const Info: React.FC = () => {
     } catch {
       return false;
     }
+  })[0];
+
+  // Check server-side completion so returning players on a new device see the right label
+  const { data: serverTutorial } = useQuery({
+    queryKey: ["tutorial-status"],
+    queryFn: () => fetch("/api/tutorial").then((r) => r.json()) as Promise<{ completed: boolean }>,
+    enabled: isLoggedIn,
+    staleTime: 5 * 60_000,
   });
+
+  const tutorialCompleted = localTutorialCompleted || (serverTutorial?.completed ?? false);
 
   // Notify the top-level layout when tutorial is active so it can mirror
   // the full-width game view layout (no extra padding/max-width).

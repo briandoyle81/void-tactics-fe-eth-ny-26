@@ -105,6 +105,7 @@ const Lobbies: React.FC = () => {
     additionalLobbyFee,
     paused,
     createFleet,
+    createAiLobby,
     loadLobbies,
     timeoutJoiner,
     quitWithPenalty,
@@ -158,6 +159,8 @@ const Lobbies: React.FC = () => {
     activeLobbiesCount >= (freeGamesPerAddress ?? 0);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAiForm, setShowAiForm] = useState(false);
+  const [aiFormLoading, setAiFormLoading] = useState(false);
 
   useEffect(() => {
     if ((needsShipsForLobbyUi || needsConstructForLobbyUi) && showCreateForm) {
@@ -1863,18 +1866,25 @@ const Lobbies: React.FC = () => {
                 {freeGamesPerAddress?.toString() || "0"}
               </span>
             </div>
-            {!showCreateForm && (
+            {!showCreateForm && !showAiForm && (
               <div className="col-span-2 flex flex-col justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(true)}
                   disabled={!canCreateLobby || !!paused}
                   className="w-full border-2 border-cyan px-4 py-3 font-mono font-bold tracking-wider text-cyan transition-all duration-200 hover:border-cyan hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    borderRadius: 0,
-                  }}
+                  style={{ borderRadius: 0 }}
                 >
                   {paused ? "LOBBIES PAUSED" : "CREATE LOBBY"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAiForm(true)}
+                  disabled={!isConnected || !!paused || needsShipsForLobbyUi || needsConstructForLobbyUi}
+                  className="w-full border-2 border-purple-400 px-4 py-3 font-mono font-bold tracking-wider text-purple-400 transition-all duration-200 hover:bg-purple-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ borderRadius: 0 }}
+                >
+                  PLAY vs AI
                 </button>
                 {needsPaymentForLobby && additionalLobbyFee ? (
                   <p className="text-center text-xs text-amber font-mono">
@@ -2304,6 +2314,59 @@ const Lobbies: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* vs AI Form */}
+      {showAiForm && (
+        <div
+          className="mb-6 p-4 border border-purple-400 bg-black/40"
+          style={{ borderRadius: 0 }}
+        >
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h4 className="text-lg font-bold text-purple-400 tracking-widest">[PLAY vs AI]</h4>
+            <button
+              type="button"
+              onClick={() => setShowAiForm(false)}
+              aria-label="Close vs AI form"
+              className="px-3 py-1 border border-warning-red text-warning-red hover:bg-warning-red/20"
+              style={{ borderRadius: 0 }}
+            >
+              X
+            </button>
+          </div>
+          <p className="text-sm text-text-muted mb-4 font-mono">
+            Select difficulty. The AI fleet will be generated automatically — just pick your ships and battle.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+            {(["recruit", "veteran", "commander", "elite"] as const).map((diff) => (
+              <button
+                key={diff}
+                type="button"
+                disabled={aiFormLoading}
+                onClick={async () => {
+                  setAiFormLoading(true);
+                  try {
+                    const result = await createAiLobby({ difficulty: diff });
+                    setShowAiForm(false);
+                    setSelectedLobby(result.lobbyId);
+                    toast.success(`vs AI lobby created — select your fleet!`);
+                  } catch (err) {
+                    toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+                  } finally {
+                    setAiFormLoading(false);
+                  }
+                }}
+                className="px-3 py-4 border border-purple-400 text-purple-400 hover:bg-purple-400/10 font-mono font-bold tracking-wider uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ borderRadius: 0 }}
+              >
+                {diff}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-text-muted font-mono">
+            Recruit: simple heuristic &nbsp;|&nbsp; Veteran: 1-round look-ahead &nbsp;|&nbsp; Commander: 2-round &nbsp;|&nbsp; Elite: time-budgeted search
+          </p>
         </div>
       )}
 

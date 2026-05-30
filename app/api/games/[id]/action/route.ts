@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { ActionType } from "@/app/types/types";
-import type { GameDataView, LastMove } from "@/app/types/types";
+import type { GameDataView, LastMove, ScoringPosition } from "@/app/types/types";
 import { buildMapGridsFromContractMap } from "@/app/utils/mapGridUtils";
 import { getEconomyConfig } from "@/app/lib/economyConfig";
+import { AI_USER_ID, ensureAiUser } from "@/app/lib/aiUser";
+import { runAiTurns } from "@/app/lib/aiAutoMove";
+import type { AiDifficulty } from "@/app/utils/aiDispatch";
 
 interface ActionBody {
   shipId: number;
@@ -164,9 +167,13 @@ export async function POST(
 
   // Build map grids for scoring at round end
   const mapData = game.lobby.map;
-  const { scoringGrid } = buildMapGridsFromContractMap(
+  const rawScoringTiles = mapData
+    ? (mapData.scoringTiles as Array<{ row: number; col: number; points: number; onlyOnce: boolean }>)
+    : [];
+  const scoringPositions: ScoringPosition[] = rawScoringTiles;
+  const { scoringGrid, blockedGrid } = buildMapGridsFromContractMap(
     mapData ? (mapData.blockedTiles as Array<{ row: number; col: number }>) : [],
-    mapData ? (mapData.scoringTiles as Array<{ row: number; col: number; points: number; onlyOnce: boolean }>) : [],
+    rawScoringTiles,
     state.gridDimensions.gridWidth,
     state.gridDimensions.gridHeight,
   );
@@ -596,6 +603,68 @@ export async function POST(
       }
     }
   });
+
+  // After the player's action, if it's now the AI's turn, run AI auto-moves.
+  // The AI takes all its actions inline and returns the final state to the client,
+  // so the client never sees an intermediate "AI thinking" state.
+  if (
+    game.lobby.isAiGame &&
+    gamePhase === "ACTIVE" &&
+    String(newState.turnState.currentTurn) === AI_USER_ID
+  ) {
+    const aiIsCreator = String(newState.metadata.creator) === AI_USER_ID;
+    const diff = (game.lobby.aiDifficulty ?? "recruit") as AiDifficulty;
+
+    await ensureAiUser(); // no-op if already exists
+
+    const aiResult = await runAiTurns(
+      gameId,
+      game.lobbyId,
+      newState,
+      diff,
+      aiIsCreator,
+      blockedGrid,
+      scoringPositions,
+    );
+    newState = aiResult.state;
+
+    // Handle game completion triggered by an AI action
+    if (aiResult.phase === "COMPLETED" && aiResult.winnerId && aiResult.winnerId !== game.winnerId) {
+      const aiWinnerId = aiResult.winnerId;
+      await prisma.$transaction(async (tx) => {
+        if (aiWinnerId === TIE_ADDR) {
+          for (const pid of [game.player1Id, game.player2Id]) {
+            if (pid === AI_USER_ID) continue;
+            await tx.playerStats.upsert({
+              where: { userId: pid },
+              update: { draws: { increment: 1 }, totalGames: { increment: 1 } },
+              create: { userId: pid, draws: 1, totalGames: 1 },
+            });
+          }
+        } else {
+          const loserId = aiWinnerId === game.player1Id ? game.player2Id : game.player1Id;
+          for (const [pid, isWin] of [[aiWinnerId, true], [loserId, false]] as [string, boolean][]) {
+            if (pid === AI_USER_ID) continue;
+            await tx.playerStats.upsert({
+              where: { userId: pid },
+              update: isWin
+                ? { wins: { increment: 1 }, totalGames: { increment: 1 } }
+                : { losses: { increment: 1 }, totalGames: { increment: 1 } },
+              create: { userId: pid, ...(isWin ? { wins: 1 } : { losses: 1 }), totalGames: 1 },
+            });
+          }
+        }
+        const gameFleets = await tx.fleet.findMany({ where: { lobbyId: game.lobbyId } });
+        const allFleetShipIds = gameFleets.flatMap((f) => f.shipIds as number[]);
+        if (allFleetShipIds.length > 0) {
+          await tx.ship.updateMany({
+            where: { id: { in: allFleetShipIds } },
+            data: { inFleet: false },
+          });
+        }
+      });
+    }
+  }
 
   return NextResponse.json(newState);
 }

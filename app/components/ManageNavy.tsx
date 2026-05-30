@@ -108,8 +108,7 @@ const ManageNavy: React.FC = () => {
     isLoading: attributesLoading,
   } = useShipAttributesByIds(shipIds);
 
-  // Check if user can recycle (minimum 10 purchases required — disabled, blockchain removed)
-  const canRecycle = false;
+  const canRecycle = true;
 
   // Note: Ship actions are now handled by ShipActionButton components
 
@@ -1552,28 +1551,6 @@ const ManageNavy: React.FC = () => {
                   );
                 })()}
 
-              {!canRecycle && isConnected && selectedShips.size === 0 && (
-                <div className="relative w-full md:w-auto">
-                  <div
-                    className="w-full cursor-not-allowed px-6 py-3 text-center font-mono font-bold tracking-wider md:w-auto rounded-none border-2"
-                    style={{
-                      color: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
-                      borderColor: "color-mix(in srgb, var(--color-warning-red) 30%, transparent)",
-                    }}
-                  >
-                    [RECYCLE — LOCKED]
-                  </div>
-                  <p
-                    className="absolute top-full mt-1 w-full text-[10px] tracking-wider text-center md:text-left whitespace-nowrap"
-                    style={{
-                      fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                      color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
-                    }}
-                  >
-                    Recycling not available in this version
-                  </p>
-                </div>
-              )}
 
               {showDroneFactoryTutorial && (
                 <div
@@ -2525,58 +2502,35 @@ const ManageNavy: React.FC = () => {
           <div className="bg-near-black border border-warning-red rounded-none p-6 max-w-md mx-4">
             <div className="text-center">
               <div className="text-warning-red text-2xl font-mono font-bold mb-4 tracking-widest">[✕]</div>
-              {canRecycle ? (
-                <>
-                  <h3 className="text-xl font-bold text-warning-red mb-4">
-                    DESTROY SHIP PERMANENTLY?
-                  </h3>
-                  <div className="text-primary mb-4">
-                    <p className="font-bold">
-                      {shipToRecycle.name || `Ship #${shipToRecycle.id}`}
-                    </p>
-                    <p className="text-sm opacity-80 mt-2">This action will:</p>
-                    <ul className="text-sm text-left mt-2 space-y-1">
-                      <li>
-                        •{" "}
-                        <span className="text-warning-red">
-                          Permanently destroy
-                        </span>{" "}
-                        this ship
-                      </li>
-                      <li>
-                        •{" "}
-                        <span className="text-cyan">
-                          Pay out UTC per ship recycled
-                        </span>{" "}
-                        (recycling not available in this version)
-                      </li>
-                      <li>
-                        •{" "}
-                        <span className="text-warning-red">Cannot be reversed</span>{" "}
-                        - this is permanent
-                      </li>
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-xl font-bold text-amber mb-4">
-                    INSUFFICIENT PURCHASES
-                  </h3>
-                  <div className="text-primary mb-4">
-                    <p className="font-bold">
-                      {shipToRecycle.name || `Ship #${shipToRecycle.id}`}
-                    </p>
-                    <p className="text-sm opacity-80 mt-2">
-                      You must purchase at least 10 ships before you can recycle
-                      any ships.
-                    </p>
-                    <p className="text-sm text-amber mt-2 font-bold">
-                      Recycling is not available in this version.
-                    </p>
-                  </div>
-                </>
-              )}
+              <h3 className="text-xl font-bold text-warning-red mb-4">
+                DESTROY SHIP PERMANENTLY?
+              </h3>
+              <div className="text-primary mb-4">
+                <p className="font-bold">
+                  {shipToRecycle.name || `Ship #${shipToRecycle.id}`}
+                </p>
+                <p className="text-sm opacity-80 mt-2">This action will:</p>
+                <ul className="text-sm text-left mt-2 space-y-1">
+                  <li>
+                    •{" "}
+                    <span className="text-warning-red">
+                      Permanently destroy
+                    </span>{" "}
+                    this ship
+                  </li>
+                  <li>
+                    •{" "}
+                    <span className="text-cyan">
+                      Pay out UTC per ship recycled
+                    </span>
+                  </li>
+                  <li>
+                    •{" "}
+                    <span className="text-warning-red">Cannot be reversed</span>{" "}
+                    - this is permanent
+                  </li>
+                </ul>
+              </div>
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={handleRecycleCancel}
@@ -2584,7 +2538,19 @@ const ManageNavy: React.FC = () => {
                 >
                   CANCEL
                 </button>
-                {/* Recycle (blockchain) removed in REST architecture */}
+                <ShipActionButton
+                  action="recycle"
+                  shipIds={[shipToRecycle.id]}
+                  className="px-6 py-2 border border-warning-red text-warning-red hover:bg-warning-red/10 rounded-none font-mono font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onSuccess={() => {
+                    setShowRecycleModal(false);
+                    setShipToRecycle(null);
+                    refetchUtcBalance();
+                    refetch();
+                  }}
+                >
+                  CONFIRM RECYCLE
+                </ShipActionButton>
               </div>
             </div>
           </div>

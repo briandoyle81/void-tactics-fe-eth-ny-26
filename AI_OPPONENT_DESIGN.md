@@ -110,13 +110,13 @@ Implemented in `app/utils/aiEvaluate.ts`. Scores a board state from the AI's per
 
 1. ✅ **Write the evaluation function.** Lives in `app/utils/aiEvaluate.ts`. Exports `evaluateGameState(state, aiIsCreator, scoringPositions)`, `isDoomed(attr)`, and `isDead(attr)`.
 
-2. **Implement greedy heuristic (Recruit).** For each ship, score every legal action using the eval delta and pick the best. Inject ~20% random error at this tier. This also serves as the candidate-pruning layer inside the search — run it first to rank moves, then pass only the top 3–4 per ship into the tree.
+2. ✅ **Implement greedy heuristic (Recruit).** For each ship, score every legal action using the eval delta and pick the best. Inject ~20% random error at this tier. This also serves as the candidate-pruning layer inside the search — run it first to rank moves, then pass only the top 3–4 per ship into the tree.
 
-3. **Add minimax with alpha-beta (Veteran / Commander).** Use the heuristic ranking as move ordering — trying better moves first dramatically improves pruning effectiveness. Apply round-end reactor ticks at ply boundaries (any 0-HP ship that survived the turn takes +1 reactor critical).
+3. ✅ **Add minimax with alpha-beta (Veteran / Commander).** Use the heuristic ranking as move ordering — trying better moves first dramatically improves pruning effectiveness. Apply round-end reactor ticks at ply boundaries (any 0-HP ship that survived the turn takes +1 reactor critical).
 
-4. **Add time-budgeted iterative deepening (Elite).** Search as deep as possible within 500ms, use the result from the deepest fully-completed ply. Future-proofs difficulty scaling without needing to tune a fixed depth.
+4. ✅ **Add time-budgeted iterative deepening (Elite).** Search as deep as possible within 500ms, use the result from the deepest fully-completed ply. Future-proofs difficulty scaling without needing to tune a fixed depth.
 
-5. **Prune the action space per ship** to the top 3–4 heuristic candidates before expanding the tree. Keeps the branching factor at 3^N rather than 10^N — critical for fleets larger than 3 ships.
+5. ✅ **Prune the action space per ship** to the top 3–4 heuristic candidates before expanding the tree. Keeps the branching factor at 3^N rather than 10^N — critical for fleets larger than 3 ships.
 
 **Estimated implementation:** 500–800 lines beyond the eval function. The candidate pruning and round-end state simulation (reactor tick, score calculation) are the most game-specific parts — the minimax scaffolding is boilerplate.
 

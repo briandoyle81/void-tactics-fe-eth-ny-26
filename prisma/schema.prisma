@@ -97,6 +97,8 @@ model Lobby {
   turnTimeSeconds   Int         @default(120)
   maxScore          Int         @default(3)
   creatorGoesFirst  Boolean?
+  isAiGame          Boolean     @default(false)
+  aiDifficulty      String?     // "recruit" | "veteran" | "commander" | "elite"
   createdAt         DateTime    @default(now())
   joinedAt          DateTime?
   joinerFleetSetAt  DateTime?   // when joiner submitted their fleet (for quitWithPenalty check)

@@ -67,6 +67,17 @@ export function useLobbies() {
     await invalidateLobbies();
   }, [invalidateLobbies]);
 
+  const createAiLobby = useCallback(async (params: {
+    difficulty: string;
+    costLimit?: number;
+    maxScore?: number;
+    mapId?: number;
+  }): Promise<{ lobbyId: number }> => {
+    const result = await apiMutate<{ lobbyId: number }>("/api/lobbies/vs-ai", "POST", params);
+    await invalidateLobbies();
+    return result;
+  }, [invalidateLobbies]);
+
   const joinLobby = useCallback(async (lobbyId: number) => {
     await apiMutate(`/api/lobbies/${lobbyId}/join`, "POST");
     await invalidateLobbies();
@@ -148,6 +159,7 @@ export function useLobbies() {
     lobbyList,
     loadLobbies: refetch,
     createLobby,
+    createAiLobby,
     joinLobby,
     leaveLobby,
     createFleet,
