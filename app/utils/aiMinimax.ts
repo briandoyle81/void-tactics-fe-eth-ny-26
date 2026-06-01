@@ -146,6 +146,7 @@ function enumerateTurns(
   scoringPositions: ScoringPosition[],
   specials: Map<number, number>,
   k: number,
+  deadline = Infinity,
 ): Array<{ firstAction: AiAction | null; finalState: GameDataView }> {
   if (ships.length === 0) {
     return [{ firstAction: null, finalState: initialState }];
@@ -160,6 +161,8 @@ function enumerateTurns(
     firstAction: AiAction | null,
     currentState: GameDataView,
   ) {
+    if (Date.now() >= deadline) throw new SearchTimeout();
+
     if (index === ships.length) {
       if (firstAction) results.push({ firstAction, finalState: currentState });
       return;
@@ -244,7 +247,7 @@ function minimaxSearch(
 
   const turns = enumerateTurns(
     state, remaining, aiGoesNow, aiIsCreator,
-    blockedGrid, scoringPositions, specials, k,
+    blockedGrid, scoringPositions, specials, k, deadline,
   );
 
   if (aiGoesNow) {
@@ -306,7 +309,7 @@ export function minimaxPickAction(
 
   const turns = enumerateTurns(
     state, remaining, true, aiIsCreator,
-    blockedGrid, scoringPositions, specials, k,
+    blockedGrid, scoringPositions, specials, k, deadline,
   );
   if (turns.length === 0) return null;
 

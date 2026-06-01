@@ -158,6 +158,7 @@ export interface Lobby {
   players: LobbyPlayers;
   gameConfig: LobbyGameConfig;
   state: LobbyState;
+  isAiGame: boolean;
 }
 
 export interface Fleet {
@@ -315,6 +316,7 @@ export function tupleToLobby(tuple: LobbyTuple): Lobby {
       status: tuple[4],
       gameStartedAt: Number(tuple[6]),
     },
+    isAiGame: false,
   };
 }
 

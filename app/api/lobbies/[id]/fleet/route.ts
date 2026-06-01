@@ -78,9 +78,11 @@ export async function POST(
     const creatorFleet = allFleets.find((f) => f.ownerId === lobby.creatorId);
     const joinerFleet  = allFleets.find((f) => f.ownerId === lobby.joinerId!);
     if (creatorFleet && joinerFleet) {
+      // Whoever submitted their fleet first goes first (AI fleet is pre-generated, so it's always "first")
+      const creatorGoesFirst = creatorFleet.createdAt <= joinerFleet.createdAt;
       try {
         gameId = await createGameFromLobby(
-          { ...lobby, joinerId: lobby.joinerId! },
+          { ...lobby, joinerId: lobby.joinerId!, creatorGoesFirst },
           creatorFleet,
           joinerFleet,
         );

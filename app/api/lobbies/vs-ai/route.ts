@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (!Number.isInteger(costLimit) || costLimit < 0) {
+  if (!Number.isInteger(costLimit) || (costLimit !== 0 && (costLimit < 500 || costLimit > 3000))) {
     return NextResponse.json({ error: "Invalid costLimit" }, { status: 400 });
   }
   if (!Number.isInteger(maxScore) || maxScore < 1) {
@@ -71,13 +71,12 @@ export async function POST(req: NextRequest) {
       maxScore,
       mapId: mapId ?? null,
       status: "FLEET_SELECTION",
-      creatorGoesFirst: true,
       joinedAt: new Date(),
     },
   });
 
   // Generate and persist AI fleet
-  await generateAiFleet(lobby.id, costLimit);
+  await generateAiFleet(lobby.id, costLimit, difficulty as AiDifficulty, mapId ?? null);
 
   return NextResponse.json({ lobbyId: lobby.id }, { status: 201 });
 }

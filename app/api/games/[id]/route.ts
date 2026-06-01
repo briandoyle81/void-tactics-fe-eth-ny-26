@@ -28,6 +28,11 @@ export async function GET(
   const state = game.state as unknown as GameDataView;
   // Patch mapId from lobby for games created before this field was added to state
   if (!state.mapId && game.lobby.mapId) state.mapId = game.lobby.mapId;
+  // Patch winner from DB columns if game ended via timeout (state JSON may lag)
+  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+  if (game.winnerId && state.metadata?.winner === ZERO_ADDR) {
+    state.metadata = { ...state.metadata, winner: game.winnerId };
+  }
 
   return new NextResponse(stringifyWithBigint(state), {
     headers: { "Content-Type": "application/json" },

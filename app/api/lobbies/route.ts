@@ -19,6 +19,7 @@ function dbLobbyToLobby(db: {
   createdAt: Date;
   joinedAt: Date | null;
   joinerFleetSetAt?: Date | null;
+  isAiGame?: boolean;
   fleets?: { id: number; ownerId: string; isComplete: boolean }[];
 }): Lobby {
   const statusMap: Record<string, LobbyStatus> = {
@@ -55,6 +56,7 @@ function dbLobbyToLobby(db: {
       status: statusMap[db.status] ?? LobbyStatus.Open,
       gameStartedAt: 0,
     },
+    isAiGame: db.isAiGame ?? false,
   };
 }
 
@@ -73,7 +75,13 @@ export async function GET() {
     },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { fleets: { select: { id: true, ownerId: true, isComplete: true } } },
+    select: {
+      id: true, creatorId: true, joinerId: true, reservedJoinerId: true,
+      mapId: true, status: true, costLimit: true, turnTimeSeconds: true,
+      maxScore: true, creatorGoesFirst: true, createdAt: true,
+      joinedAt: true, joinerFleetSetAt: true, isAiGame: true,
+      fleets: { select: { id: true, ownerId: true, isComplete: true } },
+    },
   });
 
   return new NextResponse(stringifyWithBigint(lobbies.map(dbLobbyToLobby)), {

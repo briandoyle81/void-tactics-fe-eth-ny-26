@@ -42,11 +42,15 @@ export async function GET(
   const shipMap = new Map(dbShips.map((s) => [s.id, s]));
   const ships = shipIds.map((sid) => shipMap.get(sid)).filter(Boolean).map((s) => dbShipToShip(s!));
 
+  // Default column: col 0 for creator, col 16 for joiner (matches createGameFromLobby defaults)
+  const isCreatorFleet = fleet.ownerId === creatorId;
+  const defaultCol = isCreatorFleet ? 0 : 16;
+
   // Pair each ship with its starting grid position
   const positions = shipIds.map((sid, i) => ({
     shipId: sid,
-    row: rawPositions[i]?.row ?? 0,
-    col: rawPositions[i]?.col ?? 0,
+    row: rawPositions[i]?.row ?? (1 + i * 2),
+    col: rawPositions[i]?.col ?? defaultCol,
   }));
 
   return NextResponse.json({ id: fleet.id, ownerId: fleet.ownerId, ships, positions });

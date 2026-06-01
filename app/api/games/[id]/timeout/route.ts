@@ -30,11 +30,21 @@ export async function POST(
   // The winner is the player whose turn it is NOT (the other player let time run out)
   const winnerId = game.currentTurn === game.player1Id ? game.player2Id : game.player1Id;
 
+  // Patch metadata.winner into the state JSON so the client sees the result immediately
+  const rawState = game.state as Record<string, unknown>;
+  const patchedState = {
+    ...rawState,
+    metadata: {
+      ...(rawState.metadata as Record<string, unknown>),
+      winner: winnerId,
+    },
+  };
+
   const gameFleets = await prisma.fleet.findMany({ where: { lobbyId: game.lobbyId } });
   const allFleetShipIds = gameFleets.flatMap((f) => f.shipIds as number[]);
 
   await prisma.$transaction([
-    prisma.game.update({ where: { id: gameId }, data: { phase: "TIMED_OUT", winnerId } }),
+    prisma.game.update({ where: { id: gameId }, data: { phase: "TIMED_OUT", winnerId, state: patchedState } }),
     prisma.playerStats.upsert({
       where: { userId: winnerId },
       update: { wins: { increment: 1 }, totalGames: { increment: 1 } },

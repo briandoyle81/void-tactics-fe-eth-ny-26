@@ -16,6 +16,7 @@ import type { AiDifficulty } from "../utils/aiDispatch";
 import { pickAiAction } from "../utils/aiDispatch";
 import { applyActionToState } from "../utils/aiGreedy";
 import { applyRoundEndTicks } from "../utils/aiMinimax";
+import { ActionType } from "../types/types";
 import type { GameDataView, ScoringPosition } from "../types/types";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -147,7 +148,25 @@ export async function runAiTurns(
     if (!action) break;
 
     const submittedRound = Number(state.turnState.currentRound);
+    const shipPos = state.shipPositions.find((p) => p.shipId === action.shipId);
+    const oldRow = shipPos?.position.row ?? 0;
+    const oldCol = shipPos?.position.col ?? 0;
+
     state = applyActionToState(state, action);
+
+    state = {
+      ...state,
+      lastMove: {
+        shipId: action.shipId,
+        oldRow,
+        oldCol,
+        newRow: action.actionType === ActionType.Retreat ? -1 : action.row,
+        newCol: action.actionType === ActionType.Retreat ? -1 : action.col,
+        actionType: action.actionType,
+        targetShipId: action.targetShipId,
+        timestamp: Date.now(),
+      },
+    };
 
     // Early win check (e.g. AI just destroyed last enemy ship)
     const earlyWinner = checkWin(state);

@@ -66,6 +66,7 @@ import {
   formatScoreShort,
 } from "../utils/lobbyFormatters";
 import { usePlayerStats } from "../hooks/usePlayerStats";
+import { useGetAllPresetMaps } from "../hooks/useMapsContract";
 
 function CreatorStats({
   address,
@@ -161,6 +162,12 @@ const Lobbies: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAiForm, setShowAiForm] = useState(false);
   const [aiFormLoading, setAiFormLoading] = useState(false);
+  const [aiThreatScale, setAiThreatScale] = useState<"skirmish" | "battle">("skirmish");
+  const [aiScoreLength, setAiScoreLength] = useState<"short" | "medium" | "long">("medium");
+  const { data: availableMaps, isLoading: mapsLoading } = useGetAllPresetMaps();
+  const [aiSelectedMapId, setAiSelectedMapId] = useState<number | null>(null);
+  const firstMapId = availableMaps[0]?.id ?? null;
+  const effectiveAiMapId = aiSelectedMapId ?? firstMapId;
 
   useEffect(() => {
     if ((needsShipsForLobbyUi || needsConstructForLobbyUi) && showCreateForm) {
@@ -1868,24 +1875,26 @@ const Lobbies: React.FC = () => {
             </div>
             {!showCreateForm && !showAiForm && (
               <div className="col-span-2 flex flex-col justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(true)}
-                  disabled={!canCreateLobby || !!paused}
-                  className="w-full border-2 border-cyan px-4 py-3 font-mono font-bold tracking-wider text-cyan transition-all duration-200 hover:border-cyan hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ borderRadius: 0 }}
-                >
-                  {paused ? "LOBBIES PAUSED" : "CREATE LOBBY"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAiForm(true)}
-                  disabled={!isConnected || !!paused || needsShipsForLobbyUi || needsConstructForLobbyUi}
-                  className="w-full border-2 border-purple-400 px-4 py-3 font-mono font-bold tracking-wider text-purple-400 transition-all duration-200 hover:bg-purple-400/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ borderRadius: 0 }}
-                >
-                  PLAY vs AI
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(true)}
+                    disabled={!canCreateLobby || !!paused}
+                    className="flex-1 border-2 border-cyan px-4 py-3 font-mono font-bold tracking-wider text-cyan transition-all duration-200 hover:border-cyan hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderRadius: 0 }}
+                  >
+                    {paused ? "LOBBIES PAUSED" : "CREATE LOBBY"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiForm(true)}
+                    disabled={!isConnected || !!paused || needsShipsForLobbyUi || needsConstructForLobbyUi}
+                    className="flex-1 border-2 border-purple-400 px-4 py-3 font-mono font-bold tracking-wider text-purple-400 transition-all duration-200 hover:bg-purple-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderRadius: 0 }}
+                  >
+                    PLAY vs AI
+                  </button>
+                </div>
                 {needsPaymentForLobby && additionalLobbyFee ? (
                   <p className="text-center text-xs text-amber font-mono">
                     Lobby fee: {((additionalLobbyFee ?? 0) / 1e18).toFixed(4)} FLOW
@@ -2327,7 +2336,7 @@ const Lobbies: React.FC = () => {
             <h4 className="text-lg font-bold text-purple-400 tracking-widest">[PLAY vs AI]</h4>
             <button
               type="button"
-              onClick={() => setShowAiForm(false)}
+              onClick={() => { setShowAiForm(false); setAiSelectedMapId(null); setAiThreatScale("skirmish"); setAiScoreLength("medium"); }}
               aria-label="Close vs AI form"
               className="px-3 py-1 border border-warning-red text-warning-red hover:bg-warning-red/20"
               style={{ borderRadius: 0 }}
@@ -2338,31 +2347,117 @@ const Lobbies: React.FC = () => {
           <p className="text-sm text-text-muted mb-4 font-mono">
             Select difficulty. The AI fleet will be generated automatically — just pick your ships and battle.
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
-            {(["recruit", "veteran", "commander", "elite"] as const).map((diff) => (
-              <button
-                key={diff}
-                type="button"
-                disabled={aiFormLoading}
-                onClick={async () => {
-                  setAiFormLoading(true);
-                  try {
-                    const result = await createAiLobby({ difficulty: diff });
-                    setShowAiForm(false);
-                    setSelectedLobby(result.lobbyId);
-                    toast.success(`vs AI lobby created — select your fleet!`);
-                  } catch (err) {
-                    toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
-                  } finally {
-                    setAiFormLoading(false);
-                  }
-                }}
-                className="px-3 py-4 border border-purple-400 text-purple-400 hover:bg-purple-400/10 font-mono font-bold tracking-wider uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ borderRadius: 0 }}
-              >
-                {diff}
-              </button>
-            ))}
+
+          <div className="mb-4">
+            <label className="block text-sm text-text-muted mb-2">Threat Scale</label>
+            <div className="flex gap-2">
+              {(["skirmish", "battle"] as const).map((scale) => (
+                <button
+                  key={scale}
+                  type="button"
+                  disabled={aiFormLoading}
+                  onClick={() => setAiThreatScale(scale)}
+                  className="flex-1 px-4 py-2 border font-mono font-bold tracking-wider uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    borderRadius: 0,
+                    borderColor: aiThreatScale === scale ? "var(--color-cyan)" : "var(--color-gunmetal)",
+                    color: aiThreatScale === scale ? "var(--color-cyan)" : "var(--color-text-muted)",
+                    backgroundColor: aiThreatScale === scale ? "color-mix(in srgb, var(--color-cyan) 10%, transparent)" : "transparent",
+                  }}
+                >
+                  {scale === "skirmish" ? "SKIRMISH (1K)" : "BATTLE (2K)"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm text-text-muted mb-2">Map</label>
+            {mapsLoading ? (
+              <div className="text-xs text-text-muted font-mono">LOADING MAPS...</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableMaps.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={aiFormLoading}
+                    onClick={() => setAiSelectedMapId(m.id)}
+                    className="px-4 py-2 border font-mono font-bold tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      borderRadius: 0,
+                      borderColor: effectiveAiMapId === m.id ? "var(--color-cyan)" : "var(--color-gunmetal)",
+                      color: effectiveAiMapId === m.id ? "var(--color-cyan)" : "var(--color-text-muted)",
+                      backgroundColor: effectiveAiMapId === m.id ? "color-mix(in srgb, var(--color-cyan) 10%, transparent)" : "transparent",
+                    }}
+                  >
+                    MAP #{m.id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm text-text-muted mb-2">Game Length</label>
+            <div className="flex gap-2">
+              {(["short", "medium", "long"] as const).map((len) => (
+                <button
+                  key={len}
+                  type="button"
+                  disabled={aiFormLoading}
+                  onClick={() => setAiScoreLength(len)}
+                  className="flex-1 px-4 py-2 border font-mono font-bold tracking-wider uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    borderRadius: 0,
+                    borderColor: aiScoreLength === len ? "var(--color-cyan)" : "var(--color-gunmetal)",
+                    color: aiScoreLength === len ? "var(--color-cyan)" : "var(--color-text-muted)",
+                    backgroundColor: aiScoreLength === len ? "color-mix(in srgb, var(--color-cyan) 10%, transparent)" : "transparent",
+                  }}
+                >
+                  {len === "short" ? "SHORT (50)" : len === "medium" ? "MEDIUM (100)" : "LONG (200)"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm text-text-muted mb-2">Difficulty</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(["recruit", "veteran", "commander", "elite"] as const).map((diff) => (
+                <button
+                  key={diff}
+                  type="button"
+                  disabled={aiFormLoading || !effectiveAiMapId}
+                  onClick={async () => {
+                    if (!effectiveAiMapId) return;
+                    setAiFormLoading(true);
+                    try {
+                      const result = await createAiLobby({
+                        difficulty: diff,
+                        mapId: effectiveAiMapId,
+                        costLimit: aiThreatScale === "skirmish" ? SKIRMISH_THREAT_LIMIT : BATTLE_THREAT_LIMIT,
+                        maxScore: aiScoreLength === "short" ? SHORT_MAX_SCORE : aiScoreLength === "long" ? LONG_MAX_SCORE : MEDIUM_MAX_SCORE,
+                      });
+                      setShowAiForm(false);
+                      setAiSelectedMapId(null);
+                      setAiThreatScale("skirmish");
+                      setAiScoreLength("medium");
+                      setSelectedLobby(result.lobbyId);
+                      toast.success(`vs AI lobby created — select your fleet!`);
+                    } catch (err) {
+                      toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+                    } finally {
+                      setAiFormLoading(false);
+                    }
+                  }}
+                  className="px-3 py-4 border border-purple-400 text-purple-400 hover:bg-purple-400/10 font-mono font-bold tracking-wider uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ borderRadius: 0 }}
+                >
+                  {diff}
+                </button>
+              ))}
+            </div>
           </div>
           <p className="text-xs text-text-muted font-mono">
             Recruit: simple heuristic &nbsp;|&nbsp; Veteran: 1-round look-ahead &nbsp;|&nbsp; Commander: 2-round &nbsp;|&nbsp; Elite: time-budgeted search
@@ -3172,8 +3267,9 @@ const Lobbies: React.FC = () => {
                 )}
                 {!playerFleetId && (
                   <p className="text-sm text-amber mb-4">
-                    // Creating your fleet first will make you go first in the
-                    game!
+                    {(opponentHasFleet || currentLobby?.isAiGame)
+                      ? "// Opponent has deployed — you will move second."
+                      : "// Creating your fleet first will make you go first in the game!"}
                   </p>
                 )}
 
