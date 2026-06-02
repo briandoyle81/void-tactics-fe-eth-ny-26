@@ -72,7 +72,7 @@ export function RailgunShootingAnimation({
     (row: number, col: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
 
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
+      const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
       const cellWidth = gridRect.width / 17;
       const cellHeight = gridRect.height / 11;
 
@@ -90,7 +90,7 @@ export function RailgunShootingAnimation({
   const getAttackerOrigin = useCallback(() => {
     const center = getCellCenter(attackerRow, attackerCol);
     if (!gridContainerRef.current) return center;
-    const rect = gridContainerRef.current.getBoundingClientRect();
+    const rect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cw = rect.width / 17;
     const ch = rect.height / 11;
     return {
@@ -107,7 +107,7 @@ export function RailgunShootingAnimation({
     const targetCenter = getCellCenter(targetRow, targetCol);
 
     // Select a random target spot within target cell
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 17;
     const cellHeight = gridRect.height / 11;
     const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
@@ -181,7 +181,7 @@ export function RailgunShootingAnimation({
     if (projectiles.length === 0) return;
     if (!gridContainerRef.current) return;
 
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 17;
     const cellHeight = gridRect.height / 11;
 
@@ -300,7 +300,7 @@ export function RailgunShootingAnimation({
 
   if (!gridContainerRef.current || (projectiles.length === 0 && muzzleFlashes.length === 0 && impacts.length === 0)) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
   const iid = instanceId.current;
   const now = Date.now();
 

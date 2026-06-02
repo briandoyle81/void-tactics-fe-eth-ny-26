@@ -359,10 +359,10 @@ export function SimulatedGameDisplay({
   } | null>(null);
   const [targetShipId, setTargetShipId] = useState<number | null>(null);
   const [selectedWeaponType, setSelectedWeaponType] = useState<
-    "weapon" | "special"
+    "weapon" | "special" | "ram"
   >("weapon");
   const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<
-    Record<string, "weapon" | "special">
+    Record<string, "weapon" | "special" | "ram">
   >({});
   const [actionOverride, setActionOverride] = useState<ActionType | null>(null);
   const [retreatExplicitByShipId, setRetreatExplicitByShipId] = useState<
@@ -393,6 +393,7 @@ export function SimulatedGameDisplay({
     row: number;
     col: number;
   } | null>(null);
+  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{ row: number; col: number } | null>(null);
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] =
     useState(true);
   const [mobileLeftPanelTab, setMobileLeftPanelTab] = useState<
@@ -433,13 +434,6 @@ export function SimulatedGameDisplay({
   }, [isLandscapeMobile]);
 
   const useSideLayout = chromeOnSide && !isLandscapeMobile;
-  const proposedMoveTargetListClass = useSideLayout
-    ? "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
-    : "flex flex-wrap gap-2 min-h-[5rem]";
-  const proposedMoveTargetBtnClass = useSideLayout
-    ? "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex w-full shrink-0 items-center justify-center"
-    : "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex items-center shrink-0";
-
   useRetreatModeCancellation({
     actionOverride,
     targetShipId,
@@ -618,7 +612,7 @@ export function SimulatedGameDisplay({
   );
 
   const setWeaponTypeFromGrid = useCallback(
-    (type: "weapon" | "special") => {
+    (type: "weapon" | "special" | "ram") => {
       if (selectedShipId != null) {
         const idKey = selectedShipId.toString();
         setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: type }));
@@ -871,6 +865,12 @@ export function SimulatedGameDisplay({
             position: { row: previewPosition.row, col: previewPosition.col },
             isPreview: true,
           };
+        } else if (selectedShipId === shipIdBigInt && hoverPreviewPosition) {
+          newGrid[hoverPreviewPosition.row][hoverPreviewPosition.col] = {
+            ...basePosition,
+            position: { row: hoverPreviewPosition.row, col: hoverPreviewPosition.col },
+            isPreview: true,
+          };
         }
       }
     });
@@ -955,6 +955,7 @@ export function SimulatedGameDisplay({
     tutorialDisplayLastMove,
     selectedShipId,
     previewPosition,
+    hoverPreviewPosition,
     currentStep?.id,
   ]);
 
@@ -1054,6 +1055,21 @@ export function SimulatedGameDisplay({
     if (targetShipId === null) return;
     setTargetShipId(null);
   }, [isRammingMovePreview, targetShipId]);
+
+  const holdPositionState = useMemo(() => {
+    if (!selectedShipId) return { row: -1, col: -1, isActive: false };
+    const pos = gameState.shipPositions.find(
+      (p) => p.shipId === selectedShipId.toString(),
+    );
+    const row = pos?.position.row ?? -1;
+    const col = pos?.position.col ?? -1;
+    const isActive =
+      previewPosition !== null &&
+      previewPosition.row === row &&
+      previewPosition.col === col &&
+      !isRammingMovePreview;
+    return { row, col, isActive };
+  }, [selectedShipId, gameState.shipPositions, previewPosition, isRammingMovePreview]);
 
   // Last-move new position pulse on the grid when no ship is selected (in-game parity).
   const highlightedMovePosition = useMemo(() => {
@@ -1418,7 +1434,7 @@ export function SimulatedGameDisplay({
         shooterId: selectedShipId,
         targetShipId,
         getShipAttributes,
-        selectedWeaponType,
+        selectedWeaponType: selectedWeaponType === "ram" ? "weapon" : selectedWeaponType,
         specialData: specialData as SpecialData | null,
         specialType,
         weaponType,
@@ -3462,6 +3478,22 @@ export function SimulatedGameDisplay({
                       setHoveredCell={setHoveredCell}
                       setDraggedShipId={setDraggedShipId}
                       setDragOverCell={setDragOverCell}
+                      onMoveTileHover={setHoverPreviewPosition}
+                      showConfirmWidget={
+                        isShowingProposedMove &&
+                        actionOverride !== ActionType.Retreat &&
+                        (
+                          previewPosition !== null ||
+                          targetShipId !== null
+                        )
+                      }
+                      confirmWidgetLabel={
+                        (actionOverride == null && !isRammingMovePreview && (targetShipId === null || (targetShipId === 0 && !(selectedWeaponType === "special" && specialType === 3))))
+                          ? "HOLD FIRE"
+                          : "SUBMIT"
+                      }
+                      onConfirmMove={handleSubmitMove}
+                      onCancelMove={handleCancelMove}
                     />
                   </div>
                   <div
@@ -3867,13 +3899,7 @@ export function SimulatedGameDisplay({
                 borderRadius: 0,
               }}
             >
-              <div
-                className={
-                  chromeOnSide
-                    ? "flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-4"
-                    : "flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-4"
-                }
-              >
+              <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2 p-2" : "gap-4 p-4"}`}>
                 <div className="relative flex w-full min-w-0 shrink-0 flex-row gap-2 pt-8">
                   <div className="relative min-w-0 flex-[2]">
                     {shouldPulseSubmitMoveButton && (
@@ -3911,7 +3937,7 @@ export function SimulatedGameDisplay({
                         borderRadius: 0,
                       }}
                     >
-                      {isSelectedShipDisabled ? "Submit Retreat" : "Submit"}
+                      {isSelectedShipDisabled ? "Submit Retreat" : (actionOverride == null && !isRammingMovePreview && (targetShipId === null || (targetShipId === 0 && !(selectedWeaponType === "special" && specialType === 3)))) ? "Hold Fire" : "Submit"}
                     </button>
                   </div>
                   <button
@@ -3934,285 +3960,114 @@ export function SimulatedGameDisplay({
                     Cancel
                   </button>
                 </div>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-                  <div
-                    className={
-                      chromeOnSide
-                        ? "flex min-h-0 min-w-0 flex-1 flex-col gap-4"
-                        : "flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-6"
-                    }
-                  >
-                    <div className="flex min-w-0 flex-shrink-0 flex-col gap-1">
-                      {(() => {
-                        const ship = shipMap.get(selectedShipId!);
-                        const name =
-                          ship?.name || `Ship #${selectedShipId?.toString()}`;
-                        const currentPos = gameState.shipPositions.find(
-                          (pos) => pos.shipId === selectedShipId?.toString(),
-                        );
-                        const fromRow = currentPos?.position.row ?? 0;
-                        const fromCol = currentPos?.position.col ?? 0;
-                        const toRow = previewPosition
-                          ? previewPosition.row
-                          : fromRow;
-                        const toCol = previewPosition
-                          ? previewPosition.col
-                          : fromCol;
-                        return (
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <div className="text-sm font-semibold text-white">
-                              {name}
-                            </div>
-                            <div className="text-sm font-mono text-text-secondary">
-                              ({fromRow}, {fromCol}) → ({toRow}, {toCol})
-                            </div>
-                          </div>
-                        );
-                      })()}
-                      {/* Weapon / Special selector, mirroring main game UI */}
-                      {(() => {
-                        if (isSelectedShipDisabled) return null;
-                        if (!selectedShipId) return null;
-                        const ship = shipMap.get(selectedShipId);
-                        if (!ship || ship.equipment.special <= 0) return null;
-                        return (
-                          <div className="relative mt-1 w-full">
-                            {shouldHighlightSpecialEmpWeaponDropdown && (
-                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                                <div className="relative inline-block">
-                                  <div
-                                    className="absolute inset-0 bg-near-black"
-                                    style={{ opacity: 1 }}
-                                    aria-hidden
-                                  />
-                                  <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
-                                    Click here
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            <div
-                              className={
-                                shouldHighlightSpecialEmpWeaponDropdown
-                                  ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                                  : ""
-                              }
-                            >
-                              <select
-                                value={selectedWeaponType}
-                                onChange={(e) => {
-                                  const newWeaponType = e.target.value as
-                                    | "weapon"
-                                    | "special";
-                                  setWeaponTypeFromGrid(newWeaponType);
-                                  // In tutorial we do not have a boarding special; keep target as-is.
-                                }}
-                                className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
-                                style={{
-                                  fontFamily:
-                                    "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                  borderRadius: 0,
-                                  backgroundColor: "var(--color-slate)",
-                                  color: "var(--color-text-primary)",
-                                }}
-                              >
-                                <option value="weapon">
-                                  {getMainWeaponName(ship.equipment.mainWeapon)}
-                                </option>
-                                <option value="special">
-                                  {getSpecialName(ship.equipment.special)}
-                                </option>
-                              </select>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Center: Target selection, mirroring main game UI */}
-                    {!isSelectedShipDisabled && validTargets.length > 0 && (
-                      <div
-                        className={
-                          chromeOnSide
-                            ? "flex min-h-0 min-w-0 flex-1 flex-col"
-                            : "min-h-0 flex-1"
-                        }
-                      >
-                        <div
-                          className={
-                            chromeOnSide
-                              ? "flex min-h-0 min-w-0 flex-1 flex-col border border-solid p-3"
-                              : "min-h-[7.5rem] border border-solid p-3"
-                          }
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-gunmetal)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <div
-                            className="shrink-0 text-xs mb-2 uppercase tracking-wide"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-text-secondary)",
-                            }}
-                          >
-                            Select Target (Optional)
-                          </div>
-                          <div className={proposedMoveTargetListClass}>
-                            {validTargets.map((target) => {
-                              const targetShip = shipMap.get(
-                                Number(target.shipId),
-                              );
-                              const isHammerTargetTutorialHighlight =
-                                currentStep?.id === "shoot" &&
-                                previewPosition !== null &&
-                                targetShipId === null &&
-                                Number(target.shipId) === 2001;
-                              const isSelectedTarget =
-                                targetShipId !== null &&
-                                targetShipId === Number(target.shipId);
-                              const isRepair =
-                                selectedWeaponType === "special" &&
-                                specialType === 2;
-                              const accentColor = isRepair
-                                ? "var(--color-cyan)"
-                                : "var(--color-warning-red)";
-                              const targetButtonStyle: React.CSSProperties = {
-                                fontFamily:
-                                  "var(--font-rajdhani), 'Arial Black', sans-serif",
-                                borderColor: isSelectedTarget
-                                  ? accentColor
-                                  : "var(--color-gunmetal)",
-                                borderTopColor: isSelectedTarget
-                                  ? accentColor
-                                  : "var(--color-steel)",
-                                borderLeftColor: isSelectedTarget
-                                  ? accentColor
-                                  : "var(--color-steel)",
-                                color: accentColor,
-                                backgroundColor: isSelectedTarget
-                                  ? "var(--color-steel)"
-                                  : "var(--color-slate)",
-                                borderWidth: "2px",
-                                borderStyle: "solid",
-                                borderRadius: 0,
-                              };
-                              const targetButton = (
-                                <button
-                                  onClick={() =>
-                                    setTargetShipId(Number(target.shipId))
-                                  }
-                                  className={proposedMoveTargetBtnClass}
-                                  style={targetButtonStyle}
-                                >
-                                  {`[>] `}
-                                  {targetShip?.name ||
-                                    `#${Number(target.shipId).toString()}`}
-                                </button>
-                              );
-                              return (
-                                <div key={target.shipId} className="relative">
-                                  {isHammerTargetTutorialHighlight && (
-                                    <div className="mb-1 flex justify-center pointer-events-none">
-                                      <div className="relative inline-block">
-                                        <div
-                                          className="absolute inset-0 bg-near-black"
-                                          style={{ opacity: 1 }}
-                                          aria-hidden
-                                        />
-                                        <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
-                                          Click here
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {isHammerTargetTutorialHighlight ? (
-                                    <div className="w-full border-2 border-amber animate-pulse">
-                                      {targetButton}
-                                    </div>
-                                  ) : (
-                                    targetButton
-                                  )}
-                                </div>
-                              );
-                            })}
+                <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2" : "gap-4"}`}>
+                  <div className="flex min-w-0 flex-shrink-0 flex-col gap-2">
+                    {(() => {
+                      const ship = shipMap.get(selectedShipId!);
+                      const name = ship?.name || `Ship #${selectedShipId?.toString()}`;
+                      const currentPos = gameState.shipPositions.find(
+                        (pos) => pos.shipId === selectedShipId?.toString(),
+                      );
+                      const fromRow = currentPos?.position.row ?? 0;
+                      const fromCol = currentPos?.position.col ?? 0;
+                      const toRow = previewPosition ? previewPosition.row : fromRow;
+                      const toCol = previewPosition ? previewPosition.col : fromCol;
+                      return (
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <div className="text-sm font-semibold text-white">{name}</div>
+                          <div className="text-sm font-mono text-text-secondary">
+                            ({fromRow}, {fromCol}) → ({toRow}, {toCol})
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {chromeOnSide &&
-                      (validTargets.length === 0 || isSelectedShipDisabled) && (
-                        <div className="min-h-0 min-w-0 flex-1" aria-hidden />
-                      )}
+                      );
+                    })()}
+                    {/* Weapon / Special selector, mirroring main game UI */}
+                    {(() => {
+                      if (isSelectedShipDisabled) return null;
+                      if (!selectedShipId) return null;
+                      const ship = shipMap.get(selectedShipId);
+                      if (!ship || ship.equipment.special <= 0) return null;
+                      return (
+                        <div className="relative w-full">
+                          {shouldHighlightSpecialEmpWeaponDropdown && (
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                              <div className="relative inline-block">
+                                <div className="absolute inset-0 bg-near-black" style={{ opacity: 1 }} aria-hidden />
+                                <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
+                                  Click here
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          <div className={shouldHighlightSpecialEmpWeaponDropdown ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}>
+                            <select
+                              value={selectedWeaponType}
+                              onChange={(e) => {
+                                const newWeaponType = e.target.value as "weapon" | "special";
+                                setWeaponTypeFromGrid(newWeaponType);
+                              }}
+                              className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
+                              style={{
+                                fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                borderRadius: 0,
+                                backgroundColor: "var(--color-slate)",
+                                color: "var(--color-text-primary)",
+                              }}
+                            >
+                              <option value="weapon">{getMainWeaponName(ship.equipment.mainWeapon)}</option>
+                              <option value="special">{getSpecialName(ship.equipment.special)}</option>
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedShipId != null) {
+                            setRetreatExplicitByShipId((prev) => ({
+                              ...prev,
+                              [selectedShipId.toString()]: true,
+                            }));
+                          }
+                          setTargetShipId(null);
+                          setPreviewPosition(null);
+                        }}
+                        className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
+                        style={{
+                          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          borderColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-gunmetal)",
+                          borderTopColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-steel)",
+                          borderLeftColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-steel)",
+                          color: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-text-secondary)",
+                          backgroundColor: actionOverride === ActionType.Retreat
+                            ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
+                            : "var(--color-slate)",
+                          borderWidth: "2px",
+                          borderStyle: "solid",
+                          borderRadius: 0,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (actionOverride !== ActionType.Retreat) {
+                            e.currentTarget.style.borderColor = "var(--color-warning-red)";
+                            e.currentTarget.style.color = "var(--color-warning-red)";
+                            e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (actionOverride !== ActionType.Retreat) {
+                            e.currentTarget.style.borderColor = "var(--color-gunmetal)";
+                            e.currentTarget.style.color = "var(--color-text-secondary)";
+                            e.currentTarget.style.backgroundColor = "var(--color-slate)";
+                          }
+                        }}
+                      >
+                        Retreat
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedShipId != null) {
-                        setRetreatExplicitByShipId((prev) => ({
-                          ...prev,
-                          [selectedShipId.toString()]: true,
-                        }));
-                      }
-                      setTargetShipId(null);
-                      setPreviewPosition(null);
-                    }}
-                    className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      borderColor:
-                        actionOverride === ActionType.Retreat
-                          ? "var(--color-warning-red)"
-                          : "var(--color-gunmetal)",
-                      borderTopColor:
-                        actionOverride === ActionType.Retreat
-                          ? "var(--color-warning-red)"
-                          : "var(--color-steel)",
-                      borderLeftColor:
-                        actionOverride === ActionType.Retreat
-                          ? "var(--color-warning-red)"
-                          : "var(--color-steel)",
-                      color:
-                        actionOverride === ActionType.Retreat
-                          ? "var(--color-warning-red)"
-                          : "var(--color-text-secondary)",
-                      backgroundColor:
-                        actionOverride === ActionType.Retreat
-                          ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
-                          : "var(--color-slate)",
-                      borderWidth: "2px",
-                      borderStyle: "solid",
-                      borderRadius: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (actionOverride !== ActionType.Retreat) {
-                        e.currentTarget.style.borderColor =
-                          "var(--color-warning-red)";
-                        e.currentTarget.style.color =
-                          "var(--color-warning-red)";
-                        e.currentTarget.style.backgroundColor =
-                          "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (actionOverride !== ActionType.Retreat) {
-                        e.currentTarget.style.borderColor =
-                          "var(--color-gunmetal)";
-                        e.currentTarget.style.color =
-                          "var(--color-text-secondary)";
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-slate)";
-                      }
-                    }}
-                  >
-                    Retreat
-                  </button>
+                  {chromeOnSide && <div className="min-h-0 min-w-0 flex-1" aria-hidden />}
                 </div>
               </div>
             </div>
@@ -4303,6 +4158,14 @@ export function SimulatedGameDisplay({
                   setHoveredCell={setHoveredCell}
                   setDraggedShipId={setDraggedShipId}
                   setDragOverCell={setDragOverCell}
+                  onMoveTileHover={setHoverPreviewPosition}
+                  showConfirmWidget={
+                    isShowingProposedMove &&
+                    previewPosition !== null &&
+                    actionOverride !== ActionType.Retreat
+                  }
+                  onConfirmMove={handleSubmitMove}
+                  onCancelMove={handleCancelMove}
                 />
               </div>
               {tutorialGridPanelConfig && (

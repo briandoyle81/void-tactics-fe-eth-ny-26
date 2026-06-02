@@ -59,7 +59,7 @@ export function FlakExplosionAnimation({
   const getCellRect = useCallback(
     (row: number, col: number) => {
       if (!gridContainerRef.current) return null;
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
+      const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
       const cellWidth = gridRect.width / 17;
       const cellHeight = gridRect.height / 11;
       return {
@@ -159,7 +159,7 @@ export function FlakExplosionAnimation({
   if (!gridContainerRef.current) return null;
   if (uniqueCells.length === 0) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
 
   return (
     <div

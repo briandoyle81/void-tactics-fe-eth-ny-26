@@ -63,7 +63,7 @@ export function MissileShootingAnimation({
     (row: number, col: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
 
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
+      const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
       const cellWidth = gridRect.width / 17;
       const cellHeight = gridRect.height / 11;
 
@@ -81,7 +81,7 @@ export function MissileShootingAnimation({
   const getAttackerOrigin = useCallback(() => {
     const center = getCellCenter(attackerRow, attackerCol);
     if (!gridContainerRef.current) return center;
-    const rect = gridContainerRef.current.getBoundingClientRect();
+    const rect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cw = rect.width / 17;
     const ch = rect.height / 11;
     return {
@@ -98,7 +98,7 @@ export function MissileShootingAnimation({
     const targetCenter = getCellCenter(targetRow, targetCol);
 
     // Select a random target spot within target cell
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 25;
     const cellHeight = gridRect.height / 13;
     const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
@@ -223,7 +223,7 @@ export function MissileShootingAnimation({
     if (missiles.length === 0) return;
     if (!gridContainerRef.current) return;
 
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 25;
     const cellHeight = gridRect.height / 13;
     const avgCellSize = (cellWidth + cellHeight) / 2;
@@ -429,7 +429,7 @@ export function MissileShootingAnimation({
 
   if (!gridContainerRef.current || (missiles.length === 0 && impacts.length === 0)) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
 
   // Acute isosceles triangle: tip at (0,0) pointing toward target, base below
   const triangleSize = 8;

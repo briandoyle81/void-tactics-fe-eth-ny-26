@@ -49,7 +49,7 @@ export function RepairDroneAnimation({
 
   const compute = useCallback(() => {
     if (!gridContainerRef.current) return null;
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 17;
     const cellHeight = gridRect.height / 11;
 

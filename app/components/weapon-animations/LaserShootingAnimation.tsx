@@ -30,7 +30,7 @@ export function LaserShootingAnimation({
   const getCellCenter = useCallback(
     (row: number, col: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
+      const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
       const cellWidth = gridRect.width / 17;
       const cellHeight = gridRect.height / 11;
       return {
@@ -47,7 +47,7 @@ export function LaserShootingAnimation({
   const getAttackerOrigin = useCallback(() => {
     const center = getCellCenter(attackerRow, attackerCol);
     if (!gridContainerRef.current) return center;
-    const rect = gridContainerRef.current.getBoundingClientRect();
+    const rect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cw = rect.width / 17;
     const ch = rect.height / 11;
     return {
@@ -60,7 +60,7 @@ export function LaserShootingAnimation({
     if (!gridContainerRef.current) return;
 
     const targetCenter = getCellCenter(targetRow, targetCol);
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
+    const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
     const cellWidth = gridRect.width / 25;
     const cellHeight = gridRect.height / 13;
 
@@ -91,7 +91,7 @@ export function LaserShootingAnimation({
 
   if (!gridContainerRef.current) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
   const attackerCenter = getAttackerOrigin();
 
   return (

@@ -11,7 +11,7 @@ interface EmpWaveAnimationProps {
 }
 
 type Geom = {
-  gridRect: DOMRect;
+  gridRect: { width: number; height: number };
   avgCell: number;
   a: { x: number; y: number };
   t: { x: number; y: number };
@@ -26,7 +26,7 @@ function buildGeom(
   targetRow: number,
   targetCol: number,
 ): Geom | null {
-  const gridRect = el.getBoundingClientRect();
+  const gridRect = {width: el.clientWidth, height: el.clientHeight};
   // After refresh the grid often reports 0×0 until fonts/layout settle; skip
   // until we have real dimensions so paths and gradients are valid.
   if (gridRect.width < 2 || gridRect.height < 2) {

@@ -97,10 +97,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   >({});
 
   const [selectedWeaponType, setSelectedWeaponType] = useState<
-    "weapon" | "special"
+    "weapon" | "special" | "ram"
   >("weapon");
   const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<
-    Record<string, "weapon" | "special">
+    Record<string, "weapon" | "special" | "ram">
   >({});
   const [hoveredCell, setHoveredCell] = useState<{
     shipId: number;
@@ -117,6 +117,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     row: number;
     col: number;
   } | null>(null);
+  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{ row: number; col: number } | null>(null);
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] =
     useState(true);
   const [isDebugPanelMinimized, setIsDebugPanelMinimized] = useState(true);
@@ -138,13 +139,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     "status" | "actions" | "fleet" | "events" | "none"
   >("none");
   const useSideLayout = chromeOnSide && !isLandscapeMobile;
-
-  const proposedMoveTargetListClass = useSideLayout
-    ? "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
-    : "flex flex-wrap gap-2 min-h-[5rem]";
-  const proposedMoveTargetBtnClass = useSideLayout
-    ? "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex w-full shrink-0 items-center justify-center"
-    : "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex items-center shrink-0";
 
   useRetreatModeCancellation({
     actionOverride,
@@ -992,6 +986,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             position: { row: previewPosition.row, col: previewPosition.col },
             isPreview: true, // Mark as preview for styling
           };
+        } else if (selectedShipId === shipPosition.shipId && hoverPreviewPosition) {
+          newGrid[hoverPreviewPosition.row][hoverPreviewPosition.col] = {
+            ...shipPosition,
+            position: { row: hoverPreviewPosition.row, col: hoverPreviewPosition.col },
+            isPreview: true,
+          };
         }
       }
     });
@@ -1086,6 +1086,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     aliveShipPositions,
     selectedShipId,
     previewPosition,
+    hoverPreviewPosition,
     displayedLastMove,
     optimisticLastMove,
     game.shipPositions,
@@ -1157,7 +1158,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         shooterId: shooterShipIdOverride ?? selectedShipId,
         targetShipId,
         getShipAttributes,
-        selectedWeaponType,
+        selectedWeaponType: selectedWeaponType === "ram" ? "weapon" : selectedWeaponType,
         specialData: (specialData ?? null) as SpecialData | null,
         specialType,
         weaponType,
@@ -1888,6 +1889,68 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     hasLineOfSight,
   ]);
 
+  // Valid targets from the hovered movement tile (mirrors dragValidTargets using selected ship + weapon).
+  const hoverValidTargets = React.useMemo(() => {
+    if (!selectedShipId || !hoverPreviewPosition || !gameShips) return [];
+    const attributes = getShipAttributes(selectedShipId);
+    if (!attributes) return [];
+    const range = selectedWeaponType === "special" && specialRange !== undefined
+      ? specialRange
+      : attributes.range || 1;
+    const { row: startRow, col: startCol } = hoverPreviewPosition;
+    const spec = specialType;
+    const targets: { shipId: number; position: { row: number; col: number } }[] = [];
+    game.shipPositions.forEach((shipPosition) => {
+      const ship = shipMap.get(shipPosition.shipId);
+      if (!ship) return;
+      if (selectedWeaponType === "special") {
+        if (spec === 3) { if (shipPosition.shipId === selectedShipId) return; }
+        else if (spec === 1) { if (ship.owner === address) return; }
+        else { if (ship.owner !== address) return; }
+      } else {
+        if (ship.owner === address) return;
+      }
+      const { row: targetRow, col: targetCol } = shipPosition.position;
+      const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+      const canShoot = distance === 1 || distance <= range;
+      if (canShoot && distance > 0) {
+        const shouldCheckLOS = distance > 1 && (selectedWeaponType !== "special" || (spec !== 1 && spec !== 2 && spec !== 3));
+        if (!shouldCheckLOS || hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)) {
+          targets.push({ shipId: shipPosition.shipId, position: { row: targetRow, col: targetCol } });
+        }
+      }
+    });
+    return targets;
+  }, [selectedShipId, hoverPreviewPosition, gameShips, shipMap, address, getShipAttributes, selectedWeaponType, specialType, specialRange, game.shipPositions, blockedGrid, hasLineOfSight]);
+
+  // Shooting range overlay from the hovered movement tile (mirrors dragShootingRange).
+  const hoverShootingRange = React.useMemo(() => {
+    if (!selectedShipId || !hoverPreviewPosition || !gameShips) return [];
+    const attributes = getShipAttributes(selectedShipId);
+    if (!attributes) return [];
+    const range = selectedWeaponType === "special" && specialRange !== undefined
+      ? specialRange
+      : attributes.range || 1;
+    const { row: startRow, col: startCol } = hoverPreviewPosition;
+    const spec = specialType;
+    const positions: { row: number; col: number }[] = [];
+    for (let row = Math.max(0, startRow - range); row <= Math.min(GRID_HEIGHT - 1, startRow + range); row++) {
+      for (let col = Math.max(0, startCol - range); col <= Math.min(GRID_WIDTH - 1, startCol + range); col++) {
+        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
+        if (distance > 0 && distance <= range) {
+          const isOccupied = game.shipPositions.some(p => p.position.row === row && p.position.col === col);
+          if (!isOccupied) {
+            const shouldCheckLOS = distance > 1 && (selectedWeaponType !== "special" || (spec !== 1 && spec !== 2 && spec !== 3));
+            if (!shouldCheckLOS || hasLineOfSight(startRow, startCol, row, col, blockedGrid)) {
+              positions.push({ row, col });
+            }
+          }
+        }
+      }
+    }
+    return positions;
+  }, [selectedShipId, hoverPreviewPosition, gameShips, getShipAttributes, selectedWeaponType, specialType, specialRange, game.shipPositions, blockedGrid, hasLineOfSight]);
+
   // Auto-set Flak to target all ships when Flak is first selected
   // Use a ref to track if we've already set it for this selection
   const flakAutoSetRef = React.useRef<{
@@ -1933,6 +1996,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     React.useState(false);
   const isMyTurnEffective = isMyTurn && !awaitingTurnSyncAfterSubmit;
   const canActInGame = !readOnly && isMyTurnEffective;
+
 
   // Track if we're currently displaying the last move (to avoid infinite loops)
   const isDisplayingLastMoveRef = React.useRef(false);
@@ -2104,6 +2168,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return !!attrs && attrs.hullPoints === 0;
   }, [selectedShipId, getShipAttributes]);
 
+  const holdPositionState = React.useMemo(() => {
+    if (!selectedShipId) return { row: -1, col: -1, isActive: false };
+    const pos = game.shipPositions.find((p) => p.shipId === selectedShipId);
+    const row = pos?.position.row ?? -1;
+    const col = pos?.position.col ?? -1;
+    const isActive =
+      previewPosition !== null &&
+      previewPosition.row === row &&
+      previewPosition.col === col &&
+      !isRammingMovePreview;
+    return { row, col, isActive };
+  }, [selectedShipId, game.shipPositions, previewPosition, isRammingMovePreview]);
+
   // Disabled ships: pre-stage Retreat (player can submit or cancel and leave the ship on field).
   // Healthy ships: Retreat only if the player explicitly chose it for that ship.
   React.useEffect(() => {
@@ -2189,8 +2266,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   ]);
 
   const setWeaponTypeFromGrid = React.useCallback(
-    (type: "weapon" | "special") => {
-      if (selectedShipId != null) {
+    (type: "weapon" | "special" | "ram") => {
+      if (selectedShipId != null && type !== "ram") {
+        // "ram" is positional/transient — not saved as a per-ship preference.
         const idKey = selectedShipId.toString();
         setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: type }));
       }
@@ -2227,7 +2305,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       setSelectedWeaponType("weapon");
       return;
     }
-    setSelectedWeaponType(saved);
+
+    // "ram" is never persisted as a saved preference; treat it like "weapon".
+    setSelectedWeaponType(saved === "ram" ? "weapon" : saved);
   }, [
     selectedShipId,
     weaponPreferenceByShipId,
@@ -2235,6 +2315,41 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     getShipAttributes,
     shouldShowLastMove,
   ]);
+
+  // When a non-ram move is staged while in RAM mode, fall back to the primary weapon.
+  React.useEffect(() => {
+    if (selectedWeaponType === "ram" && previewPosition && !isRammingMovePreview) {
+      setSelectedWeaponType("weapon");
+    }
+  }, [previewPosition, isRammingMovePreview, selectedWeaponType]);
+
+  // Clear staged move when a ship is deselected.
+  React.useEffect(() => {
+    if (selectedShipId === null) {
+      setPreviewPosition(null);
+      setTargetShipId(null);
+    }
+  }, [selectedShipId]);
+
+  // Auto-switch to RAM on ship selection when a rammable target is in range.
+  // Intentionally keyed only on selectedShipId so manual weapon changes from the
+  // pill selector don't trigger a re-run and override the user's choice.
+  React.useEffect(() => {
+    if (!selectedShipId) return;
+    const selectedPos = aliveShipPositions.find(p => p.shipId === selectedShipId);
+    const attrs = getShipAttributes(selectedShipId);
+    if (!selectedPos || !attrs) return;
+    const moveRange = attrs.movement || 1;
+    const hasRamTarget = aliveShipPositions.some(pos => {
+      if (pos.shipId === selectedShipId) return false;
+      if (!isEnemyDisabledShipId(pos.shipId)) return false;
+      const dist = Math.abs(pos.position.row - selectedPos.position.row) +
+                   Math.abs(pos.position.col - selectedPos.position.col);
+      return dist > 0 && dist <= moveRange;
+    });
+    if (hasRamTarget) setSelectedWeaponType("ram");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipId]);
 
   // Clear optimistic last move once the contract state catches up.
   React.useEffect(() => {
@@ -2470,6 +2585,136 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
   const shouldPulseSubmitMoveButton = React.useMemo(() => false, []);
 
+  const computedActionType = React.useMemo(() => {
+    if (actionOverride != null) return actionOverride;
+    if (isRammingMovePreview) return ActionType.Ram;
+    if (targetShipId !== null && targetShipId !== 0) {
+      return selectedWeaponType === "special" ? ActionType.Special : ActionType.Shoot;
+    }
+    if (targetShipId === 0 && selectedWeaponType === "special" && specialType === 3) {
+      return ActionType.Special;
+    }
+    return ActionType.Pass;
+  }, [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType]);
+
+  const computedMoveCoords = React.useMemo(() => {
+    const row = previewPosition
+      ? previewPosition.row
+      : (game.shipPositions.find((p) => p.shipId === selectedShipId)?.position.row ?? 0);
+    const col = previewPosition
+      ? previewPosition.col
+      : (game.shipPositions.find((p) => p.shipId === selectedShipId)?.position.col ?? 0);
+    return { row, col };
+  }, [previewPosition, game.shipPositions, selectedShipId]);
+
+  const handleSubmitAction = React.useCallback(async () => {
+    if (!selectedShipId || isMoveSubmitting) return;
+    if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
+      toast.error("You can only move your own ships");
+      return;
+    }
+    const { row: computedRow, col: computedCol } = computedMoveCoords;
+    if (computedActionType !== ActionType.Retreat) {
+      if (movedShipIdsSet.has(selectedShipId)) {
+        toast.error("This ship has already moved this round");
+        return;
+      }
+      if (computedRow < 0 || computedRow >= GRID_HEIGHT || computedCol < 0 || computedCol >= GRID_WIDTH) {
+        toast.error("Invalid position coordinates");
+        return;
+      }
+    }
+    setIsMoveSubmitting(true);
+    setAwaitingTurnSyncAfterSubmit(true);
+    try {
+      const currentPosition = game.shipPositions.find((pos) => pos.shipId === selectedShipId);
+      const oldRow = currentPosition ? currentPosition.position.row : computedRow;
+      const oldCol = currentPosition ? currentPosition.position.col : computedCol;
+      const submittedTargetShipId =
+        computedActionType === ActionType.Pass
+          ? 0
+          : computedActionType === ActionType.Ram
+            ? (aliveShipPositions.find(
+                (pos) =>
+                  pos.position.row === computedRow &&
+                  pos.position.col === computedCol &&
+                  pos.shipId !== selectedShipId,
+              )?.shipId ?? 0)
+            : (targetShipId || 0);
+
+      const updatedState = await apiMutate<GameDataView>(
+        `/api/games/${game.metadata.gameId}/action`,
+        "POST",
+        {
+          shipId: selectedShipId,
+          row: computedRow,
+          col: computedCol,
+          actionType: computedActionType,
+          targetShipId: submittedTargetShipId,
+          specialType,
+        },
+      );
+
+      queryClient.setQueryData(["games", Number(game.metadata.gameId)], updatedState);
+
+      if (String(updatedState.turnState.currentTurn) === address) {
+        setAwaitingTurnSyncAfterSubmit(false);
+      }
+
+      posthog.capture("game_move_submitted", {
+        game_id: String(game.metadata.gameId),
+        ship_id: selectedShipId.toString(),
+        move_type: ActionType[computedActionType] ?? String(computedActionType),
+        ...(submittedTargetShipId !== 0 ? { target_ship_id: submittedTargetShipId.toString() } : {}),
+      });
+
+      setOptimisticLastMove({
+        shipId: selectedShipId,
+        oldRow,
+        oldCol,
+        newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
+        newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
+        actionType: computedActionType,
+        targetShipId: submittedTargetShipId,
+        timestamp: Number(Date.now()),
+      });
+
+      toast.success("Move submitted!");
+      const moveTime = Date.now();
+      playerMoveTimeRef.current = moveTime;
+      setPlayerMoveTimestamp(moveTime);
+      refetch?.();
+    } catch (err) {
+      setAwaitingTurnSyncAfterSubmit(false);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes("Not your turn")) {
+        toast.error("It's not your turn to move");
+      } else if (errorMessage.includes("already moved")) {
+        toast.error("This ship has already moved this round");
+      } else {
+        toast.error(`Move failed: ${errorMessage}`);
+      }
+    } finally {
+      setIsMoveSubmitting(false);
+    }
+  }, [
+    selectedShipId, isMoveSubmitting, isShipOwnedByCurrentPlayer, computedActionType,
+    computedMoveCoords, movedShipIdsSet, game.shipPositions, game.metadata.gameId,
+    aliveShipPositions, targetShipId, specialType, address, queryClient,
+    setOptimisticLastMove, refetch, setAwaitingTurnSyncAfterSubmit,
+  ]);
+
+  const showConfirmWidget = React.useMemo(() =>
+    !readOnly &&
+    isShowingProposedMove &&
+    !isReplaying &&
+    actionOverride !== ActionType.Retreat &&
+    (
+      previewPosition !== null || // move staged (to new cell or hold)
+      targetShipId !== null       // target selected (with or without move)
+    ),
+  [readOnly, isShowingProposedMove, isReplaying, previewPosition, actionOverride, targetShipId]);
+
   /** Top of proposed-move panel: 2/3 submit + 1/3 cancel (side), or horizontal row (wide). */
   const renderProposedMoveSubmitCancelRow = (): React.ReactNode => {
     const isRail = useSideLayout;
@@ -2479,7 +2724,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return (
       <div
         className={
-          isRail
+          isRail || isLandscapeMobile
             ? "flex w-full min-w-0 shrink-0 flex-row gap-2"
             : `flex w-full min-w-0 shrink-0 flex-row flex-wrap items-center gap-2 ${
                 isJoinerSide ? "justify-end" : "justify-start"
@@ -2487,46 +2732,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         }
       >
         <>
-          {(() => {
-            const computedActionType =
-              actionOverride != null
-                ? actionOverride
-                : isRammingMovePreview
-                  ? ActionType.Ram
-                : targetShipId !== null && targetShipId !== 0
-                  ? selectedWeaponType === "special"
-                    ? ActionType.Special
-                    : ActionType.Shoot
-                  : targetShipId === 0 &&
-                      selectedWeaponType === "special" &&
-                      specialType === 3
-                    ? ActionType.Special
-                    : ActionType.Pass;
-
-            const computedRow = previewPosition
-              ? previewPosition.row
-              : (() => {
-                  const currentPosition = game.shipPositions.find(
-                    (pos) => pos.shipId === selectedShipId,
-                  );
-                  return currentPosition
-                    ? currentPosition.position.row
-                    : 0;
-                })();
-            const computedCol = previewPosition
-              ? previewPosition.col
-              : (() => {
-                  const currentPosition = game.shipPositions.find(
-                    (pos) => pos.shipId === selectedShipId,
-                  );
-                  return currentPosition
-                    ? currentPosition.position.col
-                    : 0;
-                })();
-
-            const submitMoveButtonStyle: React.CSSProperties = {
-              fontFamily:
-                "var(--font-rajdhani), 'Arial Black', sans-serif",
+          <button
+            type="button"
+            disabled={isMoveSubmitting}
+            style={{
+              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
               borderColor: "var(--color-phosphor-green)",
               borderTopColor: "var(--color-phosphor-green)",
               borderLeftColor: "var(--color-phosphor-green)",
@@ -2534,130 +2744,26 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               backgroundColor: "var(--color-steel)",
               borderWidth: "2px",
               borderStyle: "solid",
-            };
-
-            return (
-                <button
-                  type="button"
-                  disabled={isMoveSubmitting}
-                  style={submitMoveButtonStyle}
-                  className={`px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 ${
-                    isRail ? "min-w-0 flex-[2] h-full w-full" : ""
-                  } ${isRail ? "order-2" : "order-2"}${
-                    shouldPulseSubmitMoveButton
-                      ? " animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                      : ""
-                  }`}
-                  onClick={async () => {
-                    if (!selectedShipId || isMoveSubmitting) return;
-                    if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
-                      toast.error("You can only move your own ships");
-                      return;
-                    }
-                    if (computedActionType !== ActionType.Retreat) {
-                      if (movedShipIdsSet.has(selectedShipId)) {
-                        toast.error("This ship has already moved this round");
-                        return;
-                      }
-                      if (computedRow < 0 || computedRow >= GRID_HEIGHT || computedCol < 0 || computedCol >= GRID_WIDTH) {
-                        toast.error("Invalid position coordinates");
-                        return;
-                      }
-                    }
-                    setIsMoveSubmitting(true);
-                    setAwaitingTurnSyncAfterSubmit(true);
-                    try {
-                      const currentPosition = game.shipPositions.find(
-                        (pos) => pos.shipId === selectedShipId,
-                      );
-                      const oldRow = currentPosition ? currentPosition.position.row : computedRow;
-                      const oldCol = currentPosition ? currentPosition.position.col : computedCol;
-                      const submittedTargetShipId =
-                        computedActionType === ActionType.Pass
-                          ? 0
-                          : computedActionType === ActionType.Ram
-                            ? (aliveShipPositions.find(
-                                (pos) =>
-                                  pos.position.row === computedRow &&
-                                  pos.position.col === computedCol &&
-                                  pos.shipId !== selectedShipId,
-                              )?.shipId ?? 0)
-                            : (targetShipId || 0);
-
-                      const updatedState = await apiMutate<GameDataView>(
-                        `/api/games/${game.metadata.gameId}/action`,
-                        "POST",
-                        {
-                          shipId: selectedShipId,
-                          row: computedRow,
-                          col: computedCol,
-                          actionType: computedActionType,
-                          targetShipId: submittedTargetShipId,
-                          specialType,
-                        },
-                      );
-
-                      // Hydrate React Query cache immediately — no extra round-trip
-                      queryClient.setQueryData(["games", Number(game.metadata.gameId)], updatedState);
-
-                      // Skip logic may keep the turn with us (e.g. opponent has no unmoved ships).
-                      // The effect that clears awaitingTurnSyncAfterSubmit only fires on !isMyTurn,
-                      // so unblock the UI here when the server confirms it's still our turn.
-                      if (String(updatedState.turnState.currentTurn) === address) {
-                        setAwaitingTurnSyncAfterSubmit(false);
-                      }
-
-                      const moveTypeLabel = ActionType[computedActionType] ?? String(computedActionType);
-                      posthog.capture("game_move_submitted", {
-                        game_id: String(game.metadata.gameId),
-                        ship_id: selectedShipId.toString(),
-                        move_type: moveTypeLabel,
-                        ...(submittedTargetShipId !== 0 ? { target_ship_id: submittedTargetShipId.toString() } : {}),
-                      });
-
-                      setOptimisticLastMove({
-                        shipId: selectedShipId,
-                        oldRow,
-                        oldCol,
-                        newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
-                        newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
-                        actionType: computedActionType,
-                        targetShipId: submittedTargetShipId,
-                        timestamp: Number(Date.now()),
-                      });
-
-                      toast.success("Move submitted!");
-                      const moveTime = Date.now();
-                      playerMoveTimeRef.current = moveTime;
-                      setPlayerMoveTimestamp(moveTime);
-                      refetch?.();
-                    } catch (err) {
-                      setAwaitingTurnSyncAfterSubmit(false);
-                      const errorMessage = err instanceof Error ? err.message : String(err);
-                      if (errorMessage.includes("Not your turn")) {
-                        toast.error("It's not your turn to move");
-                      } else if (errorMessage.includes("already moved")) {
-                        toast.error("This ship has already moved this round");
-                      } else {
-                        toast.error(`Move failed: ${errorMessage}`);
-                      }
-                    } finally {
-                      setIsMoveSubmitting(false);
-                    }
-                  }}
-                >
-                  {isMoveSubmitting ? "[SUBMITTING...]" : isSelectedShipDisabled ? "Submit Retreat" : "Submit"}
-                </button>
-            );
-          })()}
+            }}
+            className={`px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 ${
+              isRail || isLandscapeMobile ? "min-w-0 flex-[2] h-full w-full" : ""
+            } order-2${
+              shouldPulseSubmitMoveButton
+                ? " animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
+                : ""
+            }`}
+            onClick={handleSubmitAction}
+          >
+            {isMoveSubmitting ? "[SUBMITTING...]" : isSelectedShipDisabled ? "Submit Retreat" : computedActionType === ActionType.Pass ? "Hold Fire" : "Submit"}
+          </button>
           <button
             type="button"
             onClick={handleCancelMove}
             className={`px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150${
-              isRail ? " min-w-0 flex-[1]" : ""
+              isRail || isLandscapeMobile ? " min-w-0 flex-[1]" : ""
             } ${isRail ? "order-1" : "order-1"}`}
             style={
-              isRail
+              isRail || isLandscapeMobile
                 ? {
                     fontFamily:
                       "var(--font-rajdhani), 'Arial Black', sans-serif",
@@ -2912,9 +3018,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </button>
             <h1 className="text-2xl font-mono text-white flex items-center gap-3">
               <span>Game {game.metadata.gameId.toString()}</span>
-              <span className="text-text-muted text-base">
-                Round {game.turnState.currentRound.toString()}
-              </span>
+              <div className="flex flex-col gap-0">
+                <span className="text-text-muted text-base leading-tight">
+                  Round {game.turnState.currentRound.toString()}
+                </span>
+                <span className="text-[10px] font-mono leading-tight" style={{ color: "var(--color-text-muted)" }}>
+                  {movedShipIdsSet.size}/{displayGame.creatorActiveShipIds.length + displayGame.joinerActiveShipIds.length} ships moved
+                </span>
+              </div>
             </h1>
           </div>
         </div>
@@ -2931,232 +3042,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const renderProposedMoveActivePanel = (): React.ReactNode => (
     <>
-      <div
-        className={
-          useSideLayout
-            ? "flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-4"
-            : "flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-4"
-        }
-      >
-        {renderProposedMoveSubmitCancelRow()}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-          <div
-            className={
-              useSideLayout
-                ? "flex min-h-0 min-w-0 flex-1 flex-col gap-4"
-                : "flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-6"
-            }
-          >
-        <div className="flex min-w-0 flex-shrink-0 flex-col gap-1">
-          {(() => {
-            const ship = selectedShipId
-              ? shipMap.get(selectedShipId)
-              : undefined;
-            const name =
-              ship?.name ||
-              (selectedShipId
-                ? `Ship #${selectedShipId.toString()}`
-                : "Unknown Ship");
-            const currentPos = game.shipPositions.find(
-              (pos) => pos.shipId === selectedShipId,
-            );
-            const fromRow = currentPos?.position.row ?? 0;
-            const fromCol = currentPos?.position.col ?? 0;
-            const toRow = previewPosition ? previewPosition.row : fromRow;
-            const toCol = previewPosition ? previewPosition.col : fromCol;
-  return (
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <div className="text-sm font-semibold text-white">{name}</div>
-                <div className="text-sm font-mono text-text-secondary">
-                  ({fromRow}, {fromCol}) → ({toRow}, {toCol})
-                </div>
-              </div>
-            );
-          })()}
-          {(() => {
-            if (isSelectedShipDisabled) return null;
-            if (!selectedShipId) return null;
-            const ship = shipMap.get(selectedShipId);
-            if (!ship || ship.equipment.special <= 0) return null;
-            return (
-              <div className="mt-1 w-full">
-                <select
-                  value={selectedWeaponType}
-                  onChange={(e) => {
-                    const newWeaponType = e.target.value as
-                      | "weapon"
-                      | "special";
-                    setWeaponTypeFromGrid(newWeaponType);
-                    if (newWeaponType === "special" && specialType === 3) {
-                      setTargetShipId(0);
-                    } else {
-                      setTargetShipId(null);
-                    }
-                  }}
-                  className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    borderRadius: 0,
-                    backgroundColor: "var(--color-slate)",
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  <option value="weapon">
-                    {getMainWeaponName(ship.equipment.mainWeapon)}
-                  </option>
-                  <option value="special">
-                    {getSpecialName(ship.equipment.special)}
-                  </option>
-                </select>
-              </div>
-            );
-          })()}
-        </div>
-
-        {!isSelectedShipDisabled && validTargets.length > 0 && (
-          <div
-            className={
-              useSideLayout
-                ? "flex min-h-0 min-w-0 flex-1 flex-col"
-                : "min-h-0 flex-1"
-            }
-          >
-            <div
-              className={
-                useSideLayout
-                  ? "flex min-h-0 min-w-0 flex-1 flex-col border border-solid p-3"
-                  : "min-h-[7.5rem] border border-solid p-3"
-              }
-              style={{
-                backgroundColor: "var(--color-near-black)",
-                borderColor: "var(--color-gunmetal)",
-                borderTopColor: "var(--color-steel)",
-                borderLeftColor: "var(--color-steel)",
-                borderRadius: 0,
-              }}
-            >
-              <div
-                className="shrink-0 text-xs mb-2 uppercase tracking-wide"
-                style={{
-                  fontFamily:
-                    "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                Select Target (Optional)
-              </div>
-              <div className={proposedMoveTargetListClass}>
-                {validTargets.map((target) => {
-                  const targetShip = shipMap.get(target.shipId);
-                  const isSelectedTarget =
-                    targetShipId !== null && targetShipId === target.shipId;
-                  const isRepair =
-                    selectedWeaponType === "special" && specialType === 2;
-                  const accentColor = isRepair
-                    ? "var(--color-cyan)"
-                    : "var(--color-warning-red)";
-                  return (
-                    <button
-                      key={target.shipId.toString()}
-                      type="button"
-                      onClick={() => setTargetShipId(target.shipId)}
-                      className={proposedMoveTargetBtnClass}
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        borderColor: isSelectedTarget
-                          ? accentColor
-                          : "var(--color-gunmetal)",
-                        borderTopColor: isSelectedTarget
-                          ? accentColor
-                          : "var(--color-steel)",
-                        borderLeftColor: isSelectedTarget
-                          ? accentColor
-                          : "var(--color-steel)",
-                        color: accentColor,
-                        backgroundColor: isSelectedTarget
-                          ? "var(--color-steel)"
-                          : "var(--color-slate)",
-                        borderWidth: "2px",
-                        borderStyle: "solid",
-                        borderRadius: 0,
-                      }}
-                    >
-                      {`[>] `}
-                      {targetShip?.name ||
-                        `#${target.shipId.toString()}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {useSideLayout &&
-          (validTargets.length === 0 || isSelectedShipDisabled) && (
-            <div className="min-h-0 min-w-0 flex-1" aria-hidden />
-          )}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedShipId != null) {
-                setRetreatExplicitByShipId((prev) => ({
-                  ...prev,
-                  [selectedShipId.toString()]: true,
-                }));
-              }
-              setTargetShipId(null);
-              setPreviewPosition(null);
-            }}
-            className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
-            style={{
-              fontFamily:
-                "var(--font-rajdhani), 'Arial Black', sans-serif",
-              borderColor:
-                actionOverride === ActionType.Retreat
-                  ? "var(--color-warning-red)"
-                  : "var(--color-gunmetal)",
-              borderTopColor:
-                actionOverride === ActionType.Retreat
-                  ? "var(--color-warning-red)"
-                  : "var(--color-steel)",
-              borderLeftColor:
-                actionOverride === ActionType.Retreat
-                  ? "var(--color-warning-red)"
-                  : "var(--color-steel)",
-              color:
-                actionOverride === ActionType.Retreat
-                  ? "var(--color-warning-red)"
-                  : "var(--color-text-secondary)",
-              backgroundColor:
-                actionOverride === ActionType.Retreat
-                  ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
-                  : "var(--color-slate)",
-              borderWidth: "2px",
-              borderStyle: "solid",
-              borderRadius: 0,
-            }}
-            onMouseEnter={(e) => {
-              if (actionOverride !== ActionType.Retreat) {
-                e.currentTarget.style.borderColor = "var(--color-warning-red)";
-                e.currentTarget.style.color = "var(--color-warning-red)";
-                e.currentTarget.style.backgroundColor =
-                  "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (actionOverride !== ActionType.Retreat) {
-                e.currentTarget.style.borderColor = "var(--color-gunmetal)";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
-                e.currentTarget.style.backgroundColor = "var(--color-slate)";
-              }
-            }}
-          >
-            Retreat
-          </button>
+      <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2 p-2" : "gap-4 p-4"}`}>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2" : "gap-4"}`}>
+          {useSideLayout && <div className="min-h-0 min-w-0 flex-1" aria-hidden />}
         </div>
       </div>
     </>
@@ -3205,11 +3093,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         ? "warning"
         : "none";
   const mobileWeaponDisplayName =
-    selectedShip && selectedWeaponType === "weapon"
-      ? getMainWeaponName(selectedShip.equipment.mainWeapon)
-      : selectedShip && selectedWeaponType === "special"
-        ? getSpecialName(selectedShip.equipment.special)
-        : "Weapon";
+    selectedWeaponType === "ram"
+      ? "RAM"
+      : selectedShip && selectedWeaponType === "weapon"
+        ? getMainWeaponName(selectedShip.equipment.mainWeapon)
+        : selectedShip && selectedWeaponType === "special"
+          ? getSpecialName(selectedShip.equipment.special)
+          : "Weapon";
   const tutorialDefaultLabel = isLandscapeMobile ? "Tap here" : "Click here";
 
   const renderFleetColumn = ({
@@ -3500,84 +3390,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 }}
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <div className="relative min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => setIsMobileWeaponMenuOpen((prev) => !prev)}
-                      disabled={!selectedShip || !(selectedShip.equipment.special > 0)}
-                      className="flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid bg-black/40 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 disabled:cursor-default"
-                      style={{
-                        borderColor: "var(--color-gunmetal)",
-                        borderRadius: 0,
-                      }}
-                    >
-                      <span className="truncate">{mobileWeaponDisplayName}</span>
-                      {selectedShip && selectedShip.equipment.special > 0 && (
-                        <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
-                      )}
-                    </button>
-                    {isMobileWeaponMenuOpen ? (
-                      <div
-                        className="absolute left-0 bottom-[calc(100%+4px)] z-[270] w-full border border-solid bg-[var(--color-near-black)]"
-                        style={{
-                          borderColor: "var(--color-gunmetal)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWeaponTypeFromGrid("weapon");
-                            setIsMobileWeaponMenuOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between border-b border-solid px-2 py-1 text-left text-[10px] uppercase tracking-wider"
-                          style={{
-                            borderColor: "var(--color-gunmetal)",
-                            color:
-                              selectedWeaponType === "weapon"
-                                ? "var(--color-cyan)"
-                                : "var(--color-text-secondary)",
-                            backgroundColor:
-                              selectedWeaponType === "weapon"
-                                ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
-                                : "transparent",
-                          }}
-                        >
-                          <span className="truncate">
-                            {selectedShip
-                              ? getMainWeaponName(selectedShip.equipment.mainWeapon)
-                              : "Weapon"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!mobileCanUseSpecial}
-                          onClick={() => {
-                            if (!mobileCanUseSpecial) return;
-                            setWeaponTypeFromGrid("special");
-                            setIsMobileWeaponMenuOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between px-2 py-1 text-left text-[10px] uppercase tracking-wider disabled:opacity-40"
-                          style={{
-                            color:
-                              selectedWeaponType === "special"
-                                ? "var(--color-cyan)"
-                                : "var(--color-text-secondary)",
-                            backgroundColor:
-                              selectedWeaponType === "special"
-                                ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)"
-                                : "transparent",
-                          }}
-                        >
-                          <span className="truncate">
-                            {selectedShip
-                              ? getSpecialName(selectedShip.equipment.special)
-                              : "Special"}
-                          </span>
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -3619,9 +3431,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     layoutShipId={selectedShip.id.toString()}
                     nameBlockMinHeightPx={gameViewNameBlockMinHeights[selectedShip.id.toString()]}
                   />
-                  {isShowingProposedMove ? (
-                    <div className="pt-1">{renderProposedMoveSubmitCancelRow()}</div>
-                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -3709,6 +3518,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       setHoveredCell={setHoveredCell}
                       setDraggedShipId={setDraggedShipId}
                       setDragOverCell={setDragOverCell}
+                      hoverShootingRange={hoverShootingRange}
+                      hoverValidTargets={hoverValidTargets}
+                      onMoveTileHover={setHoverPreviewPosition}
+                      showConfirmWidget={showConfirmWidget}
+                      confirmWidgetLabel={computedActionType === ActionType.Pass ? "HOLD FIRE" : "SUBMIT"}
+                      onConfirmMove={handleSubmitAction}
+                      onCancelMove={handleCancelMove}
                     />
                   </div>
                 {game.metadata.winner === ZERO_ADDR ? (
@@ -3879,7 +3695,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div className="min-w-0 text-center">
                 <p className="truncate text-[11px] uppercase tracking-wider text-text-secondary">
                   Game {game.metadata.gameId.toString()} | Round{" "}
-                  {game.turnState.currentRound.toString()}
+                  {game.turnState.currentRound.toString()}{" "}
+                  <span style={{ color: "var(--color-text-muted)" }}>
+                    {movedShipIdsSet.size}/{displayGame.creatorActiveShipIds.length + displayGame.joinerActiveShipIds.length}
+                  </span>
                 </p>
                 <p
                   className="truncate text-[11px] uppercase tracking-wider"
@@ -4020,100 +3839,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </div>
               </div>
             </div>
-            {/* Replay button — available during live games and after completion */}
-            {!isReplaying && (
-              <div className="flex justify-end px-2 py-1">
-                <button
-                  onClick={fetchAndStartReplay}
-                  disabled={replayLoading}
-                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid transition-colors"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: "var(--color-steel)",
-                    color: "var(--color-text-secondary)",
-                    backgroundColor: "var(--color-near-black)",
-                    borderRadius: 0,
-                  }}
-                >
-                  {replayLoading ? "Loading…" : "Replay"}
-                </button>
-              </div>
-            )}
-            {/* Replay controls */}
-            {isReplaying && (
-              <div
-                className="flex items-center gap-2 flex-wrap border border-solid px-2 py-1.5"
-                style={{
-                  borderColor: "var(--color-gunmetal)",
-                  borderTopColor: "var(--color-steel)",
-                  backgroundColor: "var(--color-near-black)",
-                  borderRadius: 0,
-                }}
-              >
-                <button
-                  onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
-                  disabled={replayStep <= -1}
-                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: "var(--color-steel)",
-                    color: "var(--color-cyan)",
-                    backgroundColor: "var(--color-near-black)",
-                    borderRadius: 0,
-                  }}
-                >
-                  ◀ Prev
-                </button>
-                <span
-                  className="text-[11px] font-mono text-text-muted flex-1 text-center min-w-[5rem]"
-                >
-                  {replayStep < 0
-                    ? "Start"
-                    : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${(replayTurns[replayStep] as ReplayTurn | undefined)?.round ?? ""}`}
-                </span>
-                <button
-                  onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
-                  disabled={replayStep >= replayTurns.length - 1}
-                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: "var(--color-steel)",
-                    color: "var(--color-cyan)",
-                    backgroundColor: "var(--color-near-black)",
-                    borderRadius: 0,
-                  }}
-                >
-                  Next ▶
-                </button>
-                <button
-                  onClick={() => setReplayAutoPlay((p) => !p)}
-                  disabled={replayStep >= replayTurns.length - 1}
-                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
-                    color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
-                    backgroundColor: "var(--color-near-black)",
-                    borderRadius: 0,
-                  }}
-                >
-                  {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
-                </button>
-                <button
-                  onClick={exitReplay}
-                  className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: "var(--color-warning-red)",
-                    color: "var(--color-warning-red)",
-                    backgroundColor: "var(--color-near-black)",
-                    borderRadius: 0,
-                  }}
-                >
-                  ✕ Exit
-                </button>
-              </div>
-            )}
           </div>
           <div
             className={
@@ -4123,9 +3848,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           <div className="flex flex-col">
             <h1 className="text-2xl font-mono text-white flex items-center gap-3">
               <span>Game {game.metadata.gameId.toString()}</span>
-              <span className="text-text-muted text-base">
-                Round {game.turnState.currentRound.toString()}
-              </span>
+              <div className="flex flex-col gap-0">
+                <span className="text-text-muted text-base leading-tight">
+                  Round {game.turnState.currentRound.toString()}
+                </span>
+                <span className="text-[10px] font-mono leading-tight" style={{ color: "var(--color-text-muted)" }}>
+                  {movedShipIdsSet.size}/{displayGame.creatorActiveShipIds.length + displayGame.joinerActiveShipIds.length} ships moved
+                </span>
+              </div>
             </h1>
             {/* Turn Indicator and Countdown / Seize Turn */}
             {game.metadata.winner ===
@@ -4569,6 +4299,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           setHoveredCell={setHoveredCell}
           setDraggedShipId={setDraggedShipId}
           setDragOverCell={setDragOverCell}
+          hoverShootingRange={hoverShootingRange}
+          hoverValidTargets={hoverValidTargets}
+          onMoveTileHover={setHoverPreviewPosition}
+          showConfirmWidget={showConfirmWidget}
+          confirmWidgetLabel={computedActionType === ActionType.Pass ? "HOLD FIRE" : "SUBMIT"}
+          onConfirmMove={handleSubmitAction}
+          onCancelMove={handleCancelMove}
         />
             </div>
           {isReplaying && (
@@ -4583,10 +4320,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
             </div>
           )}
-          {game.metadata.winner ===
-            ZERO_ADDR &&
-            process.env.NODE_ENV === "development" && (
-              <div className="absolute bottom-0 left-0 z-[220] pointer-events-none">
+          {/* Bottom-left of grid: debug button (dev-only) then replay button/controls */}
+          <div className="absolute bottom-0 left-0 z-[220] pointer-events-none flex items-end">
+            {game.metadata.winner ===
+              ZERO_ADDR &&
+              process.env.NODE_ENV === "development" && (
                 <div className="pointer-events-auto">
                   {isDebugPanelMinimized ? (
                     <button
@@ -4743,8 +4481,97 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </div>
           )}
         </div>
-      </div>
-            )}
+              )}
+            <div className="pointer-events-auto flex items-end gap-2">
+              {!isReplaying && (
+                <button
+                  onClick={fetchAndStartReplay}
+                  disabled={replayLoading}
+                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                  style={{
+                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-text-secondary)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  {replayLoading ? "Loading…" : "Replay"}
+                </button>
+              )}
+              {isReplaying && (
+                <div
+                  className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
+                  style={{
+                    borderColor: "var(--color-steel)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  <button
+                    onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                    disabled={replayStep <= -1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{
+                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      borderColor: "var(--color-steel)",
+                      color: "var(--color-cyan)",
+                      backgroundColor: "transparent",
+                      borderRadius: 0,
+                    }}
+                  >
+                    ◀ Prev
+                  </button>
+                  <span className="text-[11px] font-mono text-text-muted min-w-[5rem] text-center">
+                    {replayStep < 0
+                      ? "Start"
+                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${(replayTurns[replayStep] as ReplayTurn | undefined)?.round ?? ""}`}
+                  </span>
+                  <button
+                    onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                    disabled={replayStep >= replayTurns.length - 1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{
+                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      borderColor: "var(--color-steel)",
+                      color: "var(--color-cyan)",
+                      backgroundColor: "transparent",
+                      borderRadius: 0,
+                    }}
+                  >
+                    Next ▶
+                  </button>
+                  <button
+                    onClick={() => setReplayAutoPlay((p) => !p)}
+                    disabled={replayStep >= replayTurns.length - 1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{
+                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
+                      color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
+                      backgroundColor: "transparent",
+                      borderRadius: 0,
+                    }}
+                  >
+                    {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
+                  </button>
+                  <button
+                    onClick={exitReplay}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+                    style={{
+                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      borderColor: "var(--color-warning-red)",
+                      color: "var(--color-warning-red)",
+                      backgroundColor: "transparent",
+                      borderRadius: 0,
+                    }}
+                  >
+                    ✕ Exit
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
             <div className="absolute bottom-0 right-0 z-[220] pointer-events-none">
               <div className="pointer-events-auto">
                 {isLastMovePanelMinimized ? (

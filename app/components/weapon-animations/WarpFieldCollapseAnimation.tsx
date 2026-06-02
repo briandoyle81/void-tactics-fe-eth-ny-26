@@ -17,7 +17,7 @@ export function WarpFieldCollapseAnimation({
   const getCellCenter = useCallback(
     (r: number, c: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
+      const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
       const cellWidth = gridRect.width / 17;
       const cellHeight = gridRect.height / 11;
       return {
@@ -30,7 +30,7 @@ export function WarpFieldCollapseAnimation({
 
   if (!gridContainerRef.current) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const gridRect = {width: gridContainerRef.current.clientWidth, height: gridContainerRef.current.clientHeight};
   const cellWidth = gridRect.width / 17;
   const cellHeight = gridRect.height / 11;
   const center = getCellCenter(row, col);
