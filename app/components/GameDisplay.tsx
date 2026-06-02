@@ -41,6 +41,7 @@ import {
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { GameEvents } from "./GameEvents";
 import { GameBoardLayout } from "./GameBoardLayout";
+import { ShipImage } from "./ShipImage";
 import { GameGrid } from "./GameGrid";
 import {
   computeMovementRange,
@@ -242,6 +243,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     () => displayGame.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
     [displayGame.shipPositions],
   );
+
+  const [showFleetModal, setShowFleetModal] = useState(false);
 
   /** Matches fleet card grids `grid-cols-1 sm:grid-cols-2` (Tailwind sm = 640px). */
   const [shipCardGridTwoCols, setShipCardGridTwoCols] = React.useState(false);
@@ -1997,6 +2000,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const isMyTurnEffective = isMyTurn && !awaitingTurnSyncAfterSubmit;
   const canActInGame = !readOnly && isMyTurnEffective;
 
+  React.useEffect(() => {
+    const isLow = !readOnly && isMyTurnEffective && turnSecondsLeft > 0 && turnSecondsLeft < 60;
+    if (isLow) {
+      document.documentElement.style.setProperty(
+        "--game-bg-override",
+        "color-mix(in srgb, var(--color-amber) 20%, var(--color-near-black))",
+      );
+    } else {
+      document.documentElement.style.removeProperty("--game-bg-override");
+    }
+    return () => {
+      document.documentElement.style.removeProperty("--game-bg-override");
+    };
+  }, [readOnly, isMyTurnEffective, turnSecondsLeft]);
 
   // Track if we're currently displaying the last move (to avoid infinite loops)
   const isDisplayingLastMoveRef = React.useRef(false);
@@ -3306,14 +3323,15 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               ) : null}
               {mobileLeftPanelTab === "status" ? (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
-                      <span className="text-text-muted">Me </span>
-                      <span className="font-mono text-white">{myScore}/{maxScore}</span>
+                  <div className="flex items-stretch border border-solid overflow-hidden text-xs" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
+                    <div className="flex items-center gap-1.5 px-1.5 py-1">
+                      <span className="material-symbols-outlined leading-none" style={{ fontSize: 13, color: "var(--color-cyan)" }}>person</span>
+                      <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
                     </div>
-                    <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
-                      <span className="text-text-muted">Opp </span>
-                      <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
+                    <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
+                    <div className="flex items-center gap-1.5 px-1.5 py-1">
+                      <span className="material-symbols-outlined leading-none" style={{ fontSize: 13, color: "var(--color-warning-red)" }}>person</span>
+                      <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
                     </div>
                   </div>
                   {game.metadata.winner !== ZERO_ADDR ? (
@@ -3730,13 +3748,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               </button>
             </div>
             <div className="mt-1.5 flex items-center gap-1.5">
-              <div className="border border-solid px-1.5 py-0.5 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-slate)" }}>
-                <span className="text-text-muted">Me </span>
-                <span className="font-mono text-white">{myScore}/{maxScore}</span>
-              </div>
-              <div className="border border-solid px-1.5 py-0.5 text-[11px]" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-slate)" }}>
-                <span className="text-text-muted">Opp </span>
-                <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
+              <div className="flex items-stretch border border-solid overflow-hidden text-[11px]" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-slate)", borderRadius: 0 }}>
+                <div className="flex items-center gap-1 px-1.5 py-0.5">
+                  <span className="material-symbols-outlined leading-none" style={{ fontSize: 12, color: "var(--color-cyan)" }}>person</span>
+                  <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
+                </div>
+                <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
+                <div className="flex items-center gap-1 px-1.5 py-0.5">
+                  <span className="material-symbols-outlined leading-none" style={{ fontSize: 12, color: "var(--color-warning-red)" }}>person</span>
+                  <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
+                </div>
               </div>
               <div className="ml-auto text-[11px] font-mono" style={{ color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
                 {mobileTurnTime}
@@ -3845,18 +3866,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               useSideLayout ? "flex flex-col gap-2" : "contents"
             }
           >
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-mono text-white flex items-center gap-3">
-              <span>Game {game.metadata.gameId.toString()}</span>
-              <div className="flex flex-col gap-0">
-                <span className="text-text-muted text-base leading-tight">
-                  Round {game.turnState.currentRound.toString()}
-                </span>
-                <span className="text-[10px] font-mono leading-tight" style={{ color: "var(--color-text-muted)" }}>
-                  {movedShipIdsSet.size}/{displayGame.creatorActiveShipIds.length + displayGame.joinerActiveShipIds.length} ships moved
-                </span>
-              </div>
-            </h1>
+          <div className="flex flex-col gap-3">
+            {/* Meta strip */}
+            <div className="flex items-center gap-2 border-b border-solid pb-2" style={{ borderColor: "var(--color-gunmetal)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+              <span className="font-bold uppercase tracking-wider" style={{ fontSize: 17, color: "var(--color-text-primary)" }}>
+                GAME {game.metadata.gameId.toString()}
+              </span>
+              <span style={{ color: "var(--color-text-muted)" }}>·</span>
+              <span className="uppercase tracking-wide" style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
+                RND {game.turnState.currentRound.toString()}
+              </span>
+              <span className="ml-auto" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 10, color: "var(--color-text-muted)" }}>
+                {movedShipIdsSet.size}/{displayGame.creatorActiveShipIds.length + displayGame.joinerActiveShipIds.length} MOVED
+              </span>
+            </div>
             {/* Turn Indicator and Countdown / Seize Turn */}
             {game.metadata.winner ===
               ZERO_ADDR &&
@@ -3877,258 +3900,98 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
                 if (hasExceededTime) {
                   return (
-                    <div className="flex flex-col gap-1.5">
-                      <div
-                        className="flex items-center justify-between gap-2"
-                        style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
-                      >
-                        <span
-                          className="text-sm font-bold uppercase tracking-wider"
-                          style={{ color: "var(--color-cyan)" }}
-                        >
+                    <div className="flex flex-col gap-0 pl-2" style={{ borderLeft: "2px solid var(--color-warning-red)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: "var(--color-cyan)" }}>
                           YOUR TURN
                         </span>
-                        <span
-                          className="font-mono text-sm animate-timeout-soft"
-                          style={{
-                            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-warning-red)",
-                          }}
-                        >
-                          00:00
-                        </span>
-                      </div>
-                      <div
-                        className="text-sm font-bold uppercase tracking-wider animate-victory-flash"
-                        style={{ color: "var(--color-warning-red)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
-                      >
-                        Opponent can now claim victory
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex-1 h-1.5 overflow-hidden"
-                          style={{
-                            backgroundColor: "var(--color-gunmetal)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <div
-                            className="h-full animate-victory-flash"
-                            style={{
-                              width: `100%`,
-                              backgroundColor: "var(--color-warning-red)",
-                              borderRadius: 0,
-                            }}
-                          />
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm animate-timeout-soft" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: "var(--color-warning-red)" }}>
+                            00:00
+                          </span>
+                          <button onClick={() => { lastPollTimeRef.current = Date.now(); refetchGame(); }} className="p-1 text-text-muted hover:text-cyan transition-colors" title="Resync game state">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => {
-                            lastPollTimeRef.current = Date.now();
-                            refetchGame();
-                          }}
-                          className="p-1 text-text-muted hover:text-cyan transition-colors"
-                          title="Resync game state"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
-                        </button>
                       </div>
+                      <p className="text-xs uppercase tracking-wider font-bold animate-victory-flash" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: "var(--color-warning-red)" }}>
+                        ⚠ Opponent can claim victory
+                      </p>
+                      <div className="mt-2 h-px overflow-hidden animate-victory-flash" style={{ backgroundColor: "var(--color-warning-red)" }} />
                     </div>
                   );
                 }
 
                 if (canSeizeTurn) {
                   return (
-                    <div className="flex flex-col gap-1.5">
-                      <p className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-amber)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
-                        Opponent&apos;s timer expired
-                      </p>
-                      <div className="text-sm">
-                        <div
-                          className="inline-block"
-                          style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
-                            borderColor: "var(--color-amber)",
-                            color: "var(--color-amber)",
-                            backgroundColor: "var(--color-steel)",
-                            borderWidth: "2px",
-                            borderStyle: "solid",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            disabled={isTimeoutSubmitting}
-                            className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
-                            onClick={async () => {
-                              if (isTimeoutSubmitting) return;
-                              setIsTimeoutSubmitting(true);
-                              try {
-                                await apiMutate(`/api/games/${game.metadata.gameId}/timeout`, "POST");
-                                toast.success("Game ended. Opponent forfeited by timeout.");
-                                refetchGame();
-                                refetch?.();
-                              } catch (err) {
-                                toast.error(`Timeout claim failed: ${err instanceof Error ? err.message : String(err)}`);
-                              } finally {
-                                setIsTimeoutSubmitting(false);
-                              }
-                            }}
-                          >
-                            {isTimeoutSubmitting ? "Claiming..." : "Claim win (timeout)"}
-                          </button>
-                        </div>
+                    <div className="flex flex-col gap-1.5 pl-2" style={{ borderLeft: "2px solid var(--color-amber)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: "var(--color-amber)" }}>
+                          Opponent timed out
+                        </span>
+                        <button onClick={() => { lastPollTimeRef.current = Date.now(); refetchGame(); }} className="p-1 text-text-muted hover:text-cyan transition-colors" title="Resync game state">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex-1 h-1.5 overflow-hidden"
-                          style={{
-                            backgroundColor: "var(--color-gunmetal)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <div
-                            className="h-full animate-timeout-bar"
-                            style={{
-                              width: `100%`,
-                              backgroundColor: "var(--color-warning-red)",
-                              borderRadius: 0,
-                            }}
-                          />
-                        </div>
+                      <button
+                        type="button"
+                        disabled={isTimeoutSubmitting}
+                        className="w-full px-3 py-1 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 animate-timeout-soft"
+                        style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", borderColor: "var(--color-amber)", color: "var(--color-amber)", backgroundColor: "var(--color-steel)", borderWidth: "2px", borderStyle: "solid", borderRadius: 0 }}
+                        onClick={async () => {
+                          if (isTimeoutSubmitting) return;
+                          setIsTimeoutSubmitting(true);
+                          try {
+                            await apiMutate(`/api/games/${game.metadata.gameId}/timeout`, "POST");
+                            toast.success("Game ended. Opponent forfeited by timeout.");
+                            refetchGame();
+                            refetch?.();
+                          } catch (err) {
+                            toast.error(`Timeout claim failed: ${err instanceof Error ? err.message : String(err)}`);
+                          } finally {
+                            setIsTimeoutSubmitting(false);
+                          }
+                        }}
+                      >
+                        {isTimeoutSubmitting ? "Claiming..." : "Claim win (timeout)"}
+                      </button>
+                      <div className="h-px overflow-hidden animate-timeout-bar" style={{ backgroundColor: "var(--color-warning-red)" }} />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex flex-col gap-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
+                        {isMyTurnEffective ? "YOUR TURN" : "OPPONENT'S TURN"}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
+                          {formatSeconds(turnSecondsLeft)}
+                        </span>
                         <button
                           onClick={() => {
                             lastPollTimeRef.current = Date.now();
                             refetchGame();
                           }}
                           className="p-1 text-text-muted hover:text-cyan transition-colors"
-                          title="Resync game state"
+                          title="Refresh game state"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                         </button>
                       </div>
                     </div>
-                  );
-                }
-
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    <div
-                      className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: isMyTurnEffective
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                        }}
-                      >
-                        {isMyTurnEffective ? "YOUR TURN" : "OPPONENT'S TURN"}
-                      </span>
-                      <span style={{ color: "var(--color-text-muted)" }}>
-                        •
-                      </span>
-                      <span
-                        className="font-mono"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: isMyTurnEffective
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                        }}
-                      >
-                        {formatSeconds(turnSecondsLeft)}
-                      </span>
+                    <div className="mt-2 h-px overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+                      <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${turnPercentRemaining}%`, backgroundColor: "var(--color-warning-red)" }} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="flex-1 h-1.5 overflow-hidden"
-                        style={{
-                          backgroundColor: "var(--color-gunmetal)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        <div
-                          className="h-full transition-all duration-1000 ease-linear"
-                          style={{
-                            width: `${turnPercentRemaining}%`,
-                            backgroundColor: "var(--color-warning-red)",
-                            borderRadius: 0,
-                          }}
-                        />
-                      </div>
-                      <button
-                        onClick={() => {
-                          lastPollTimeRef.current = Date.now();
-                          refetchGame();
-                        }}
-                        className="p-1 text-text-muted hover:text-cyan transition-colors"
-                        title="Refresh game state"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)", fontFamily: "var(--font-rajdhani), sans-serif" }}>
-                      {isMyTurnEffective
-                        ? "Opponent may claim victory if timer expires"
-                        : "You may claim victory if their timer expires"}
-                    </p>
                   </div>
                 );
               })()}
           </div>
           {/* Scores box aligned left, to the right of title */}
           <div
-            className={
-              useSideLayout
-                ? "w-full shrink-0 border border-solid p-2 text-lg"
-                : "ml-6 w-48 border border-solid p-2 text-lg"
-            }
+            className={useSideLayout ? "w-full shrink-0 border border-solid overflow-hidden" : "ml-6 w-48 border border-solid overflow-hidden"}
             style={{
               backgroundColor: "var(--color-slate)",
               borderColor: "var(--color-gunmetal)",
@@ -4137,79 +4000,96 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               borderRadius: 0,
             }}
           >
-            <div className="space-y-0.5">
-              <div className="flex justify-between">
-                <span
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    color: "var(--color-text-secondary)",
-                    fontSize: "14px",
-                  }}
-                >
-                  My Score:
-                </span>
-                <span
-                  title="Scores update at end of round."
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    color: "var(--color-text-primary)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {game.metadata.creator === address
-                    ? game.creatorScore?.toString() || "0"
-                    : game.joinerScore?.toString() || "0"}
-                  /{game.maxScore?.toString() || "0"}
-                </span>
+            <div className="flex items-stretch" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: "22px" }}>
+              <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
+                <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
               </div>
-              <div className="flex justify-between">
-                <span
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    color: "var(--color-text-secondary)",
-                    fontSize: "14px",
-                  }}
-                >
-                  Opponent:
-                </span>
-                <span
-                  title="Scores update at end of round."
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    color: "var(--color-text-primary)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {game.metadata.creator === address
-                    ? game.joinerScore?.toString() || "0"
-                    : game.creatorScore?.toString() || "0"}
-                  /{game.maxScore?.toString() || "0"}
-                </span>
-              </div>
+              <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
+              <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-warning-red)" }}>person</span>
+                <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
               </div>
             </div>
           </div>
+          </div>
         </div>
+        {/* Fleet status panel */}
+        {useSideLayout && (() => {
+            const isCreator = address === game.metadata.creator;
+            const myIds = isCreator ? displayGame.creatorActiveShipIds : displayGame.joinerActiveShipIds;
+            const enemyIds = isCreator ? displayGame.joinerActiveShipIds : displayGame.creatorActiveShipIds;
 
-        {/* Proposed move body lives in the left rail (side chrome), not between rail and map. */}
-        {useSideLayout && isShowingProposedMove && (
-        <div
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border border-solid p-3"
-          style={{
-              backgroundColor: "var(--color-near-black)",
-            borderColor: "var(--color-gunmetal)",
-            borderTopColor: "var(--color-steel)",
-            borderLeftColor: "var(--color-steel)",
-            borderRadius: 0,
-          }}
-        >
-            {renderProposedMoveActivePanel()}
+            const allShips: { shipId: number; teamColor: string; flip: boolean }[] = [
+              ...myIds.map((id) => ({ shipId: id, teamColor: "var(--color-cyan)", flip: isCreator })),
+              ...enemyIds.map((id) => ({ shipId: id, teamColor: "var(--color-warning-red)", flip: !isCreator })),
+            ];
+
+            return (
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFleetModal(true)}
+                      className="border border-solid px-1.5 py-0.5 uppercase tracking-wider transition-colors"
+                      style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                    >
+                      [DETAILS]
+                    </button>
                   </div>
-        )}
+                  <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 10, color: "var(--color-text-muted)" }}>
+                    <span style={{ color: "var(--color-cyan)" }}>{myIds.length}</span>
+                    <span style={{ color: "var(--color-text-muted)" }}> vs </span>
+                    <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </span>
+                </div>
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                  {allShips.map(({ shipId, teamColor, flip }) => {
+                    const ship = shipMap.get(shipId);
+                    const attrs = getShipAttributes(shipId);
+                    const hasMoved = movedShipIdsSet.has(shipId);
+                    const isSOS = !!attrs && attrs.hullPoints === 0;
+                    const hpPct = attrs && attrs.maxHullPoints > 0
+                      ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
+                      : 0;
+                    const shipPos = displayGame.shipPositions.find((sp) => sp.shipId === shipId);
+                    return (
+                      <div
+                        key={shipId}
+                        className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
+                        style={{ opacity: hasMoved ? 0.45 : 1 }}
+                        onClick={() => setSelectedShipId(shipId)}
+                        onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator })}
+                        onMouseLeave={() => setHoveredCell(null)}
+                      >
+                        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${isSOS ? "var(--color-warning-red)" : teamColor}` }}>
+                          {ship && (
+                            <ShipImage
+                              ship={ship}
+                              className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
+                              showLoadingState={false}
+                              hideRankStars
+                            />
+                          )}
+                          {isSOS && <div className="absolute inset-0 bg-warning-red/15 animate-pulse pointer-events-none" />}
+                          {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
+                        </div>
+                        <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: isSOS ? "var(--color-warning-red)" : "var(--color-text-secondary)" }}>
+                          {ship?.name ?? `#${shipId}`}
+                        </span>
+                        <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
+                          <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: isSOS ? "var(--color-warning-red)" : teamColor, transition: "width 0.3s ease" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
                 </div>
 
         {/* Move confirmation: stacked layout (wide chrome), matches SimulatedGameDisplay. */}
@@ -4703,21 +4583,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         </div>
       )}
 
-      {/* Ship Details */}
-      <div
-        className={`border border-solid w-full ${isLandscapeMobile ? "p-2" : "p-4"}`}
-        style={{
-          backgroundColor: "var(--color-slate)",
-          borderColor: "var(--color-gunmetal)",
-          borderTopColor: "var(--color-steel)",
-          borderLeftColor: "var(--color-steel)",
-          borderRadius: 0,
-          display:
-            isLandscapeMobile && mobileActivePanel !== "fleet" ? "none" : "block",
-          maxHeight: isLandscapeMobile ? "50vh" : undefined,
-          overflowY: isLandscapeMobile ? "auto" : undefined,
-        }}
-      >
+      {/* Fleet Details Modal */}
+      {showFleetModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto p-4"
+          style={{ backgroundColor: "rgba(12, 17, 23, 0.85)" }}
+          onClick={() => setShowFleetModal(false)}
+        >
+          <div
+            className="relative w-[90%] my-4 border border-solid p-4"
+            style={{ backgroundColor: "var(--color-slate)", borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", borderRadius: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowFleetModal(false)}
+              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center border border-solid"
+              style={{ color: "var(--color-warning-red)", borderColor: "var(--color-warning-red)", backgroundColor: "var(--color-near-black)", borderRadius: 0, fontSize: 14, lineHeight: 1 }}
+              aria-label="Close fleet details"
+            >
+              ✕
+            </button>
+            <div className="mb-4">
+              <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
+            </div>
         <div
           ref={gameShipGridsContainerRef}
           className="grid grid-cols-1 lg:grid-cols-2 gap-6"
@@ -5043,7 +4932,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </>
           )}
         </div>
-      </div>
+          </div>
+        </div>
+      )}
 
       {isLandscapeMobile && (
         <div
@@ -5065,7 +4956,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               key={id}
               type="button"
               onClick={() =>
-                setMobileActivePanel((prev) => (prev === id ? "none" : id))
+                id === "fleet"
+                  ? setShowFleetModal(true)
+                  : setMobileActivePanel((prev) => (prev === id ? "none" : id))
               }
               className="px-1 py-1 text-[10px] uppercase font-semibold tracking-wider border border-solid"
               style={{

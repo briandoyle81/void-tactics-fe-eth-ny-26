@@ -86,7 +86,7 @@ html {
 }
 
 body {
-  background: var(--color-near-black);
+  background: var(--game-bg-override, var(--color-near-black));
   color: var(--color-text-primary);
   font-family: var(--font-rajdhani), "Arial Black", sans-serif;
   -webkit-font-smoothing: antialiased;

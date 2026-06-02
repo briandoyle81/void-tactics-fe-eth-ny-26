@@ -40,6 +40,7 @@ import { GameEvents } from "./GameEvents";
 import { getScriptedStateForTutorialStepId } from "../data/tutorialScriptedStates";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import ShipCard from "./ShipCard";
+import { ShipImage } from "./ShipImage";
 import {
   GAME_VIEW_SIDE_ROOT_CLASS,
   useGameViewChromeLayout,
@@ -399,6 +400,7 @@ export function SimulatedGameDisplay({
   const [mobileLeftPanelTab, setMobileLeftPanelTab] = useState<
     "tutorial" | "status" | "actions" | "events"
   >("tutorial");
+  const [showFleetModal, setShowFleetModal] = useState(false);
   const [isMobileFleetModalOpen, setIsMobileFleetModalOpen] = useState(false);
   const [isMobileWeaponMenuOpen, setIsMobileWeaponMenuOpen] = useState(false);
   const [isMobileFleeOpen, setIsMobileFleeOpen] = useState(false);
@@ -3133,14 +3135,15 @@ export function SimulatedGameDisplay({
                 ) : null}
                 {mobileLeftPanelTab === "status" ? (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
-                        <span className="text-text-muted">Me </span>
-                        <span className="font-mono text-white">{myScore}/{maxScore}</span>
+                    <div className="flex items-stretch border border-solid overflow-hidden text-xs" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
+                      <div className="flex items-center gap-1.5 px-1.5 py-1">
+                        <span className="material-symbols-outlined leading-none" style={{ fontSize: 13, color: "var(--color-cyan)" }}>person</span>
+                        <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
                       </div>
-                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
-                        <span className="text-text-muted">Opp </span>
-                        <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
+                      <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
+                      <div className="flex items-center gap-1.5 px-1.5 py-1">
+                        <span className="material-symbols-outlined leading-none" style={{ fontSize: 13, color: "var(--color-warning-red)" }}>person</span>
+                        <span className="font-mono" style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
                       </div>
                     </div>
                   </div>
@@ -3731,156 +3734,133 @@ export function SimulatedGameDisplay({
                 chromeOnSide ? "flex flex-col gap-2" : "flex items-start gap-6"
               }
             >
-              <div className="flex flex-col">
-                <h1 className="text-2xl font-mono text-white flex items-center gap-3">
-                  <span>Game 0</span>
-                  <span className="text-text-muted text-base">
-                    Round {gameState.turnState.currentRound.toString()}
+              <div className="flex flex-col gap-3">
+                {/* Meta strip */}
+                <div className="flex items-center gap-2 border-b border-solid pb-2" style={{ borderColor: "var(--color-gunmetal)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+                  <span className="font-bold uppercase tracking-wider" style={{ fontSize: 17, color: "var(--color-text-primary)" }}>GAME 0</span>
+                  <span style={{ color: "var(--color-text-muted)" }}>·</span>
+                  <span className="uppercase tracking-wide" style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
+                    RND {gameState.turnState.currentRound.toString()}
                   </span>
-                </h1>
+                </div>
                 {/* Turn indicator · 99:99 and static bar (no countdown in tutorial) */}
-                <div className="flex flex-col gap-1.5">
-                  <div
-                    className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: isMyTurn
-                          ? "var(--color-cyan)"
-                          : "var(--color-warning-red)",
-                      }}
-                    >
+                <div className="flex flex-col gap-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
                       {isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
                     </span>
-                    <span style={{ color: "var(--color-text-muted)" }}>•</span>
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: isMyTurn
-                          ? "var(--color-cyan)"
-                          : "var(--color-warning-red)",
-                      }}
-                    >
+                    <span className="text-sm" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
                       99:99
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex-1 h-1.5 overflow-hidden"
-                      style={{
-                        backgroundColor: "var(--color-gunmetal)",
-                        borderRadius: 0,
-                      }}
-                    >
-                      <div
-                        className="h-full"
-                        style={{
-                          width: "100%",
-                          backgroundColor: isMyTurn
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                          borderRadius: 0,
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <div className="mt-2 h-px" style={{ backgroundColor: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }} />
                 </div>
               </div>
               {/* Score grouped with game/round (same conceptual row as in reference) */}
               <div
                 className={
                   chromeOnSide
-                    ? `w-full shrink-0 border border-solid p-2 text-lg ${
-                        currentStep?.id === "goals"
-                          ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                          : ""
-                      }`
-                    : `w-48 shrink-0 border border-solid p-2 text-lg ${
-                        currentStep?.id === "goals"
-                          ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                          : ""
-                      }`
+                    ? `w-full shrink-0 border border-solid overflow-hidden ${currentStep?.id === "goals" ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}`
+                    : `w-48 shrink-0 border border-solid overflow-hidden ${currentStep?.id === "goals" ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}`
                 }
                 style={{
-                  backgroundColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-steel)"
-                      : "var(--color-slate)",
-                  borderColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-gunmetal)",
-                  borderTopColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-steel)",
-                  borderLeftColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-steel)",
+                  backgroundColor: currentStep?.id === "goals" ? "var(--color-steel)" : "var(--color-slate)",
+                  borderColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-gunmetal)",
+                  borderTopColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-steel)",
+                  borderLeftColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-steel)",
                   borderRadius: 0,
                 }}
               >
-                <div className="space-y-0.5">
-                  <div className="flex justify-between">
-                    <span
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-secondary)",
-                        fontSize: "14px",
-                      }}
-                    >
-                      My Score:
-                    </span>
-                    <span
-                      title="Scores update at end of round."
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-primary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {gameState.creatorScore.toString()}/
-                      {gameState.maxScore.toString()}
-                    </span>
+                <div className="flex items-stretch" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: "22px" }}>
+                  <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
+                    <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.creatorScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-secondary)",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Opponent:
-                    </span>
-                    <span
-                      title="Scores update at end of round."
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-primary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {gameState.joinerScore.toString()}/
-                      {gameState.maxScore.toString()}
-                    </span>
+                  <div style={{ width: 1, backgroundColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-gunmetal)", flexShrink: 0 }} />
+                  <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-warning-red)" }}>person</span>
+                    <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.joinerScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Fleet status panel */}
+          {chromeOnSide && (() => {
+            const myIds = gameState.creatorActiveShipIds;
+            const enemyIds = gameState.joinerActiveShipIds;
+
+            const allShips: { shipId: string; teamColor: string; flip: boolean }[] = [
+              ...myIds.map((id) => ({ shipId: id, teamColor: "var(--color-cyan)", flip: true })),
+              ...enemyIds.map((id) => ({ shipId: id, teamColor: "var(--color-warning-red)", flip: false })),
+            ];
+
+            return (
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFleetModal(true)}
+                      className="border border-solid px-1.5 py-0.5 uppercase tracking-wider transition-colors"
+                      style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                    >
+                      [DETAILS]
+                    </button>
+                  </div>
+                  <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 10, color: "var(--color-text-muted)" }}>
+                    <span style={{ color: "var(--color-cyan)" }}>{myIds.length}</span>
+                    <span style={{ color: "var(--color-text-muted)" }}> vs </span>
+                    <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </span>
+                </div>
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                  {allShips.map(({ shipId, teamColor, flip }) => {
+                    const id = Number(shipId);
+                    const ship = shipMap.get(id);
+                    const attrs = getShipAttributes(id);
+                    const hasMoved = movedShipIdsSet.has(shipId);
+                    const isSOS = !!attrs && attrs.hullPoints === 0;
+                    const hpPct = attrs && attrs.maxHullPoints > 0
+                      ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
+                      : 0;
+                    const shipPos = gameState.shipPositions.find((sp) => sp.shipId === shipId);
+                    return (
+                      <div
+                        key={shipId}
+                        className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
+                        style={{ opacity: hasMoved ? 0.45 : 1 }}
+                        onClick={() => setSelectedShipId(id)}
+                        onMouseEnter={() => shipPos && setHoveredCell({ shipId: id, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator })}
+                        onMouseLeave={() => setHoveredCell(null)}
+                      >
+                        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${isSOS ? "var(--color-warning-red)" : teamColor}` }}>
+                          {ship && (
+                            <ShipImage
+                              ship={ship}
+                              className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
+                              showLoadingState={false}
+                              hideRankStars
+                            />
+                          )}
+                          {isSOS && <div className="absolute inset-0 bg-warning-red/15 animate-pulse pointer-events-none" />}
+                          {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
+                        </div>
+                        <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: isSOS ? "var(--color-warning-red)" : "var(--color-text-secondary)" }}>
+                          {ship?.name ?? `#${shipId}`}
+                        </span>
+                        <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
+                          <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: isSOS ? "var(--color-warning-red)" : teamColor, transition: "width 0.3s ease" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Proposed Move panel: Submit/Cancel on top; below that, ship + targets.
             Shown when an owned ship is selected and eligible to act this round. */}
@@ -4277,18 +4257,30 @@ export function SimulatedGameDisplay({
         </div>
       </div>
 
-      {/* Ship Details panel - mirror live game fleet layout using tutorial data */}
-      {!isLandscapeMobile && (
+      {/* Fleet Details Modal */}
+      {showFleetModal && (
         <div
-          className="p-4 border border-solid w-full"
-          style={{
-            backgroundColor: "var(--color-slate)",
-            borderColor: "var(--color-gunmetal)",
-            borderTopColor: "var(--color-steel)",
-            borderLeftColor: "var(--color-steel)",
-            borderRadius: 0,
-          }}
+          className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto p-4"
+          style={{ backgroundColor: "rgba(12, 17, 23, 0.85)" }}
+          onClick={() => setShowFleetModal(false)}
         >
+          <div
+            className="relative w-[90%] my-4 border border-solid p-4"
+            style={{ backgroundColor: "var(--color-slate)", borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", borderRadius: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowFleetModal(false)}
+              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center border border-solid"
+              style={{ color: "var(--color-warning-red)", borderColor: "var(--color-warning-red)", backgroundColor: "var(--color-near-black)", borderRadius: 0, fontSize: 14, lineHeight: 1 }}
+              aria-label="Close fleet details"
+            >
+              ✕
+            </button>
+            <div className="mb-4">
+              <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
+            </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* My Fleet - Left (tutorial player) */}
           <div>
@@ -4428,6 +4420,7 @@ export function SimulatedGameDisplay({
                 );
               })}
             </div>
+          </div>
           </div>
           </div>
         </div>

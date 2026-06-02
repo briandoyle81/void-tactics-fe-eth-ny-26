@@ -43,7 +43,7 @@ export default function SpectatorGamePage({
   return (
     <div
       className="flex min-h-screen flex-col"
-      style={{ backgroundColor: "var(--color-near-black)" }}
+      style={{ backgroundColor: "var(--game-bg-override, var(--color-near-black))" }}
     >
       <div className="shrink-0">
         <FlowWalletNoticeBar />
