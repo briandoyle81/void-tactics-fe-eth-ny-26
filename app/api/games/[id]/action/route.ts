@@ -56,12 +56,14 @@ function applyShootDamage(
 
   let newCreatorActive = [...state.creatorActiveShipIds];
   let newJoinerActive = [...state.joinerActiveShipIds];
+  let newPositions = state.shipPositions;
   if (targetAttrs.reactorCriticalTimer >= 3) {
     newCreatorActive = newCreatorActive.filter((id) => id !== targetShipId);
     newJoinerActive = newJoinerActive.filter((id) => id !== targetShipId);
+    newPositions = newPositions.filter((p) => p.shipId !== targetShipId);
   }
 
-  return { ...state, shipAttributes: newAttrs, creatorActiveShipIds: newCreatorActive, joinerActiveShipIds: newJoinerActive };
+  return { ...state, shipAttributes: newAttrs, shipPositions: newPositions, creatorActiveShipIds: newCreatorActive, joinerActiveShipIds: newJoinerActive };
 }
 
 const TIE_ADDR = "0x0000000000000000000000000000000000000001";
@@ -249,6 +251,7 @@ export async function POST(
             newState = {
               ...newState,
               shipAttributes: newAttrs,
+              shipPositions: newState.shipPositions.filter((p) => p.shipId !== targetShipId),
               creatorActiveShipIds: newState.creatorActiveShipIds.filter((id) => id !== targetShipId),
               joinerActiveShipIds: newState.joinerActiveShipIds.filter((id) => id !== targetShipId),
             };

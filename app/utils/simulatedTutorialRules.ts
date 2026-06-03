@@ -155,45 +155,30 @@ export function applyTutorialAction(
         );
         if (attackerIndex !== -1) {
           const attackerAttrs = newState.shipAttributes[attackerIndex];
-          const baseDamage = attackerAttrs.gunDamage;
-          const damageReductionPercent = targetAttrs.damageReduction;
-          const reducedDamage = Math.max(
-            1,
-            baseDamage -
-              Math.floor((baseDamage * damageReductionPercent) / 100),
-          );
+          const wasAlreadyDisabled = targetAttrs.hullPoints === 0;
 
-          targetAttrs.hullPoints = Math.max(
-            0,
-            targetAttrs.hullPoints - reducedDamage,
-          );
-
-          if (
-            targetAttrs.hullPoints === 0 &&
-            targetAttrs.reactorCriticalTimer === 0
-          ) {
-            targetAttrs.reactorCriticalTimer = 3;
-          }
-
-          if (
-            targetAttrs.hullPoints === 0 &&
-            targetAttrs.reactorCriticalTimer > 0
-          ) {
-            targetAttrs.reactorCriticalTimer = 0;
-            if (
-              newState.creatorActiveShipIds.includes(action.targetShipId)
-            ) {
-              newState.creatorActiveShipIds =
-                newState.creatorActiveShipIds.filter(
-                  (id) => id !== action.targetShipId,
-                );
-            } else if (
-              newState.joinerActiveShipIds.includes(action.targetShipId)
-            ) {
-              newState.joinerActiveShipIds =
-                newState.joinerActiveShipIds.filter(
-                  (id) => id !== action.targetShipId,
-                );
+          if (!wasAlreadyDisabled) {
+            const baseDamage = attackerAttrs.gunDamage;
+            const damageReductionPercent = targetAttrs.damageReduction;
+            const reducedDamage = Math.max(
+              1,
+              baseDamage -
+                Math.floor((baseDamage * damageReductionPercent) / 100),
+            );
+            targetAttrs.hullPoints = Math.max(0, targetAttrs.hullPoints - reducedDamage);
+          } else {
+            // Shooting an already-disabled ship increments its reactor timer
+            targetAttrs.reactorCriticalTimer = (targetAttrs.reactorCriticalTimer || 0) + 1;
+            if (targetAttrs.reactorCriticalTimer >= 3) {
+              newState.creatorActiveShipIds = newState.creatorActiveShipIds.filter(
+                (id) => id !== action.targetShipId,
+              );
+              newState.joinerActiveShipIds = newState.joinerActiveShipIds.filter(
+                (id) => id !== action.targetShipId,
+              );
+              newState.shipPositions = newState.shipPositions.filter(
+                (p) => p.shipId !== action.targetShipId,
+              );
             }
           }
 
