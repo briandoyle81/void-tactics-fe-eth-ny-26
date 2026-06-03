@@ -110,7 +110,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     mouseX: number;
     mouseY: number;
     isCreator: boolean;
+    fromFleet?: boolean;
   } | null>(null);
+
+  // Result overlay: shown when game ends or when opening a finished game; dismissed by clicking.
+  const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false);
 
   // Drag and drop state
   const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
@@ -160,6 +164,15 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Use the fetched game data if available, otherwise fall back to initial game
   const game = gameData || initialGame;
+
+  // Reset result overlay whenever the game transitions to a finished state in this session.
+  const prevWinnerRef = React.useRef(game.metadata.winner);
+  React.useEffect(() => {
+    if (game.metadata.winner !== ZERO_ADDR && prevWinnerRef.current === ZERO_ADDR) {
+      setResultOverlayDismissed(false);
+    }
+    prevWinnerRef.current = game.metadata.winner;
+  }, [game.metadata.winner]);
 
   // ── Replay ──────────────────────────────────────────────────────────────────
   type ReplayTurn = {
@@ -397,8 +410,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [optimisticLastMove, setOptimisticLastMove] = React.useState<
     LastMove | null
   >(null);
-  const displayedLastMove: LastMove | undefined =
-    optimisticLastMove ?? game.lastMove;
+  const displayedLastMove: LastMove | undefined = isReplaying
+    ? (replaySnapshotGame?.lastMove ?? undefined)
+    : (optimisticLastMove ?? game.lastMove);
 
   // Subscribe to SSE for real-time opponent move updates
   useGameStream(Number(initialGame.metadata.gameId), !readOnly);
@@ -2028,8 +2042,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // - They have a ship selected, OR
   // - It's their turn AND they have proposed but not submitted a move
   const shouldShowLastMove = React.useMemo(() => {
-    // Don't show if game is won
-    if (game.metadata.winner !== ZERO_ADDR) {
+    // Don't show if game is won (use displayGame so replay of finished games still works)
+    if (displayGame.metadata.winner !== ZERO_ADDR) {
       return false;
     }
 
@@ -2062,8 +2076,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       return true;
     }
 
-    // Verify the ship is actually at the new position in the current game state
-    const currentPosition = game.shipPositions.find(
+    // Verify the ship is actually at the new position in the current (or snapshot) game state
+    const currentPosition = displayGame.shipPositions.find(
       (pos) => pos.shipId === displayedLastMove.shipId,
     );
     if (
@@ -2076,10 +2090,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
     return false;
   }, [
-    game.metadata.winner,
+    displayGame.metadata.winner,
+    displayGame.shipPositions,
     displayedLastMove,
     optimisticLastMove,
-    game.shipPositions,
     selectedShipId,
     shipMap,
   ]);
@@ -2087,7 +2101,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Last-move arrow, borders, and replay overlays: same visibility as ghost tiles.
   // Hide whenever any ship is selected so the grid focuses on the active selection.
   const shouldShowLastMoveOnGrid = React.useMemo(() => {
-    if (game.metadata.winner !== ZERO_ADDR) {
+    if (displayGame.metadata.winner !== ZERO_ADDR) {
       return false;
     }
     if (!displayedLastMove || displayedLastMove.shipId === 0) {
@@ -2106,7 +2120,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (optimisticLastMove) {
       return true;
     }
-    const currentPosition = game.shipPositions.find(
+    const currentPosition = displayGame.shipPositions.find(
       (pos) => pos.shipId === displayedLastMove.shipId,
     );
     if (
@@ -2118,10 +2132,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
     return false;
   }, [
-    game.metadata.winner,
+    displayGame.metadata.winner,
+    displayGame.shipPositions,
     displayedLastMove,
     optimisticLastMove,
-    game.shipPositions,
     shipMap,
     selectedShipId,
   ]);
@@ -3540,7 +3554,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       hoverValidTargets={hoverValidTargets}
                       onMoveTileHover={setHoverPreviewPosition}
                       showConfirmWidget={showConfirmWidget}
-                      confirmWidgetLabel={computedActionType === ActionType.Pass ? "HOLD FIRE" : "SUBMIT"}
+                      confirmWidgetLabel={
+                        computedActionType === ActionType.Pass ? "HOLD FIRE"
+                          : computedActionType === ActionType.Ram ? "RAM"
+                          : (selectedWeaponType === "special" && specialType === 2 && targetShipId != null) ? "REPAIR"
+                          : (targetShipId != null && targetShipId !== 0) ? "FIRE"
+                          : "SUBMIT"
+                      }
                       onConfirmMove={handleSubmitAction}
                       onCancelMove={handleCancelMove}
                     />
@@ -4020,10 +4040,59 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             const myIds = isCreator ? displayGame.creatorActiveShipIds : displayGame.joinerActiveShipIds;
             const enemyIds = isCreator ? displayGame.joinerActiveShipIds : displayGame.creatorActiveShipIds;
 
-            const allShips: { shipId: number; teamColor: string; flip: boolean }[] = [
-              ...myIds.map((id) => ({ shipId: id, teamColor: "var(--color-cyan)", flip: isCreator })),
-              ...enemyIds.map((id) => ({ shipId: id, teamColor: "var(--color-warning-red)", flip: !isCreator })),
-            ];
+            const renderCard = (shipId: number, teamColor: string, flip: boolean) => {
+              const ship = shipMap.get(shipId);
+              const attrs = getShipAttributes(shipId);
+              const hasMoved = movedShipIdsSet.has(shipId);
+              const isSOS = !!attrs && attrs.hullPoints === 0;
+              const hpPct = attrs && attrs.maxHullPoints > 0
+                ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
+                : 0;
+              const shipPos = displayGame.shipPositions.find((sp) => sp.shipId === shipId);
+              const isHoveredFromGrid = hoveredCell?.shipId === shipId;
+              const isSelectedInGrid = selectedShipId === shipId;
+              return (
+                <div
+                  key={shipId}
+                  className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
+                  style={{ opacity: hasMoved ? 0.45 : 1 }}
+                  onClick={() => setSelectedShipId(shipId)}
+                  onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator, fromFleet: true })}
+                  onMouseLeave={() => setHoveredCell(null)}
+                >
+                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${teamColor}`, outline: isSelectedInGrid ? `2px solid ${teamColor}` : isHoveredFromGrid ? `1px solid ${teamColor}` : undefined, outlineOffset: "2px" }}>
+                    {ship && (
+                      <ShipImage
+                        ship={ship}
+                        className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
+                        showLoadingState={false}
+                        hideRankStars
+                      />
+                    )}
+                    {isSOS && (
+                      <>
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100">
+                          <line x1="8" y1="8" x2="92" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                          <line x1="92" y1="8" x2="8" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                        </svg>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0.5 z-20 flex items-center justify-center pointer-events-none" title="Disabled (0 HP)">
+                          <div className="px-1 py-0.5 flex items-center justify-center bg-warning-red/60 border border-warning-red">
+                            <span className="text-xs leading-none font-mono text-white">[SOS]</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
+                  </div>
+                  <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-text-secondary)" }}>
+                    {ship?.name ?? `#${shipId}`}
+                  </span>
+                  <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
+                    <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: teamColor, transition: "width 0.3s ease" }} />
+                  </div>
+                </div>
+              );
+            };
 
             return (
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
@@ -4045,46 +4114,31 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
                   </span>
                 </div>
-                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-                  {allShips.map(({ shipId, teamColor, flip }) => {
-                    const ship = shipMap.get(shipId);
-                    const attrs = getShipAttributes(shipId);
-                    const hasMoved = movedShipIdsSet.has(shipId);
-                    const isSOS = !!attrs && attrs.hullPoints === 0;
-                    const hpPct = attrs && attrs.maxHullPoints > 0
-                      ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
-                      : 0;
-                    const shipPos = displayGame.shipPositions.find((sp) => sp.shipId === shipId);
-                    return (
-                      <div
-                        key={shipId}
-                        className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
-                        style={{ opacity: hasMoved ? 0.45 : 1 }}
-                        onClick={() => setSelectedShipId(shipId)}
-                        onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator })}
-                        onMouseLeave={() => setHoveredCell(null)}
-                      >
-                        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${isSOS ? "var(--color-warning-red)" : teamColor}` }}>
-                          {ship && (
-                            <ShipImage
-                              ship={ship}
-                              className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
-                              showLoadingState={false}
-                              hideRankStars
-                            />
-                          )}
-                          {isSOS && <div className="absolute inset-0 bg-warning-red/15 animate-pulse pointer-events-none" />}
-                          {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
-                        </div>
-                        <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: isSOS ? "var(--color-warning-red)" : "var(--color-text-secondary)" }}>
-                          {ship?.name ?? `#${shipId}`}
-                        </span>
-                        <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
-                          <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: isSOS ? "var(--color-warning-red)" : teamColor, transition: "width 0.3s ease" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                {/* My Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-cyan)", opacity: 0.25 }} />
+                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {myIds.map((id) => renderCard(id, "var(--color-cyan)", isCreator))}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, backgroundColor: "var(--color-gunmetal)" }} />
+
+                {/* Opponent Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-warning-red)", opacity: 0.25 }} />
+                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", !isCreator))}
+                  </div>
                 </div>
               </div>
             );
@@ -4183,7 +4237,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           hoverValidTargets={hoverValidTargets}
           onMoveTileHover={setHoverPreviewPosition}
           showConfirmWidget={showConfirmWidget}
-          confirmWidgetLabel={computedActionType === ActionType.Pass ? "HOLD FIRE" : "SUBMIT"}
+          confirmWidgetLabel={
+            computedActionType === ActionType.Pass ? "HOLD FIRE"
+              : computedActionType === ActionType.Ram ? "RAM"
+              : (selectedWeaponType === "special" && specialType === 2 && targetShipId != null) ? "REPAIR"
+              : (targetShipId != null && targetShipId !== 0) ? "FIRE"
+              : "SUBMIT"
+          }
           onConfirmMove={handleSubmitAction}
           onCancelMove={handleCancelMove}
         />
@@ -4997,6 +5057,68 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </button>
         </div>
       )}
+      {/* Victory / Defeat overlay */}
+      {game.metadata.winner !== ZERO_ADDR && !resultOverlayDismissed && (() => {
+        const isVictory = game.metadata.winner === address;
+        const isDraw = game.metadata.winner === TIE_ADDR;
+        const resultColor = isVictory || isDraw
+          ? "var(--color-cyan)"
+          : "var(--color-warning-red)";
+        const resultText = isDraw ? "DRAW" : isVictory ? "VICTORY" : "DEFEAT";
+        const sublabel = isDraw
+          ? "ENGAGEMENT CONCLUDED — STALEMATE"
+          : isVictory
+            ? "ENGAGEMENT CONCLUDED — SITE SECURED"
+            : "ENGAGEMENT CONCLUDED — SITE LOST";
+        const glowColor = isVictory || isDraw
+          ? "rgba(86,214,255,0.35)"
+          : "rgba(255,77,77,0.35)";
+
+        return (
+          <div
+            className="fixed inset-0 z-[600] flex items-center justify-center cursor-pointer animate-result-overlay"
+            style={{ backgroundColor: "rgba(6, 10, 18, 0.92)" }}
+            onClick={() => setResultOverlayDismissed(true)}
+          >
+            <div className="relative flex flex-col items-center px-10 py-8 animate-result-title" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+              {/* Corner decorations */}
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2" style={{ borderColor: resultColor }} />
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2" style={{ borderColor: resultColor }} />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2" style={{ borderColor: resultColor }} />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2" style={{ borderColor: resultColor }} />
+
+              {/* Top rule */}
+              <div className="flex items-center gap-4 w-full mb-6">
+                <div className="flex-1 h-px" style={{ backgroundColor: resultColor, opacity: 0.4 }} />
+                <span className="text-xs tracking-[0.3em] uppercase" style={{ color: resultColor, fontFamily: "var(--font-jetbrains-mono), monospace", opacity: 0.7 }}>
+                  COMBAT RESULT
+                </span>
+                <div className="flex-1 h-px" style={{ backgroundColor: resultColor, opacity: 0.4 }} />
+              </div>
+
+              {/* Main title */}
+              <div
+                className="text-7xl sm:text-8xl font-black tracking-[0.12em] uppercase leading-none"
+                style={{ color: resultColor, textShadow: `0 0 60px ${glowColor}, 0 0 20px ${glowColor}` }}
+              >
+                {resultText}
+              </div>
+
+              {/* Bottom rule + sublabel */}
+              <div className="animate-result-sub w-full">
+                <div className="w-full h-px mt-6 mb-4" style={{ backgroundColor: resultColor, opacity: 0.4 }} />
+                <p className="text-center text-xs tracking-[0.18em] uppercase mb-6" style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+                  {sublabel}
+                </p>
+                <p className="text-center text-xs tracking-[0.3em] uppercase" style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+                  CLICK TO DISMISS
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 };

@@ -688,6 +688,19 @@ body::before {
   animation: victory-claim-flash 1.4s ease-in-out infinite;
 }
 
+/* Victory / Defeat result overlay */
+@keyframes result-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes result-title-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-result-overlay { animation: result-overlay-in 0.35s ease-out forwards; }
+.animate-result-title   { animation: result-title-in 0.45s ease-out 0.1s  both; }
+.animate-result-sub     { animation: result-title-in 0.45s ease-out 0.25s both; }
+
 /* Mobile portrait → landscape rotation hint */
 @keyframes phone-rotate {
   0%, 20% { transform: rotate(0deg); }

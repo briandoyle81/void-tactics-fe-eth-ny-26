@@ -52,7 +52,7 @@ export function LaserShootingAnimation({
     const ch = rect.height / 11;
     return {
       x: center.x + (facingRight ? cw * 0.08 : -cw * 0.08),
-      y: center.y + (facingRight ? -ch * 0.15 : 0),
+      y: center.y - ch * 0.15,
     };
   }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
 

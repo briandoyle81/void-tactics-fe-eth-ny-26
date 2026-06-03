@@ -211,6 +211,7 @@ interface GameGridProps {
     mouseX: number;
     mouseY: number;
     isCreator: boolean;
+    fromFleet?: boolean;
   } | null;
   draggedShipId: number | null;
   dragOverCell: { row: number; col: number } | null;
@@ -392,7 +393,7 @@ export function GameGrid({
   // Effective "drag-like" preview: real drag destination OR hovered movement tile (when no committed
   // previewPosition — the click path already drives all visuals via previewPosition).
   const effectiveDragCell = (draggedShipId && dragOverCell) ? dragOverCell
-    : (selectedShipId !== null && !previewPosition ? hoveredMoveTile : null);
+    : (selectedShipId !== null && !previewPosition && retreatPrepShipId == null ? hoveredMoveTile : null);
   const effectiveDragShipId = draggedShipId ?? (effectiveDragCell ? selectedShipId : null);
   const effectiveShootingRange = effectiveDragCell
     ? (draggedShipId ? dragShootingRange : hoverShootingRange)
@@ -807,25 +808,39 @@ export function GameGrid({
   const confirmWidgetAnchor = React.useMemo(() => {
     if (!showConfirmWidget) return null;
 
-    // Resolve the anchor cell: staged destination, or target ship, or selected ship's current cell
+    // Resolve the anchor cell: target ship always wins when one is selected,
+    // otherwise fall back to staged destination, then selected ship's current cell.
     let destRow = 0, destCol = 0;
-    if (previewPosition) {
+    const hasRealTarget = targetShipId != null && targetShipId !== 0;
+    if (hasRealTarget) {
+      let found = false;
+      outer0: for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          if (grid[r][c]?.shipId === targetShipId) {
+            destRow = r; destCol = c; found = true; break outer0;
+          }
+        }
+      }
+      if (!found && allShipPositions) {
+        const sp = allShipPositions.find((p) => p.shipId === targetShipId);
+        if (sp) { destRow = sp.position.row; destCol = sp.position.col; found = true; }
+      }
+      if (!found) return null;
+    } else if (previewPosition) {
       destRow = previewPosition.row;
       destCol = previewPosition.col;
     } else {
-      // No move staged — anchor to target ship if one is selected, else selected ship
       let found = false;
-      const anchorId = (targetShipId && targetShipId !== 0) ? targetShipId : selectedShipId;
-      if (anchorId) {
+      if (selectedShipId) {
         outer0: for (let r = 0; r < grid.length; r++) {
           for (let c = 0; c < grid[r].length; c++) {
-            if (grid[r][c]?.shipId === anchorId) {
+            if (grid[r][c]?.shipId === selectedShipId) {
               destRow = r; destCol = c; found = true; break outer0;
             }
           }
         }
         if (!found && allShipPositions) {
-          const sp = allShipPositions.find((p) => p.shipId === anchorId);
+          const sp = allShipPositions.find((p) => p.shipId === selectedShipId);
           if (sp) { destRow = sp.position.row; destCol = sp.position.col; found = true; }
         }
       }
@@ -966,6 +981,12 @@ export function GameGrid({
       setDragOverCell,
     ],
   );
+
+  const isHoveringValidTarget =
+    hoveredCell !== null &&
+    !hoveredCell.fromFleet &&
+    validTargets.some((t) => t.shipId === hoveredCell.shipId);
+
 
   return (
     <>
@@ -1369,6 +1390,16 @@ export function GameGrid({
                   return true;
                 })();
 
+                const isHidingDestinationPreview =
+                  isHoveringValidTarget && (
+                    (previewPosition !== null &&
+                      rowIndex === previewPosition.row &&
+                      colIndex === previewPosition.col) ||
+                    (effectiveDragCell !== null &&
+                      rowIndex === effectiveDragCell.row &&
+                      colIndex === effectiveDragCell.col)
+                  );
+
                 return (
                   <div
                     key={`cell-${rowIndex}-${colIndex}`}
@@ -1383,15 +1414,14 @@ export function GameGrid({
                     } outline outline-1 outline-near-black relative cursor-pointer ${(() => {
                       // Check if this is the "from" position (original position when proposing a move)
                       const isProposedMoveOriginal =
-                        selectedShipId === cell?.shipId && previewPosition;
+                        selectedShipId === cell?.shipId && previewPosition && !isHidingDestinationPreview && !cell?.isPreview;
                       // Check if this is the "to" position (preview cell)
                       const isProposedMovePreview =
                         cell?.isPreview &&
                         previewPosition !== null &&
                         selectedShipId !== null;
-
                       // Show blue background for "from" or "to" positions
-                      if (isProposedMoveOriginal || isProposedMovePreview) {
+                      if (isProposedMoveOriginal || (isProposedMovePreview && !isHidingDestinationPreview)) {
                         // Add blue background, but still need to handle other conditions
                         const baseBg = canMoveShip
                           ? "bg-cyan/20 ring-2 ring-inset ring-cyan"
@@ -1423,7 +1453,10 @@ export function GameGrid({
                       }
 
                       // Otherwise, apply normal selected styling
-                      if (isSelected) {
+                      if (isSelected && !isHidingDestinationPreview) {
+                        if (cell && !isShipOwnedByCurrentPlayer(cell.shipId)) {
+                          return "bg-warning-red/20 ring-8 ring-inset ring-warning-red";
+                        }
                         return canMoveShip
                           ? "bg-cyan/20 ring-2 ring-inset ring-cyan"
                           : "bg-purple/20 ring-2 ring-inset ring-purple";
@@ -1464,13 +1497,13 @@ export function GameGrid({
                               ? specialType === 3 // Flak
                                 ? "bg-warning-red/10 ring-1 ring-inset ring-warning-red" // Flak
                                 : "bg-cyan/10 ring-1 ring-inset ring-cyan" // Other specials
-                              : "bg-amber/10 ring-1 ring-inset ring-amber"
+                              : "bg-warning-red/10 ring-4 ring-inset ring-warning-red"
                             : isAssistableTarget
                               ? "bg-cyan/10 ring-1 ring-inset ring-cyan"
                               : isMovementTile
                                 ? "bg-phosphor-green/10"
                                 : "bg-near-black";
-                    })()}`}
+                    })()} ${hoveredCell?.fromFleet && hoveredCell.shipId === cell?.shipId ? isShipOwnedByCurrentPlayer(hoveredCell.shipId) ? "ring-2 ring-inset ring-cyan" : "ring-2 ring-inset ring-warning-red" : ""}`}
                     onClick={handleCellClick}
                     onMouseEnter={
                       shouldRenderShipContent
@@ -1639,6 +1672,24 @@ export function GameGrid({
                       }`} />
                     )}
 
+                    {/* Targeting reticle — corner brackets on the locked-on target cell */}
+                    {isSelectedTarget && (
+                      <div className="pointer-events-none absolute inset-0 z-[14]" aria-hidden>
+                        {(() => {
+                          const isRepair = selectedWeaponType === "special" && specialType === 2;
+                          const color = isRepair ? "var(--color-cyan)" : "var(--color-warning-red)";
+                          return (
+                            <svg viewBox="0 0 100 100" className="h-full w-full" style={{ overflow: "visible" }}>
+                              <path d="M-4,18 L-4,-4 L18,-4"     fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="square" />
+                              <path d="M82,-4 L104,-4 L104,18"   fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="square" />
+                              <path d="M-4,82 L-4,104 L18,104"   fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="square" />
+                              <path d="M82,104 L104,104 L104,82" fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="square" />
+                            </svg>
+                          );
+                        })()}
+                      </div>
+                    )}
+
                     {/* Drag/hover range highlight - show range from drag or hovered movement tile */}
                     {effectiveDragCell && (
                       <>
@@ -1653,7 +1704,8 @@ export function GameGrid({
                         )}
                         {/* Green outline on the drag/hover destination cell */}
                         {effectiveDragCell.row === rowIndex &&
-                          effectiveDragCell.col === colIndex && (
+                          effectiveDragCell.col === colIndex &&
+                          !isHidingDestinationPreview && (
                             <div className="absolute inset-0 z-[4] border-4 border-phosphor-green bg-phosphor-green/10 pointer-events-none" />
                           )}
                       </>
@@ -1722,7 +1774,7 @@ export function GameGrid({
                     {isTutorialHighlightCell && (
                       <div className="absolute inset-0 z-[11] pointer-events-none border border-amber/90 bg-amber/24 animate-pulse" />
                     )}
-                    {shouldRenderShipContent && ship ? (
+                    {shouldRenderShipContent && ship && !isHidingDestinationPreview ? (
                       <>
                       <div
                         className="w-full h-full relative z-[12]"
@@ -2418,7 +2470,7 @@ export function GameGrid({
             {(() => {
                 const proposedDestination = effectiveDragCell ?? previewPosition;
                 const useProposedMoveArrow =
-                  selectedShipId !== null && proposedDestination !== null;
+                  selectedShipId !== null && proposedDestination !== null && !isHoveringValidTarget && retreatPrepShipId == null;
 
                 const lastMoveHasPath =
                   lastMoveOldPosition != null &&
@@ -2613,7 +2665,7 @@ export function GameGrid({
             {/* Laser Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
               directedWeaponBeamTargetId &&
-              selectedWeaponType === "weapon" &&
+              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -2696,8 +2748,8 @@ export function GameGrid({
 
             {/* Missile Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
-              targetShipId &&
-              selectedWeaponType === "weapon" &&
+              directedWeaponBeamTargetId &&
+              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -2767,7 +2819,7 @@ export function GameGrid({
             {/* Plasma Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
               directedWeaponBeamTargetId &&
-              selectedWeaponType === "weapon" &&
+              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -2840,7 +2892,7 @@ export function GameGrid({
             {/* Railgun Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
               directedWeaponBeamTargetId &&
-              selectedWeaponType === "weapon" &&
+              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -3545,8 +3597,12 @@ export function GameGrid({
               const shipRight = vb.right - cr.left;
               const shipBottom = vb.bottom - cr.top;
 
-              const mouseX = hoveredCell.mouseX - cr.left;
-              const mouseY = hoveredCell.mouseY - cr.top;
+              const mouseX = hoveredCell.fromFleet
+                ? (shipLeft + shipRight) / 2
+                : hoveredCell.mouseX - cr.left;
+              const mouseY = hoveredCell.fromFleet
+                ? (shipTop + shipBottom) / 2
+                : hoveredCell.mouseY - cr.top;
 
               let tooltipLeft = mouseX + offset;
               let tooltipTop = mouseY + offset;
@@ -3658,9 +3714,11 @@ export function GameGrid({
               );
             })()}
 
-          {/* Floating weapon selector — appears above selected ship before a move is staged */}
+          {/* Floating weapon selector — appears above selected ship; stays visible when targeting */}
           {(() => {
-            if (showConfirmWidget) return null; // confirm widget handles this case
+            const hasRealTarget = targetShipId != null && targetShipId !== 0;
+            // Hide only when confirm widget is showing without a real target (confirm widget embeds selector then)
+            if (showConfirmWidget && !hasRealTarget) return null;
             if (!selectedShipId || !isCurrentPlayerTurn) return null;
             if (!isShipOwnedByCurrentPlayer(selectedShipId)) return null;
             if (isRammingMovePreview) return null;
@@ -3697,9 +3755,10 @@ export function GameGrid({
             ];
             if (weapons.length <= 1) return null; // only one option — nothing to choose
 
-            // Anchor to hover destination when active, otherwise to the ship's current cell.
-            const anchorRow = hoveredMoveTile ? hoveredMoveTile.row : shipRow;
-            const anchorCol = hoveredMoveTile ? hoveredMoveTile.col : shipCol;
+            // When a move is staged, anchor to the destination (same origin as the laser beam);
+            // otherwise anchor to the ship's current (from) cell.
+            const anchorRow = previewPosition ? previewPosition.row : shipRow;
+            const anchorCol = previewPosition ? previewPosition.col : shipCol;
             const isTopRow = anchorRow === 0;
             const left = `${((anchorCol + 0.5) / 17) * 100}%`;
             const top = isTopRow ? `${((anchorRow + 1) / 11) * 100}%` : `${(anchorRow / 11) * 100}%`;
@@ -3779,6 +3838,10 @@ export function GameGrid({
                 }}
               >
                 {(() => {
+                  // Only embed weapon selector when there's no real target locked; when targeting,
+                  // the standalone floating selector at the player's ship handles weapon choice.
+                  const hasRealTarget = targetShipId != null && targetShipId !== 0;
+                  if (hasRealTarget) return null;
                   if (isRammingMovePreview) return null;
                   const ship = selectedShipId ? shipMap.get(selectedShipId) : null;
                   if (!ship) return null;

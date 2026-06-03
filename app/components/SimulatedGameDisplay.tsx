@@ -388,6 +388,7 @@ export function SimulatedGameDisplay({
     mouseX: number;
     mouseY: number;
     isCreator: boolean;
+    fromFleet?: boolean;
   } | null>(null);
   const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
@@ -3491,8 +3492,10 @@ export function SimulatedGameDisplay({
                         )
                       }
                       confirmWidgetLabel={
-                        (actionOverride == null && !isRammingMovePreview && (targetShipId === null || (targetShipId === 0 && !(selectedWeaponType === "special" && specialType === 3))))
-                          ? "HOLD FIRE"
+                        isRammingMovePreview ? "RAM"
+                          : (selectedWeaponType === "special" && specialType === 2 && targetShipId != null) ? "REPAIR"
+                          : (targetShipId != null && targetShipId !== 0) ? "FIRE"
+                          : (actionOverride == null && (targetShipId === null || (targetShipId === 0 && !(selectedWeaponType === "special" && specialType === 3)))) ? "HOLD FIRE"
                           : "SUBMIT"
                       }
                       onConfirmMove={handleSubmitMove}
@@ -3791,10 +3794,60 @@ export function SimulatedGameDisplay({
             const myIds = gameState.creatorActiveShipIds;
             const enemyIds = gameState.joinerActiveShipIds;
 
-            const allShips: { shipId: string; teamColor: string; flip: boolean }[] = [
-              ...myIds.map((id) => ({ shipId: id, teamColor: "var(--color-cyan)", flip: true })),
-              ...enemyIds.map((id) => ({ shipId: id, teamColor: "var(--color-warning-red)", flip: false })),
-            ];
+            const renderCard = (shipId: string, teamColor: string, flip: boolean) => {
+              const id = Number(shipId);
+              const ship = shipMap.get(id);
+              const attrs = getShipAttributes(id);
+              const hasMoved = movedShipIdsSet.has(shipId);
+              const isSOS = !!attrs && attrs.hullPoints === 0;
+              const hpPct = attrs && attrs.maxHullPoints > 0
+                ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
+                : 0;
+              const shipPos = gameState.shipPositions.find((sp) => sp.shipId === shipId);
+              const isHoveredFromGrid = hoveredCell?.shipId === id;
+              const isSelectedInGrid = selectedShipId === id;
+              return (
+                <div
+                  key={shipId}
+                  className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
+                  style={{ opacity: hasMoved ? 0.45 : 1 }}
+                  onClick={() => setSelectedShipId(id)}
+                  onMouseEnter={() => shipPos && setHoveredCell({ shipId: id, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator, fromFleet: true })}
+                  onMouseLeave={() => setHoveredCell(null)}
+                >
+                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${teamColor}`, outline: isSelectedInGrid ? `2px solid ${teamColor}` : isHoveredFromGrid ? `1px solid ${teamColor}` : undefined, outlineOffset: "2px" }}>
+                    {ship && (
+                      <ShipImage
+                        ship={ship}
+                        className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
+                        showLoadingState={false}
+                        hideRankStars
+                      />
+                    )}
+                    {isSOS && (
+                      <>
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100">
+                          <line x1="8" y1="8" x2="92" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                          <line x1="92" y1="8" x2="8" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                        </svg>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0.5 z-20 flex items-center justify-center pointer-events-none" title="Disabled (0 HP)">
+                          <div className="px-1 py-0.5 flex items-center justify-center bg-warning-red/60 border border-warning-red">
+                            <span className="text-xs leading-none font-mono text-white">[SOS]</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
+                  </div>
+                  <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-text-secondary)" }}>
+                    {ship?.name ?? `#${shipId}`}
+                  </span>
+                  <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
+                    <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: teamColor, transition: "width 0.3s ease" }} />
+                  </div>
+                </div>
+              );
+            };
 
             return (
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
@@ -3816,242 +3869,36 @@ export function SimulatedGameDisplay({
                     <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
                   </span>
                 </div>
-                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-                  {allShips.map(({ shipId, teamColor, flip }) => {
-                    const id = Number(shipId);
-                    const ship = shipMap.get(id);
-                    const attrs = getShipAttributes(id);
-                    const hasMoved = movedShipIdsSet.has(shipId);
-                    const isSOS = !!attrs && attrs.hullPoints === 0;
-                    const hpPct = attrs && attrs.maxHullPoints > 0
-                      ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
-                      : 0;
-                    const shipPos = gameState.shipPositions.find((sp) => sp.shipId === shipId);
-                    return (
-                      <div
-                        key={shipId}
-                        className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
-                        style={{ opacity: hasMoved ? 0.45 : 1 }}
-                        onClick={() => setSelectedShipId(id)}
-                        onMouseEnter={() => shipPos && setHoveredCell({ shipId: id, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator })}
-                        onMouseLeave={() => setHoveredCell(null)}
-                      >
-                        <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${isSOS ? "var(--color-warning-red)" : teamColor}` }}>
-                          {ship && (
-                            <ShipImage
-                              ship={ship}
-                              className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
-                              showLoadingState={false}
-                              hideRankStars
-                            />
-                          )}
-                          {isSOS && <div className="absolute inset-0 bg-warning-red/15 animate-pulse pointer-events-none" />}
-                          {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
-                        </div>
-                        <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: isSOS ? "var(--color-warning-red)" : "var(--color-text-secondary)" }}>
-                          {ship?.name ?? `#${shipId}`}
-                        </span>
-                        <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
-                          <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: isSOS ? "var(--color-warning-red)" : teamColor, transition: "width 0.3s ease" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                {/* My Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-cyan)", opacity: 0.25 }} />
+                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {myIds.map((id) => renderCard(id, "var(--color-cyan)", true))}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, backgroundColor: "var(--color-gunmetal)" }} />
+
+                {/* Opponent Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-warning-red)", opacity: 0.25 }} />
+                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", false))}
+                  </div>
                 </div>
               </div>
             );
           })()}
 
-          {/* Proposed Move panel: Submit/Cancel on top; below that, ship + targets.
-            Shown when an owned ship is selected and eligible to act this round. */}
-          {isShowingProposedMove && (
-            <div
-              className={
-                chromeOnSide
-                  ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border border-solid p-3"
-                  : "min-h-0 flex-1 border border-solid p-3"
-              }
-              style={{
-                backgroundColor: "var(--color-near-black)",
-                borderColor: "var(--color-gunmetal)",
-                borderTopColor: "var(--color-steel)",
-                borderLeftColor: "var(--color-steel)",
-                borderRadius: 0,
-              }}
-            >
-              <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2 p-2" : "gap-4 p-4"}`}>
-                <div className="relative flex w-full min-w-0 shrink-0 flex-row gap-2 pt-8">
-                  <div className="relative min-w-0 flex-[2]">
-                    {shouldPulseSubmitMoveButton && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                        <div className="relative inline-block">
-                          <div
-                            className="absolute inset-0 bg-near-black"
-                            style={{ opacity: 1 }}
-                            aria-hidden
-                          />
-                          <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
-                            Click here
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSubmitMove}
-                      className={`w-full px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 min-w-0 ${
-                        shouldPulseSubmitMoveButton
-                          ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                          : ""
-                      }`}
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        borderColor: "var(--color-phosphor-green)",
-                        borderTopColor: "var(--color-phosphor-green)",
-                        borderLeftColor: "var(--color-phosphor-green)",
-                        color: "var(--color-phosphor-green)",
-                        backgroundColor: "var(--color-steel)",
-                        borderWidth: "2px",
-                        borderStyle: "solid",
-                        borderRadius: 0,
-                      }}
-                    >
-                      {isSelectedShipDisabled ? "Submit Retreat" : (actionOverride == null && !isRammingMovePreview && (targetShipId === null || (targetShipId === 0 && !(selectedWeaponType === "special" && specialType === 3)))) ? "Hold Fire" : "Submit"}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCancelMove}
-                    className="min-w-0 flex-[1] px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      borderColor: "var(--color-gunmetal)",
-                      borderTopColor: "var(--color-steel)",
-                      borderLeftColor: "var(--color-steel)",
-                      color: "var(--color-text-secondary)",
-                      backgroundColor: "var(--color-slate)",
-                      borderWidth: "2px",
-                      borderStyle: "solid",
-                      borderRadius: 0,
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-                <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isLandscapeMobile ? "gap-2" : "gap-4"}`}>
-                  <div className="flex min-w-0 flex-shrink-0 flex-col gap-2">
-                    {(() => {
-                      const ship = shipMap.get(selectedShipId!);
-                      const name = ship?.name || `Ship #${selectedShipId?.toString()}`;
-                      const currentPos = gameState.shipPositions.find(
-                        (pos) => pos.shipId === selectedShipId?.toString(),
-                      );
-                      const fromRow = currentPos?.position.row ?? 0;
-                      const fromCol = currentPos?.position.col ?? 0;
-                      const toRow = previewPosition ? previewPosition.row : fromRow;
-                      const toCol = previewPosition ? previewPosition.col : fromCol;
-                      return (
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <div className="text-sm font-semibold text-white">{name}</div>
-                          <div className="text-sm font-mono text-text-secondary">
-                            ({fromRow}, {fromCol}) → ({toRow}, {toCol})
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    {/* Weapon / Special selector, mirroring main game UI */}
-                    {(() => {
-                      if (isSelectedShipDisabled) return null;
-                      if (!selectedShipId) return null;
-                      const ship = shipMap.get(selectedShipId);
-                      if (!ship || ship.equipment.special <= 0) return null;
-                      return (
-                        <div className="relative w-full">
-                          {shouldHighlightSpecialEmpWeaponDropdown && (
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                              <div className="relative inline-block">
-                                <div className="absolute inset-0 bg-near-black" style={{ opacity: 1 }} aria-hidden />
-                                <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
-                                  Click here
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          <div className={shouldHighlightSpecialEmpWeaponDropdown ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}>
-                            <select
-                              value={selectedWeaponType}
-                              onChange={(e) => {
-                                const newWeaponType = e.target.value as "weapon" | "special";
-                                setWeaponTypeFromGrid(newWeaponType);
-                              }}
-                              className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
-                              style={{
-                                fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                borderRadius: 0,
-                                backgroundColor: "var(--color-slate)",
-                                color: "var(--color-text-primary)",
-                              }}
-                            >
-                              <option value="weapon">{getMainWeaponName(ship.equipment.mainWeapon)}</option>
-                              <option value="special">{getSpecialName(ship.equipment.special)}</option>
-                            </select>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedShipId != null) {
-                            setRetreatExplicitByShipId((prev) => ({
-                              ...prev,
-                              [selectedShipId.toString()]: true,
-                            }));
-                          }
-                          setTargetShipId(null);
-                          setPreviewPosition(null);
-                        }}
-                        className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
-                        style={{
-                          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          borderColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-gunmetal)",
-                          borderTopColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-steel)",
-                          borderLeftColor: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-steel)",
-                          color: actionOverride === ActionType.Retreat ? "var(--color-warning-red)" : "var(--color-text-secondary)",
-                          backgroundColor: actionOverride === ActionType.Retreat
-                            ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
-                            : "var(--color-slate)",
-                          borderWidth: "2px",
-                          borderStyle: "solid",
-                          borderRadius: 0,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (actionOverride !== ActionType.Retreat) {
-                            e.currentTarget.style.borderColor = "var(--color-warning-red)";
-                            e.currentTarget.style.color = "var(--color-warning-red)";
-                            e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (actionOverride !== ActionType.Retreat) {
-                            e.currentTarget.style.borderColor = "var(--color-gunmetal)";
-                            e.currentTarget.style.color = "var(--color-text-secondary)";
-                            e.currentTarget.style.backgroundColor = "var(--color-slate)";
-                          }
-                        }}
-                      >
-                        Retreat
-                      </button>
-                    </div>
-                  </div>
-                  {chromeOnSide && <div className="min-h-0 min-w-0 flex-1" aria-hidden />}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <div
