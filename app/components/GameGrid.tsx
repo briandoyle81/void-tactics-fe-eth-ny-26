@@ -208,8 +208,6 @@ interface GameGridProps {
     shipId: number;
     row: number;
     col: number;
-    mouseX: number;
-    mouseY: number;
     isCreator: boolean;
     fromFleet?: boolean;
   } | null;
@@ -302,9 +300,8 @@ interface GameGridProps {
       shipId: number;
       row: number;
       col: number;
-      mouseX: number;
-      mouseY: number;
       isCreator: boolean;
+      fromFleet?: boolean;
     } | null,
   ) => void;
   setDraggedShipId: (shipId: number | null) => void;
@@ -982,11 +979,40 @@ export function GameGrid({
     ],
   );
 
+  // Pre-compute lookup Sets so per-cell checks are O(1) instead of O(n) each.
+  const movementTileSet = React.useMemo(
+    () => new Set(movementRange.map((p) => `${p.row},${p.col}`)),
+    [movementRange],
+  );
+  const shootingTileSet = React.useMemo(
+    () => new Set(shootingRange.map((p) => `${p.row},${p.col}`)),
+    [shootingRange],
+  );
+  const effectiveShootingTileSet = React.useMemo(
+    () => new Set(effectiveShootingRange.map((p) => `${p.row},${p.col}`)),
+    [effectiveShootingRange],
+  );
+  const validTargetIdSet = React.useMemo(
+    () => new Set(validTargets.map((t) => t.shipId)),
+    [validTargets],
+  );
+  const effectiveValidTargetIdSet = React.useMemo(
+    () => new Set(effectiveValidTargets.map((t) => t.shipId)),
+    [effectiveValidTargets],
+  );
+  const assistableTargetIdSet = React.useMemo(
+    () => new Set(assistableTargets.map((t) => t.shipId)),
+    [assistableTargets],
+  );
+  const assistableTargetsFromStartIdSet = React.useMemo(
+    () => new Set(assistableTargetsFromStart.map((t) => t.shipId)),
+    [assistableTargetsFromStart],
+  );
+
   const isHoveringValidTarget =
     hoveredCell !== null &&
     !hoveredCell.fromFleet &&
-    validTargets.some((t) => t.shipId === hoveredCell.shipId);
-
+    validTargetIdSet.has(hoveredCell.shipId);
 
   return (
     <>
@@ -1030,18 +1056,15 @@ export function GameGrid({
                 const shouldRenderShipContent =
                   !!cell && !isCellFled && (!isCellDestroyed || isLastMoveDestroyedTargetCell);
                 const isSelected = selectedShipId === cell?.shipId;
-                const isMovementTile = movementRange.some(
-                  (pos) => pos.row === rowIndex && pos.col === colIndex,
-                );
+                const isMovementTile = movementTileSet.has(`${rowIndex},${colIndex}`);
                 const isHighlightedMove =
                   highlightedMovePosition &&
                   highlightedMovePosition.row === rowIndex &&
                   highlightedMovePosition.col === colIndex;
                 // Suppress base shooting range when drag/hover is active, or when RAM mode is
                 // selected (ram has no weapon range overlay — movement range shows instead).
-                const isShootingTile = !effectiveDragCell && selectedWeaponType !== "ram" && shootingRange.some(
-                  (pos) => pos.row === rowIndex && pos.col === colIndex,
-                );
+                const isShootingTile = !effectiveDragCell && selectedWeaponType !== "ram" &&
+                  shootingTileSet.has(`${rowIndex},${colIndex}`);
                 const isTutorialHighlightCell =
                   tutorialHighlightKeySet?.has(
                     `${rowIndex},${colIndex}`,
@@ -1070,12 +1093,8 @@ export function GameGrid({
                     return isValidTargetType;
                   })() &&
                   (effectiveDragCell
-                    ? effectiveValidTargets.some(
-                        (target) => target.shipId === cell.shipId,
-                      )
-                    : validTargets.some(
-                        (target) => target.shipId === cell.shipId,
-                      ));
+                    ? effectiveValidTargetIdSet.has(cell.shipId)
+                    : validTargetIdSet.has(cell.shipId));
 
                 // Check if this cell contains an assistable target (friendly ship with 0 HP)
                 const isAssistableTarget =
@@ -1083,12 +1102,8 @@ export function GameGrid({
                   selectedShipId &&
                   isCurrentPlayerTurn &&
                   isShipOwnedByCurrentPlayer(selectedShipId) &&
-                  (assistableTargets.some(
-                    (target) => target.shipId === cell.shipId,
-                  ) ||
-                    assistableTargetsFromStart.some(
-                      (target) => target.shipId === cell.shipId,
-                    ));
+                  (assistableTargetIdSet.has(cell.shipId) ||
+                    assistableTargetsFromStartIdSet.has(cell.shipId));
                 const isSelectedTarget = cell && targetShipId === cell.shipId;
 
                 const handleCellClick = () => {
@@ -1195,9 +1210,7 @@ export function GameGrid({
 
                       if (isFriendlyShip && hasRepairDrones) {
                         // Check if the friendly ship is in repair range
-                        const isInRepairRange = validTargets.some(
-                          (target) => target.shipId === cell.shipId,
-                        );
+                        const isInRepairRange = validTargetIdSet.has(cell.shipId);
                         if (isInRepairRange) {
                           // Switch to repair drones and target this ship
                           setSelectedWeaponType("special");
@@ -1224,9 +1237,7 @@ export function GameGrid({
                           : !isShipOwnedByCurrentPlayer(cell.shipId); // Weapons target enemy ships
 
                       if (isValidTargetType) {
-                        const isInShootingRange = validTargets.some(
-                          (target) => target.shipId === cell.shipId,
-                        );
+                        const isInShootingRange = validTargetIdSet.has(cell.shipId);
                         if (isInShootingRange) {
                           // If the player hasn't proposed a move yet, convert this into a
                           // "stay in place + fire" intent by setting previewPosition to the
@@ -1269,13 +1280,8 @@ export function GameGrid({
                       }
 
                       // Check if this is a friendly ship with 0 hitpoints that can be assisted
-                      const isAssistableTarget = assistableTargets.some(
-                        (target) => target.shipId === cell.shipId,
-                      );
-                      const isAssistableFromStart =
-                        assistableTargetsFromStart.some(
-                          (target) => target.shipId === cell.shipId,
-                        );
+                      const isAssistableTarget = assistableTargetIdSet.has(cell.shipId);
+                      const isAssistableFromStart = assistableTargetsFromStartIdSet.has(cell.shipId);
                       if (isAssistableTarget || isAssistableFromStart) {
                         setTargetShipId(cell.shipId);
                         return;
@@ -1433,12 +1439,8 @@ export function GameGrid({
                         }
                         if (isSelectedTarget) {
                           const isAssistAction =
-                            assistableTargets.some(
-                              (target) => target.shipId === cell.shipId,
-                            ) ||
-                            assistableTargetsFromStart.some(
-                              (target) => target.shipId === cell.shipId,
-                            );
+                            assistableTargetIdSet.has(cell.shipId) ||
+                            assistableTargetsFromStartIdSet.has(cell.shipId);
                           if (isAssistAction) {
                             return "bg-cyan/20 ring-2 ring-inset ring-cyan";
                           }
@@ -1507,15 +1509,13 @@ export function GameGrid({
                     onClick={handleCellClick}
                     onMouseEnter={
                       shouldRenderShipContent
-                        ? (e) => {
+                        ? () => {
                             const ship = shipMap.get(cell.shipId);
                             if (ship) {
                               setHoveredCell({
                                 shipId: cell.shipId,
                                 row: rowIndex,
                                 col: colIndex,
-                                mouseX: e.clientX,
-                                mouseY: e.clientY,
                                 isCreator: cell.isCreator,
                               });
                             }
@@ -1527,24 +1527,6 @@ export function GameGrid({
                               onMoveTileHover?.(pos);
                             }
                           : undefined
-                    }
-                    onMouseMove={
-                      shouldRenderShipContent
-                        ? (e) => {
-                            if (
-                              hoveredCell &&
-                              hoveredCell.shipId === cell.shipId
-                            ) {
-                              setHoveredCell({
-                                ...hoveredCell,
-                                row: rowIndex,
-                                col: colIndex,
-                                mouseX: e.clientX,
-                                mouseY: e.clientY,
-                              });
-                            }
-                          }
-                        : undefined
                     }
                     onMouseLeave={
                       shouldRenderShipContent
@@ -1693,9 +1675,7 @@ export function GameGrid({
                     {/* Drag/hover range highlight - show range from drag or hovered movement tile */}
                     {effectiveDragCell && (
                       <>
-                        {selectedWeaponType !== "ram" && effectiveShootingRange.some(
-                          (pos) => pos.row === rowIndex && pos.col === colIndex,
-                        ) && (
+                        {selectedWeaponType !== "ram" && effectiveShootingTileSet.has(`${rowIndex},${colIndex}`) && (
                           <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
                             selectedWeaponType === "special" && specialType === 2
                               ? "border-cyan/50 bg-cyan/10"
@@ -3230,7 +3210,7 @@ export function GameGrid({
                       if (isShipOwnedByCurrentPlayer(cell.shipId)) continue;
                       const attrs = getShipAttributes(cell.shipId);
                       if (!attrs || attrs.hullPoints > 0) continue;
-                      if (!movementRange.some(pos => pos.row === r && pos.col === c)) continue;
+                      if (!movementTileSet.has(`${r},${c}`)) continue;
                       targets.push({ row: r, col: c });
                     }
                   }
@@ -3597,12 +3577,8 @@ export function GameGrid({
               const shipRight = vb.right - cr.left;
               const shipBottom = vb.bottom - cr.top;
 
-              const mouseX = hoveredCell.fromFleet
-                ? (shipLeft + shipRight) / 2
-                : hoveredCell.mouseX - cr.left;
-              const mouseY = hoveredCell.fromFleet
-                ? (shipTop + shipBottom) / 2
-                : hoveredCell.mouseY - cr.top;
+              const mouseX = (shipLeft + shipRight) / 2;
+              const mouseY = (shipTop + shipBottom) / 2;
 
               let tooltipLeft = mouseX + offset;
               let tooltipTop = mouseY + offset;

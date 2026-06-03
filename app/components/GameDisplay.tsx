@@ -107,8 +107,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     shipId: number;
     row: number;
     col: number;
-    mouseX: number;
-    mouseY: number;
     isCreator: boolean;
     fromFleet?: boolean;
   } | null>(null);
@@ -4057,7 +4055,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
                   style={{ opacity: hasMoved ? 0.45 : 1 }}
                   onClick={() => setSelectedShipId(shipId)}
-                  onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, mouseX: 0, mouseY: 0, isCreator: shipPos.isCreator, fromFleet: true })}
+                  onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })}
                   onMouseLeave={() => setHoveredCell(null)}
                 >
                   <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${teamColor}`, outline: isSelectedInGrid ? `2px solid ${teamColor}` : isHoveredFromGrid ? `1px solid ${teamColor}` : undefined, outlineOffset: "2px" }}>
