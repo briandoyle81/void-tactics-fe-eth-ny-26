@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
+import { LASER_LINE_FADEOUT_MS, LASER_FLARE_FADEOUT_MS, LASER_FIRE_INTERVAL_MS } from "../../constants/animationTiming";
 
 interface LaserShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -14,7 +15,7 @@ interface LaserShootingAnimationProps {
 type LaserLine = { id: number; endX: number; endY: number };
 type LaserFlare = { id: number; x: number; y: number; size: number };
 
-export function LaserShootingAnimation({
+export const LaserShootingAnimation = React.memo(function LaserShootingAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -26,6 +27,8 @@ export function LaserShootingAnimation({
   const [flares, setFlares] = useState<LaserFlare[]>([]);
   const lineIdRef = useRef(0);
   const flareIdRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const getCellCenter = useCallback(
     (row: number, col: number) => {
@@ -76,16 +79,18 @@ export function LaserShootingAnimation({
     setFlares((prev) => [...prev, { id: flareId, x: endX, y: endY, size: flareSize }]);
 
     setTimeout(() => {
+      if (!mountedRef.current) return;
       setLines((prev) => prev.filter((l) => l.id !== lineId));
-    }, 300);
+    }, LASER_LINE_FADEOUT_MS);
     setTimeout(() => {
+      if (!mountedRef.current) return;
       setFlares((prev) => prev.filter((f) => f.id !== flareId));
-    }, 200);
+    }, LASER_FLARE_FADEOUT_MS);
   }, [targetRow, targetCol, getCellCenter, gridContainerRef]);
 
   useEffect(() => {
     createLine();
-    const interval = setInterval(createLine, 150);
+    const interval = setInterval(createLine, LASER_FIRE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [createLine]);
 
@@ -155,4 +160,4 @@ export function LaserShootingAnimation({
       </div>
     </>
   );
-}
+});

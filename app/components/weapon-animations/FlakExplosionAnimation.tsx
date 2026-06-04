@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FLAK_BURST_CLEANUP_MS, FLAK_BURST_SPAWN_INTERVAL_MS } from "../../constants/animationTiming";
 
 type GridCell = { row: number; col: number };
 
@@ -25,7 +26,7 @@ type Burst = {
   shards: Shard[];
 };
 
-export function FlakExplosionAnimation({
+export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation({
   gridContainerRef,
   targetCells,
 }: FlakExplosionAnimationProps) {
@@ -33,6 +34,8 @@ export function FlakExplosionAnimation({
   const burstIdRef = useRef(0);
   const cellOrderRef = useRef<GridCell[]>([]);
   const cellIndexRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const uniqueCells = useMemo(() => {
     const seen = new Set<string>();
@@ -146,13 +149,14 @@ export function FlakExplosionAnimation({
 
     const idsToRemove = next.map((b) => b.id);
     setTimeout(() => {
+      if (!mountedRef.current) return;
       setBursts((prev) => prev.filter((b) => !idsToRemove.includes(b.id)));
-    }, 600);
+    }, FLAK_BURST_CLEANUP_MS);
   }, [getCellRect, gridContainerRef, uniqueCells, shuffleCells]);
 
   useEffect(() => {
     spawnBursts();
-    const interval = setInterval(spawnBursts, 45);
+    const interval = setInterval(spawnBursts, FLAK_BURST_SPAWN_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [spawnBursts]);
 
@@ -244,4 +248,4 @@ export function FlakExplosionAnimation({
       ))}
     </div>
   );
-}
+});

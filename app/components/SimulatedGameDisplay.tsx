@@ -46,15 +46,17 @@ import {
   useGameViewChromeLayout,
 } from "../hooks/useGameViewChromeLayout";
 import { useSpecialRange } from "../hooks/useSpecialRange";
-import {
-  useSpecialData,
-  SpecialData,
-} from "../hooks/useShipAttributesContract";
+import { useSpecialData } from "../hooks/useShipAttributesContract";
 import {
   computeMovementRange,
   computeShootingRange,
+  computeLabelTargets,
+  computeHoverValidTargets,
+  computeHoverShootingRange,
+  hasLineOfSight,
 } from "../utils/gameGridRanges";
-import { calculateDamage } from "../utils/calculateDamage";
+import { useDamageCalculation } from "../hooks/useDamageCalculation";
+import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
@@ -748,12 +750,12 @@ export function SimulatedGameDisplay({
     [shipMap, getShipAttributes],
   );
 
-  // Mirror live-game retreat prep visual: when a disabled ship is selected on
-  // the player's turn, show the in-cell retreat effect (flip + engine glow).
-  const retreatPrepShipId = useMemo(() => {
-    if (!isMyTurn || !selectedShipId || !isSelectedShipDisabled) return null;
-    return selectedShipId;
-  }, [isMyTurn, selectedShipId, isSelectedShipDisabled]);
+  const retreatPrepShipId =
+    selectedShipId != null &&
+    actionOverride === ActionType.Retreat &&
+    isShipOwnedByCurrentPlayer(selectedShipId)
+      ? selectedShipId
+      : null;
 
   const retreatPrepIsCreator = useMemo(() => {
     if (retreatPrepShipId == null) return null;
@@ -779,58 +781,6 @@ export function SimulatedGameDisplay({
     );
   }, [selectedShipId, getShipAttributes, retreatExplicitByShipId]);
 
-  // Check line of sight between two positions
-  const hasLineOfSight = useCallback(
-    (
-      row0: number,
-      col0: number,
-      row1: number,
-      col1: number,
-      blockedGrid: boolean[][],
-    ): boolean => {
-      if (blockedGrid[row0] && blockedGrid[row0][col0]) {
-        return false;
-      }
-      if (blockedGrid[row1] && blockedGrid[row1][col1]) {
-        return false;
-      }
-
-      const dx = Math.abs(col1 - col0);
-      const dy = Math.abs(row1 - row0);
-      const sx = col0 < col1 ? 1 : -1;
-      const sy = row0 < row1 ? 1 : -1;
-      let err = dx - dy;
-
-      let x = col0;
-      let y = row0;
-
-      while (true) {
-        if (x === col1 && y === row1) break;
-
-        const e2 = 2 * err;
-        if (e2 > -dy) {
-          err -= dy;
-          x += sx;
-        }
-        if (e2 < dx) {
-          err += dx;
-          y += sy;
-        }
-
-        if (
-          (x !== col0 || y !== row0) &&
-          (x !== col1 || y !== row1) &&
-          blockedGrid[y] &&
-          blockedGrid[y][x]
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    },
-    [],
-  );
 
   // Create a 2D array to represent the grid
   const grid: (ShipPosition | null)[][] = useMemo(() => {
@@ -961,77 +911,29 @@ export function SimulatedGameDisplay({
   ]);
 
   // Calculate movement range for selected ship.
-  // Mirrors the main GameDisplay logic, then applies tutorial step constraints.
-  const movementRange = useMemo(() => {
-    if (!selectedShipId) return [];
-
-    const ship = shipMap.get(selectedShipId);
-    if (!ship) return [];
-
-    const attributes = getShipAttributes(selectedShipId);
-    // Disabled ships (0 HP) cannot move; only retreat is available
-    if (attributes && attributes.hullPoints === 0) return [];
-
-    const movementRangeValue = attributes?.movement || 1;
-
-    const currentPosition = gameState.shipPositions.find(
-      (pos) => pos.shipId === selectedShipId.toString(),
-    );
-
-    if (!currentPosition) return [];
-
-    // If ship has a preview position (including "stay in place"), don't show movement
-    // range so only weapon range is shown (same behavior as main game UI).
-    if (previewPosition) {
-      return [];
-    }
-
-    const baseMoves: { row: number; col: number }[] = [];
-    const startRow = currentPosition.position.row;
-    const startCol = currentPosition.position.col;
-
-    // Check all positions within movement range
-    for (
-      let row = Math.max(0, startRow - movementRangeValue);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + movementRangeValue);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - movementRangeValue);
-        col <= Math.min(GRID_WIDTH - 1, startCol + movementRangeValue);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-        if (distance <= movementRangeValue && distance > 0) {
-          const occupyingShip = gameState.shipPositions.find(
-            (pos) =>
-              (pos.status ?? 0) === 0 &&
-              pos.position.row === row &&
-              pos.position.col === col,
-          );
-          const canRamDisabledEnemy =
-            occupyingShip != null &&
-            occupyingShip.shipId !== selectedShipId.toString() &&
-            isEnemyDisabledTutorialShipId(occupyingShip.shipId);
-
-          if (!occupyingShip || canRamDisabledEnemy) {
-            baseMoves.push({ row, col });
-          }
-        }
-      }
-    }
-
-    // For display purposes, always show the full movement range (like the main game).
-    // Tutorial constraints are enforced separately via validateAction/executeAction.
-    return baseMoves;
-  }, [
-    selectedShipId,
-    gameState.shipPositions,
-    shipMap,
-    getShipAttributes,
-    previewPosition,
-    isEnemyDisabledTutorialShipId,
-  ]);
+  const movementRange = useMemo(
+    () =>
+      computeMovementRange({
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+        selectedShipId,
+        hasShips: shipMap.size > 0,
+        shipMap,
+        getShipAttributes,
+        shipPositions: allShipPositionsForGrid.filter((p) => (p.status ?? 0) === 0),
+        previewPosition,
+        canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
+          isEnemyDisabledTutorialShipId(occupyingShipId.toString()),
+      }),
+    [
+      selectedShipId,
+      shipMap,
+      getShipAttributes,
+      allShipPositionsForGrid,
+      previewPosition,
+      isEnemyDisabledTutorialShipId,
+    ],
+  );
 
   const isRammingMovePreview = useMemo(() => {
     if (!selectedShipId || !previewPosition) return false;
@@ -1425,24 +1327,13 @@ export function SimulatedGameDisplay({
     };
   }, [selectedShipId, tutorialDisplayLastMove]);
 
-  const calculateDamageForShip = useCallback(
-    (
-      targetShipId: number,
-      weaponType?: "weapon" | "special",
-      showReducedDamage?: boolean,
-    ) =>
-      calculateDamage({
-        shooterId: selectedShipId,
-        targetShipId,
-        getShipAttributes,
-        selectedWeaponType: selectedWeaponType === "ram" ? "weapon" : selectedWeaponType,
-        specialData: specialData as SpecialData | null,
-        specialType,
-        weaponType,
-        showReducedDamage,
-      }),
-    [selectedShipId, getShipAttributes, selectedWeaponType, specialData, specialType],
-  );
+  const calculateDamageForShip = useDamageCalculation({
+    selectedShipId,
+    getShipAttributes,
+    selectedWeaponType,
+    specialData,
+    specialType,
+  });
 
   // Get valid targets
   // Show full range for viewing, but filter by tutorial constraints if step requires specific targets
@@ -1566,7 +1457,7 @@ export function SimulatedGameDisplay({
     previewPosition,
     shipMap,
     getShipAttributes,
-    hasLineOfSight,
+
     blockedGrid,
     gameState.shipPositions,
     selectedWeaponType,
@@ -1574,6 +1465,38 @@ export function SimulatedGameDisplay({
     specialType,
     isRammingMovePreview,
   ]);
+
+  // Threat-range targets for damage labels: all enemy ships reachable from any valid move position.
+  const labelTargets = useMemo(
+    () =>
+      computeLabelTargets({
+        selectedShipId,
+        previewPosition,
+        isRammingMovePreview,
+        shipPositions: allShipPositionsForGrid,
+        shipMap,
+        playerAddress: TUTORIAL_PLAYER_ADDRESS,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [
+      selectedShipId,
+      previewPosition,
+      isRammingMovePreview,
+      allShipPositionsForGrid,
+      shipMap,
+      getShipAttributes,
+      blockedGrid,
+      selectedWeaponType,
+      specialRange,
+      specialType,
+    ],
+  );
 
   // Get assistable targets
   const assistableTargets = useMemo(() => {
@@ -1677,292 +1600,37 @@ export function SimulatedGameDisplay({
   }, [selectedShipId, shipMap, gameState.shipPositions, getShipAttributes]);
 
   // Calculate shooting range positions (exact same logic as GameDisplay)
-  const shootingRange = useMemo(() => {
-    if (!selectedShipId) return [];
-    if (isRammingMovePreview) return [];
-
-    const attributes = getShipAttributes(selectedShipId);
-    // Disabled ships (0 HP) have no move or threat range; only retreat/assist are relevant
-    if (attributes && attributes.hullPoints === 0) return [];
-
-    const movementRange = attributes?.movement || 1;
-    const shootingRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
-
-    const currentPosition = gameState.shipPositions.find(
-      (pos) => pos.shipId === selectedShipId.toString(),
-    );
-
-    if (!currentPosition) return [];
-    const validShootingPositions: { row: number; col: number }[] = [];
-
-    if (previewPosition) {
-      // When a move is entered (including \"stay in place\"), show gun range
-      // from that single origin only (same as main game behavior).
-      const startRow = previewPosition.row;
-      const startCol = previewPosition.col;
-
-      // First, add all positions that are exactly 1 square away from preview position
-      // (ships can always shoot adjacent enemies, even in nebula)
-      for (
-        let row = Math.max(0, startRow - 1);
-        row <= Math.min(GRID_HEIGHT - 1, startRow + 1);
-        row++
-      ) {
-        for (
-          let col = Math.max(0, startCol - 1);
-          col <= Math.min(GRID_WIDTH - 1, startCol + 1);
-          col++
-        ) {
-          const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-          // Only add positions that are exactly 1 square away and not occupied
-          if (distance === 1) {
-            const isOccupied = isCellOccupiedByAliveShip(row, col);
-
-            if (!isOccupied) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-
-      // Then check all positions within shooting range from preview position
-      for (
-        let row = Math.max(0, startRow - shootingRange);
-        row <= Math.min(GRID_HEIGHT - 1, startRow + shootingRange);
-        row++
-      ) {
-        for (
-          let col = Math.max(0, startCol - shootingRange);
-          col <= Math.min(GRID_WIDTH - 1, startCol + shootingRange);
-          col++
-        ) {
-          const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-          // Only check positions within shooting range, excluding adjacent ones (already added above)
-          if (distance <= shootingRange && distance > 1) {
-            // Check if position is not occupied by another ship
-            const isOccupied = isCellOccupiedByAliveShip(row, col);
-
-            if (!isOccupied) {
-              // Ships can always shoot adjacent enemies (distance === 1) regardless of nebula squares
-              // OR special abilities ignore nebula squares
-              // OR regular weapons need line of sight
-              const shouldCheckLineOfSight =
-                distance > 1 && // Not adjacent
-                (selectedWeaponType !== "special" ||
-                  (specialType !== 1 &&
-                    specialType !== 2 &&
-                    specialType !== 3)); // Not EMP, Repair, or Flak
-
-              if (
-                !shouldCheckLineOfSight ||
-                hasLineOfSight(startRow, startCol, row, col, blockedGrid)
-              ) {
-                validShootingPositions.push({ row, col });
-              }
-            }
-          }
-        }
-      }
-
-      return validShootingPositions;
-    }
-
-    // Original logic for showing shooting range from all possible move positions
-    const startRow = currentPosition.position.row;
-    const startCol = currentPosition.position.col;
-
-    // First, add all positions that are exactly 1 square away from any valid move position
-    // (ships can always shoot adjacent enemies, even in nebula)
-    for (
-      let row = Math.max(0, startRow - movementRange - 1);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + movementRange + 1);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - movementRange - 1);
-        col <= Math.min(GRID_WIDTH - 1, startCol + movementRange + 1);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-        // Only check positions that are exactly 1 square away from any valid move position
-        if (distance === movementRange + 1) {
-          const isOccupied = isCellOccupiedByAliveShip(row, col);
-
-          if (!isOccupied) {
-            // Check if this position is exactly 1 square away from any valid move position
-            let isAdjacentToMovePosition = false;
-
-            // Check all possible move positions
-            for (
-              let moveRow = Math.max(0, startRow - movementRange);
-              moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
-              moveRow++
-            ) {
-              for (
-                let moveCol = Math.max(0, startCol - movementRange);
-                moveCol <= Math.min(GRID_WIDTH - 1, startCol + movementRange);
-                moveCol++
-              ) {
-                const moveDistance =
-                  Math.abs(moveRow - startRow) + Math.abs(moveCol - startCol);
-                if (moveDistance <= movementRange && moveDistance > 0) {
-                  // Check if this move position is not occupied
-                  const isMoveOccupied = isCellOccupiedByAliveShip(
-                    moveRow,
-                    moveCol,
-                  );
-
-                  if (!isMoveOccupied) {
-                    // Check if this position is exactly 1 square away from this move position
-                    const adjacentDistance =
-                      Math.abs(moveRow - row) + Math.abs(moveCol - col);
-                    if (adjacentDistance === 1) {
-                      isAdjacentToMovePosition = true;
-                      break;
-                    }
-                  }
-                }
-              }
-              if (isAdjacentToMovePosition) break;
-            }
-
-            if (isAdjacentToMovePosition) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-
-    // Then check all positions within movement + shooting range
-    const totalRange = movementRange + shootingRange;
-    for (
-      let row = Math.max(0, startRow - totalRange);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + totalRange);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - totalRange);
-        col <= Math.min(GRID_WIDTH - 1, startCol + totalRange);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-        // Position must be within movement + shooting range, but not within just movement range
-        // (movement range positions are already highlighted as movement tiles)
-        // Also exclude positions that are exactly 1 square away (already added above)
-        if (
-          distance > movementRange &&
-          distance <= totalRange &&
-          distance !== 1
-        ) {
-          // Check if position is not occupied by another ship
-          const isOccupied = isCellOccupiedByAliveShip(row, col);
-
-          if (!isOccupied) {
-            // Check if any valid move position can shoot to this target position
-            // We need to check if there's a valid move position that has line of sight to this target
-            let canShootFromSomewhere = false;
-
-            // First check the current position itself — ships can always stay and shoot
-            if (distance <= shootingRange) {
-              const shouldCheckCurrentLOS =
-                distance > 1 &&
-                (selectedWeaponType !== "special" ||
-                  (specialType !== 1 &&
-                    specialType !== 2 &&
-                    specialType !== 3));
-              if (
-                !shouldCheckCurrentLOS ||
-                hasLineOfSight(startRow, startCol, row, col, blockedGrid)
-              ) {
-                canShootFromSomewhere = true;
-              }
-            }
-
-            // Check all possible move positions (skipped if current position already covers this cell)
-            if (!canShootFromSomewhere) for (
-              let moveRow = Math.max(0, startRow - movementRange);
-              moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
-              moveRow++
-            ) {
-              for (
-                let moveCol = Math.max(0, startCol - movementRange);
-                moveCol <= Math.min(GRID_WIDTH - 1, startCol + movementRange);
-                moveCol++
-              ) {
-                const moveDistance =
-                  Math.abs(moveRow - startRow) + Math.abs(moveCol - startCol);
-                if (moveDistance <= movementRange && moveDistance > 0) {
-                  // Check if this move position is not occupied
-                  const isMoveOccupied = isCellOccupiedByAliveShip(
-                    moveRow,
-                    moveCol,
-                  );
-
-                  if (!isMoveOccupied) {
-                    // Check if this move position can shoot to the target
-                    const shootDistance =
-                      Math.abs(moveRow - row) + Math.abs(moveCol - col);
-
-                    // Ships can always shoot enemies that are exactly 1 square away
-                    // OR within their normal shooting range
-                    const canShoot =
-                      shootDistance === 1 || shootDistance <= shootingRange;
-
-                    if (canShoot) {
-                      // Ships can always shoot adjacent enemies (distance === 1) regardless of nebula squares
-                      // OR special abilities ignore nebula squares
-                      // OR regular weapons need line of sight
-                      const shouldCheckLineOfSight =
-                        shootDistance > 1 && // Not adjacent
-                        (selectedWeaponType !== "special" ||
-                          (specialType !== 1 &&
-                            specialType !== 2 &&
-                            specialType !== 3)); // Not EMP, Repair, or Flak
-
-                      if (
-                        !shouldCheckLineOfSight ||
-                        hasLineOfSight(moveRow, moveCol, row, col, blockedGrid)
-                      ) {
-                        canShootFromSomewhere = true;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-              if (canShootFromSomewhere) break;
-            }
-
-            if (canShootFromSomewhere) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-
-    return validShootingPositions;
-  }, [
-    selectedShipId,
-    previewPosition,
-    shipMap,
-    getShipAttributes,
-    hasLineOfSight,
-    blockedGrid,
-    gameState.shipPositions,
-    selectedWeaponType,
-    specialRange,
-    specialType,
-    isRammingMovePreview,
-  ]);
+  const shootingRange = useMemo(
+    () =>
+      isRammingMovePreview
+        ? []
+        : computeShootingRange({
+            gridWidth: GRID_WIDTH,
+            gridHeight: GRID_HEIGHT,
+            selectedShipId,
+            hasShips: shipMap.size > 0,
+            shipMap,
+            getShipAttributes,
+            shipPositions: allShipPositionsForGrid.filter((p) => (p.status ?? 0) === 0),
+            previewPosition,
+            selectedWeaponType,
+            specialRange,
+            specialType,
+            blockedGrid,
+          }),
+    [
+      selectedShipId,
+      isRammingMovePreview,
+      shipMap,
+      getShipAttributes,
+      allShipPositionsForGrid,
+      previewPosition,
+      selectedWeaponType,
+      specialRange,
+      specialType,
+      blockedGrid,
+    ],
+  );
 
   // Drag shooting range and valid targets (simplified for tutorial)
   const dragShootingRange = useMemo(() => {
@@ -1976,6 +1644,43 @@ export function SimulatedGameDisplay({
     // For tutorial, we can reuse the same logic but from drag position
     return [];
   }, [draggedShipId, dragOverCell]);
+
+  // Valid targets and shooting range overlay from the hovered movement tile.
+  const hoverValidTargets = useMemo(
+    () =>
+      computeHoverValidTargets({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: shipMap.size > 0,
+        shipPositions: allShipPositionsForGrid,
+        shipMap,
+        playerAddress: TUTORIAL_PLAYER_ADDRESS,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+      }),
+    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid, getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
+  );
+
+  const hoverShootingRange = useMemo(
+    () =>
+      computeHoverShootingRange({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: shipMap.size > 0,
+        shipPositions: allShipPositionsForGrid,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid, getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
+  );
 
   // Convert tutorial string ids to number ids for GameGrid targeting logic.
   const gridValidTargets = useMemo(
@@ -2702,7 +2407,7 @@ export function SimulatedGameDisplay({
           </div>
           <h2
             className="text-xl font-bold uppercase tracking-wider text-cyan"
-            style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+            style={STYLE_LABEL}
           >
             Rotate to Landscape
           </h2>
@@ -2750,7 +2455,7 @@ export function SimulatedGameDisplay({
                       onClick={onBack}
                       className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                       style={{
-                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: "var(--color-gunmetal)",
                         color: "var(--color-text-secondary)",
                         backgroundColor: "var(--color-steel)",
@@ -2780,7 +2485,7 @@ export function SimulatedGameDisplay({
                     onClick={() => {}}
                     className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                     style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor: "var(--color-cyan)",
                       color: "var(--color-cyan)",
                       backgroundColor: "var(--color-near-black)",
@@ -2803,7 +2508,7 @@ export function SimulatedGameDisplay({
                     onClick={() => setMobileLeftPanelTab(tab)}
                     className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                     style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor:
                         mobileLeftPanelTab === tab
                           ? "var(--color-cyan)"
@@ -2827,7 +2532,7 @@ export function SimulatedGameDisplay({
                   onClick={() => setIsMobileFleetModalOpen(true)}
                   className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                   style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-phosphor-green)",
                     color: "var(--color-phosphor-green)",
                     backgroundColor: "var(--color-steel)",
@@ -2858,7 +2563,7 @@ export function SimulatedGameDisplay({
                         <h3
                           className="min-w-0 text-sm font-bold uppercase tracking-wide text-cyan leading-tight"
                           style={{
-                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                           }}
                         >
                           {tutorialGridPanelConfig.title}
@@ -3445,6 +3150,9 @@ export function SimulatedGameDisplay({
                       assistableTargetsFromStart={gridAssistableTargetsFromStart}
                       dragShootingRange={dragShootingRange}
                       dragValidTargets={dragValidTargets}
+                      hoverValidTargets={hoverValidTargets}
+                      hoverShootingRange={hoverShootingRange}
+                      labelTargets={labelTargets}
                       isCurrentPlayerTurn={isMyTurn}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
                       movedShipIdsSet={gridMovedShipIdsSet}
@@ -3737,7 +3445,7 @@ export function SimulatedGameDisplay({
             >
               <div className="flex flex-col gap-3">
                 {/* Meta strip */}
-                <div className="flex items-center gap-2 border-b border-solid pb-2" style={{ borderColor: "var(--color-gunmetal)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+                <div className="flex items-center gap-2 border-b border-solid pb-2" style={{ borderColor: "var(--color-gunmetal)", ...STYLE_LABEL }}>
                   <span className="font-bold uppercase tracking-wider" style={{ fontSize: 17, color: "var(--color-text-primary)" }}>GAME 0</span>
                   <span style={{ color: "var(--color-text-muted)" }}>·</span>
                   <span className="uppercase tracking-wide" style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
@@ -3747,10 +3455,10 @@ export function SimulatedGameDisplay({
                 {/* Turn indicator · 99:99 and static bar (no countdown in tutorial) */}
                 <div className="flex flex-col gap-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
+                    <span className="text-sm font-bold uppercase tracking-wider" style={{ ...STYLE_LABEL, color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
                       {isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
                     </span>
-                    <span className="text-sm" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
+                    <span className="text-sm" style={{ ...STYLE_MONO, color: isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
                       99:99
                     </span>
                   </div>
@@ -3772,7 +3480,7 @@ export function SimulatedGameDisplay({
                   borderRadius: 0,
                 }}
               >
-                <div className="flex items-stretch" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: "22px" }}>
+                <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
                   <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
                     <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
                     <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.creatorScore.toString()}/{gameState.maxScore.toString()}</span>
@@ -3837,7 +3545,7 @@ export function SimulatedGameDisplay({
                     )}
                     {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
                   </div>
-                  <span className="truncate" style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-text-secondary)" }}>
+                  <span className="truncate" style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-text-secondary)" }}>
                     {ship?.name ?? `#${shipId}`}
                   </span>
                   <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
@@ -3851,17 +3559,17 @@ export function SimulatedGameDisplay({
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
                     <button
                       type="button"
                       onClick={() => setShowFleetModal(true)}
                       className="border border-solid px-1.5 py-0.5 uppercase tracking-wider transition-colors"
-                      style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                      style={{ ...STYLE_LABEL, fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
                     >
                       [DETAILS]
                     </button>
                   </div>
-                  <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 10, color: "var(--color-text-muted)" }}>
+                  <span style={{ ...STYLE_MONO, fontSize: 10, color: "var(--color-text-muted)" }}>
                     <span style={{ color: "var(--color-cyan)" }}>{myIds.length}</span>
                     <span style={{ color: "var(--color-text-muted)" }}> vs </span>
                     <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
@@ -3871,9 +3579,9 @@ export function SimulatedGameDisplay({
                 {/* My Fleet */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
                     <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-cyan)", opacity: 0.25 }} />
-                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
+                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
                   </div>
                   <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                     {myIds.map((id) => renderCard(id, "var(--color-cyan)", true))}
@@ -3885,9 +3593,9 @@ export function SimulatedGameDisplay({
                 {/* Opponent Fleet */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
                     <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-warning-red)", opacity: 0.25 }} />
-                    <span style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace", fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
                   </div>
                   <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                     {enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", false))}
@@ -3946,6 +3654,9 @@ export function SimulatedGameDisplay({
                   assistableTargetsFromStart={gridAssistableTargetsFromStart}
                   dragShootingRange={dragShootingRange}
                   dragValidTargets={dragValidTargets}
+                  hoverValidTargets={hoverValidTargets}
+                  hoverShootingRange={hoverShootingRange}
+                  labelTargets={labelTargets}
                   isCurrentPlayerTurn={isMyTurn}
                   isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
                   movedShipIdsSet={gridMovedShipIdsSet}
@@ -4124,7 +3835,7 @@ export function SimulatedGameDisplay({
               ✕
             </button>
             <div className="mb-4">
-              <span className="uppercase tracking-wider font-bold" style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif", fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
+              <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
             </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* My Fleet - Left (tutorial player) */}
@@ -4132,7 +3843,7 @@ export function SimulatedGameDisplay({
             <h4
               className="mb-3 uppercase font-bold tracking-wider"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 color: "var(--color-cyan)",
                 fontSize: "18px",
               }}
@@ -4202,7 +3913,7 @@ export function SimulatedGameDisplay({
             <h4
               className="mb-3 uppercase font-bold tracking-wider"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 color: "var(--color-warning-red)",
                 fontSize: "18px",
               }}

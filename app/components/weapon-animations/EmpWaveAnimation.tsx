@@ -65,7 +65,7 @@ function buildGeom(
   };
 }
 
-export function EmpWaveAnimation({
+export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -241,4 +241,4 @@ export function EmpWaveAnimation({
       </g>
     </svg>
   );
-}
+});

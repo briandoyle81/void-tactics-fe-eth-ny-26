@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
+import { MISSILE_IMPACT_DURATION_MS, MISSILE_SECOND_FIRE_DELAY_MS, MISSILE_RESPAWN_DELAY_MS } from "../../constants/animationTiming";
 
 interface MissileShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -11,10 +12,9 @@ interface MissileShootingAnimationProps {
   facingRight: boolean;
 }
 
-const IMPACT_DURATION = 500; // ms
 const IMPACT_COLORS = ["#ff4400", "#ff8800", "#ffcc00", "#ffffff", "#ff6600"];
 
-export function MissileShootingAnimation({
+export const MissileShootingAnimation = React.memo(function MissileShootingAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -57,6 +57,8 @@ export function MissileShootingAnimation({
   const animationFrameRef = useRef<number | null>(null);
   const impactAnimationRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // Calculate cell centers
   const getCellCenter = useCallback(
@@ -150,6 +152,7 @@ export function MissileShootingAnimation({
 
     // Fire second missile 0.2 seconds after the first
     setTimeout(() => {
+      if (!mountedRef.current) return;
       // Select a new random target spot for the second missile
       const targetX2 = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
       const targetY2 =
@@ -191,7 +194,7 @@ export function MissileShootingAnimation({
       };
 
       setMissiles((prev) => [...prev, secondMissile]);
-    }, 200);
+    }, MISSILE_SECOND_FIRE_DELAY_MS);
   }, [
     gridContainerRef,
     attackerRow,
@@ -208,7 +211,7 @@ export function MissileShootingAnimation({
       // No missiles - wait 1 second then spawn next pair
       timeoutRef.current = setTimeout(() => {
         spawnMissile();
-      }, 1000);
+      }, MISSILE_RESPAWN_DELAY_MS);
 
       return () => {
         if (timeoutRef.current) {
@@ -402,7 +405,7 @@ export function MissileShootingAnimation({
       const now = Date.now();
       setImpacts((prev) => {
         if (prev.length === 0) return prev; // same ref → React bails out, no re-render
-        return prev.filter((imp) => now - imp.startTime < IMPACT_DURATION); // new array → re-render
+        return prev.filter((imp) => now - imp.startTime < MISSILE_IMPACT_DURATION_MS); // new array → re-render
       });
       impactAnimationRef.current = requestAnimationFrame(animate);
     };
@@ -452,7 +455,7 @@ export function MissileShootingAnimation({
       {/* Impact effects */}
       {impacts.map((impact) => {
         const elapsed = now - impact.startTime;
-        const t = Math.min(elapsed / IMPACT_DURATION, 1);
+        const t = Math.min(elapsed / MISSILE_IMPACT_DURATION_MS, 1);
         const easeOut = 1 - Math.pow(1 - t, 2);
 
         const flashRadius = easeOut * 18;
@@ -533,4 +536,4 @@ export function MissileShootingAnimation({
       })}
     </svg>
   );
-}
+});

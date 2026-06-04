@@ -15,9 +15,12 @@ import { RepairDroneAnimation } from "./weapon-animations/RepairDroneAnimation";
 import { EmpWaveAnimation } from "./weapon-animations/EmpWaveAnimation";
 import { RetreatPrepAnimation } from "./weapon-animations/RetreatPrepAnimation";
 import { WarpFieldCollapseAnimation } from "./weapon-animations/WarpFieldCollapseAnimation";
+import { useGridCellSets } from "../hooks/useGridCellSets";
+import { GameGridTooltip } from "./GameGridTooltip";
+import { GameGridConfirmWidget } from "./GameGridConfirmWidget";
 
 /** Viewport bounds for a grid cell (fixed tooltip placement vs the moused tile). */
-function measureGridCellViewportBounds(
+export function measureGridCellViewportBounds(
   layoutRoot: HTMLElement | null,
   row: number,
   col: number,
@@ -468,6 +471,7 @@ export function GameGrid({
       panDidMoveRef.current = false;
     };
 
+    let rafId: number | null = null;
     const onMouseMove = (e: MouseEvent) => {
       if (!panStartRef.current) return;
       const dx = e.clientX - panStartRef.current.x;
@@ -475,21 +479,26 @@ export function GameGrid({
       if (!panDidMoveRef.current && Math.hypot(dx, dy) < 4) return;
       panDidMoveRef.current = true;
 
-      const { scale } = zoomRef.current;
-      const gridEl = gridContainerRef.current;
-      const w = gridEl?.offsetWidth ?? el.offsetWidth;
-      const h = gridEl?.offsetHeight ?? el.offsetHeight;
-
-      let newTx = panStartRef.current.tx + dx;
-      let newTy = panStartRef.current.ty + dy;
-      newTx = Math.min(0, Math.max(w * (1 - scale), newTx));
-      newTy = Math.min(0, Math.max(h * (1 - scale), newTy));
-      setZoom((prev) => ({ ...prev, tx: newTx, ty: newTy }));
+      if (rafId !== null) return; // skip if a frame is already queued
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!panStartRef.current) return;
+        const { scale } = zoomRef.current;
+        const gridEl = gridContainerRef.current;
+        const w = gridEl?.offsetWidth ?? el.offsetWidth;
+        const h = gridEl?.offsetHeight ?? el.offsetHeight;
+        const tdx = e.clientX - panStartRef.current.x;
+        const tdy = e.clientY - panStartRef.current.y;
+        let newTx = Math.min(0, Math.max(w * (1 - scale), panStartRef.current.tx + tdx));
+        let newTy = Math.min(0, Math.max(h * (1 - scale), panStartRef.current.ty + tdy));
+        setZoom((prev) => ({ ...prev, tx: newTx, ty: newTy }));
+      });
     };
 
     const onMouseUp = (e: MouseEvent) => {
       if (e.button !== 2) return;
       panStartRef.current = null;
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -583,13 +592,7 @@ export function GameGrid({
     lastMoveTargetShipId,
   ]);
 
-  /** Set of `"row,col"` keys for `tutorialHighlightCells` (tutorial highlight). */
-  const tutorialHighlightKeySet = React.useMemo(() => {
-    if (!tutorialHighlightCells?.length) return null;
-    return new Set(
-      tutorialHighlightCells.map((p) => `${p.row},${p.col}`),
-    );
-  }, [tutorialHighlightCells]);
+
 
   const flakEffectCells = React.useMemo(() => {
     // Only show Flak explosions when a destination is active (hover, drag, or staged move).
@@ -980,34 +983,25 @@ export function GameGrid({
   );
 
   // Pre-compute lookup Sets so per-cell checks are O(1) instead of O(n) each.
-  const movementTileSet = React.useMemo(
-    () => new Set(movementRange.map((p) => `${p.row},${p.col}`)),
-    [movementRange],
-  );
-  const shootingTileSet = React.useMemo(
-    () => new Set(shootingRange.map((p) => `${p.row},${p.col}`)),
-    [shootingRange],
-  );
-  const effectiveShootingTileSet = React.useMemo(
-    () => new Set(effectiveShootingRange.map((p) => `${p.row},${p.col}`)),
-    [effectiveShootingRange],
-  );
-  const validTargetIdSet = React.useMemo(
-    () => new Set(validTargets.map((t) => t.shipId)),
-    [validTargets],
-  );
-  const effectiveValidTargetIdSet = React.useMemo(
-    () => new Set(effectiveValidTargets.map((t) => t.shipId)),
-    [effectiveValidTargets],
-  );
-  const assistableTargetIdSet = React.useMemo(
-    () => new Set(assistableTargets.map((t) => t.shipId)),
-    [assistableTargets],
-  );
-  const assistableTargetsFromStartIdSet = React.useMemo(
-    () => new Set(assistableTargetsFromStart.map((t) => t.shipId)),
-    [assistableTargetsFromStart],
-  );
+  const {
+    movementTileSet,
+    shootingTileSet,
+    effectiveShootingTileSet,
+    validTargetIdSet,
+    effectiveValidTargetIdSet,
+    assistableTargetIdSet,
+    assistableTargetsFromStartIdSet,
+    tutorialHighlightKeySet,
+  } = useGridCellSets({
+    movementRange,
+    shootingRange,
+    effectiveShootingRange,
+    validTargets,
+    effectiveValidTargets,
+    assistableTargets,
+    assistableTargetsFromStart,
+    tutorialHighlightCells,
+  });
 
   const isHoveringValidTarget =
     hoveredCell !== null &&
@@ -2478,20 +2472,7 @@ export function GameGrid({
 
                 const fromPos = useLastMoveArrow
                   ? lastMoveOldPosition
-                  : allShipPositions?.find((sp) => sp.shipId === movingShipId)
-                      ?.position ??
-                    (() => {
-                      for (let r = 0; r < grid.length; r++) {
-                        const row = grid[r];
-                        for (let c = 0; c < row.length; c++) {
-                          const cell = row[c];
-                          if (cell?.shipId === movingShipId && !cell.isPreview) {
-                            return { row: r, col: c };
-                          }
-                        }
-                      }
-                      return null;
-                    })();
+                  : (allShipPositions?.find((sp) => sp.shipId === movingShipId)?.position ?? null);
 
                 if (!fromPos) return null;
                 if (
@@ -3524,171 +3505,17 @@ export function GameGrid({
           </div>
 
           {/* Ship tooltip: absolute inside grid container so it tracks dynamic layout */}
-          {hoveredCell &&
-            !disableTooltips &&
-            !draggedShipId &&
-            (() => {
-              const ship = shipMap.get(hoveredCell.shipId);
-              const attributes = getShipAttributes(hoveredCell.shipId);
-              if (!ship) return null;
-
-              const gridEl = gridContainerRef.current;
-              if (!gridEl) return null;
-
-              const tooltipWidth = 384;
-              const tooltipHeight = 400;
-              const offset = 15;
-              const leftPlacementOffset = 28;
-
-              const cr = gridEl.getBoundingClientRect();
-              const layoutEl = gridLayoutRef.current;
-              const layoutRect = layoutEl?.getBoundingClientRect();
-              const originX =
-                layoutEl && layoutRect
-                  ? layoutRect.left - cr.left + layoutEl.clientLeft
-                  : 0;
-              const originY =
-                layoutEl && layoutRect
-                  ? layoutRect.top - cr.top + layoutEl.clientTop
-                  : 0;
-              const cellWidth = layoutEl
-                ? layoutEl.clientWidth / 17
-                : cr.width / 17;
-              const cellHeight = layoutEl
-                ? layoutEl.clientHeight / 11
-                : cr.height / 11;
-
-              const vb = measureGridCellViewportBounds(
-                layoutEl,
-                hoveredCell.row,
-                hoveredCell.col,
-                {
-                  gridContainerViewportLeft: cr.left,
-                  gridContainerViewportTop: cr.top,
-                  originX,
-                  originY,
-                  cellWidth,
-                  cellHeight,
-                },
-              );
-
-              const shipLeft = vb.left - cr.left;
-              const shipTop = vb.top - cr.top;
-              const shipRight = vb.right - cr.left;
-              const shipBottom = vb.bottom - cr.top;
-
-              const mouseX = (shipLeft + shipRight) / 2;
-              const mouseY = (shipTop + shipBottom) / 2;
-
-              let tooltipLeft = mouseX + offset;
-              let tooltipTop = mouseY + offset;
-
-              const tooltipRight = tooltipLeft + tooltipWidth;
-              const wouldCoverHorizontally =
-                tooltipLeft < shipRight && tooltipRight > shipLeft;
-
-              const tooltipBottom = tooltipTop + tooltipHeight;
-              const wouldCoverVertically =
-                tooltipTop < shipBottom && tooltipBottom > shipTop;
-
-              const isCreatorShip = hoveredCell.isCreator;
-              const maxLeft = Math.max(0, cr.width - tooltipWidth);
-              const maxTop = Math.max(0, cr.height - tooltipHeight);
-
-              if (wouldCoverHorizontally && wouldCoverVertically) {
-                if (isCreatorShip) {
-                  if (shipLeft - tooltipWidth - leftPlacementOffset >= 0) {
-                    tooltipLeft = shipLeft - tooltipWidth - leftPlacementOffset;
-                  } else if (shipRight + tooltipWidth + offset <= cr.width) {
-                    tooltipLeft = shipRight + offset;
-                  } else if (shipTop - tooltipHeight - offset >= 0) {
-                    tooltipTop = shipTop - tooltipHeight - offset;
-                    tooltipLeft = mouseX;
-                  } else if (
-                    shipBottom + tooltipHeight + offset <=
-                    cr.height
-                  ) {
-                    tooltipTop = shipBottom + offset;
-                    tooltipLeft = mouseX;
-                  }
-                } else {
-                  if (shipRight + tooltipWidth + offset <= cr.width) {
-                    tooltipLeft = shipRight + offset;
-                  } else if (shipLeft - tooltipWidth - leftPlacementOffset >= 0) {
-                    tooltipLeft = shipLeft - tooltipWidth - leftPlacementOffset;
-                  } else if (shipTop - tooltipHeight - offset >= 0) {
-                    tooltipTop = shipTop - tooltipHeight - offset;
-                    tooltipLeft = mouseX;
-                  } else if (
-                    shipBottom + tooltipHeight + offset <=
-                    cr.height
-                  ) {
-                    tooltipTop = shipBottom + offset;
-                    tooltipLeft = mouseX;
-                  }
-                }
-              } else if (wouldCoverHorizontally) {
-                if (isCreatorShip) {
-                  if (shipLeft - tooltipWidth - leftPlacementOffset >= 0) {
-                    tooltipLeft = shipLeft - tooltipWidth - leftPlacementOffset;
-                  } else {
-                    tooltipLeft = shipRight + offset;
-                  }
-                } else {
-                  if (shipRight + tooltipWidth + offset <= cr.width) {
-                    tooltipLeft = shipRight + offset;
-                  } else {
-                    tooltipLeft = shipLeft - tooltipWidth - leftPlacementOffset;
-                  }
-                }
-              } else if (wouldCoverVertically) {
-                if (shipTop - tooltipHeight - offset >= 0) {
-                  tooltipTop = shipTop - tooltipHeight - offset;
-                } else {
-                  tooltipTop = shipBottom + offset;
-                }
-              }
-
-              tooltipLeft = Math.max(0, Math.min(tooltipLeft, maxLeft));
-              tooltipTop = Math.max(0, Math.min(tooltipTop, maxTop));
-
-              return (
-                <div
-                  className="absolute z-[10000] pointer-events-none opacity-100"
-                  style={{
-                    left: `${tooltipLeft}px`,
-                    top: `${tooltipTop}px`,
-                  }}
-                >
-                  <div className="min-w-[22rem] w-[24rem] opacity-100">
-                    <ShipCard
-                      ship={ship}
-                      isStarred={false}
-                      onToggleStar={() => {}}
-                      isSelected={false}
-                      onToggleSelection={() => {}}
-                      onRecycleClick={() => {}}
-                      showInGameProperties={true}
-                      inGameAttributes={attributes || undefined}
-                      attributesLoading={!attributes}
-                      hideRecycle={true}
-                      hideCheckbox={true}
-                      tooltipMode={true}
-                      isCurrentPlayerShip={isShipOwnedByCurrentPlayer(
-                        hoveredCell.shipId,
-                      )}
-                      flipShip={hoveredCell.isCreator}
-                      hasMoved={movedShipIdsSet.has(hoveredCell.shipId)}
-                      gameViewMode={true}
-                      tooltipGridPosition={{
-                        row: hoveredCell.row,
-                        col: hoveredCell.col,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
+          <GameGridTooltip
+            hoveredCell={hoveredCell}
+            disableTooltips={disableTooltips}
+            draggedShipId={draggedShipId}
+            shipMap={shipMap}
+            getShipAttributes={getShipAttributes}
+            gridContainerRef={gridContainerRef}
+            gridLayoutRef={gridLayoutRef}
+            isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
+            movedShipIdsSet={movedShipIdsSet}
+          />
 
           {/* Floating weapon selector — appears above selected ship; stays visible when targeting */}
           {(() => {
@@ -3791,132 +3618,25 @@ export function GameGrid({
             );
           })()}
 
-          {/* Inline confirm widget — dynamically positioned to avoid target ship and beam path */}
           {showConfirmWidget && previewPosition && onConfirmMove && onCancelMove && confirmWidgetAnchor && (
-            <div
-              className="absolute z-[195] pointer-events-auto"
-              style={{
-                left: confirmWidgetAnchor.left,
-                top: confirmWidgetAnchor.top,
-                transform: confirmWidgetAnchor.transform,
-                filter: "drop-shadow(0 4px 14px color-mix(in srgb, var(--color-phosphor-green) 35%, transparent))",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "color-mix(in srgb, var(--color-near-black) 96%, transparent)",
-                  border: "2px solid var(--color-gunmetal)",
-                  borderTopColor: "var(--color-cyan)",
-                  borderLeftColor: "var(--color-steel)",
-                  borderRadius: 0,
-                  clipPath: "polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px)",
-                  minWidth: "7.5rem",
-                }}
-              >
-                {(() => {
-                  // Only embed weapon selector when there's no real target locked; when targeting,
-                  // the standalone floating selector at the player's ship handles weapon choice.
-                  const hasRealTarget = targetShipId != null && targetShipId !== 0;
-                  if (hasRealTarget) return null;
-                  if (isRammingMovePreview) return null;
-                  const ship = selectedShipId ? shipMap.get(selectedShipId) : null;
-                  if (!ship) return null;
-                  const hasSpecial = ship.equipment.special > 0;
-                  const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
-                    const cell = grid[r]?.[c];
-                    if (!cell || cell.isPreview) return false;
-                    if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
-                    return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
-                  });
-                  const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-                    ...(hasRamTarget ? [{ value: "ram" as const, label: "RAM" }] : []),
-                    { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon) },
-                    ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special) }] : []),
-                  ];
-                  return (
-                    <div
-                      className="flex border-b"
-                      style={{ borderColor: "var(--color-gunmetal)" }}
-                    >
-                      {weapons.map(({ value, label }) => {
-                        const isActive = selectedWeaponType === value;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedWeaponType(value);
-                              if (value === "special" && specialType === 3) {
-                                setTargetShipId(0); // Flak auto-targets all
-                              } else if (selectedWeaponType === "special" && specialType === 3) {
-                                setTargetShipId(null); // leaving Flak — clear the auto-target sentinel
-                              }
-                              // Otherwise keep targetShipId so the widget stays open
-                            }}
-                            className="flex-1 px-2 py-1.5 text-[10px] uppercase font-bold tracking-wider transition-colors duration-100"
-                            style={{
-                              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                              color: isActive ? "var(--color-cyan)" : "var(--color-text-muted)",
-                              backgroundColor: isActive
-                                ? "color-mix(in srgb, var(--color-cyan) 14%, transparent)"
-                                : "transparent",
-                              borderRight: value !== weapons[weapons.length - 1].value ? "1px solid var(--color-gunmetal)" : "none",
-                              borderRadius: 0,
-                            }}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              <div className="flex">
-                  <button
-                    type="button"
-                    onClick={onConfirmMove}
-                    className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
-                    style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      color: "var(--color-phosphor-green)",
-                      backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
-                      borderRight: "1px solid var(--color-gunmetal)",
-                      borderRadius: 0,
-                      letterSpacing: "0.14em",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--color-phosphor-green) 22%, transparent)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)";
-                    }}
-                  >
-                    {confirmWidgetLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onCancelMove}
-                    className="px-3 py-2 text-sm font-bold transition-colors duration-100"
-                    style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      color: "var(--color-text-muted)",
-                      backgroundColor: "transparent",
-                      borderRadius: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "var(--color-warning-red)";
-                      e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--color-warning-red) 12%, transparent)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "var(--color-text-muted)";
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
+            <GameGridConfirmWidget
+              confirmWidgetAnchor={confirmWidgetAnchor}
+              confirmWidgetLabel={confirmWidgetLabel}
+              onConfirmMove={onConfirmMove}
+              onCancelMove={onCancelMove}
+              selectedShipId={selectedShipId}
+              shipMap={shipMap}
+              selectedWeaponType={selectedWeaponType}
+              specialType={specialType}
+              targetShipId={targetShipId}
+              isRammingMovePreview={isRammingMovePreview ?? false}
+              movementRange={movementRange}
+              grid={grid}
+              isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
+              getShipAttributes={getShipAttributes}
+              setSelectedWeaponType={setSelectedWeaponType}
+              setTargetShipId={setTargetShipId}
+            />
           )}
         </div>
       </div>

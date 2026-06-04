@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
+import { PLASMA_IMPACT_DURATION_MS, PLASMA_IMPACT_THROTTLE_MS, PLASMA_PARTICLE_INTERVAL_MS } from "../../constants/animationTiming";
 
 interface PlasmaShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -13,10 +14,8 @@ interface PlasmaShootingAnimationProps {
 
 const PLASMA_COLORS = ["#56d6ff", "#6495ED", "#9370DB", "#4169E1", "#00CED1"];
 const IMPACT_BLOB_COLORS = ["#56d6ff", "#6495ED", "#9370DB", "#4169E1", "#00CED1", "#b8a0ff", "#ffffff"];
-const IMPACT_DURATION = 700;
-const IMPACT_THROTTLE_MS = 250;
 
-export function PlasmaShootingAnimation({
+export const PlasmaShootingAnimation = React.memo(function PlasmaShootingAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -59,6 +58,8 @@ export function PlasmaShootingAnimation({
   const animationFrameRef = useRef<number | null>(null);
   const impactAnimationRef = useRef<number | null>(null);
   const lastImpactTimeRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // Calculate cell centers
   const getCellCenter = useCallback(
@@ -133,6 +134,7 @@ export function PlasmaShootingAnimation({
 
     // Remove particle after it reaches target
     setTimeout(() => {
+      if (!mountedRef.current) return;
       setParticles((prev) => prev.filter((p) => p.id !== newParticle.id));
     }, newParticle.travelTime * 1000);
   }, [
@@ -153,7 +155,7 @@ export function PlasmaShootingAnimation({
     // Create new particles continuously
     const interval = setInterval(() => {
       createParticle();
-    }, 25); // Create a new particle every 25ms for a continuous stream (doubled from 50ms)
+    }, PLASMA_PARTICLE_INTERVAL_MS); // Create a new particle every 25ms for a continuous stream (doubled from 50ms)
 
     return () => clearInterval(interval);
   }, [createParticle]);
@@ -170,8 +172,8 @@ export function PlasmaShootingAnimation({
           const progress = Math.min(elapsed / particle.travelTime, 1);
 
           if (progress >= 1) {
-            // Throttle: one impact spawn per IMPACT_THROTTLE_MS
-            if (now - lastImpactTimeRef.current > IMPACT_THROTTLE_MS) {
+            // Throttle: one impact spawn per PLASMA_IMPACT_THROTTLE_MS
+            if (now - lastImpactTimeRef.current > PLASMA_IMPACT_THROTTLE_MS) {
               lastImpactTimeRef.current = now;
               const numBlobs = 8 + Math.floor(Math.random() * 4);
               const blobs = Array.from({ length: numBlobs }, () => ({
@@ -241,7 +243,7 @@ export function PlasmaShootingAnimation({
       const now = Date.now();
       setImpacts((prev) => {
         if (prev.length === 0) return prev;
-        return prev.filter((imp) => now - imp.startTime < IMPACT_DURATION);
+        return prev.filter((imp) => now - imp.startTime < PLASMA_IMPACT_DURATION_MS);
       });
       impactAnimationRef.current = requestAnimationFrame(animate);
     };
@@ -274,7 +276,7 @@ export function PlasmaShootingAnimation({
     >
       {/* Melty impact effects — rendered below particles so stream fires over the pool */}
       {impacts.map((impact) => {
-        const t = Math.min((now - impact.startTime) / IMPACT_DURATION, 1);
+        const t = Math.min((now - impact.startTime) / PLASMA_IMPACT_DURATION_MS, 1);
 
         // Blobs spread out fast (first ~30% of duration) then drip under gravity
         const spreadT = Math.min(t * 3, 1);
@@ -329,4 +331,4 @@ export function PlasmaShootingAnimation({
       ))}
     </svg>
   );
-}
+});
