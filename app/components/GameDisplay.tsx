@@ -3603,12 +3603,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           >
             <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
               <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
+                <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-cyan)" }}>[YOU]</span>
                 <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
               </div>
               <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
               <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-warning-red)" }}>person</span>
+                <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-warning-red)" }}>[OPP]</span>
                 <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
               </div>
             </div>

@@ -3966,12 +3966,12 @@ export function SimulatedGameDisplay({
               >
                 <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
                   <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
+                    <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-cyan)" }}>[YOU]</span>
                     <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.creatorScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
                   <div style={{ width: 1, backgroundColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-gunmetal)", flexShrink: 0 }} />
                   <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-warning-red)" }}>person</span>
+                    <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-warning-red)" }}>[OPP]</span>
                     <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.joinerScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
                 </div>
