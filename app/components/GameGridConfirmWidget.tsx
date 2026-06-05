@@ -15,6 +15,8 @@ interface GameGridConfirmWidgetProps {
   confirmWidgetLabel: string;
   onConfirmMove: () => void;
   onCancelMove: () => void;
+  /** When provided, replaces the default confirm button (e.g. pass a TransactionButton). */
+  confirmButton?: React.ReactNode;
   selectedShipId: bigint | null;
   shipMap: Map<bigint, Ship>;
   selectedWeaponType: "weapon" | "special" | "ram";
@@ -34,6 +36,7 @@ export function GameGridConfirmWidget({
   confirmWidgetLabel,
   onConfirmMove,
   onCancelMove,
+  confirmButton,
   selectedShipId,
   shipMap,
   selectedWeaponType,
@@ -130,30 +133,32 @@ export function GameGridConfirmWidget({
       >
         {embeddedWeaponSelector}
         <div className="flex">
-          <button
-            type="button"
-            onClick={onConfirmMove}
-            className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
-            style={{
-              ...STYLE_LABEL,
-              color: "var(--color-phosphor-green)",
-              backgroundColor:
-                "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
-              borderRight: "1px solid var(--color-gunmetal)",
-              borderRadius: 0,
-              letterSpacing: "0.14em",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "color-mix(in srgb, var(--color-phosphor-green) 22%, transparent)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)";
-            }}
-          >
-            {confirmWidgetLabel}
-          </button>
+          {confirmButton ?? (
+            <button
+              type="button"
+              onClick={onConfirmMove}
+              className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
+              style={{
+                ...STYLE_LABEL,
+                color: "var(--color-phosphor-green)",
+                backgroundColor:
+                  "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
+                borderRight: "1px solid var(--color-gunmetal)",
+                borderRadius: 0,
+                letterSpacing: "0.14em",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  "color-mix(in srgb, var(--color-phosphor-green) 22%, transparent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)";
+              }}
+            >
+              {confirmWidgetLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancelMove}

@@ -319,6 +319,7 @@ interface GameGridProps {
   confirmWidgetLabel?: string;
   onConfirmMove?: () => void;
   onCancelMove?: () => void;
+  confirmButton?: React.ReactNode;
 }
 
 export function GameGrid({
@@ -381,6 +382,7 @@ export function GameGrid({
   confirmWidgetLabel = "SUBMIT",
   onConfirmMove,
   onCancelMove,
+  confirmButton,
 }: GameGridProps) {
   const gridContainerRef = useRef<HTMLDivElement>(null);
   /** The bordered CSS grid (cells); tracks are inset by border — use for cell math vs overlay. */
@@ -3618,12 +3620,13 @@ export function GameGrid({
             );
           })()}
 
-          {showConfirmWidget && previewPosition && onConfirmMove && onCancelMove && confirmWidgetAnchor && (
+          {showConfirmWidget && previewPosition && onCancelMove && confirmWidgetAnchor && (
             <GameGridConfirmWidget
               confirmWidgetAnchor={confirmWidgetAnchor}
               confirmWidgetLabel={confirmWidgetLabel}
-              onConfirmMove={onConfirmMove}
+              onConfirmMove={onConfirmMove ?? (() => {})}
               onCancelMove={onCancelMove}
+              confirmButton={confirmButton}
               selectedShipId={selectedShipId}
               shipMap={shipMap}
               selectedWeaponType={selectedWeaponType}

@@ -1774,6 +1774,39 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
   const shouldPulseSubmitMoveButton = React.useMemo(() => false, []);
 
+  const computedActionType = React.useMemo(() =>
+    actionOverride != null
+      ? actionOverride
+      : isRammingMovePreview
+        ? ActionType.Pass
+      : targetShipId !== null && targetShipId !== 0n
+        ? selectedWeaponType === "special" ? ActionType.Special : ActionType.Shoot
+        : targetShipId === 0n && selectedWeaponType === "special" && specialType === 3
+          ? ActionType.Special
+          : ActionType.Pass,
+  [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType]);
+
+  const computedMoveCoords = React.useMemo(() => {
+    if (previewPosition) return previewPosition;
+    const cur = game.shipPositions.find(p => p.shipId === selectedShipId);
+    return cur ? cur.position : { row: 0, col: 0 };
+  }, [previewPosition, selectedShipId, game.shipPositions]);
+
+  const showConfirmWidget = React.useMemo(() =>
+    !readOnly &&
+    isShowingProposedMove &&
+    actionOverride !== ActionType.Retreat &&
+    (previewPosition !== null || targetShipId !== null),
+  [readOnly, isShowingProposedMove, previewPosition, actionOverride, targetShipId]);
+
+  const confirmWidgetLabel = React.useMemo(() =>
+    computedActionType === ActionType.Pass ? "HOLD FIRE"
+      : computedActionType === ActionType.Ram ? "RAM"
+      : (selectedWeaponType === "special" && specialType === 2 && targetShipId != null) ? "REPAIR"
+      : (targetShipId != null && targetShipId !== 0n) ? "FIRE"
+      : "SUBMIT",
+  [computedActionType, selectedWeaponType, specialType, targetShipId]);
+
   /** Top of proposed-move panel: 2/3 submit + 1/3 cancel (side), or horizontal row (wide). */
   const renderProposedMoveSubmitCancelRow = (): React.ReactNode => {
     const isRail = useSideLayout;
@@ -1792,41 +1825,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       >
         <>
           {(() => {
-            const computedActionType =
-              actionOverride != null
-                ? actionOverride
-                : isRammingMovePreview
-                  ? ActionType.Pass
-                : targetShipId !== null && targetShipId !== 0n
-                  ? selectedWeaponType === "special"
-                    ? ActionType.Special
-                    : ActionType.Shoot
-                  : targetShipId === 0n &&
-                      selectedWeaponType === "special" &&
-                      specialType === 3
-                    ? ActionType.Special
-                    : ActionType.Pass;
-
-            const computedRow = previewPosition
-              ? previewPosition.row
-              : (() => {
-                  const currentPosition = game.shipPositions.find(
-                    (pos) => pos.shipId === selectedShipId,
-                  );
-                  return currentPosition
-                    ? currentPosition.position.row
-                    : 0;
-                })();
-            const computedCol = previewPosition
-              ? previewPosition.col
-              : (() => {
-                  const currentPosition = game.shipPositions.find(
-                    (pos) => pos.shipId === selectedShipId,
-                  );
-                  return currentPosition
-                    ? currentPosition.position.col
-                    : 0;
-                })();
+            const computedRow = computedMoveCoords.row;
+            const computedCol = computedMoveCoords.col;
 
             const submitMoveButtonStyle: React.CSSProperties = {
               fontFamily:
@@ -1993,7 +1993,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     return true;
                   }}
                 >
-                  {isSelectedShipDisabled ? "Submit Retreat" : "Submit"}
+                  {isSelectedShipDisabled ? "RETREAT" : confirmWidgetLabel}
                 </TransactionButton>
             );
           })()}
@@ -3726,21 +3726,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             );
           })()}
 
-        {/* Proposed move body lives in the left rail (side chrome), not between rail and map. */}
-        {useSideLayout && isShowingProposedMove && (
-        <div
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border border-solid p-3"
-          style={{
-              backgroundColor: "var(--color-near-black)",
-            borderColor: "var(--color-gunmetal)",
-            borderTopColor: "var(--color-steel)",
-            borderLeftColor: "var(--color-steel)",
-            borderRadius: 0,
-          }}
-        >
-            {renderProposedMoveActivePanel()}
-                  </div>
-        )}
                 </div>
 
         {/* Move confirmation: stacked layout (wide chrome), matches SimulatedGameDisplay. */}
@@ -3833,6 +3818,61 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           setHoveredCell={setHoveredCell}
           setDraggedShipId={setDraggedShipId}
           setDragOverCell={setDragOverCell}
+          showConfirmWidget={showConfirmWidget}
+          confirmWidgetLabel={confirmWidgetLabel}
+          onCancelMove={handleCancelMove}
+          confirmButton={showConfirmWidget ? (() => {
+            const computedRow = computedMoveCoords.row;
+            const computedCol = computedMoveCoords.col;
+            return (
+              <TransactionButton
+                transactionId={`move-ship-${selectedShipId}-${game.metadata.gameId}`}
+                contractAddress={gameContract.address}
+                abi={gameContract.abi}
+                functionName="moveShip"
+                args={[
+                  game.metadata.gameId,
+                  selectedShipId,
+                  computedRow,
+                  computedCol,
+                  computedActionType,
+                  computedActionType === ActionType.Pass ? 0n : targetShipId || 0n,
+                ]}
+                className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
+                style={{
+                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  color: "var(--color-phosphor-green)",
+                  backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
+                  borderRight: "1px solid var(--color-gunmetal)",
+                  borderRadius: 0,
+                  letterSpacing: "0.14em",
+                }}
+                loadingText="[...]"
+                errorText="[ERR]"
+                onTransactionSent={() => setAwaitingTurnSyncAfterSubmit(true)}
+                onSuccess={() => {
+                  const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
+                  setOptimisticLastMove({
+                    shipId: selectedShipId!,
+                    oldRow: currentPosition?.position.row ?? computedRow,
+                    oldCol: currentPosition?.position.col ?? computedCol,
+                    newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
+                    newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
+                    actionType: computedActionType,
+                    targetShipId: targetShipId ?? 0n,
+                    timestamp: BigInt(Date.now()),
+                  });
+                  toast.success("Move submitted successfully!");
+                  recordPlayerMove();
+                  refetchGame();
+                  refetch?.();
+                }}
+                onError={() => setAwaitingTurnSyncAfterSubmit(false)}
+              >
+                {confirmWidgetLabel}
+              </TransactionButton>
+            );
+          })() : undefined}
         />
             </div>
           {game.metadata.winner ===
