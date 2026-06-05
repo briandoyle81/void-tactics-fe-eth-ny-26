@@ -71,19 +71,31 @@ const TUTORIAL_SELECT_SHIP_GRID_BRIEF = (
       for your <span className="font-semibold text-amber">inspection</span>
       .
     </p>
+    <p>
+      The{" "}
+      <span className="font-semibold text-cyan">FLEET STATUS</span> panel
+      on the left shows all ships at a glance — yours in{" "}
+      <span className="font-semibold text-cyan">blue</span>, enemies in{" "}
+      <span className="font-semibold text-warning-red">red</span>.
+    </p>
   </>
 );
 
 const TUTORIAL_SELECT_SHIP_GRID_TASKS: React.ReactNode[] = [
-  <>Hover over our ships to view their stats and abilities.</>,
   <>
-    Click on our ships to see their{" "}
+    Hover over a ship thumbnail in the{" "}
+    <span className="font-semibold text-cyan">FLEET STATUS</span> panel to
+    highlight it on the grid.
+  </>,
+  <>
+    Click a ship in <span className="font-semibold text-cyan">FLEET STATUS</span>{" "}
+    or directly on the grid to select it and see its{" "}
     <span className="font-semibold text-phosphor-green">movement</span>
     {" and "}
     <span className="font-semibold text-amber">threat range</span>.
   </>,
   <>
-    Click a ship again to see its{" "}
+    Click a selected ship again to see its{" "}
     <span className="font-semibold text-amber">weapons range</span> from
     the current position.
   </>,
@@ -97,21 +109,31 @@ const TUTORIAL_VIEW_ENEMY_GRID_BRIEF = (
       <span className="font-semibold text-amber/70">right side</span> of the
       map. Our sensors can show us their stats and abilities.
     </p>
+    <p>
+      Enemy ships appear in{" "}
+      <span className="font-semibold text-warning-red">red</span> in the{" "}
+      <span className="font-semibold text-cyan">FLEET STATUS</span> panel
+      — use it to quickly locate them on the grid.
+    </p>
   </>
 );
 
 const TUTORIAL_VIEW_ENEMY_GRID_TASKS: React.ReactNode[] = [
-  <>Hover over enemy ships to view their stats and abilities.</>,
   <>
-    Click on enemy ships to see their{" "}
+    Hover over an enemy thumbnail in{" "}
+    <span className="font-semibold text-cyan">FLEET STATUS</span> to
+    highlight them on the grid.
+  </>,
+  <>
+    Click an enemy ship in <span className="font-semibold text-cyan">FLEET STATUS</span>{" "}
+    or on the grid to see their{" "}
     <span className="font-semibold text-phosphor-green">movement</span>
     {" and "}
     <span className="font-semibold text-amber">threat range</span>.
   </>,
   <>
     Click an enemy ship again to see its{" "}
-    <span className="font-semibold text-amber">weapons range</span> from
-    the current position.
+    <span className="font-semibold text-amber">weapons range</span>.
   </>,
 ];
 

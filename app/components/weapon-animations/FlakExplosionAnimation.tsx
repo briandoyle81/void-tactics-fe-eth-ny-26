@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FLAK_BURST_CLEANUP_MS, FLAK_BURST_SPAWN_INTERVAL_MS } from "../../constants/animationTiming";
 
 type GridCell = { row: number; col: number };
 
@@ -16,7 +17,7 @@ type Burst = {
   size: number;
 };
 
-export function FlakExplosionAnimation({
+export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation({
   gridContainerRef,
   targetCells,
 }: FlakExplosionAnimationProps) {
@@ -24,6 +25,8 @@ export function FlakExplosionAnimation({
   const burstIdRef = useRef(0);
   const cellOrderRef = useRef<GridCell[]>([]);
   const cellIndexRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const uniqueCells = useMemo(() => {
     const seen = new Set<string>();
@@ -168,5 +171,5 @@ export function FlakExplosionAnimation({
       ))}
     </div>
   );
-}
+});
 

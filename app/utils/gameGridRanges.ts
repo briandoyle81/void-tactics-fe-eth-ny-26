@@ -103,7 +103,7 @@ interface ShootingRangeParams {
   getShipAttributes: (shipId: bigint) => Attributes | null;
   shipPositions: readonly ShipPosition[];
   previewPosition: { row: number; col: number } | null;
-  selectedWeaponType: "weapon" | "special";
+  selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
   blockedGrid: boolean[][];
@@ -482,3 +482,263 @@ export function computeShootingRange({
   return validShootingPositions;
 }
 
+interface ShipOwner {
+  owner: string;
+}
+
+interface LabelTargetsParams {
+  selectedShipId: bigint | null;
+  previewPosition: { row: number; col: number } | null;
+  isRammingMovePreview: boolean;
+  shipPositions: readonly ShipPosition[];
+  shipMap: Map<bigint, ShipOwner>;
+  playerAddress: string | null;
+  getShipAttributes: (shipId: bigint) => Attributes | null;
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialRange: number | undefined;
+  specialType: number;
+  blockedGrid: boolean[][];
+  gridWidth: number;
+  gridHeight: number;
+}
+
+export function computeLabelTargets({
+  selectedShipId,
+  previewPosition,
+  isRammingMovePreview,
+  shipPositions,
+  shipMap,
+  playerAddress,
+  getShipAttributes,
+  selectedWeaponType,
+  specialRange,
+  specialType,
+  blockedGrid,
+  gridWidth,
+  gridHeight,
+}: LabelTargetsParams): { shipId: bigint; position: { row: number; col: number } }[] {
+  if (!selectedShipId) return [];
+  if (isRammingMovePreview) return [];
+
+  const attributes = getShipAttributes(selectedShipId);
+  if (attributes && attributes.hullPoints === 0) return [];
+
+  const movementRangeAttr = attributes?.movement || 1;
+  const shootingRangeAttr =
+    selectedWeaponType === "special" && specialRange !== undefined
+      ? specialRange
+      : attributes?.range || 1;
+
+  const currentPosition = shipPositions.find(
+    (pos) => pos.shipId === selectedShipId,
+  );
+  if (!currentPosition) return [];
+
+  const origins: { row: number; col: number }[] = [];
+  if (previewPosition) {
+    origins.push({ row: previewPosition.row, col: previewPosition.col });
+  } else {
+    origins.push({
+      row: currentPosition.position.row,
+      col: currentPosition.position.col,
+    });
+    for (
+      let row = Math.max(0, currentPosition.position.row - movementRangeAttr);
+      row <= Math.min(gridHeight - 1, currentPosition.position.row + movementRangeAttr);
+      row++
+    ) {
+      for (
+        let col = Math.max(0, currentPosition.position.col - movementRangeAttr);
+        col <= Math.min(gridWidth - 1, currentPosition.position.col + movementRangeAttr);
+        col++
+      ) {
+        const dist =
+          Math.abs(row - currentPosition.position.row) +
+          Math.abs(col - currentPosition.position.col);
+        if (dist <= movementRangeAttr && dist > 0) {
+          const occupied = shipPositions.some(
+            (pos) => pos.position.row === row && pos.position.col === col,
+          );
+          if (!occupied) origins.push({ row, col });
+        }
+      }
+    }
+  }
+
+  const targetMap = new Map<bigint, { shipId: bigint; position: { row: number; col: number } }>();
+
+  for (const { row: startRow, col: startCol } of origins) {
+    shipPositions.forEach((shipPosition) => {
+      const ship = shipMap.get(shipPosition.shipId);
+      if (!ship) return;
+
+      if (selectedWeaponType === "special") {
+        if (specialType === 3) {
+          if (shipPosition.shipId === selectedShipId) return;
+        } else if (specialType === 1) {
+          if (ship.owner === playerAddress) return;
+        } else {
+          if (ship.owner !== playerAddress) return;
+        }
+      } else {
+        if (ship.owner === playerAddress) return;
+      }
+
+      const targetRow = shipPosition.position.row;
+      const targetCol = shipPosition.position.col;
+      const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+      const canShoot = distance === 1 || distance <= shootingRangeAttr;
+
+      if (canShoot && distance > 0) {
+        const shouldCheckLineOfSight =
+          distance > 1 &&
+          (selectedWeaponType !== "special" ||
+            (specialType !== 1 && specialType !== 2 && specialType !== 3));
+
+        if (
+          !shouldCheckLineOfSight ||
+          hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
+        ) {
+          targetMap.set(shipPosition.shipId, {
+            shipId: shipPosition.shipId,
+            position: { row: targetRow, col: targetCol },
+          });
+        }
+      }
+    });
+  }
+
+  return Array.from(targetMap.values());
+}
+
+interface HoverValidTargetsParams {
+  selectedShipId: bigint | null;
+  hoverPreviewPosition: { row: number; col: number } | null;
+  hasShips: boolean;
+  shipPositions: readonly ShipPosition[];
+  shipMap: Map<bigint, ShipOwner>;
+  playerAddress: string | null;
+  getShipAttributes: (shipId: bigint) => Attributes | null;
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialRange: number | undefined;
+  specialType: number;
+  blockedGrid: boolean[][];
+}
+
+export function computeHoverValidTargets({
+  selectedShipId,
+  hoverPreviewPosition,
+  hasShips,
+  shipPositions,
+  shipMap,
+  playerAddress,
+  getShipAttributes,
+  selectedWeaponType,
+  specialRange,
+  specialType,
+  blockedGrid,
+}: HoverValidTargetsParams): { shipId: bigint; position: { row: number; col: number } }[] {
+  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
+  const attributes = getShipAttributes(selectedShipId);
+  if (!attributes) return [];
+  const range =
+    selectedWeaponType === "special" && specialRange !== undefined
+      ? specialRange
+      : attributes.range || 1;
+  const { row: startRow, col: startCol } = hoverPreviewPosition;
+  const spec = specialType;
+  const targets: { shipId: bigint; position: { row: number; col: number } }[] = [];
+  shipPositions.forEach((shipPosition) => {
+    const ship = shipMap.get(shipPosition.shipId);
+    if (!ship) return;
+    if (selectedWeaponType === "special") {
+      if (spec === 3) {
+        if (shipPosition.shipId === selectedShipId) return;
+      } else if (spec === 1) {
+        if (ship.owner === playerAddress) return;
+      } else {
+        if (ship.owner !== playerAddress) return;
+      }
+    } else {
+      if (ship.owner === playerAddress) return;
+    }
+    const { row: targetRow, col: targetCol } = shipPosition.position;
+    const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+    const canShoot = distance === 1 || distance <= range;
+    if (canShoot && distance > 0) {
+      const shouldCheckLOS =
+        distance > 1 &&
+        (selectedWeaponType !== "special" ||
+          (spec !== 1 && spec !== 2 && spec !== 3));
+      if (
+        !shouldCheckLOS ||
+        hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
+      ) {
+        targets.push({ shipId: shipPosition.shipId, position: { row: targetRow, col: targetCol } });
+      }
+    }
+  });
+  return targets;
+}
+
+interface HoverShootingRangeParams {
+  selectedShipId: bigint | null;
+  hoverPreviewPosition: { row: number; col: number } | null;
+  hasShips: boolean;
+  shipPositions: readonly ShipPosition[];
+  getShipAttributes: (shipId: bigint) => Attributes | null;
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialRange: number | undefined;
+  specialType: number;
+  blockedGrid: boolean[][];
+  gridWidth: number;
+  gridHeight: number;
+}
+
+export function computeHoverShootingRange({
+  selectedShipId,
+  hoverPreviewPosition,
+  hasShips,
+  shipPositions,
+  getShipAttributes,
+  selectedWeaponType,
+  specialRange,
+  specialType,
+  blockedGrid,
+  gridWidth,
+  gridHeight,
+}: HoverShootingRangeParams): { row: number; col: number }[] {
+  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
+  const attributes = getShipAttributes(selectedShipId);
+  if (!attributes) return [];
+  const range =
+    selectedWeaponType === "special" && specialRange !== undefined
+      ? specialRange
+      : attributes.range || 1;
+  const { row: startRow, col: startCol } = hoverPreviewPosition;
+  const spec = specialType;
+  const positions: { row: number; col: number }[] = [];
+  for (let row = Math.max(0, startRow - range); row <= Math.min(gridHeight - 1, startRow + range); row++) {
+    for (let col = Math.max(0, startCol - range); col <= Math.min(gridWidth - 1, startCol + range); col++) {
+      const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
+      if (distance > 0 && distance <= range) {
+        const isOccupied = shipPositions.some(
+          (p) => p.position.row === row && p.position.col === col,
+        );
+        if (!isOccupied) {
+          const shouldCheckLOS =
+            distance > 1 &&
+            (selectedWeaponType !== "special" ||
+              (spec !== 1 && spec !== 2 && spec !== 3));
+          if (
+            !shouldCheckLOS ||
+            hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+          ) {
+            positions.push({ row, col });
+          }
+        }
+      }
+    }
+  }
+  return positions;
+}

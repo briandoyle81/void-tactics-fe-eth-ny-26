@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { RETREAT_GLOW_BUILD_MS } from "../../constants/animationTiming";
 import { Ship } from "../../types/types";
 import { ShipImage } from "../ShipImage";
 
@@ -12,10 +13,9 @@ interface RetreatPrepAnimationProps {
   selectionOutlineClassName?: string;
 }
 
-const GLOW_BUILD_MS = 600;
 
 /** Shown in-cell when player selects Retreat: ship flips to face starting side and engine glow powers up. */
-export function RetreatPrepAnimation({
+export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
   ship,
   isCreator,
   selectionOutlineClassName = "ring-2 ring-blue-400",
@@ -29,7 +29,7 @@ export function RetreatPrepAnimation({
 
     const tick = () => {
       const elapsed = performance.now() - (startTimeRef.current ?? 0);
-      const t = Math.min(1, elapsed / GLOW_BUILD_MS);
+      const t = Math.min(1, elapsed / RETREAT_GLOW_BUILD_MS);
       setGlowOpacity(t * 0.95);
       if (t < 1) {
         frameRef.current = requestAnimationFrame(tick);
@@ -90,4 +90,4 @@ export function RetreatPrepAnimation({
       </div>
     </div>
   );
-}
+});

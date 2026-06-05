@@ -9,7 +9,7 @@ interface WarpFieldCollapseAnimationProps {
 }
 
 /** Warp field collapsing at a grid position (e.g. retreat last move). Uses only position data. */
-export function WarpFieldCollapseAnimation({
+export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseAnimation({
   gridContainerRef,
   row,
   col,
@@ -118,4 +118,4 @@ export function WarpFieldCollapseAnimation({
       </div>
     </div>
   );
-}
+});

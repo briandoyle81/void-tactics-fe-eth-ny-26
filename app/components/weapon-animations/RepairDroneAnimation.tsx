@@ -14,7 +14,7 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export function RepairDroneAnimation({
+export const RepairDroneAnimation = React.memo(function RepairDroneAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -192,5 +192,5 @@ export function RepairDroneAnimation({
       })}
     </div>
   );
-}
+});
 

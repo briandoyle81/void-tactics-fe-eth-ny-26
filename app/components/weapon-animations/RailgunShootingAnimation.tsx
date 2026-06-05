@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
+import { RAILGUN_IMPACT_DURATION_MS, RAILGUN_FLASH_DURATION_MS, RAILGUN_PEN_DURATION_MS, RAILGUN_MUZZLE_FADEOUT_MS, RAILGUN_RESPAWN_DELAY_MS } from "../../constants/animationTiming";
 
 interface RailgunShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -11,9 +12,6 @@ interface RailgunShootingAnimationProps {
   facingRight: boolean;
 }
 
-const IMPACT_DURATION = 650; // ms — total spall lifetime
-const FLASH_DURATION = 140;  // ms — entry flash
-const PEN_DURATION   = 220;  // ms — penetration glow line
 const SPALL_SPREAD   = (48 * Math.PI) / 180; // ±48° cone around bolt axis
 
 function spallColor(normSpread: number): string {
@@ -23,7 +21,7 @@ function spallColor(normSpread: number): string {
   return ["#ff8800", "#ff5500", "#cc3300"][Math.floor(Math.random() * 3)];
 }
 
-export function RailgunShootingAnimation({
+export const RailgunShootingAnimation = React.memo(function RailgunShootingAnimation({
   gridContainerRef,
   attackerRow,
   attackerCol,
@@ -66,6 +64,8 @@ export function RailgunShootingAnimation({
   const impactAnimationRef = useRef<number | null>(null);
   const hasFiredRef = useRef<string>("");
   const instanceId = useRef(Math.random().toString(36).slice(2));
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // Calculate cell centers
   const getCellCenter = useCallback(
@@ -151,7 +151,7 @@ export function RailgunShootingAnimation({
     ]);
     setTimeout(() => {
       setMuzzleFlashes((prev) => prev.filter((f) => f.id !== flashId));
-    }, 150);
+    }, RAILGUN_MUZZLE_FADEOUT_MS);
   }, [
     gridContainerRef,
     attackerRow,
@@ -168,7 +168,7 @@ export function RailgunShootingAnimation({
       // All projectiles despawned, wait before spawning next one
       const timeoutId = setTimeout(() => {
         spawnProjectile();
-      }, 2000); // 2 seconds between shots
+      }, RAILGUN_RESPAWN_DELAY_MS);
 
       return () => {
         clearTimeout(timeoutId);
@@ -273,7 +273,7 @@ export function RailgunShootingAnimation({
       const now = Date.now();
       setImpacts((prev) => {
         if (prev.length === 0) return prev;
-        return prev.filter((imp) => now - imp.startTime < IMPACT_DURATION);
+        return prev.filter((imp) => now - imp.startTime < RAILGUN_IMPACT_DURATION_MS);
       });
       impactAnimationRef.current = requestAnimationFrame(animate);
     };
@@ -336,16 +336,16 @@ export function RailgunShootingAnimation({
           const elapsed = now - impact.startTime;
           const elapsedSec = elapsed / 1000;
 
-          // Entry flash — blooms fast, fades in FLASH_DURATION ms
-          const flashT = Math.max(0, 1 - elapsed / FLASH_DURATION);
+          // Entry flash — blooms fast, fades in RAILGUN_FLASH_DURATION_MS ms
+          const flashT = Math.max(0, 1 - elapsed / RAILGUN_FLASH_DURATION_MS);
           const flashRadius = (1 - flashT) * 16; // 0→16px as flash fades
           const flashOpacity = flashT;
 
           // Penetration glow line — lingers a bit longer
-          const penT = Math.max(0, 1 - elapsed / PEN_DURATION);
+          const penT = Math.max(0, 1 - elapsed / RAILGUN_PEN_DURATION_MS);
 
-          // Spall fade — linear over full IMPACT_DURATION
-          const spallOpacity = Math.max(0, 1 - elapsed / IMPACT_DURATION);
+          // Spall fade — linear over full RAILGUN_IMPACT_DURATION_MS
+          const spallOpacity = Math.max(0, 1 - elapsed / RAILGUN_IMPACT_DURATION_MS);
 
           const cos = Math.cos(impact.boltAngle);
           const sin = Math.sin(impact.boltAngle);
@@ -432,4 +432,4 @@ export function RailgunShootingAnimation({
       </div>
     </>
   );
-}
+});

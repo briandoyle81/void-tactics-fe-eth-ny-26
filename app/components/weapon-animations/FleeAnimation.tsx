@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FLEE_GLOW_BUILD_MS, FLEE_ZOOM_DURATION_MS } from "../../constants/animationTiming";
 import { Ship } from "../../types/types";
 import { ShipImage } from "../ShipImage";
 
@@ -15,10 +16,8 @@ interface FleeAnimationProps {
   skipToZoom?: boolean;
 }
 
-const GLOW_BUILD_MS = 500;
-const ZOOM_DURATION_MS = 650;
 
-export function FleeAnimation({
+export const FleeAnimation = React.memo(function FleeAnimation({
   gridContainerRef,
   fromRow,
   fromCol,
@@ -54,7 +53,7 @@ export function FleeAnimation({
 
     const tick = () => {
       const elapsed = performance.now() - (startTimeRef.current ?? 0);
-      const t = Math.min(1, elapsed / GLOW_BUILD_MS);
+      const t = Math.min(1, elapsed / FLEE_GLOW_BUILD_MS);
       setGlowOpacity(t * 0.95);
       if (t < 1) {
         glowFrameRef.current = requestAnimationFrame(tick);
@@ -101,7 +100,7 @@ export function FleeAnimation({
           marginTop: -(cellHeight * 0.6),
           transform: "translateX(0)",
           ...(phase === "zoom" && {
-            animation: `flee-zoom-off ${ZOOM_DURATION_MS}ms ease-out forwards`,
+            animation: `flee-zoom-off ${FLEE_ZOOM_DURATION_MS}ms ease-out forwards`,
           }),
           ["--flee-direction" as string]: translateDirection,
           transformOrigin: "center center",
@@ -164,4 +163,4 @@ export function FleeAnimation({
       </div>
     </div>
   );
-}
+});

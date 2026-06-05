@@ -86,7 +86,7 @@ html {
 }
 
 body {
-  background: var(--color-near-black);
+  background: var(--game-bg-override, var(--color-near-black));
   color: var(--color-text-primary);
   font-family: var(--font-rajdhani), "Arial Black", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -407,32 +407,79 @@ body::before {
   animation: emp-impact 0.55s ease-out infinite;
 }
 
-/* Flak explosion pops */
-@keyframes flak-pop {
-  0% {
-    transform: scale(0.4);
-    opacity: 0.95;
-  }
-  60% {
-    transform: scale(1.25);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(1.45);
-    opacity: 0;
-  }
+/* Flak: brief white-hot flash */
+@keyframes flak-flash {
+  0%   { transform: scale(0.1); opacity: 1; }
+  12%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
-.flak-explosion {
+/* Flak: expanding fireball */
+@keyframes flak-fireball {
+  0%   { transform: scale(0.2); opacity: 1; }
+  35%  { transform: scale(1);   opacity: 0.88; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Flak: debris shard flying outward along X axis (wrapper div provides direction via rotate) */
+@keyframes flak-shard {
+  0%   { transform: translateX(0)          scaleX(1);   opacity: 1; }
+  100% { transform: translateX(var(--sd))  scaleX(0.3); opacity: 0; }
+}
+
+/* Flak: slow-expanding smoke puff that fades in then out */
+@keyframes flak-smoke {
+  0%   { transform: scale(0.3); opacity: 0; }
+  14%  { transform: scale(0.7); opacity: 0.28; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+.flak-flash {
   position: absolute;
-  border-radius: 0; /* industrial theme */
+  border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 184, 77, 0.95) 0%,
-    rgba(255, 77, 77, 0.65) 45%,
-    rgba(0, 0, 0, 0) 70%
+    rgba(255, 255, 235, 1)    0%,
+    rgba(255, 220, 100, 0.92) 32%,
+    rgba(255, 130, 0, 0)      62%
   );
-  animation: flak-pop 0.45s ease-out forwards;
+  animation: flak-flash 0.20s ease-out forwards;
+}
+
+.flak-fireball {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 205, 70, 1)    0%,
+    rgba(255, 90, 15, 0.82)  46%,
+    rgba(170, 15, 0, 0)      72%
+  );
+  animation: flak-fireball 0.42s ease-out forwards;
+}
+
+.flak-shard {
+  position: absolute;
+  background: linear-gradient(
+    to right,
+    rgba(255, 215, 80, 1),
+    rgba(255, 75, 15, 0.72),
+    rgba(180, 10, 0, 0)
+  );
+  border-radius: 1px 0 0 1px;
+  animation: flak-shard 0.40s ease-out both;
+}
+
+.flak-smoke {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(65, 45, 20, 0.30) 0%,
+    rgba(30, 20, 8, 0.10)  55%,
+    rgba(0, 0, 0, 0)       78%
+  );
+  animation: flak-smoke 0.56s ease-out forwards;
 }
 
 /* Repair drones (specialType === 2) */
@@ -640,6 +687,19 @@ body::before {
 .animate-victory-flash {
   animation: victory-claim-flash 1.4s ease-in-out infinite;
 }
+
+/* Victory / Defeat result overlay */
+@keyframes result-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes result-title-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-result-overlay { animation: result-overlay-in 0.35s ease-out forwards; }
+.animate-result-title   { animation: result-title-in 0.45s ease-out 0.1s  both; }
+.animate-result-sub     { animation: result-title-in 0.45s ease-out 0.25s both; }
 
 /* Mobile portrait → landscape rotation hint */
 @keyframes phone-rotate {

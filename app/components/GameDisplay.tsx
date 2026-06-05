@@ -19,8 +19,6 @@ import { useGetGameMapState } from "../hooks/useMapsContract";
 import { useGameContract, useGetGame } from "../hooks/useGameContract";
 import {
   useContractEvents,
-  registerGameRefetch,
-  unregisterGameRefetch,
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
 import { TransactionButton } from "./TransactionButton";
@@ -33,7 +31,6 @@ import {
 import { useSpecialRange } from "../hooks/useSpecialRange";
 import {
   useSpecialData,
-  SpecialData,
 } from "../hooks/useShipAttributesContract";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { GameEvents } from "./GameEvents";
@@ -41,9 +38,15 @@ import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import {
   computeMovementRange,
+  computeShootingRange,
+  computeLabelTargets,
+  computeHoverValidTargets,
+  computeHoverShootingRange,
   hasLineOfSight,
 } from "../utils/gameGridRanges";
-import { calculateDamage } from "../utils/calculateDamage";
+import { useDamageCalculation } from "../hooks/useDamageCalculation";
+import { useGamePolling } from "../hooks/useGamePolling";
+import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
@@ -51,10 +54,6 @@ import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation"
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
 const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
 
-const POLL_INTERVAL_FOCUSED_MS = 30 * 1000;
-const POLL_INTERVAL_UNFOCUSED_MS = 5 * 60 * 1000;
-const POLL_INTERVAL_HIDDEN_MS = 60 * 60 * 1000;
-const TURN_POLL_DIVISOR = 10;
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 
@@ -93,7 +92,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   >({});
 
   const [selectedWeaponType, setSelectedWeaponType] = useState<
-    "weapon" | "special"
+    "weapon" | "special" | "ram"
   >("weapon");
   const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<
     Record<string, "weapon" | "special">
@@ -102,14 +101,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     shipId: bigint;
     row: number;
     col: number;
-    mouseX: number;
-    mouseY: number;
     isCreator: boolean;
+    fromFleet?: boolean;
   } | null>(null);
 
   // Drag and drop state
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
+  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{
     row: number;
     col: number;
   } | null>(null);
@@ -323,257 +325,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Enable real-time event listening for game updates
   useContractEvents();
 
-  // Track previous game state to detect if state changed after event
-  const prevGameStateRef = React.useRef<{
-    currentTurn: string;
-    currentRound: bigint;
-  } | null>(null);
-
-  // Track if we're expecting a state change (got GameUpdate event)
-  const expectingStateChangeRef = React.useRef<boolean>(false);
-
-  // Track retry attempts with exponential backoff
-  const retryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const retryAttemptRef = React.useRef<number>(0);
-
-  // Track page visibility and window focus for polling intervals
-  const isWindowFocusedRef = React.useRef(true);
-  const wasHiddenRef = React.useRef(false);
-  // Single revision counter drives polling effect re-runs on focus/visibility changes,
-  // replacing two mirrored state/ref pairs that caused double re-renders per event.
-  const [activityRevision, setActivityRevision] = React.useState(0);
-  const wasInactiveRef = React.useRef(false);
-  const lastRefetchOnFocusAtRef = React.useRef(0);
-  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const pollingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const playerMoveTimeRef = React.useRef<number | null>(null);
-  const [playerMoveTimestamp, setPlayerMoveTimestamp] = React.useState<
-    number | null
-  >(null);
-  const lastPollTimeRef = React.useRef<number>(Date.now());
-  const currentPollIntervalRef = React.useRef<number>(POLL_INTERVAL_FOCUSED_MS);
-
-  // Register this game's refetch function for global event handling
-  React.useEffect(() => {
-    const gameId = Number(game.metadata.gameId);
-
-    // Create a refetch function that also clears targeting state
-    // and marks that we're expecting a state change
-    const refetchWithClear = () => {
-      setTargetShipId(null);
-      expectingStateChangeRef.current = true;
-      refetchGame();
-    };
-
-    registerGameRefetch(gameId, refetchWithClear);
-
-    // Cleanup: unregister when component unmounts
-    return () => {
-      unregisterGameRefetch(gameId);
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, [refetchGame, game.metadata.gameId, setTargetShipId]);
-
-  // Track page visibility and window focus.
-  // If the tab was inactive and then comes into focus, refetch immediately once.
-  React.useEffect(() => {
-    const initialHidden = !!document.hidden;
-    const initialFocused = document.hasFocus();
-    wasHiddenRef.current = initialHidden;
-    isWindowFocusedRef.current = initialFocused;
-    wasInactiveRef.current = initialHidden || !initialFocused;
-    setActivityRevision((r) => r + 1);
-
-    const maybeRefetchOnActive = (wasInactive: boolean) => {
-      const now = Date.now();
-      const pageVisible = !document.hidden;
-      const hasFocus = document.hasFocus();
-      if (!pageVisible || !hasFocus) return;
-
-      // Prevent bursts from multiple focus-related events.
-      if (now - lastRefetchOnFocusAtRef.current < 5000) return;
-
-      // Only do the immediate refetch when transitioning inactive -> active.
-      if (wasInactive) {
-        lastRefetchOnFocusAtRef.current = now;
-        refetchGame();
-      }
-    };
-
-    const syncActivityState = () => {
-      const nowHidden = !!document.hidden;
-      const nowFocused = document.hasFocus();
-      const wasInactive = wasInactiveRef.current;
-      const nowInactive = nowHidden || !nowFocused;
-
-      wasHiddenRef.current = nowHidden;
-      isWindowFocusedRef.current = nowFocused;
-      wasInactiveRef.current = nowInactive;
-
-      setActivityRevision((r) => r + 1);
-      maybeRefetchOnActive(wasInactive);
-    };
-
-    const handleVisibilityChange = () => {
-      syncActivityState();
-    };
-
-    const handleFocus = () => {
-      syncActivityState();
-    };
-
-    const handleBlur = () => {
-      syncActivityState();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("focusin", handleFocus);
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focusout", handleBlur);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("focusin", handleFocus);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focusout", handleBlur);
-    };
-  }, [refetchGame]);
-
-  // Set up polling based on page visibility and player moves
-  React.useEffect(() => {
-    // Clear any existing polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current);
-      pollingTimeoutRef.current = null;
-    }
-
-    // Set initial poll time
-    lastPollTimeRef.current = Date.now();
-
-    // Get turn time from game (in seconds, convert to milliseconds)
-    const turnTimeMs = Number(game.turnState.turnTime || 0n) * 1000;
-    const pollIntervalAfterMove = turnTimeMs / TURN_POLL_DIVISOR;
-
-    if (playerMoveTimeRef.current) {
-      // Player just moved: poll every turnTime/10
-      const moveTime = playerMoveTimeRef.current;
-      const now = Date.now();
-      const timeSinceMove = now - moveTime;
-
-      // If turnTime has passed since move, do one more poll then switch to normal polling
-      if (timeSinceMove >= turnTimeMs) {
-        // Do one final poll, then switch to normal polling
-        const timeUntilNextPoll =
-          pollIntervalAfterMove - (timeSinceMove % pollIntervalAfterMove);
-        pollingTimeoutRef.current = setTimeout(() => {
-          lastPollTimeRef.current = Date.now();
-          refetchGame();
-          // Switch to normal polling
-          playerMoveTimeRef.current = null;
-          setPlayerMoveTimestamp(null);
-          const normalPollInterval = !wasHiddenRef.current
-            ? isWindowFocusedRef.current
-              ? POLL_INTERVAL_FOCUSED_MS
-              : POLL_INTERVAL_UNFOCUSED_MS
-            : POLL_INTERVAL_HIDDEN_MS;
-          currentPollIntervalRef.current = normalPollInterval;
-          pollingIntervalRef.current = setInterval(() => {
-            lastPollTimeRef.current = Date.now();
-            refetchGame();
-          }, normalPollInterval);
-        }, timeUntilNextPoll);
-      } else {
-        // Still within turnTime: poll every turnTime/10
-        currentPollIntervalRef.current = pollIntervalAfterMove;
-        lastPollTimeRef.current = Date.now();
-        pollingIntervalRef.current = setInterval(() => {
-          lastPollTimeRef.current = Date.now();
-          refetchGame();
-          const now = Date.now();
-          const timeSinceMove = now - (playerMoveTimeRef.current || 0);
-
-          // If turnTime has passed, do one more poll then switch
-          if (timeSinceMove >= turnTimeMs) {
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
-            // Do one final poll
-            pollingTimeoutRef.current = setTimeout(() => {
-              refetchGame();
-              // Switch to normal polling
-              playerMoveTimeRef.current = null;
-              setPlayerMoveTimestamp(null);
-              const normalPollInterval = !wasHiddenRef.current
-                ? isWindowFocusedRef.current
-                  ? POLL_INTERVAL_FOCUSED_MS
-                  : POLL_INTERVAL_UNFOCUSED_MS
-                : POLL_INTERVAL_HIDDEN_MS;
-              currentPollIntervalRef.current = normalPollInterval;
-              lastPollTimeRef.current = Date.now();
-              pollingIntervalRef.current = setInterval(() => {
-                lastPollTimeRef.current = Date.now();
-                refetchGame();
-              }, normalPollInterval);
-            }, pollIntervalAfterMove);
-          }
-        }, pollIntervalAfterMove);
-        currentPollIntervalRef.current = pollIntervalAfterMove;
-        lastPollTimeRef.current = Date.now();
-      }
-    } else {
-      // No recent move: poll at normal intervals
-      const normalPollInterval = !wasHiddenRef.current
-        ? isWindowFocusedRef.current
-          ? POLL_INTERVAL_FOCUSED_MS
-          : POLL_INTERVAL_UNFOCUSED_MS
-        : POLL_INTERVAL_HIDDEN_MS;
-      currentPollIntervalRef.current = normalPollInterval;
-      pollingIntervalRef.current = setInterval(() => {
-        lastPollTimeRef.current = Date.now();
-        refetchGame();
-      }, normalPollInterval);
-    }
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-      }
-    };
-  }, [
-    activityRevision,
-    playerMoveTimestamp,
+  const { recordPlayerMove } = useGamePolling({
+    gameId: Number(game.metadata.gameId),
+    turnTime: game.turnState.turnTime,
+    gameData,
     refetchGame,
-    game.turnState.turnTime,
-  ]);
-
-  // Reset move time when turn changes (opponent moved)
-  React.useEffect(() => {
-    if (gameData) {
-      const gameDataTyped = gameData;
-      const isMyTurn = gameDataTyped.turnState.currentTurn === address;
-
-      // If it's not my turn, clear the move time (opponent's turn now)
-      if (!isMyTurn) {
-        playerMoveTimeRef.current = null;
-        setPlayerMoveTimestamp(null); // Trigger effect re-run
-      }
-    }
-  }, [gameData, address]);
+    onRefetch: () => setTargetShipId(null),
+  });
 
   const resetSelection = React.useCallback(() => {
     setSelectedShipId(null);
@@ -587,64 +345,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, []);
   useResetSelectionOnTurnChange(game.turnState.currentTurn, resetSelection);
 
-  // Initialize previous state on mount
-  React.useEffect(() => {
-    if (gameData && !prevGameStateRef.current) {
-      const gameDataTyped = gameData;
-      prevGameStateRef.current = {
-        currentTurn: gameDataTyped.turnState.currentTurn,
-        currentRound: gameDataTyped.turnState.currentRound,
-      };
-    }
-  }, [gameData]);
-
-  // Detect if state changed after event, and implement exponential backoff retry
-  React.useEffect(() => {
-    if (!gameData) return;
-
-    const gameDataTyped = gameData;
-    const currentState = {
-      currentTurn: gameDataTyped.turnState.currentTurn,
-      currentRound: gameDataTyped.turnState.currentRound,
-    };
-
-    // If we have previous state and we're expecting a change
-    if (prevGameStateRef.current && expectingStateChangeRef.current) {
-      const prevState = prevGameStateRef.current;
-
-      // Check if state actually changed
-      const stateChanged =
-        prevState.currentTurn !== currentState.currentTurn ||
-        prevState.currentRound !== currentState.currentRound;
-
-      if (!stateChanged) {
-        const retryDelay = Math.pow(2, retryAttemptRef.current) * 1000;
-
-        // Clear any existing retry timeout
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-        }
-
-        // Schedule retry with exponential backoff
-        retryTimeoutRef.current = setTimeout(() => {
-          retryAttemptRef.current++;
-          expectingStateChangeRef.current = true; // Keep expecting change on retry
-          refetchGame();
-        }, retryDelay);
-      } else {
-        // State changed - reset retry counter and clear expecting flag
-        retryAttemptRef.current = 0;
-        expectingStateChangeRef.current = false;
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-          retryTimeoutRef.current = null;
-        }
-      }
-    }
-
-    // Update previous state
-    prevGameStateRef.current = currentState;
-  }, [gameData, game.metadata.gameId, refetchGame]);
 
   // Countdown for remaining turn time (in seconds)
   const [turnSecondsLeft, setTurnSecondsLeft] = React.useState<number>(0);
@@ -1083,25 +783,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setTargetShipId(null);
   }, [isRammingMovePreview, targetShipId]);
 
-  const calculateDamageForShip = React.useCallback(
-    (
-      targetShipId: bigint,
-      weaponType?: "weapon" | "special",
-      showReducedDamage?: boolean,
-      shooterShipIdOverride?: bigint,
-    ) =>
-      calculateDamage({
-        shooterId: shooterShipIdOverride ?? selectedShipId,
-        targetShipId,
-        getShipAttributes,
-        selectedWeaponType,
-        specialData: specialData as SpecialData | null,
-        specialType,
-        weaponType,
-        showReducedDamage,
-      }),
-    [selectedShipId, getShipAttributes, selectedWeaponType, specialData, specialType],
-  );
+  const calculateDamageForShip = useDamageCalculation({
+    selectedShipId,
+    getShipAttributes,
+    selectedWeaponType,
+    specialData,
+    specialType,
+  });
 
   // Valid targets: only ships in range from current position (or from preview position when move is set). Used for selection logic.
   const validTargets = React.useMemo(() => {
@@ -1198,435 +886,76 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // - When showing move + gun range (no preview), include any enemy ship that could be shot from
   //   the current position OR from any valid move position (full threat range).
   // - When showing only gun range (preview set), include only targets in range from the preview position.
-  const labelTargets = React.useMemo(() => {
-    if (!selectedShipId || !gameShips) return [];
-    if (isRammingMovePreview) return [];
-
-    const attributes = getShipAttributes(selectedShipId);
-    if (attributes && attributes.hullPoints === 0) return [];
-
-    const movementRangeAttr = attributes?.movement || 1;
-    const shootingRangeAttr =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
-
-    const currentPosition = game.shipPositions.find(
-      (pos) => pos.shipId === selectedShipId,
-    );
-    if (!currentPosition) return [];
-
-    // Origins:
-    // - With preview: single origin = previewPosition (only gun range)
-    // - Without preview: current position + all valid move positions (threat range)
-    const origins: { row: number; col: number }[] = [];
-    if (previewPosition) {
-      origins.push({ row: previewPosition.row, col: previewPosition.col });
-    } else {
-      origins.push({
-        row: currentPosition.position.row,
-        col: currentPosition.position.col,
-      });
-      for (
-        let row = Math.max(
-          0,
-          currentPosition.position.row - movementRangeAttr,
-        );
-        row <=
-        Math.min(
-          GRID_HEIGHT - 1,
-          currentPosition.position.row + movementRangeAttr,
-        );
-        row++
-      ) {
-        for (
-          let col = Math.max(
-            0,
-            currentPosition.position.col - movementRangeAttr,
-          );
-          col <=
-          Math.min(
-            GRID_WIDTH - 1,
-            currentPosition.position.col + movementRangeAttr,
-          );
-          col++
-        ) {
-          const dist =
-            Math.abs(row - currentPosition.position.row) +
-            Math.abs(col - currentPosition.position.col);
-          if (dist <= movementRangeAttr && dist > 0) {
-            const occupied = game.shipPositions.some(
-              (pos) => pos.position.row === row && pos.position.col === col,
-            );
-            if (!occupied) origins.push({ row, col });
-          }
-        }
-      }
-    }
-
-    const targetMap = new Map<
-      bigint,
-      { shipId: bigint; position: { row: number; col: number } }
-    >();
-
-    for (const { row: startRow, col: startCol } of origins) {
-      game.shipPositions.forEach((shipPosition) => {
-        const ship = shipMap.get(shipPosition.shipId);
-        if (!ship) return;
-
-        // Same ownership/weapon-type filtering as validTargets
-        if (selectedWeaponType === "special") {
-          if (specialType === 3) {
-            if (shipPosition.shipId === selectedShipId) return;
-          } else if (specialType === 1) {
-            if (ship.owner === address) return;
-          } else {
-            if (ship.owner !== address) return;
-          }
-        } else {
-          if (ship.owner === address) return;
-        }
-
-        const targetRow = shipPosition.position.row;
-        const targetCol = shipPosition.position.col;
-        const distance =
-          Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
-        const canShoot =
-          distance === 1 || distance <= shootingRangeAttr;
-
-        if (canShoot && distance > 0) {
-          const shouldCheckLineOfSight =
-            distance > 1 &&
-            (selectedWeaponType !== "special" ||
-              (specialType !== 1 &&
-                specialType !== 2 &&
-                specialType !== 3));
-
-          if (
-            !shouldCheckLineOfSight ||
-            hasLineOfSight(
-              startRow,
-              startCol,
-              targetRow,
-              targetCol,
-              blockedGrid,
-            )
-          ) {
-            targetMap.set(shipPosition.shipId, {
-              shipId: shipPosition.shipId,
-              position: { row: targetRow, col: targetCol },
-            });
-          }
-        }
-      });
-    }
-
-    return Array.from(targetMap.values());
-  }, [
-    selectedShipId,
-    previewPosition,
-    gameShips,
-    shipMap,
-    address,
-    getShipAttributes,
-    blockedGrid,
-    game.shipPositions,
-    selectedWeaponType,
-    specialRange,
-    specialType,
-    isRammingMovePreview,
-  ]);
+  const labelTargets = React.useMemo(
+    () =>
+      computeLabelTargets({
+        selectedShipId,
+        previewPosition,
+        isRammingMovePreview,
+        shipPositions: game.shipPositions,
+        shipMap,
+        playerAddress: address,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [
+      selectedShipId,
+      previewPosition,
+      isRammingMovePreview,
+      gameShips,
+      shipMap,
+      address,
+      getShipAttributes,
+      blockedGrid,
+      game.shipPositions,
+      selectedWeaponType,
+      specialRange,
+      specialType,
+    ],
+  );
 
   // Assist action removed from contract; keep empty arrays for API compatibility
   const assistableTargets = React.useMemo(() => [], []);
   const assistableTargetsFromStart = React.useMemo(() => [], []);
 
   // Calculate shooting range for selected ship (where it could shoot from any valid move position)
-  const shootingRange = React.useMemo(() => {
-    if (!selectedShipId || !gameShips) return [];
-    if (isRammingMovePreview) return [];
-
-    const ship = shipMap.get(selectedShipId);
-    if (!ship) return [];
-
-    const attributes = getShipAttributes(selectedShipId);
-    // Disabled ships (0 HP) have no move or threat range; only retreat is available
-    if (attributes && attributes.hullPoints === 0) return [];
-
-    const movementRange = attributes?.movement || 1;
-    // Use special range if special is selected, otherwise use weapon range
-    const shootingRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
-
-    const currentPosition = game.shipPositions.find(
-      (pos) => pos.shipId === selectedShipId,
-    );
-
-    if (!currentPosition) return [];
-
-    const validShootingPositions: { row: number; col: number }[] = [];
-
-    // When a move is entered (preview set), show gun range from that single origin only (same as after moving to another square)
-    if (previewPosition) {
-      const startRow = previewPosition.row;
-      const startCol = previewPosition.col;
-
-      // First, add all positions that are exactly 1 square away from preview position
-      // (ships can always shoot adjacent enemies, even in nebula)
-      for (
-        let row = Math.max(0, startRow - 1);
-        row <= Math.min(GRID_HEIGHT - 1, startRow + 1);
-        row++
-      ) {
-        for (
-          let col = Math.max(0, startCol - 1);
-          col <= Math.min(GRID_WIDTH - 1, startCol + 1);
-          col++
-        ) {
-          const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-          // Only add positions that are exactly 1 square away and not occupied
-          if (distance === 1) {
-            const isOccupied = game.shipPositions.some(
-              (pos) => pos.position.row === row && pos.position.col === col,
-            );
-
-            if (!isOccupied) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-
-      // Then check all positions within shooting range from preview position
-      for (
-        let row = Math.max(0, startRow - shootingRange);
-        row <= Math.min(GRID_HEIGHT - 1, startRow + shootingRange);
-        row++
-      ) {
-        for (
-          let col = Math.max(0, startCol - shootingRange);
-          col <= Math.min(GRID_WIDTH - 1, startCol + shootingRange);
-          col++
-        ) {
-          const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-          // Only check positions within shooting range, excluding adjacent ones (already added above)
-          if (distance <= shootingRange && distance > 1) {
-            // Check if position is not occupied by another ship
-            const isOccupied = game.shipPositions.some(
-              (pos) => pos.position.row === row && pos.position.col === col,
-            );
-
-            if (!isOccupied) {
-              // Ships can always shoot adjacent enemies (distance === 1) regardless of nebula squares
-              // OR special abilities ignore nebula squares
-              // OR regular weapons need line of sight
-              const shouldCheckLineOfSight =
-                distance > 1 && // Not adjacent
-                (selectedWeaponType !== "special" ||
-                  (specialType !== 1 &&
-                    specialType !== 2 &&
-                    specialType !== 3)); // Not EMP, Repair, or Flak
-
-              if (
-                !shouldCheckLineOfSight ||
-                hasLineOfSight(startRow, startCol, row, col, blockedGrid)
-              ) {
-                validShootingPositions.push({ row, col });
-              }
-            }
-          }
-        }
-      }
-
-      return validShootingPositions;
-    }
-
-    // Original logic for showing shooting range from all possible move positions
-    const startRow = currentPosition.position.row;
-    const startCol = currentPosition.position.col;
-
-    // First, add all positions that are exactly 1 square away from any valid move position
-    // (ships can always shoot adjacent enemies, even in nebula)
-    for (
-      let row = Math.max(0, startRow - movementRange - 1);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + movementRange + 1);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - movementRange - 1);
-        col <= Math.min(GRID_WIDTH - 1, startCol + movementRange + 1);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-        // Only check positions that are exactly 1 square away from any valid move position
-        if (distance === movementRange + 1) {
-          const isOccupied = game.shipPositions.some(
-            (pos) => pos.position.row === row && pos.position.col === col,
-          );
-
-          if (!isOccupied) {
-            // Check if this position is exactly 1 square away from any valid move position
-            let isAdjacentToMovePosition = false;
-
-            // Check all possible move positions
-            for (
-              let moveRow = Math.max(0, startRow - movementRange);
-              moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
-              moveRow++
-            ) {
-              for (
-                let moveCol = Math.max(0, startCol - movementRange);
-                moveCol <= Math.min(GRID_WIDTH - 1, startCol + movementRange);
-                moveCol++
-              ) {
-                const moveDistance =
-                  Math.abs(moveRow - startRow) + Math.abs(moveCol - startCol);
-                if (moveDistance <= movementRange && moveDistance > 0) {
-                  // Check if this move position is not occupied
-                  const isMoveOccupied = game.shipPositions.some(
-                    (pos) =>
-                      pos.position.row === moveRow &&
-                      pos.position.col === moveCol,
-                  );
-
-                  if (!isMoveOccupied) {
-                    // Check if this position is exactly 1 square away from this move position
-                    const adjacentDistance =
-                      Math.abs(moveRow - row) + Math.abs(moveCol - col);
-                    if (adjacentDistance === 1) {
-                      isAdjacentToMovePosition = true;
-                      break;
-                    }
-                  }
-                }
-              }
-              if (isAdjacentToMovePosition) break;
-            }
-
-            if (isAdjacentToMovePosition) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-
-    // Then check all positions within movement + shooting range
-    const totalRange = movementRange + shootingRange;
-    for (
-      let row = Math.max(0, startRow - totalRange);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + totalRange);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - totalRange);
-        col <= Math.min(GRID_WIDTH - 1, startCol + totalRange);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-
-        // Position must be within movement + shooting range, but not within just movement range
-        // (movement range positions are already highlighted as movement tiles)
-        // Also exclude positions that are exactly 1 square away (already added above)
-        if (
-          distance > movementRange &&
-          distance <= totalRange &&
-          distance !== 1
-        ) {
-          // Check if position is not occupied by another ship
-          const isOccupied = game.shipPositions.some(
-            (pos) => pos.position.row === row && pos.position.col === col,
-          );
-
-          if (!isOccupied) {
-            // Check if any valid move position can shoot to this target position
-            // We need to check if there's a valid move position that has line of sight to this target
-            let canShootFromSomewhere = false;
-
-            // Check all possible move positions
-            for (
-              let moveRow = Math.max(0, startRow - movementRange);
-              moveRow <= Math.min(GRID_HEIGHT - 1, startRow + movementRange);
-              moveRow++
-            ) {
-              for (
-                let moveCol = Math.max(0, startCol - movementRange);
-                moveCol <= Math.min(GRID_WIDTH - 1, startCol + movementRange);
-                moveCol++
-              ) {
-                const moveDistance =
-                  Math.abs(moveRow - startRow) + Math.abs(moveCol - startCol);
-                if (moveDistance <= movementRange && moveDistance > 0) {
-                  // Check if this move position is not occupied
-                  const isMoveOccupied = game.shipPositions.some(
-                    (pos) =>
-                      pos.position.row === moveRow &&
-                      pos.position.col === moveCol,
-                  );
-
-                  if (!isMoveOccupied) {
-                    // Check if this move position can shoot to the target
-                    const shootDistance =
-                      Math.abs(moveRow - row) + Math.abs(moveCol - col);
-
-                    // Ships can always shoot enemies that are exactly 1 square away
-                    // OR within their normal shooting range
-                    const canShoot =
-                      shootDistance === 1 || shootDistance <= shootingRange;
-
-                    if (canShoot) {
-                      // Ships can always shoot adjacent enemies (distance === 1) regardless of nebula squares
-                      // OR special abilities ignore nebula squares
-                      // OR regular weapons need line of sight
-                      const shouldCheckLineOfSight =
-                        shootDistance > 1 && // Not adjacent
-                        (selectedWeaponType !== "special" ||
-                          (specialType !== 1 &&
-                            specialType !== 2 &&
-                            specialType !== 3)); // Not EMP, Repair, or Flak
-
-                      if (
-                        !shouldCheckLineOfSight ||
-                        hasLineOfSight(moveRow, moveCol, row, col, blockedGrid)
-                      ) {
-                        canShootFromSomewhere = true;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-              if (canShootFromSomewhere) break;
-            }
-
-            if (canShootFromSomewhere) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-
-    return validShootingPositions;
-  }, [
-    selectedShipId,
-    gameShips,
-    shipMap,
-    game.shipPositions,
-    getShipAttributes,
-    blockedGrid,
-    hasLineOfSight,
-    previewPosition,
-    selectedWeaponType,
-    specialRange,
-    specialType,
-    isRammingMovePreview,
-  ]);
+  const shootingRange = React.useMemo(
+    () =>
+      isRammingMovePreview
+        ? []
+        : computeShootingRange({
+            gridWidth: GRID_WIDTH,
+            gridHeight: GRID_HEIGHT,
+            selectedShipId,
+            hasShips: !!gameShips,
+            shipMap,
+            getShipAttributes,
+            shipPositions: game.shipPositions,
+            previewPosition,
+            selectedWeaponType,
+            specialRange,
+            specialType,
+            blockedGrid,
+          }),
+    [
+      selectedShipId,
+      gameShips,
+      isRammingMovePreview,
+      shipMap,
+      getShipAttributes,
+      game.shipPositions,
+      previewPosition,
+      selectedWeaponType,
+      specialRange,
+      specialType,
+      blockedGrid,
+    ],
+  );
 
   // Calculate valid targets from drag position (when dragging a ship)
   const dragValidTargets = React.useMemo(() => {
@@ -1808,6 +1137,45 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     blockedGrid,
     hasLineOfSight,
   ]);
+
+  const hoverValidTargets = React.useMemo(
+    () =>
+      computeHoverValidTargets({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: !!gameShips,
+        shipPositions: game.shipPositions,
+        shipMap,
+        playerAddress: address,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+      }),
+    [selectedShipId, hoverPreviewPosition, gameShips, shipMap, address,
+     getShipAttributes, selectedWeaponType, specialType, specialRange,
+     game.shipPositions, blockedGrid],
+  );
+
+  const hoverShootingRange = React.useMemo(
+    () =>
+      computeHoverShootingRange({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: !!gameShips,
+        shipPositions: game.shipPositions,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [selectedShipId, hoverPreviewPosition, gameShips, getShipAttributes,
+     selectedWeaponType, specialType, specialRange, game.shipPositions, blockedGrid],
+  );
 
   // Auto-set Flak to target all ships when Flak is first selected
   // Use a ref to track if we've already set it for this selection
@@ -2126,8 +1494,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   ]);
 
   const setWeaponTypeFromGrid = React.useCallback(
-    (type: "weapon" | "special") => {
-      if (selectedShipId != null) {
+    (type: "weapon" | "special" | "ram") => {
+      if (selectedShipId != null && type !== "ram") {
         const idKey = selectedShipId.toString();
         setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: type }));
       }
@@ -2551,9 +1919,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     });
 
                     toast.success("Move submitted successfully!");
-                    const moveTime = Date.now();
-                    playerMoveTimeRef.current = moveTime;
-                    setPlayerMoveTimestamp(moveTime);
+                    recordPlayerMove();
                     refetchGame();
                     refetch?.();
                   }}
@@ -2746,7 +2112,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </div>
           <h2
             className="text-lg font-bold uppercase tracking-wider text-cyan sm:text-xl"
-            style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+            style={STYLE_LABEL}
           >
             Rotate to Landscape
           </h2>
@@ -2776,7 +2142,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             onClick={onBack}
             className="px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-gunmetal)",
               color: "var(--color-text-secondary)",
               backgroundColor: "var(--color-steel)",
@@ -2812,7 +2178,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             onClick={onBack}
             className="px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-gunmetal)",
               color: "var(--color-text-secondary)",
               backgroundColor: "var(--color-steel)",
@@ -2840,7 +2206,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             onClick={() => refetchGame()}
             className="mt-4 px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-cyan)",
               color: "var(--color-cyan)",
               backgroundColor: "var(--color-steel)",
@@ -2870,7 +2236,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               onClick={onBack}
               className="px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 borderColor: "var(--color-gunmetal)",
                 color: "var(--color-text-secondary)",
                 backgroundColor: "var(--color-steel)",
@@ -3208,7 +2574,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         <h4
           className="mb-3 uppercase font-bold tracking-wider"
           style={{
-            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+            ...STYLE_LABEL,
             color: titleColor,
             fontSize: "18px",
           }}
@@ -3217,7 +2583,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           <span
             className="ml-2"
             style={{
-              fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+              ...STYLE_MONO,
               color: "var(--color-text-secondary)",
               fontSize: "14px",
               fontWeight: 400,
@@ -3290,7 +2656,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   onClick={onBack}
                   className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                   style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-gunmetal)",
                     color: "var(--color-text-secondary)",
                     backgroundColor: "var(--color-steel)",
@@ -3318,12 +2684,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    lastPollTimeRef.current = Date.now();
                     refetchGame();
                   }}
                   className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                   style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-cyan)",
                     color: "var(--color-cyan)",
                     backgroundColor: "var(--color-near-black)",
@@ -3346,7 +2711,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   onClick={() => setMobileLeftPanelTab(tab)}
                   className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                   style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor:
                       mobileLeftPanelTab === tab
                         ? "var(--color-cyan)"
@@ -3370,7 +2735,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 onClick={() => setIsMobileFleetModalOpen(true)}
                 className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                 style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  ...STYLE_LABEL,
                   borderColor: "var(--color-phosphor-green)",
                   color: "var(--color-phosphor-green)",
                   backgroundColor: "var(--color-steel)",
@@ -3604,6 +2969,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       assistableTargetsFromStart={assistableTargetsFromStart}
                       dragShootingRange={dragShootingRange}
                       dragValidTargets={dragValidTargets}
+                      hoverShootingRange={hoverShootingRange}
+                      hoverValidTargets={hoverValidTargets}
+                      onMoveTileHover={setHoverPreviewPosition}
                       isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
                       movedShipIdsSet={movedShipIdsSet}
@@ -3796,7 +3164,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 onClick={onBack}
                 className="px-2 py-1 border border-solid text-xs uppercase font-semibold tracking-wider"
                 style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  ...STYLE_LABEL,
                   borderColor: "var(--color-gunmetal)",
                   color: "var(--color-text-secondary)",
                   backgroundColor: "var(--color-steel)",
@@ -3824,12 +3192,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  lastPollTimeRef.current = Date.now();
                   refetchGame();
                 }}
                 className="px-2 py-1 border border-solid text-xs uppercase font-semibold tracking-wider"
                 style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  ...STYLE_LABEL,
                   borderColor: "var(--color-cyan)",
                   color: "var(--color-cyan)",
                   backgroundColor: "var(--color-near-black)",
@@ -3889,7 +3256,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             onClick={onBack}
                   className="flex min-h-0 w-full items-center justify-center px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-gunmetal)",
               color: "var(--color-text-secondary)",
               backgroundColor: "var(--color-steel)",
@@ -3981,7 +3348,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <div className="flex flex-col gap-1.5">
                       <div
                         className="flex items-center justify-between gap-2"
-                        style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+                        style={STYLE_LABEL}
                       >
                         <span
                           className="text-sm font-bold uppercase tracking-wider"
@@ -3992,7 +3359,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         <span
                           className="font-mono text-sm animate-timeout-soft"
                           style={{
-                            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+                            ...STYLE_MONO,
                             color: "var(--color-warning-red)",
                           }}
                         >
@@ -4001,7 +3368,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       </div>
                       <div
                         className="text-sm font-bold uppercase tracking-wider animate-victory-flash"
-                        style={{ color: "var(--color-warning-red)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+                        style={{ color: "var(--color-warning-red)", ...STYLE_LABEL }}
                       >
                         Opponent can now claim victory
                       </div>
@@ -4024,7 +3391,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         </div>
                         <button
                           onClick={() => {
-                            lastPollTimeRef.current = Date.now();
                             refetchGame();
                           }}
                           className="p-1 text-text-muted hover:text-cyan transition-colors"
@@ -4053,7 +3419,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 if (canSeizeTurn) {
                   return (
                     <div className="flex flex-col gap-1.5">
-                      <p className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-amber)", fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}>
+                      <p className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-amber)", ...STYLE_LABEL }}>
                         Opponent&apos;s timer expired
                       </p>
                       <div className="text-sm">
@@ -4110,7 +3476,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         </div>
                         <button
                           onClick={() => {
-                            lastPollTimeRef.current = Date.now();
                             refetchGame();
                           }}
                           className="p-1 text-text-muted hover:text-cyan transition-colors"
@@ -4190,7 +3555,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       </div>
                       <button
                         onClick={() => {
-                          lastPollTimeRef.current = Date.now();
                           refetchGame();
                         }}
                         className="p-1 text-text-muted hover:text-cyan transition-colors"
@@ -4364,6 +3728,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           assistableTargetsFromStart={assistableTargetsFromStart}
           dragShootingRange={dragShootingRange}
           dragValidTargets={dragValidTargets}
+          hoverShootingRange={hoverShootingRange}
+          hoverValidTargets={hoverValidTargets}
+          onMoveTileHover={setHoverPreviewPosition}
                 isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
           isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
           movedShipIdsSet={movedShipIdsSet}
@@ -4656,7 +4023,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div
                 className="text-base uppercase font-semibold tracking-wider"
                 style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  ...STYLE_LABEL,
                   color: isMyTurnEffective
                     ? "var(--color-cyan)"
                     : "var(--color-warning-red)",
@@ -5059,7 +4426,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               }
               className="px-1 py-1 text-[10px] uppercase font-semibold tracking-wider border border-solid"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 borderColor:
                   mobileActivePanel === id
                     ? "var(--color-cyan)"
@@ -5083,7 +4450,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             onClick={() => setMobileActivePanel("none")}
             className="px-1 py-1 text-[10px] uppercase font-semibold tracking-wider border border-solid"
             style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-gunmetal)",
               color: "var(--color-text-secondary)",
               backgroundColor: "var(--color-steel)",

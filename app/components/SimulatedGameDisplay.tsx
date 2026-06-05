@@ -47,13 +47,16 @@ import {
 import { useSpecialRange } from "../hooks/useSpecialRange";
 import {
   useSpecialData,
-  SpecialData,
 } from "../hooks/useShipAttributesContract";
 import {
   computeMovementRange,
   computeShootingRange,
+  computeLabelTargets,
+  computeHoverValidTargets,
+  computeHoverShootingRange,
 } from "../utils/gameGridRanges";
-import { calculateDamage } from "../utils/calculateDamage";
+import { useDamageCalculation } from "../hooks/useDamageCalculation";
+import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
@@ -483,7 +486,7 @@ export function SimulatedGameDisplay({
   } | null>(null);
   const [targetShipId, setTargetShipId] = useState<bigint | null>(null);
   const [selectedWeaponType, setSelectedWeaponType] = useState<
-    "weapon" | "special"
+    "weapon" | "special" | "ram"
   >("weapon");
   const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<
     Record<string, "weapon" | "special">
@@ -508,12 +511,15 @@ export function SimulatedGameDisplay({
     shipId: bigint;
     row: number;
     col: number;
-    mouseX: number;
-    mouseY: number;
     isCreator: boolean;
+    fromFleet?: boolean;
   } | null>(null);
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
+  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{
     row: number;
     col: number;
   } | null>(null);
@@ -753,8 +759,8 @@ export function SimulatedGameDisplay({
   );
 
   const setWeaponTypeFromGrid = useCallback(
-    (type: "weapon" | "special") => {
-      if (selectedShipId != null) {
+    (type: "weapon" | "special" | "ram") => {
+      if (selectedShipId != null && type !== "ram") {
         const idKey = selectedShipId.toString();
         setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: type }));
       }
@@ -895,10 +901,12 @@ export function SimulatedGameDisplay({
 
   // Mirror live-game retreat prep visual: when a disabled ship is selected on
   // the player's turn, show the in-cell retreat effect (flip + engine glow).
-  const retreatPrepShipId = useMemo(() => {
-    if (!isMyTurn || !selectedShipId || !isSelectedShipDisabled) return null;
-    return selectedShipId;
-  }, [isMyTurn, selectedShipId, isSelectedShipDisabled]);
+  const retreatPrepShipId =
+    selectedShipId != null &&
+    actionOverride === ActionType.Retreat &&
+    isShipOwnedByCurrentPlayer(selectedShipId)
+      ? selectedShipId
+      : null;
 
   const retreatPrepIsCreator = useMemo(() => {
     if (retreatPrepShipId == null) return null;
@@ -1547,24 +1555,13 @@ export function SimulatedGameDisplay({
     };
   }, [selectedShipId, tutorialDisplayLastMove]);
 
-  const calculateDamageForShip = useCallback(
-    (
-      targetShipId: bigint,
-      weaponType?: "weapon" | "special",
-      showReducedDamage?: boolean,
-    ) =>
-      calculateDamage({
-        shooterId: selectedShipId,
-        targetShipId,
-        getShipAttributes,
-        selectedWeaponType,
-        specialData: specialData as SpecialData | null,
-        specialType,
-        weaponType,
-        showReducedDamage,
-      }),
-    [selectedShipId, getShipAttributes, selectedWeaponType, specialData, specialType],
-  );
+  const calculateDamageForShip = useDamageCalculation({
+    selectedShipId,
+    getShipAttributes,
+    selectedWeaponType,
+    specialData,
+    specialType,
+  });
 
   // Get valid targets
   // Show full range for viewing, but filter by tutorial constraints if step requires specific targets
@@ -2082,6 +2079,65 @@ export function SimulatedGameDisplay({
     // For tutorial, we can reuse the same logic but from drag position
     return [];
   }, [draggedShipId, dragOverCell]);
+
+  const labelTargets = useMemo(
+    () =>
+      computeLabelTargets({
+        selectedShipId,
+        previewPosition,
+        isRammingMovePreview,
+        shipPositions: allShipPositionsForGrid,
+        shipMap,
+        playerAddress: TUTORIAL_PLAYER_ADDRESS,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [selectedShipId, previewPosition, isRammingMovePreview, allShipPositionsForGrid,
+     shipMap, getShipAttributes, blockedGrid, selectedWeaponType, specialRange, specialType],
+  );
+
+  const hoverValidTargets = useMemo(
+    () =>
+      computeHoverValidTargets({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: shipMap.size > 0,
+        shipPositions: allShipPositionsForGrid,
+        shipMap,
+        playerAddress: TUTORIAL_PLAYER_ADDRESS,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+      }),
+    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid,
+     getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
+  );
+
+  const hoverShootingRange = useMemo(
+    () =>
+      computeHoverShootingRange({
+        selectedShipId,
+        hoverPreviewPosition,
+        hasShips: shipMap.size > 0,
+        shipPositions: allShipPositionsForGrid,
+        getShipAttributes,
+        selectedWeaponType,
+        specialRange,
+        specialType,
+        blockedGrid,
+        gridWidth: GRID_WIDTH,
+        gridHeight: GRID_HEIGHT,
+      }),
+    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid,
+     getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
+  );
 
   // Convert tutorial string ids to bigint ids for GameGrid targeting logic.
   const gridValidTargets = useMemo(
@@ -2808,7 +2864,7 @@ export function SimulatedGameDisplay({
           </div>
           <h2
             className="text-xl font-bold uppercase tracking-wider text-cyan"
-            style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+            style={STYLE_LABEL}
           >
             Rotate to Landscape
           </h2>
@@ -2856,7 +2912,7 @@ export function SimulatedGameDisplay({
                       onClick={onBack}
                       className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                       style={{
-                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: "var(--color-gunmetal)",
                         color: "var(--color-text-secondary)",
                         backgroundColor: "var(--color-steel)",
@@ -2886,7 +2942,7 @@ export function SimulatedGameDisplay({
                     onClick={() => {}}
                     className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
                     style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor: "var(--color-cyan)",
                       color: "var(--color-cyan)",
                       backgroundColor: "var(--color-near-black)",
@@ -2909,7 +2965,7 @@ export function SimulatedGameDisplay({
                     onClick={() => setMobileLeftPanelTab(tab)}
                     className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                     style={{
-                      fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor:
                         mobileLeftPanelTab === tab
                           ? "var(--color-cyan)"
@@ -2933,7 +2989,7 @@ export function SimulatedGameDisplay({
                   onClick={() => setIsMobileFleetModalOpen(true)}
                   className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
                   style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-phosphor-green)",
                     color: "var(--color-phosphor-green)",
                     backgroundColor: "var(--color-steel)",
@@ -2964,7 +3020,7 @@ export function SimulatedGameDisplay({
                         <h3
                           className="min-w-0 text-sm font-bold uppercase tracking-wide text-cyan leading-tight"
                           style={{
-                            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                           }}
                         >
                           {tutorialGridPanelConfig.title}
@@ -3550,6 +3606,10 @@ export function SimulatedGameDisplay({
                       assistableTargetsFromStart={gridAssistableTargetsFromStart}
                       dragShootingRange={dragShootingRange}
                       dragValidTargets={dragValidTargets}
+                      hoverShootingRange={hoverShootingRange}
+                      hoverValidTargets={hoverValidTargets}
+                      labelTargets={labelTargets}
+                      onMoveTileHover={setHoverPreviewPosition}
                       isCurrentPlayerTurn={isMyTurn}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
                       movedShipIdsSet={gridMovedShipIdsSet}
@@ -4389,6 +4449,10 @@ export function SimulatedGameDisplay({
                   assistableTargetsFromStart={gridAssistableTargetsFromStart}
                   dragShootingRange={dragShootingRange}
                   dragValidTargets={dragValidTargets}
+                  hoverShootingRange={hoverShootingRange}
+                  hoverValidTargets={hoverValidTargets}
+                  labelTargets={labelTargets}
+                  onMoveTileHover={setHoverPreviewPosition}
                   isCurrentPlayerTurn={isMyTurn}
                   isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
                   movedShipIdsSet={gridMovedShipIdsSet}
@@ -4555,7 +4619,7 @@ export function SimulatedGameDisplay({
             <h4
               className="mb-3 uppercase font-bold tracking-wider"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 color: "var(--color-cyan)",
                 fontSize: "18px",
               }}
@@ -4625,7 +4689,7 @@ export function SimulatedGameDisplay({
             <h4
               className="mb-3 uppercase font-bold tracking-wider"
               style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                ...STYLE_LABEL,
                 color: "var(--color-warning-red)",
                 fontSize: "18px",
               }}

@@ -405,6 +405,7 @@ export enum ActionType {
   Assist,
   Special,
   ClaimPoints,
+  Ram,
 }
 
 // Maps contract types
