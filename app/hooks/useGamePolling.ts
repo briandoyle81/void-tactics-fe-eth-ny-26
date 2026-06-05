@@ -9,7 +9,7 @@ const TURN_POLL_DIVISOR = 10;
 interface UseGamePollingParams {
   gameId: number;
   turnTime: bigint | number | undefined;
-  gameData: { turnState: { currentTurn: string; currentRound: number } } | undefined;
+  gameData: { turnState: { currentTurn: string; currentRound: number | bigint } } | undefined;
   refetchGame: () => void;
   onRefetch: () => void;
 }
@@ -23,7 +23,7 @@ export function useGamePolling({
 }: UseGamePollingParams) {
   const prevGameStateRef = React.useRef<{
     currentTurn: string;
-    currentRound: number;
+    currentRound: number | bigint;
   } | null>(null);
   const expectingStateChangeRef = React.useRef(false);
 

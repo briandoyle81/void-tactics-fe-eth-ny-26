@@ -40,6 +40,7 @@ import { GameEvents } from "./GameEvents";
 import { getScriptedStateForTutorialStepId } from "../data/tutorialScriptedStates";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import ShipCard from "./ShipCard";
+import { ShipImage } from "./ShipImage";
 import {
   GAME_VIEW_SIDE_ROOT_CLASS,
   useGameViewChromeLayout,
@@ -519,6 +520,7 @@ export function SimulatedGameDisplay({
     row: number;
     col: number;
   } | null>(null);
+  const [showFleetModal, setShowFleetModal] = useState(false);
   const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{
     row: number;
     col: number;
@@ -3836,6 +3838,9 @@ export function SimulatedGameDisplay({
               ? "flex min-h-0 self-stretch w-[min(18rem,34vw)] max-w-[20rem] shrink-0 flex-col gap-3 overflow-hidden pl-2 pr-1"
               : "flex items-start justify-between gap-6"
           }
+          style={chromeOnSide ? {
+            maxHeight: "calc((100vw - min(18rem, 34vw) - 2.625rem) * 11 / 17 + 1rem)"
+          } : undefined}
         >
           <div
             className={
@@ -3948,85 +3953,26 @@ export function SimulatedGameDisplay({
               <div
                 className={
                   chromeOnSide
-                    ? `w-full shrink-0 border border-solid p-2 text-lg ${
-                        currentStep?.id === "goals"
-                          ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                          : ""
-                      }`
-                    : `w-48 shrink-0 border border-solid p-2 text-lg ${
-                        currentStep?.id === "goals"
-                          ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
-                          : ""
-                      }`
+                    ? `w-full shrink-0 border border-solid overflow-hidden ${currentStep?.id === "goals" ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}`
+                    : `w-48 shrink-0 border border-solid overflow-hidden ${currentStep?.id === "goals" ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]" : ""}`
                 }
                 style={{
-                  backgroundColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-steel)"
-                      : "var(--color-slate)",
-                  borderColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-gunmetal)",
-                  borderTopColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-steel)",
-                  borderLeftColor:
-                    currentStep?.id === "goals"
-                      ? "var(--color-amber)"
-                      : "var(--color-steel)",
+                  backgroundColor: currentStep?.id === "goals" ? "var(--color-steel)" : "var(--color-slate)",
+                  borderColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-gunmetal)",
+                  borderTopColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-steel)",
+                  borderLeftColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-steel)",
                   borderRadius: 0,
                 }}
               >
-                <div className="space-y-0.5">
-                  <div className="flex justify-between">
-                    <span
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-secondary)",
-                        fontSize: "14px",
-                      }}
-                    >
-                      My Score:
-                    </span>
-                    <span
-                      title="Scores update at end of round."
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-primary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {gameState.creatorScore.toString()}/
-                      {gameState.maxScore.toString()}
-                    </span>
+                <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
+                  <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-cyan)" }}>person</span>
+                    <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.creatorScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-secondary)",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Opponent:
-                    </span>
-                    <span
-                      title="Scores update at end of round."
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-primary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {gameState.joinerScore.toString()}/
-                      {gameState.maxScore.toString()}
-                    </span>
+                  <div style={{ width: 1, backgroundColor: currentStep?.id === "goals" ? "var(--color-amber)" : "var(--color-gunmetal)", flexShrink: 0 }} />
+                  <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                    <span className="material-symbols-outlined leading-none" style={{ fontSize: 27, color: "var(--color-warning-red)" }}>person</span>
+                    <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{gameState.joinerScore.toString()}/{gameState.maxScore.toString()}</span>
                   </div>
                 </div>
               </div>
@@ -4402,6 +4348,117 @@ export function SimulatedGameDisplay({
           )}
         </div>
 
+        {/* Fleet status panel */}
+        {chromeOnSide && (() => {
+            const myIds = gameState.creatorActiveShipIds;
+            const enemyIds = gameState.joinerActiveShipIds;
+
+            const renderCard = (shipId: string, teamColor: string, flip: boolean) => {
+              const numId = Number(shipId);
+              const bigId = BigInt(numId);
+              const ship = shipMap.get(bigId);
+              const attrs = getShipAttributes(shipId);
+              const hasMoved = movedShipIdsSet.has(shipId);
+              const isSOS = !!attrs && attrs.hullPoints === 0;
+              const hpPct = attrs && attrs.maxHullPoints > 0
+                ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
+                : 0;
+              const shipPos = gameState.shipPositions.find((sp) => sp.shipId === shipId);
+              const isHoveredFromGrid = hoveredCell?.shipId === bigId;
+              const isSelectedInGrid = selectedShipId === bigId;
+              return (
+                <div
+                  key={shipId}
+                  className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
+                  style={{ opacity: hasMoved ? 0.45 : 1 }}
+                  onClick={() => setSelectedShipId(bigId)}
+                  onMouseEnter={() => shipPos && setHoveredCell({ shipId: bigId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })}
+                  onMouseLeave={() => setHoveredCell(null)}
+                >
+                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${teamColor}`, outline: isSelectedInGrid ? `2px solid ${teamColor}` : isHoveredFromGrid ? `1px solid ${teamColor}` : undefined, outlineOffset: "2px" }}>
+                    {ship && (
+                      <ShipImage
+                        ship={ship}
+                        className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
+                        showLoadingState={false}
+                        hideRankStars
+                      />
+                    )}
+                    {isSOS && (
+                      <>
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100">
+                          <line x1="8" y1="8" x2="92" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                          <line x1="92" y1="8" x2="8" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
+                        </svg>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0.5 z-20 flex items-center justify-center pointer-events-none" title="Disabled (0 HP)">
+                          <div className="px-1 py-0.5 flex items-center justify-center bg-warning-red/60 border border-warning-red">
+                            <span className="text-xs leading-none font-mono text-white">[SOS]</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
+                  </div>
+                  <span className="truncate" style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-text-secondary)" }}>
+                    {ship?.name ?? `#${shipId}`}
+                  </span>
+                  <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
+                    <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: teamColor, transition: "width 0.3s ease" }} />
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFleetModal(true)}
+                      className="border border-solid px-1.5 py-0.5 uppercase tracking-wider transition-colors"
+                      style={{ ...STYLE_LABEL, fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                    >
+                      [DETAILS]
+                    </button>
+                  </div>
+                  <span style={{ ...STYLE_MONO, fontSize: 10, color: "var(--color-text-muted)" }}>
+                    <span style={{ color: "var(--color-cyan)" }}>{myIds.length}</span>
+                    <span style={{ color: "var(--color-text-muted)" }}> vs </span>
+                    <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </span>
+                </div>
+
+                {/* My Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-cyan)", opacity: 0.25 }} />
+                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {myIds.map((id) => renderCard(id, "var(--color-cyan)", true))}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, backgroundColor: "var(--color-gunmetal)" }} />
+
+                {/* Opponent Fleet */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-warning-red)", opacity: 0.25 }} />
+                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
+                  </div>
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    {enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", false))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
         <div
           className={
             chromeOnSide ? "relative min-h-0 min-w-0 flex-1" : "relative w-full"
@@ -4601,161 +4658,6 @@ export function SimulatedGameDisplay({
         </div>
       </div>
 
-      {/* Ship Details panel - mirror live game fleet layout using tutorial data */}
-      {!isLandscapeMobile && (
-        <div
-          className="p-4 border border-solid w-full"
-          style={{
-            backgroundColor: "var(--color-slate)",
-            borderColor: "var(--color-gunmetal)",
-            borderTopColor: "var(--color-steel)",
-            borderLeftColor: "var(--color-steel)",
-            borderRadius: 0,
-          }}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* My Fleet - Left (tutorial player) */}
-          <div>
-            <h4
-              className="mb-3 uppercase font-bold tracking-wider"
-              style={{
-                ...STYLE_LABEL,
-                color: "var(--color-cyan)",
-                fontSize: "18px",
-              }}
-            >
-              My Fleet
-              <span
-                className="ml-2"
-                style={{
-                  fontFamily:
-                    "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  color: "var(--color-text-secondary)",
-                  fontSize: "14px",
-                  fontWeight: 400,
-                }}
-              >
-                ({gameState.metadata.creator})
-              </span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {gameState.creatorActiveShipIds.map((shipId) => {
-                const shipPosition = gameState.shipPositions.find(
-                  (sp) => sp.shipId === shipId,
-                );
-                const attributes = getShipAttributes(shipId);
-                const ship = shipMap.get(BigInt(shipId));
-
-                if (!shipPosition || !attributes || !ship) return null;
-
-                const reactorCriticalStatus =
-                  attributes.reactorCriticalTimer > 0 &&
-                  attributes.hullPoints === 0
-                    ? "critical"
-                    : attributes.reactorCriticalTimer > 0
-                      ? "warning"
-                      : "none";
-
-                const hasMoved = movedShipIdsSet.has(shipId);
-
-                return (
-                  <div key={shipId}>
-                    <ShipCard
-                      ship={ship}
-                      isStarred={false}
-                      onToggleStar={() => {}}
-                      isSelected={false}
-                      onToggleSelection={() => {}}
-                      onRecycleClick={() => {}}
-                      showInGameProperties={true}
-                      inGameAttributes={attributes}
-                      attributesLoading={false}
-                      hideRecycle={true}
-                      hideCheckbox={true}
-                      isCurrentPlayerShip={true}
-                      flipShip={true}
-                      reactorCriticalStatus={reactorCriticalStatus}
-                      hasMoved={hasMoved}
-                      gameViewMode={true}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Opponent's Fleet - Right */}
-          <div>
-            <h4
-              className="mb-3 uppercase font-bold tracking-wider"
-              style={{
-                ...STYLE_LABEL,
-                color: "var(--color-warning-red)",
-                fontSize: "18px",
-              }}
-            >
-              Opponent&apos;s Fleet
-              <span
-                className="ml-2"
-                style={{
-                  fontFamily:
-                    "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  color: "var(--color-text-secondary)",
-                  fontSize: "14px",
-                  fontWeight: 400,
-                }}
-              >
-                ({gameState.metadata.joiner})
-              </span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {gameState.joinerActiveShipIds.map((shipId) => {
-                const shipPosition = gameState.shipPositions.find(
-                  (sp) => sp.shipId === shipId,
-                );
-                const attributes = getShipAttributes(shipId);
-                const ship = shipMap.get(BigInt(shipId));
-
-                if (!shipPosition || !attributes || !ship) return null;
-
-                const reactorCriticalStatus =
-                  attributes.reactorCriticalTimer > 0 &&
-                  attributes.hullPoints === 0
-                    ? "critical"
-                    : attributes.reactorCriticalTimer > 0
-                      ? "warning"
-                      : "none";
-
-                const hasMoved = movedShipIdsSet.has(shipId);
-
-                return (
-                  <div key={shipId}>
-                    <ShipCard
-                      ship={ship}
-                      isStarred={false}
-                      onToggleStar={() => {}}
-                      isSelected={false}
-                      onToggleSelection={() => {}}
-                      onRecycleClick={() => {}}
-                      showInGameProperties={true}
-                      inGameAttributes={attributes}
-                      attributesLoading={false}
-                      hideRecycle={true}
-                      hideCheckbox={true}
-                      isCurrentPlayerShip={false}
-                      flipShip={false}
-                      reactorCriticalStatus={reactorCriticalStatus}
-                      hasMoved={hasMoved}
-                      gameViewMode={true}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          </div>
-        </div>
-      )}
 
       {selectedShipId && (
         <div className="mt-4 bg-black/40 border p-4" style={{ borderColor: "var(--color-cyan)" }}>
@@ -4791,6 +4693,73 @@ export function SimulatedGameDisplay({
                 Click the highlighted friendly ship to assist it.
               </p>
             )}
+        </div>
+      )}
+      {/* Fleet Details Modal */}
+      {showFleetModal && (
+        <div
+          className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto p-4"
+          style={{ backgroundColor: "rgba(12, 17, 23, 0.85)" }}
+          onClick={() => setShowFleetModal(false)}
+        >
+          <div
+            className="relative w-[90%] my-4 border border-solid p-4"
+            style={{ backgroundColor: "var(--color-slate)", borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", borderRadius: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowFleetModal(false)}
+              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center border border-solid"
+              style={{ color: "var(--color-warning-red)", borderColor: "var(--color-warning-red)", backgroundColor: "var(--color-near-black)", borderRadius: 0, fontSize: 14, lineHeight: 1 }}
+              aria-label="Close fleet details"
+            >
+              ✕
+            </button>
+            <div className="mb-4">
+              <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* My Fleet */}
+              <div>
+                <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-cyan)", fontSize: "18px" }}>My Fleet</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {gameState.creatorActiveShipIds.map((shipId) => {
+                    const attributes = getShipAttributes(shipId);
+                    const ship = shipMap.get(BigInt(Number(shipId)));
+                    if (!attributes || !ship) return null;
+                    const reactorCriticalStatus =
+                      attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
+                      : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
+                    return (
+                      <div key={shipId}>
+                        <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Opponent Fleet */}
+              <div>
+                <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-warning-red)", fontSize: "18px" }}>Opponent&apos;s Fleet</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {gameState.joinerActiveShipIds.map((shipId) => {
+                    const attributes = getShipAttributes(shipId);
+                    const ship = shipMap.get(BigInt(Number(shipId)));
+                    if (!attributes || !ship) return null;
+                    const reactorCriticalStatus =
+                      attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
+                      : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
+                    return (
+                      <div key={shipId}>
+                        <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
