@@ -1,17 +1,28 @@
 "use client";
 
-import "@rainbow-me/rainbowkit/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
-import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { WagmiProvider, createConfig, http } from "wagmi";
+import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
+import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
+import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
-import { http } from "wagmi";
 import { TransactionProvider } from "./providers/TransactionContext";
-import { type ReactNode, useState, useMemo, useEffect } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
 import { PosthogAppChainSync } from "./components/PosthogAppChainSync";
+
+const wagmiConfig = createConfig({
+  chains: [flowTestnet, saigon, baseSepolia, xaiTestnet],
+  multiInjectedProviderDiscovery: false,
+  transports: {
+    [flowTestnet.id]: http(),
+    [saigon.id]: http(),
+    [baseSepolia.id]: http(),
+    [xaiTestnet.id]: http(),
+  },
+});
 
 function InvalidateQueriesOnChainChange() {
   const queryClient = useQueryClient();
@@ -29,39 +40,26 @@ function InvalidateQueriesOnChainChange() {
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
-  const walletConnectProjectId =
-    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
-    process.env.NEXT_PUBLIC_WALLETCONNECT_ID ||
-    "YOUR_PROJECT_ID";
-
-  const config = useMemo(
-    () =>
-      getDefaultConfig({
-        appName: "WarpFlow",
-        projectId: walletConnectProjectId,
-        chains: [flowTestnet, saigon, baseSepolia, xaiTestnet],
-        transports: {
-          [flowTestnet.id]: http(),
-          [saigon.id]: http(),
-          [baseSepolia.id]: http(),
-          [xaiTestnet.id]: http(),
-        },
-      }),
-    [walletConnectProjectId]
-  );
 
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <InvalidateQueriesOnChainChange />
-        <PosthogAppChainSync />
-        <RainbowKitProvider>
-          <TransactionProvider>
-            {children}
-            <MobileAlphaNoticeModal />
-          </TransactionProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <DynamicContextProvider
+      settings={{
+        environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
+        walletConnectors: [EthereumWalletConnectors],
+      }}
+    >
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <DynamicWagmiConnector>
+            <InvalidateQueriesOnChainChange />
+            <PosthogAppChainSync />
+            <TransactionProvider>
+              {children}
+              <MobileAlphaNoticeModal />
+            </TransactionProvider>
+          </DynamicWagmiConnector>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </DynamicContextProvider>
   );
 }

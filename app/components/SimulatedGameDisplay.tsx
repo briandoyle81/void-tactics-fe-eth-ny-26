@@ -68,7 +68,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
@@ -252,7 +252,7 @@ export function SimulatedGameDisplay({
   onBack,
 }: SimulatedGameDisplayProps) {
   const { address } = useAccount();
-  const { openConnectModal } = useConnectModal();
+  const { setShowAuthFlow } = useDynamicContext();
   const activeChainId = useSelectedChainId();
   const publicClient = usePublicClient({ chainId: activeChainId });
   const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
@@ -413,7 +413,7 @@ export function SimulatedGameDisplay({
       functionName: "completeTutorialWinPath" | "completeTutorialLossPath",
     ) => {
       if (!address) {
-        openConnectModal?.();
+        setShowAuthFlow(true);
         return;
       }
       if (isTutorialRewardAlreadyClaimed) {
@@ -470,7 +470,6 @@ export function SimulatedGameDisplay({
       isTutorialClaimConfirming,
       isTutorialRewardAlreadyClaimed,
       onBack,
-      openConnectModal,
       publicClient,
       switchToSelectedChainIfNeeded,
       writeTutorialClaim,

@@ -17,29 +17,15 @@ The game confirm widget IS the transaction UX. No new UI component is needed.
 
 ---
 
-## Step 1 — Bump wagmi v2 → v3
+## ⚠️ wagmi Version Note
 
-Dynamic requires **wagmi ≤ v3.1.0**. The project is on wagmi `^2.19.5`. Do this upgrade in isolation — get a clean build before touching Dynamic at all.
+The project is on wagmi `^2.19.5`. Dynamic supports wagmi up to `v3.1.0`, and the peer dep on `@dynamic-labs/wagmi-connector` is `wagmi: "^2.14.11"` — so the current version already satisfies it. **We are not bumping wagmi right now.**
 
-```bash
-npm install wagmi@^3.1.0
-
-# viem: verify compatibility with wagmi v3 and upgrade if needed
-npm install viem@latest
-```
-
-Run `npm run build` immediately and fix any TypeScript errors. Common places to check:
-
-- `app/utils/switchWalletChain.ts` — imports `Config, Connector` from `@wagmi/core`; verify the `switchChain` API
-- `app/utils/ensureUiChainsInWallet.ts` — any chain-addition utilities
-- `app/hooks/useSwitchToSelectedChainIfNeeded.ts` — wagmi switch chain hook usage
-- All 34 hooks in `app/hooks/` — most core hooks (`useReadContract`, `useWriteContract`, `useWatchContractEvent`, `useWaitForTransactionReceipt`, `useAccount`, `useBalance`) are expected to be stable, but confirm
-
-Do not proceed to Dynamic installation until `npm run build` and `npm run dev` are clean.
+However, RainbowKit v2 requires `wagmi: "^2.9.0"`, so removing RainbowKit will break the lockfile's wagmi resolution. Watch for peer-dep warnings after the RainbowKit uninstall; if they surface, pin `wagmi@3.1.0` and audit all 34 hooks in `app/hooks/` for the v2→v3 diff before proceeding.
 
 ---
 
-## Step 2 — Package Changes (Dynamic)
+## Step 1 — Package Changes
 
 ```bash
 # Remove RainbowKit
@@ -47,11 +33,14 @@ npm uninstall @rainbow-me/rainbowkit
 
 # Install Dynamic
 npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum @dynamic-labs/wagmi-connector
+
+# viem: ensure up to date (Dynamic peer dep: viem "^2.45.3")
+npm install viem@latest
 ```
 
 ---
 
-## Step 3 — Environment Setup
+## Step 2 — Environment Setup
 
 ### Dashboard
 
@@ -77,12 +66,12 @@ If the app sets a `frame-src` CSP header, whitelist `https://app.dynamicauth.com
 
 ---
 
-## Step 4 — Rewrite `app/providers.tsx`
+## Step 3 — Rewrite `app/providers.tsx`
 
 ### Current provider tree
 
 ```
-WagmiProvider (getDefaultConfig)
+WagmiProvider (getDefaultConfig from RainbowKit)
   QueryClientProvider
     InvalidateQueriesOnChainChange
     PosthogAppChainSync
@@ -94,15 +83,18 @@ WagmiProvider (getDefaultConfig)
 
 ### New provider tree
 
+Per Dynamic's official docs, `DynamicWagmiConnector` goes **inside** `WagmiProvider` — it does NOT replace it.
+
 ```
 DynamicContextProvider (settings: environmentId + EthereumWalletConnectors)
-  DynamicWagmiConnector   ← replaces WagmiProvider; provides wagmi context internally
+  WagmiProvider config={wagmiConfig}    ← createConfig at module level, not useMemo
     QueryClientProvider
-      InvalidateQueriesOnChainChange
-      PosthogAppChainSync
-      TransactionProvider
-        children
-        MobileAlphaNoticeModal
+      DynamicWagmiConnector             ← goes inside WagmiProvider
+        InvalidateQueriesOnChainChange
+        PosthogAppChainSync
+        TransactionProvider
+          children
+          MobileAlphaNoticeModal
 ```
 
 ### Code
@@ -111,15 +103,29 @@ DynamicContextProvider (settings: environmentId + EthereumWalletConnectors)
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider, createConfig, http } from "wagmi";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { TransactionProvider } from "./providers/TransactionContext";
 import { type ReactNode, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "./config/networks";
+import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
 import { PosthogAppChainSync } from "./components/PosthogAppChainSync";
+
+// createConfig must be at module level — never inside a component or useMemo.
+const wagmiConfig = createConfig({
+  chains: [flowTestnet, saigon, baseSepolia, xaiTestnet],
+  multiInjectedProviderDiscovery: false, // Dynamic implements MIPD itself
+  transports: {
+    [flowTestnet.id]: http(),
+    [saigon.id]: http(),
+    [baseSepolia.id]: http(),
+    [xaiTestnet.id]: http(),
+  },
+});
 
 function InvalidateQueriesOnChainChange() {
   const queryClient = useQueryClient();
@@ -142,29 +148,29 @@ export function Providers({ children }: { children: ReactNode }) {
         walletConnectors: [EthereumWalletConnectors],
       }}
     >
-      <DynamicWagmiConnector>
+      <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <InvalidateQueriesOnChainChange />
-          <PosthogAppChainSync />
-          <TransactionProvider>
-            {children}
-            <MobileAlphaNoticeModal />
-          </TransactionProvider>
+          <DynamicWagmiConnector>
+            <InvalidateQueriesOnChainChange />
+            <PosthogAppChainSync />
+            <TransactionProvider>
+              {children}
+              <MobileAlphaNoticeModal />
+            </TransactionProvider>
+          </DynamicWagmiConnector>
         </QueryClientProvider>
-      </DynamicWagmiConnector>
+      </WagmiProvider>
     </DynamicContextProvider>
   );
 }
 ```
 
-**What's removed:** `getDefaultConfig`, `WagmiProvider`, `RainbowKitProvider`, the rainbowkit CSS import, the `useMemo` chain config, `walletConnectProjectId`.
+**What's removed:** `getDefaultConfig`, `RainbowKitProvider`, the rainbowkit CSS import, `useMemo` chain config, `walletConnectProjectId`.
 **What's kept:** `InvalidateQueriesOnChainChange`, `PosthogAppChainSync`, `TransactionProvider`, `MobileAlphaNoticeModal` — all unchanged.
-
-Note: Chain definitions (Flow Testnet, Saigon, Base Sepolia, Xai Testnet) no longer need to be passed here. The Dynamic connector picks up the connected wallet's chain. The app's existing `selectedChainId` localStorage logic in `Header.tsx` continues to drive contract reads — that is unchanged.
 
 ---
 
-## Step 5 — Update `app/components/Header.tsx`
+## Step 4 — Update `app/components/Header.tsx`
 
 The header has two RainbowKit dependencies:
 
@@ -236,7 +242,7 @@ Everything else in `Header.tsx` — the network picker, balance display, UTC bal
 
 ---
 
-## Step 6 — Update `app/components/SimulatedGameDisplay.tsx`
+## Step 5 — Update `app/components/SimulatedGameDisplay.tsx`
 
 One usage of `useConnectModal` at line 71/255/416:
 
@@ -261,13 +267,13 @@ Also remove `openConnectModal` from the `useCallback` dependency array at line 4
 
 ---
 
-## Step 7 — Delete `app/components/Connect.tsx`
+## Step 6 — Delete `app/components/Connect.tsx`
 
 `Connect.tsx` is not imported anywhere in the codebase — it is orphaned. Delete it.
 
 ---
 
-## Step 8 — Verify No Changes Needed (Explicitly)
+## Step 7 — Verify No Changes Needed (Explicitly)
 
 | File                                       | Why untouched                                                                            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
@@ -281,7 +287,7 @@ Also remove `openConnectModal` from the `useCallback` dependency array at line 4
 
 ---
 
-## Step 9 — Build and Verify
+## Step 8 — Build and Verify
 
 ```bash
 npm run build
@@ -314,9 +320,24 @@ This is the "no popup" story for the Dynamic prize demo.
 
 ---
 
+## Fireblocks Flow (Next Stage — $3,000 Prize Track)
+
+**Fireblocks Flow** (not Firebase — Dynamic was acquired by Fireblocks) is a separate product that lets users pay from any wallet/exchange/chain and have funds settle in any token on any chain. It's the **Best Use of Flow** prize track at ETH NYC 2026.
+
+Key facts:
+- Enterprise feature — **must ask Dynamic at their booth to enable it** for the hackathon environment
+- Direction-agnostic: handles deposits in, withdrawals out, cross-chain conversions
+- Auto swap/bridge behind the scenes — user never manually bridges
+- JS SDK and raw HTTP API available; pre-built UI widget coming soon
+- HMAC-signed webhooks fire on every state transition
+
+Integration is a separate step after the wallet glow-up is complete.
+
+---
+
 ## Open Questions
 
-1. **wagmi v3 breaking changes** — Step 1 is isolated to this upgrade. Get a clean build before touching Dynamic. The 34 custom hooks in `app/hooks/` all need to pass.
-2. **Embedded wallet on Flow Testnet** — verify Dynamic's MPC infrastructure supports EVM chain id 747 (Flow EVM). Check the Dynamic dashboard Chains & Networks section.
-3. **`PosthogAppChainSync`** — currently uses `useAccount` from wagmi to sync the connected chain to PostHog. Verify it still reads the correct chain after the provider swap.
-4. **`DynamicWagmiConnector` and `QueryClientProvider` ordering** — the docs show `DynamicWagmiConnector` as the inner provider without a separate `WagmiProvider`. Confirm this is correct for the version installed — if wagmi v3 still requires an explicit `WagmiProvider`, add it between `DynamicWagmiConnector` and `QueryClientProvider`.
+1. **Embedded wallet on Flow Testnet** — verify Dynamic's MPC infrastructure supports EVM chain id 747 (Flow EVM). Check the Dynamic dashboard Chains & Networks section.
+2. **`PosthogAppChainSync`** — currently uses `useAccount` from wagmi to sync the connected chain to PostHog. Verify it still reads the correct chain after the provider swap.
+3. **wagmi peer-dep warnings** — after removing RainbowKit, check `npm install` output for peer conflicts. If wagmi resolution breaks, bump to `wagmi@3.1.0` and audit all 34 hooks for the v2→v3 diff before proceeding.
+4. **Fireblocks Flow enablement** — it's enterprise-only; confirm with the Dynamic team at the hackathon booth that it's enabled for the environment.

@@ -77,7 +77,7 @@ interface ShipImageState {
 function isUserLoggedIn(): boolean {
   return (
     typeof window !== "undefined" &&
-    (window.ethereum?.isConnected?.() ||
+    ((window.ethereum as { isConnected?: () => boolean })?.isConnected?.() ||
       localStorage.getItem("wagmi.connected") === "true")
   );
 }

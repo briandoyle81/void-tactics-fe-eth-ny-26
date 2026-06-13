@@ -10,10 +10,9 @@ import {
   useAccount,
   useBalance,
   useConfig,
-  useDisconnect,
   useReadContract,
 } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { formatEther } from "viem";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
@@ -96,81 +95,23 @@ function HeaderDisconnectedConnect({
 }: {
   connectButtonClassName: string;
 }) {
+  const { setShowAuthFlow } = useDynamicContext();
+
   return (
-    <ConnectButton.Custom>
-      {({
-        account,
-        chain,
-        openChainModal,
-        openConnectModal,
-        authenticationStatus,
-        mounted,
-      }) => {
-        const ready = mounted && authenticationStatus !== "loading";
-        const connected =
-          ready &&
-          account &&
-          chain &&
-          (!authenticationStatus || authenticationStatus === "authenticated");
-
-        return (
-          <div
-            {...(!ready && {
-              "aria-hidden": true,
-              style: {
-                opacity: 0,
-                pointerEvents: "none",
-                userSelect: "none",
-              },
-            })}
-          >
-            {(() => {
-              if (!connected) {
-                return (
-                  <button
-                    onClick={openConnectModal}
-                    type="button"
-                    className={connectButtonClassName}
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      borderColor: "var(--color-cyan)",
-                      color: "var(--color-cyan)",
-                      backgroundColor: "var(--color-steel)",
-                      borderRadius: 0,
-                    }}
-                  >
-                    [LOG IN]
-                  </button>
-                );
-              }
-
-              if (chain.unsupported) {
-                return (
-                  <button
-                    onClick={openChainModal}
-                    type="button"
-                    className={connectButtonClassName}
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                      borderColor: "var(--color-warning-red)",
-                      color: "var(--color-warning-red)",
-                      backgroundColor: "var(--color-steel)",
-                      borderRadius: 0,
-                    }}
-                  >
-                    [WRONG NETWORK]
-                  </button>
-                );
-              }
-
-              return null;
-            })()}
-          </div>
-        );
+    <button
+      onClick={() => setShowAuthFlow(true)}
+      type="button"
+      className={connectButtonClassName}
+      style={{
+        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+        borderColor: "var(--color-cyan)",
+        color: "var(--color-cyan)",
+        backgroundColor: "var(--color-steel)",
+        borderRadius: 0,
       }}
-    </ConnectButton.Custom>
+    >
+      [LOG IN]
+    </button>
   );
 }
 
@@ -341,7 +282,7 @@ const Header: React.FC = () => {
     query: { enabled: isHydrated && !!account.address },
   });
 
-  const { disconnect } = useDisconnect();
+  const { handleLogOut } = useDynamicContext();
 
   // Hydration safety
   useEffect(() => {
@@ -574,7 +515,7 @@ const Header: React.FC = () => {
   const handleDisconnect = async () => {
     try {
       userChoseNetworkThisSessionRef.current = false;
-      disconnect();
+      await handleLogOut();
       toast.success("Successfully disconnected!");
     } catch (error) {
       console.error("Error disconnecting:", error);
