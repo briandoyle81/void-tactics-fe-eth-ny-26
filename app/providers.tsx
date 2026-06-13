@@ -7,7 +7,7 @@ import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { TransactionProvider } from "./providers/TransactionContext";
-import { type ReactNode, useState, useEffect, memo } from "react";
+import { type ReactNode, useEffect, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
@@ -38,6 +38,8 @@ function InvalidateQueriesOnChainChange() {
   return null;
 }
 
+const queryClient = new QueryClient();
+
 const DYNAMIC_SETTINGS = {
   environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
   walletConnectors: [EthereumWalletConnectors],
@@ -58,8 +60,6 @@ const AppContent = memo(function AppContent({ children }: { children: ReactNode 
 });
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
-
   return (
     <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
       <WagmiProvider config={wagmiConfig}>

@@ -10,10 +10,13 @@ import { flowTestnet, baseSepolia, saigon } from "viem/chains";
 import { xaiTestnet } from "@/app/config/networks";
 import { getContractAddresses } from "@/app/config/contracts";
 import { getVariantForChainId } from "@/app/config/networks";
-import { pendingPurchases } from "../_store";
+import { FLOW_USD_TIERS } from "@/app/config/flowPayment";
 
 const ENV_ID = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!;
 const MINTER_KEY = process.env.SHIP_MINTER_PRIVATE_KEY as `0x${string}`;
+
+// Prevents double-minting within a server process lifetime.
+const fulfilledTransactions = new Set<string>();
 
 const CREATE_SHIPS_ABI = [
   {
@@ -56,13 +59,23 @@ function getViemChain(chainId: number): Chain {
 }
 
 export async function POST(req: NextRequest) {
-  const { transactionId } = (await req.json()) as { transactionId: string };
+  const { transactionId, tier, buyerAddress, gameChainId } =
+    (await req.json()) as {
+      transactionId: string;
+      tier: number;
+      buyerAddress: string;
+      gameChainId: number;
+    };
 
-  const intent = pendingPurchases.get(transactionId);
-  if (!intent) {
-    return NextResponse.json({ error: "Unknown transaction" }, { status: 404 });
+  if (!transactionId || !buyerAddress || typeof tier !== "number" || !gameChainId) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-  if (intent.fulfilled) {
+  const flowTier = FLOW_USD_TIERS[tier];
+  if (!flowTier) {
+    return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  }
+
+  if (fulfilledTransactions.has(transactionId)) {
     return NextResponse.json({ error: "Already fulfilled" }, { status: 409 });
   }
 
@@ -73,7 +86,17 @@ export async function POST(req: NextRequest) {
   const tx = (await txRes.json()) as {
     settlementState: string;
     executionState: string;
+    amount: string;
   };
+
+  // Verify the paid amount matches the claimed tier — prevents a client from
+  // paying for tier 0 and submitting a fulfill request claiming tier 4.
+  if (tx.amount !== flowTier.actualAmount) {
+    return NextResponse.json(
+      { error: "Transaction amount does not match tier" },
+      { status: 400 },
+    );
+  }
 
   if (tx.settlementState !== "completed") {
     return NextResponse.json(
@@ -83,9 +106,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Mark fulfilled before minting to prevent double-mint
-  intent.fulfilled = true;
-
-  const { buyerAddress, tier, gameChainId } = intent;
+  fulfilledTransactions.add(transactionId);
   const chain = getViemChain(gameChainId);
   const contractAddresses = getContractAddresses(gameChainId);
   const variant = getVariantForChainId(gameChainId);
