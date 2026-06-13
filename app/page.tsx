@@ -22,6 +22,7 @@ import Maps from "./components/Maps";
 import ShipAttributes from "./components/ShipAttributes";
 import ShipConstructor from "./components/ShipConstructor";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
+import { Tournaments } from "./components/Tournaments";
 import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
 import { useOwnedShips } from "./hooks/useOwnedShips";
@@ -41,6 +42,7 @@ const KNOWN_TAB_NAMES = new Set<string>([
   "Customize Ship",
   "Ship Attributes",
   "Purchase Prices",
+  "Tournaments",
 ]);
 
 export default function Home() {
@@ -472,10 +474,6 @@ export default function Home() {
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => {
-                      if (tab === "Tournaments") {
-                        window.location.href = "/tournaments";
-                        return;
-                      }
                       setActiveTab(tab);
                       posthog.capture("tab_navigated", { tab_name: tab });
                     }}
@@ -597,6 +595,7 @@ export default function Home() {
               {activeTab === "Ship Attributes" && <ShipAttributes />}
               {activeTab === "Purchase Prices" && <ShipPurchasePrices />}
               {activeTab === "Customize Ship" && <ShipConstructor />}
+              {activeTab === "Tournaments" && <Tournaments />}
             </div>
           )}
         </div>

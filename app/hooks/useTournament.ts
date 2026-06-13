@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { useAccount } from "wagmi";
-import { CONTRACT_ABIS } from "../config/contracts";
+import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import type {
   TournamentConfig,
   TournamentMatch,
@@ -15,8 +15,7 @@ import type {
 
 // Tournament is Base Sepolia only — exported for use in other hooks/components.
 export const BASE_SEPOLIA_TOURNAMENT_ADDRESS =
-  (process.env.NEXT_PUBLIC_TOURNAMENT_ADDRESS as `0x${string}` | undefined) ??
-  "0x0000000000000000000000000000000000000000";
+  CONTRACT_ADDRESSES_BY_CHAIN_ID[84532].TOURNAMENT;
 
 const TOURNAMENT_ABI = CONTRACT_ABIS.TOURNAMENT as Abi;
 const CHAIN_ID = baseSepolia.id;

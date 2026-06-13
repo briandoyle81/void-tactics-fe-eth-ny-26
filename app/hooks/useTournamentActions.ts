@@ -91,5 +91,30 @@ export function useTournamentActions() {
     [writeContractAsync],
   );
 
-  return { register, start, cancel, claimPrize, claimRefund, publicClient };
+  const createTournament = useCallback(
+    (
+      cfg: {
+        entryFee: bigint;
+        minPlayers: number;
+        maxPlayers: number;
+        lastStartTime: bigint;
+        costLimit: bigint;
+        turnTime: bigint;
+        selectedMapId: bigint;
+        maxScore: bigint;
+      },
+      sponsorValue: bigint,
+    ) =>
+      writeContractAsync({
+        address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
+        abi: TOURNAMENT_ABI,
+        functionName: "createTournament",
+        args: [cfg],
+        value: sponsorValue,
+        chainId: CHAIN_ID,
+      }),
+    [writeContractAsync],
+  );
+
+  return { register, start, cancel, claimPrize, claimRefund, createTournament, publicClient };
 }

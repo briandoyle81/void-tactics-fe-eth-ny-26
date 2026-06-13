@@ -158,6 +158,7 @@ export function TournamentRegister({
               rp_context={rpContext}
               allow_legacy_proofs={true}
               preset={orbLegacy({ signal: address })}
+              environment="staging"
               open={widgetOpen}
               onOpenChange={setWidgetOpen}
               onSuccess={(r) => void onVerified(r)}

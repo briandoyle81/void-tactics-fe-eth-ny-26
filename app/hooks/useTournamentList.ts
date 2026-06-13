@@ -1,7 +1,7 @@
 "use client";
 
-import { useReadContract, useReadContracts } from "wagmi";
-import { useMemo } from "react";
+import { useReadContract, useReadContracts, useWatchContractEvent } from "wagmi";
+import { useMemo, useCallback } from "react";
 import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS } from "../config/contracts";
@@ -11,12 +11,19 @@ import type { TournamentSummary, TournamentState } from "../types/types";
 const TOURNAMENT_ABI = CONTRACT_ABIS.TOURNAMENT as Abi;
 const CHAIN_ID = baseSepolia.id;
 
+const WATCH_CONFIG = {
+  address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
+  abi: TOURNAMENT_ABI,
+  chainId: CHAIN_ID,
+} as const;
+
 export function useTournamentList() {
-  const { data: countRaw, isLoading: countLoading } = useReadContract({
+  const { data: countRaw, isLoading: countLoading, refetch: refetchCount } = useReadContract({
     address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
     abi: TOURNAMENT_ABI,
     functionName: "tournamentCount",
     chainId: CHAIN_ID,
+    query: { staleTime: 10_000 },
   });
 
   const count = typeof countRaw === "bigint" ? Number(countRaw) : 0;
@@ -33,9 +40,9 @@ export function useTournamentList() {
     [count],
   );
 
-  const { data: summariesRaw, isLoading: summariesLoading } = useReadContracts({
+  const { data: summariesRaw, isLoading: summariesLoading, refetch: refetchSummaries } = useReadContracts({
     contracts: summaryContracts,
-    query: { enabled: count > 0 },
+    query: { enabled: count > 0, staleTime: 10_000 },
   });
 
   const tournaments: TournamentSummary[] = useMemo(() => {
@@ -59,5 +66,23 @@ export function useTournamentList() {
       .filter((t): t is TournamentSummary => t !== null);
   }, [summariesRaw]);
 
-  return { tournaments, isLoading: countLoading || summariesLoading };
+  // Refetch count when a new tournament is created on-chain.
+  // After countRaw updates, summaryContracts changes → useReadContracts auto-fetches the new entries.
+  const onTournamentCreated = useCallback(() => { void refetchCount(); }, [refetchCount]);
+  useWatchContractEvent({ ...WATCH_CONFIG, eventName: "TournamentCreated", onLogs: onTournamentCreated });
+
+  // Also watch state-changing events so card data stays fresh
+  const onStateChange = useCallback(() => { void refetchSummaries(); }, [refetchSummaries]);
+  useWatchContractEvent({ ...WATCH_CONFIG, eventName: "TournamentStarted",   onLogs: onStateChange });
+  useWatchContractEvent({ ...WATCH_CONFIG, eventName: "TournamentFinalized", onLogs: onStateChange });
+  useWatchContractEvent({ ...WATCH_CONFIG, eventName: "TournamentCancelled", onLogs: onStateChange });
+  useWatchContractEvent({ ...WATCH_CONFIG, eventName: "Registered",          onLogs: onStateChange });
+
+  const refetch = useCallback(async () => {
+    const result = await refetchCount();
+    const newCount = typeof result.data === "bigint" ? Number(result.data) : 0;
+    if (newCount > 0) await refetchSummaries();
+  }, [refetchCount, refetchSummaries]);
+
+  return { tournaments, isLoading: countLoading || (count > 0 && summariesLoading), refetch };
 }

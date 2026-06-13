@@ -1,28 +1,30 @@
 import { NextResponse } from "next/server";
-import { WORLD_RP_ID } from "@/app/config/tournament";
-
-const PORTAL_URL = `https://developer.world.org/api/v4/proof-context/${WORLD_RP_ID}`;
+import { signRequest } from "@worldcoin/idkit-server";
+import { WORLD_RP_ID, WORLD_ACTION } from "@/app/config/tournament";
 
 export async function GET() {
-  const apiKey = process.env.WORLD_ID_API_KEY;
-
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  const signingKeyHex = process.env.WORLD_RP_SIGNING_KEY;
+  if (!signingKeyHex) {
+    console.error("[world-id/rp-context] WORLD_RP_SIGNING_KEY not set");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
 
   try {
-    const res = await fetch(PORTAL_URL, { headers, next: { revalidate: 0 } });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("[world-id/rp-context] portal error", res.status, body);
-      return NextResponse.json(
-        { error: "Failed to obtain proof context from World ID portal" },
-        { status: 502 },
-      );
-    }
-    const data: unknown = await res.json();
-    return NextResponse.json(data);
+    const { sig, nonce, createdAt, expiresAt } = signRequest({
+      signingKeyHex,
+      action: WORLD_ACTION,
+      ttl: 300, // 5 minutes
+    });
+
+    return NextResponse.json({
+      rp_id: WORLD_RP_ID,
+      nonce,
+      created_at: createdAt,
+      expires_at: expiresAt,
+      signature: sig,
+    });
   } catch (err) {
-    console.error("[world-id/rp-context] fetch error", err);
-    return NextResponse.json({ error: "Network error reaching World ID portal" }, { status: 502 });
+    console.error("[world-id/rp-context] signing error", err);
+    return NextResponse.json({ error: "Failed to generate proof context" }, { status: 500 });
   }
 }
