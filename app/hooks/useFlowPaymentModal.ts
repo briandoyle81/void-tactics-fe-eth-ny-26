@@ -53,12 +53,13 @@ export interface PaymentTokenBalance {
 
 // ── Payment network config ─────────────────────────────────────────────────────
 
+// Explicit CORS-friendly public RPCs — viem's defaults (e.g. eth.merkle.io) block browser requests.
 const PAYMENT_CHAINS = [
-  { viemChain: mainnet, id: 1, name: "Ethereum", nativeSymbol: "ETH", priceId: "ethereum" },
-  { viemChain: base, id: 8453, name: "Base", nativeSymbol: "ETH", priceId: "ethereum" },
-  { viemChain: polygon, id: 137, name: "Polygon", nativeSymbol: "POL", priceId: "matic-network" },
-  { viemChain: arbitrum, id: 42161, name: "Arbitrum", nativeSymbol: "ETH", priceId: "ethereum" },
-  { viemChain: optimism, id: 10, name: "Optimism", nativeSymbol: "ETH", priceId: "ethereum" },
+  { viemChain: mainnet, id: 1, name: "Ethereum", nativeSymbol: "ETH", priceId: "ethereum", rpc: "https://cloudflare-eth.com" },
+  { viemChain: base, id: 8453, name: "Base", nativeSymbol: "ETH", priceId: "ethereum", rpc: "https://mainnet.base.org" },
+  { viemChain: polygon, id: 137, name: "Polygon", nativeSymbol: "POL", priceId: "matic-network", rpc: "https://polygon-rpc.com" },
+  { viemChain: arbitrum, id: 42161, name: "Arbitrum", nativeSymbol: "ETH", priceId: "ethereum", rpc: "https://arb1.arbitrum.io/rpc" },
+  { viemChain: optimism, id: 10, name: "Optimism", nativeSymbol: "ETH", priceId: "ethereum", rpc: "https://mainnet.optimism.io" },
 ] as const;
 
 export const CHAIN_NAMES: Record<number, string> = Object.fromEntries(
@@ -85,7 +86,7 @@ async function fetchMultichainBalances(address: string): Promise<PaymentTokenBal
 
   const results = await Promise.allSettled(
     PAYMENT_CHAINS.map(async (chain) => {
-      const client = createPublicClient({ chain: chain.viemChain, transport: http() });
+      const client = createPublicClient({ chain: chain.viemChain, transport: http(chain.rpc) });
       const raw = await client.getBalance({ address: address as `0x${string}` });
       if (raw === 0n) return null;
       const balance = parseFloat(formatUnits(raw, 18));

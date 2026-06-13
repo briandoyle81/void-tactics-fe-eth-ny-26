@@ -11,6 +11,7 @@ import { xaiTestnet } from "@/app/config/networks";
 import { getContractAddresses } from "@/app/config/contracts";
 import { getVariantForChainId } from "@/app/config/networks";
 import { FLOW_USD_TIERS } from "@/app/config/flowPayment";
+import { logAttempt, logMinted, logFailed } from "@/app/lib/mintLog";
 
 const ENV_ID = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!;
 const rawKey = process.env.SHIP_MINTER_PRIVATE_KEY ?? "";
@@ -108,36 +109,58 @@ export async function POST(req: NextRequest) {
 
   // Mark fulfilled before minting to prevent double-mint
   fulfilledTransactions.add(transactionId);
+  logAttempt({ transactionId, tier, buyerAddress, gameChainId });
   const chain = getViemChain(gameChainId);
   const contractAddresses = getContractAddresses(gameChainId);
   const variant = getVariantForChainId(gameChainId);
   const shipsAddress = contractAddresses.SHIPS as `0x${string}`;
 
-  const publicClient = createPublicClient({ chain, transport: http() });
+  try {
+    const publicClient = createPublicClient({ chain, transport: http() });
 
-  // Read ship count for this tier directly from contract
-  const shipsCount = await publicClient.readContract({
-    address: shipsAddress,
-    abi: TIER_SHIPS_ABI,
-    functionName: "tierShips",
-    args: [BigInt(tier)],
-  });
+    // Read ship count for this tier directly from contract
+    const shipsCount = await publicClient.readContract({
+      address: shipsAddress,
+      abi: TIER_SHIPS_ABI,
+      functionName: "tierShips",
+      args: [BigInt(tier)],
+    });
 
-  const account = privateKeyToAccount(MINTER_KEY);
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(),
-  });
+    const account = privateKeyToAccount(MINTER_KEY);
+    const walletClient = createWalletClient({
+      account,
+      chain,
+      transport: http(),
+    });
 
-  const mintTxHash = await walletClient.writeContract({
-    address: shipsAddress,
-    abi: CREATE_SHIPS_ABI,
-    functionName: "createShips",
-    args: [buyerAddress as `0x${string}`, BigInt(shipsCount), variant, tier],
-  });
+    const mintTxHash = await walletClient.writeContract({
+      address: shipsAddress,
+      abi: CREATE_SHIPS_ABI,
+      functionName: "createShips",
+      args: [buyerAddress as `0x${string}`, BigInt(shipsCount), variant, tier],
+    });
 
-  await publicClient.waitForTransactionReceipt({ hash: mintTxHash });
+    await publicClient.waitForTransactionReceipt({ hash: mintTxHash });
 
-  return NextResponse.json({ success: true, mintTxHash });
+    logMinted(transactionId, mintTxHash);
+    return NextResponse.json({ success: true, mintTxHash });
+  } catch (err) {
+    // Unmark so a retry can attempt minting again
+    fulfilledTransactions.delete(transactionId);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[fulfill] mint failed:", message);
+    logFailed(transactionId, message);
+
+    const outOfFunds =
+      message.includes("gas required exceeds allowance (0)") ||
+      message.includes("insufficient funds");
+    if (outOfFunds) {
+      return NextResponse.json(
+        { error: "Minter wallet is out of funds — contact support to claim your ships." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ error: `Minting failed: ${message}` }, { status: 500 });
+  }
 }
