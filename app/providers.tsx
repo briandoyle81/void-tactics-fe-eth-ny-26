@@ -7,7 +7,7 @@ import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { TransactionProvider } from "./providers/TransactionContext";
-import { type ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
@@ -43,6 +43,20 @@ const DYNAMIC_SETTINGS = {
   walletConnectors: [EthereumWalletConnectors],
 };
 
+// memo prevents DynamicWagmiConnectorInner's frequent re-renders from cascading into the entire app tree
+const AppContent = memo(function AppContent({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <InvalidateQueriesOnChainChange />
+      <PosthogAppChainSync />
+      <TransactionProvider>
+        {children}
+        <MobileAlphaNoticeModal />
+      </TransactionProvider>
+    </>
+  );
+});
+
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
@@ -51,12 +65,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
-            <InvalidateQueriesOnChainChange />
-            <PosthogAppChainSync />
-            <TransactionProvider>
-              {children}
-              <MobileAlphaNoticeModal />
-            </TransactionProvider>
+            <AppContent>{children}</AppContent>
           </DynamicWagmiConnector>
         </QueryClientProvider>
       </WagmiProvider>

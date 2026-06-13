@@ -5,9 +5,9 @@ export interface FlowTier {
 
 // Five tiers matching the Ships contract tier structure (0–4).
 export const FLOW_USD_TIERS: FlowTier[] = [
-  { displayPrice: "4.99", actualAmount: "0.05" },
-  { displayPrice: "9.99", actualAmount: "0.10" },
-  { displayPrice: "19.99", actualAmount: "0.20" },
-  { displayPrice: "39.99", actualAmount: "0.40" },
-  { displayPrice: "79.99", actualAmount: "0.80" },
+  { displayPrice: "1.99", actualAmount: "0.02" },
+  { displayPrice: "3.99", actualAmount: "0.04" },
+  { displayPrice: "7.99", actualAmount: "0.08" },
+  { displayPrice: "14.99", actualAmount: "0.15" },
+  { displayPrice: "24.99", actualAmount: "0.25" },
 ];

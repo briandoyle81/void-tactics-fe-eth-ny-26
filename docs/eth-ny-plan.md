@@ -343,6 +343,14 @@ Dynamic Flow presents its own payment selector UI (source chain, source token). 
 
 ---
 
+## Known Issues / TODO
+
+- **Dynamic auth modal animation runs at ~3fps.** Root cause investigated: `DynamicWagmiConnectorInner` subscribes to `useDynamicContext()` and re-renders the full app tree on every auth state change. A `React.memo` wrapper (`AppContent`) was added in `providers.tsx` to break the cascade, but the performance is still slow. May be a Dynamic SDK internal issue (their own component tree is expensive). Revisit: profile with Chrome DevTools Performance tab; consider filing a Dynamic SDK issue; test in production build to confirm if dev-mode overhead is the majority of the cost.
+
+- **Fireblocks Flow silently fails when the source wallet has insufficient gas.** The `prepare` step returns `assertBalanceForGasCost` info and the `sign` step will throw a wallet error, but the UI currently shows a generic error with no actionable message. Before shipping, surface a clear "not enough [token] for gas" error to the user when the wallet rejects due to insufficient balance.
+
+---
+
 ## Open Questions Before Building
 
 1. **Two Dynamic prizes from one project** — confirm with Dynamic sponsor at the event before building both integrations.
