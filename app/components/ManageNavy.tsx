@@ -446,7 +446,7 @@ const ManageNavy: React.FC = () => {
     setShowShipPurchase(true);
   }, [address, chainId, showBuyShipsTutorial]);
 
-  const [paymentMethod, setPaymentMethod] = React.useState<"FLOW" | "UTC">(
+  const [paymentMethod, setPaymentMethod] = React.useState<"FLOW" | "UTC" | "USD">(
     "FLOW",
   );
   const [showRecycleModal, setShowRecycleModal] = React.useState(false);
@@ -1741,10 +1741,23 @@ const ManageNavy: React.FC = () => {
                         : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
                     }`}
                     style={{
-                      borderRadius: 0, // Square corners for industrial theme
+                      borderRadius: 0,
                     }}
                   >
                     UTC
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod("USD")}
+                    className={`px-3 py-1 border-2 font-mono font-bold tracking-wider transition-all duration-200 text-sm ${
+                      paymentMethod === "USD"
+                        ? "border-phosphor-green text-phosphor-green bg-phosphor-green/10"
+                        : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
+                    }`}
+                    style={{
+                      borderRadius: 0,
+                    }}
+                  >
+                    USD
                   </button>
                 </div>
               </div>

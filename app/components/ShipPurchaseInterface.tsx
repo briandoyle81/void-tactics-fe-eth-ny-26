@@ -1,18 +1,22 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { useAccount } from "wagmi";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
 import { ShipPurchaseButton } from "./ShipPurchaseButton";
+import { FlowPaymentButton } from "./FlowPaymentButton";
 import { ShipImage } from "./ShipImage";
 import type { Ship } from "../types/types";
 import { formatEther } from "viem";
+import { getSelectedChainId } from "../config/networks";
+import { FLOW_USD_TIERS } from "../config/flowPayment";
 
 interface ShipPurchaseInterfaceProps {
   onClose: () => void;
-  paymentMethod?: "FLOW" | "UTC";
-  onPaymentMethodChange?: (method: "FLOW" | "UTC") => void;
+  paymentMethod?: "FLOW" | "UTC" | "USD";
+  onPaymentMethodChange?: (method: "FLOW" | "UTC" | "USD") => void;
 }
 
 const TIER_COLOR_SCHEMES = [
@@ -63,10 +67,13 @@ const TIER_CALLOUTS = [
 
 const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   paymentMethod: externalPaymentMethod,
+  onClose,
 }) => {
   const shipsPack = useShipsPurchaseInfo();
   const utcPack = useShipPurchaserPurchaseInfo();
   const { refetch } = useOwnedShips();
+  const { chainId: walletChainId } = useAccount();
+  const activeGameChainId = walletChainId ?? getSelectedChainId();
   const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
 
   const paymentMethod = externalPaymentMethod ?? "FLOW";
@@ -83,7 +90,8 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     );
   }
 
-  const pack = paymentMethod === "FLOW" ? shipsPack : utcPack;
+  // USD uses the same tier structure as FLOW (ship counts, ranks, previews)
+  const pack = paymentMethod === "UTC" ? utcPack : shipsPack;
   const {
     tiers,
     shipsPerTier: maxPerTier,
@@ -247,6 +255,24 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
           const previewShips = getPreviewShipsForTier(tier);
           const previewSingleColumn = previewShips.length <= 1;
 
+          if (paymentMethod === "USD") {
+            const flowTier = FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!;
+            return (
+              <FlowPaymentButton
+                key={index}
+                tier={tier}
+                gameChainId={activeGameChainId}
+                flowTier={flowTier}
+                shipsCount={shipsCount ?? 0}
+                tierCallout={tierCallout}
+                badge={badge}
+                previewShips={previewShips}
+                colors={colors}
+                onSuccess={() => { refetch(); onClose(); }}
+              />
+            );
+          }
+
           return (
             <ShipPurchaseButton
               key={index}
@@ -365,7 +391,9 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
       >
         {paymentMethod === "UTC"
           ? "Click to approve UTC. After approval, click to purchase."
-          : "Click to purchase."}
+          : paymentMethod === "USD"
+            ? "Pay with any token from any chain. Powered by Fireblocks Flow."
+            : "Click to purchase."}
       </p>
       <p
         className="mt-1 text-[11px] uppercase tracking-[0.08em] text-text-muted"

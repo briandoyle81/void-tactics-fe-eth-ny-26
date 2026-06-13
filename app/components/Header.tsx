@@ -90,6 +90,37 @@ function HeaderAlphaBadge({ compact }: { compact?: boolean }) {
   );
 }
 
+function HeaderLogoutButton({
+  onBeforeLogOut,
+  className,
+  style,
+  children,
+}: {
+  onBeforeLogOut?: () => void;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const { handleLogOut } = useDynamicContext();
+
+  const handleClick = async () => {
+    try {
+      onBeforeLogOut?.();
+      await handleLogOut();
+      toast.success("Successfully disconnected!");
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+      toast.error("Failed to disconnect. Please try again.");
+    }
+  };
+
+  return (
+    <button onClick={handleClick} className={className} style={style}>
+      {children}
+    </button>
+  );
+}
+
 function HeaderDisconnectedConnect({
   connectButtonClassName,
 }: {
@@ -281,8 +312,6 @@ const Header: React.FC = () => {
     chainId: selectedChainId,
     query: { enabled: isHydrated && !!account.address },
   });
-
-  const { handleLogOut } = useDynamicContext();
 
   // Hydration safety
   useEffect(() => {
@@ -512,16 +541,9 @@ const Header: React.FC = () => {
     return `${address.slice(0, 6)}…${address.slice(-4)}`;
   };
 
-  const handleDisconnect = async () => {
-    try {
-      userChoseNetworkThisSessionRef.current = false;
-      await handleLogOut();
-      toast.success("Successfully disconnected!");
-    } catch (error) {
-      console.error("Error disconnecting:", error);
-      toast.error("Failed to disconnect. Please try again.");
-    }
-  };
+  const handleBeforeLogOut = React.useCallback(() => {
+    userChoseNetworkThisSessionRef.current = false;
+  }, []);
 
   const isConnected = account.isConnected;
 
@@ -851,8 +873,8 @@ const Header: React.FC = () => {
 
                   {/* Action buttons */}
                   <div className="flex gap-2 flex-col items-stretch">
-                    <button
-                      onClick={handleDisconnect}
+                    <HeaderLogoutButton
+                      onBeforeLogOut={handleBeforeLogOut}
                       className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-48 flex items-center justify-center text-xs h-8"
                       style={{
                         fontFamily:
@@ -860,19 +882,11 @@ const Header: React.FC = () => {
                         borderColor: "var(--color-warning-red)",
                         color: "var(--color-warning-red)",
                         backgroundColor: "var(--color-steel)",
-                        borderRadius: 0, // Square corners for industrial theme
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-slate)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-steel)";
+                        borderRadius: 0,
                       }}
                     >
                       [LOG OUT]
-                    </button>
+                    </HeaderLogoutButton>
                     {/* Address (moved here) */}
                     <div
                       className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"

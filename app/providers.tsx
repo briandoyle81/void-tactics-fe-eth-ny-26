@@ -38,16 +38,16 @@ function InvalidateQueriesOnChainChange() {
   return null;
 }
 
+const DYNAMIC_SETTINGS = {
+  environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
+  walletConnectors: [EthereumWalletConnectors],
+};
+
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <DynamicContextProvider
-      settings={{
-        environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
-        walletConnectors: [EthereumWalletConnectors],
-      }}
-    >
+    <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
