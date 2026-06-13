@@ -43,3 +43,6 @@ next-env.d.ts
 
 # mint audit log — server-side only, not for source control
 /data/
+
+# MCP server config — may contain API keys in headers
+.mcp.json
