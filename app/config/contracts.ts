@@ -8,6 +8,7 @@ import ShipAttributesContract from "../contracts/DeployModule#ShipAttributes.jso
 import DroneYardContract from "../contracts/DeployModule#DroneYard.json";
 import TutorialClaimContract from "../contracts/DeployModule#TutorialClaim.json";
 import ShipPurchaserContract from "../contracts/DeployModule#ShipPurchaser.json";
+import TournamentContract from "../contracts/DeployModule#Tournament.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -77,6 +78,7 @@ const RONIN_SAIGON_CONTRACT_ADDRESSES = {
 
 const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Ships"] ?? ZERO_ADDRESS,
+  TOURNAMENT: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Tournament"] ?? ZERO_ADDRESS,
   FLEETS:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Fleets"] ?? ZERO_ADDRESS,
   LOBBIES:
@@ -167,6 +169,7 @@ export const CONTRACT_ABIS = {
   DRONE_YARD: DroneYardContract.abi,
   TUTORIAL_CLAIM: TutorialClaimContract.abi,
   SHIP_PURCHASER: ShipPurchaserContract.abi,
+  TOURNAMENT: TournamentContract.abi,
 } as const;
 
 // Contract types for wagmi

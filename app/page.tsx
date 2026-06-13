@@ -446,7 +446,7 @@ export default function Home() {
                 }
               >
               {(() => {
-                const tabs = ["Info", "Manage Navy", "Lobbies"];
+                const tabs = ["Info", "Manage Navy", "Lobbies", "Tournaments"];
                 if (showGames) tabs.push("Games");
                 if (showGames) tabs.push("Profile");
                 if (address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() || activeTab === "Maps") {
@@ -471,7 +471,14 @@ export default function Home() {
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => { setActiveTab(tab); posthog.capture("tab_navigated", { tab_name: tab }); }}
+                    onClick={() => {
+                      if (tab === "Tournaments") {
+                        window.location.href = "/tournaments";
+                        return;
+                      }
+                      setActiveTab(tab);
+                      posthog.capture("tab_navigated", { tab_name: tab });
+                    }}
                     className={`shrink-0 snap-start px-4 py-2.5 min-h-11 border-2 border-solid text-xs uppercase font-semibold tracking-wider transition-colors duration-150 sm:px-5 sm:text-sm md:min-h-0 md:px-6 md:py-3 md:text-base ${
                       isActive
                         ? "border-cyan text-cyan bg-steel"

@@ -480,3 +480,45 @@ export interface Game {
   creatorActiveShipIds: readonly bigint[];
   joinerActiveShipIds: readonly bigint[];
 }
+
+// ── Tournament types ────────────────────────────────────────────────────────
+
+export enum TournamentState {
+  Registration = 0,
+  Active = 1,
+  Complete = 2,
+  Cancelled = 3,
+}
+
+export interface TournamentConfig {
+  entryFee: bigint;
+  minPlayers: number;
+  maxPlayers: number;
+  lastStartTime: bigint;
+  costLimit: bigint;
+  turnTime: bigint;
+  selectedMapId: bigint;
+  maxScore: bigint;
+}
+
+export interface TournamentMatch {
+  matchId: bigint;
+  round: number;
+  player1: Address;
+  player2: Address;
+  winner: Address;
+  gameId: bigint;
+  walrusBlobId: `0x${string}`;
+  resolved: boolean;
+}
+
+export interface TournamentSummary {
+  tournamentId: bigint;
+  state: TournamentState;
+  creator: Address;
+  prizePool: bigint;
+  registrantCount: bigint;
+  totalRounds: number;
+  champion: Address;
+  runnerUp: Address;
+}
