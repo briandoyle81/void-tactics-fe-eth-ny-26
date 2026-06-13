@@ -13,7 +13,8 @@ import { getVariantForChainId } from "@/app/config/networks";
 import { FLOW_USD_TIERS } from "@/app/config/flowPayment";
 
 const ENV_ID = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!;
-const MINTER_KEY = process.env.SHIP_MINTER_PRIVATE_KEY as `0x${string}`;
+const rawKey = process.env.SHIP_MINTER_PRIVATE_KEY ?? "";
+const MINTER_KEY = (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`;
 
 // Prevents double-minting within a server process lifetime.
 const fulfilledTransactions = new Set<string>();

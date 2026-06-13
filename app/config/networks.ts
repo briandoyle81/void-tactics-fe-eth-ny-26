@@ -21,18 +21,19 @@ export const xaiTestnet = {
   testnet: true,
 } as const satisfies Chain;
 
-export const SUPPORTED_CHAINS = [flowTestnet, saigon, baseSepolia, xaiTestnet] as const;
+// Temporarily limited to Base Sepolia only — other chains re-enabled in a few days
+export const SUPPORTED_CHAINS = [/*flowTestnet, saigon,*/ baseSepolia, /*xaiTestnet*/] as const;
 
 export type SupportedChain = (typeof SUPPORTED_CHAINS)[number];
 
-export const DEFAULT_CHAIN_ID: number = flowTestnet.id;
+export const DEFAULT_CHAIN_ID: number = baseSepolia.id;
 
 /** Chains the in-app network picker may select (must match wallet / wagmi). */
 const CHAIN_IDS_SELECTABLE_IN_UI = new Set<number>([
-  flowTestnet.id,
-  saigon.id,
+  // flowTestnet.id,
+  // saigon.id,
   baseSepolia.id,
-  xaiTestnet.id,
+  // xaiTestnet.id,
 ]);
 
 export function isChainSelectableInUi(chainId: number): boolean {
@@ -80,15 +81,14 @@ export function getChainById(chainId: number | undefined | null): SupportedChain
   const id = chainId ?? DEFAULT_CHAIN_ID;
   return (
     (SUPPORTED_CHAINS.find((c) => c.id === id) as SupportedChain | undefined) ??
-    flowTestnet
+    baseSepolia
   );
 }
 
 export function getNativeTokenSymbol(chainId: number | undefined | null): string {
   const chain = getChainById(chainId);
-  // Ronin Saigon should display RON
-  if (chain.id === saigon.id) return "RON";
-  return (chain.nativeCurrency?.symbol ?? "FLOW").toUpperCase();
+  // if (chain.id === saigon.id) return "RON";
+  return (chain.nativeCurrency?.symbol ?? "ETH").toUpperCase();
 }
 
 /** Ronin Saigon testnet enforces a minimum legacy gas price of 20 gwei. */

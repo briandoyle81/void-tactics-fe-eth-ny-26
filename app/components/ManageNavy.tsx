@@ -1757,7 +1757,7 @@ const ManageNavy: React.FC = () => {
                       borderRadius: 0,
                     }}
                   >
-                    USD
+                    Fireblocks Flow
                   </button>
                 </div>
               </div>
