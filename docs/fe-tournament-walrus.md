@@ -1,237 +1,468 @@
-# Void Tactics — Tournament Frontend: Walrus Plan
+# Void Tactics — Game Recording: Walrus Plan
 
-> **Chain:** Base Sepolia only (`84532`).
-> **Do World ID first:** `docs/fe-tournament-worldid.md` — this doc assumes that work is complete.
-> **Source docs:** `docs/tournament.md` (contract spec), `docs/tournament-frontend.md` (integration guide).
-
----
-
-## Overview
-
-Walrus stores a full match record (move history, final state) for every completed tournament game. On-chain only a `bytes32 blobId` pointer is stored per match. A missing or invalid blob degrades replay UX only — it never affects prize integrity (winner always comes from `GameResults`).
-
-**Endpoints (testnet):**
-```
-PUT  https://publisher.walrus-testnet.walrus.space/v1/blobs    → upload
-GET  https://aggregator.walrus-testnet.walrus.space/v1/blobs/{blobId}  → fetch
-```
+> **Scope:** ALL completed games, not just tournament matches.
+> **Chain:** Base Sepolia (EVM, 84532) for game contracts; Walrus for blob storage.
+> **No encryption.** All game data is public.
 
 ---
 
-## 1. Types (`app/types/types.ts` additions)
+## Architecture
 
-Add to the existing types file:
+### The event-log problem
+
+Every `moveShip` call emits an EVM event. In principle the full move history lives
+on-chain. In practice, querying historical events from a browser is unreliable: RPC
+providers cap `eth_getLogs` to 2,000–10,000 blocks per request, requiring many
+paginated calls for a game that started hours ago, and rate limits compound the problem.
+
+This means reconstructing game history from events on a fresh device or tab is not a
+dependable foundation for replay or multi-device live viewing.
+
+### Two-tier Walrus strategy
+
+| Tier | Trigger | TTL | Purpose |
+|---|---|---|---|
+| **Live snapshot** | After each move | 2× turn time (min 1 epoch) | Multi-device mid-game access |
+| **Archive** | Game ends | 1 month (15 epochs testnet) | Permanent replay |
+
+**Live snapshot** — after each `moveShip` confirms, the game client serializes the full
+accumulated move history and uploads it to Walrus with a short TTL. A server-side pointer
+(`/api/game-blob`) maps `gameId → { blobId, rawBlobId }`. Any device fetches the pointer,
+then pulls the snapshot from Walrus in one request.
+
+**Archive** — when the game ends, one final upload with a 1-month TTL replaces the need
+for any live snapshots. For tournament games the blobId goes on-chain via `recordResult`.
+For regular games the server pointer is updated with the long-lived blobId.
+
+### Why not on-chain per-move storage
+
+Storing a blobId on-chain each move costs gas and requires a wallet transaction per move
+— unacceptable UX. The server pointer is the right tradeoff: blob data is on Walrus
+(decentralised), only the 32-byte pointer is on our server.
+
+### Multi-device pointer lookup
+
+```
+After each move:
+  1. Serialize state → POST /api/walrus/upload → returns { blobId, rawBlobId }
+  2. POST /api/game-blob { gameId, blobId, rawBlobId }   ← lightweight pointer update
+
+Second device wanting current state:
+  1. GET /api/game-blob?gameId=X → { rawBlobId }
+  2. GET aggregator/v1/blobs/{rawBlobId} → full GameRecord JSON
+```
+
+### blobId tracking for completed games
+
+Both tournament and regular games store their archive blobId on-chain — no server pointer
+needed for completed games.
+
+- **Tournament**: `Tournament.recordResult(tournamentId, matchId, blobId)` — already
+  exists, called by the game client after the archive upload.
+- **Regular games**: `GameBlobRegistry.record(gameId, blobId)` — a new minimal contract
+  (see §3 below). After the archive upload completes, the winning or losing player signs
+  one `record` transaction from their wallet.
+
+**Security model for `GameBlobRegistry`:**
+1. *Game must be complete* — checks `GameResults.isGameResultRecorded(gameId)`. Cannot
+   record a blob for an in-progress game.
+2. *Caller must be a participant* — checks `msg.sender == result.winner || result.loser`
+   via `GameResults.getGameResult(gameId)`. Third parties cannot write.
+3. *First-write wins* — once set, the blobId is immutable. No overwriting replays.
+
+A player submitting a falsified replay blob cannot affect game outcomes — winner/loser is
+already immutably recorded in `GameResults`. The replay is cosmetic only.
+
+**Mid-game live snapshots** still use the server pointer (`/api/game-blob`) since the
+game isn't complete yet and on-chain storage per move is not practical. The pointer is
+ephemeral and best-effort — its only job is to serve the current snapshot blobId to a
+second device during an active game. Once the game ends and the archive is recorded
+on-chain, the server pointer becomes irrelevant.
+
+### Cost
+
+This is an EVM app; players have no Sui wallet. The testnet publisher is public and
+subsidized — no WAL payment required. All uploads go through a server-side API route.
+
+At testnet pricing (100 FROST/KiB/epoch + ~8,200 FROST fixed overhead per upload):
+- Live snapshot (1 epoch, growing ~1–50 KB): effectively free
+- Archive (15 epochs, ~50 KB): ~83,000 FROST ≈ 0.00008 WAL — sub-cent
+- 50 moves × live snapshots: ~500,000 FROST ≈ 0.0005 WAL total — still sub-cent
+
+Cost is not a concern. Upload frequency is bounded by turn time — not a spam risk.
+
+---
+
+## Walrus Endpoints (testnet)
+
+```
+PUT  https://publisher.walrus-testnet.walrus.space/v1/blobs?epochs={n}   → upload
+GET  https://aggregator.walrus-testnet.walrus.space/v1/blobs/{rawBlobId} → fetch
+```
+
+`rawBlobId` is the base64url string from the publisher response. `blobId` (bytes32 hex)
+is for on-chain storage only.
+
+Epoch durations: testnet = 2 days → 1 epoch ≈ 2 days; 15 epochs ≈ 1 month.
+Set short TTL live snapshots to `epochs=1` (minimum). Set archive to `epochs=15`.
+
+---
+
+## 1. Types (`app/types/types.ts`)
 
 ```typescript
-export interface MatchRecord {
-  tournamentId: number;
-  matchId: number;
-  gameId: number;           // == lobbyId
-  timestamp: number;
+export interface TurnRecord {
+  turnNumber: number;
+  player: string;
+  shipId: number;
+  action: string;
+  fromPosition: [number, number];
+  toPosition: [number, number];
+  targetShipId?: number;
+  damageDealt?: number;
+  timestamp: number;   // block timestamp (unix seconds)
+}
+
+export interface GameRecord {
+  gameId: string;
+  timestamp: number;     // game start
   player1: string;
   player2: string;
-  winner: string;
+  winner: string;        // address, or zero address for draw/in-progress
   turns: TurnRecord[];
-  finalShipPositions: ShipPosition[];
-  finalHullValues: Record<number, number>;
+  finalShipPositions: Record<string, [number, number]>;
+  finalHullValues: Record<string, number>;
+  // Present when this was a tournament bracket match
+  tournamentId?: number;
+  matchId?: number;
 }
 ```
 
-`TurnRecord` and `ShipPosition` likely already exist or are derivable from `useSimulatedGameState` — extend as needed.
+---
+
+## 2. API Route: `/api/walrus/upload/route.ts`
+
+Proxies uploads to the Walrus testnet publisher. Handles both short-TTL live snapshots
+and long-TTL archives via the `epochs` query param.
+
+```typescript
+// POST /api/walrus/upload?epochs=1   (live snapshot)
+// POST /api/walrus/upload?epochs=15  (archive, default)
+// Body: GameRecord JSON
+// Returns: { blobId: `0x${string}`, rawBlobId: string }
+
+const PUBLISHER_BASE = "https://publisher.walrus-testnet.walrus.space/v1/blobs";
+
+export async function POST(req: Request) {
+  const url = new URL(req.url);
+  const epochs = url.searchParams.get("epochs") ?? "15";
+  const body = await req.text();
+
+  const res = await fetch(`${PUBLISHER_BASE}?epochs=${epochs}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body,
+    next: { revalidate: 0 },
+  });
+
+  if (!res.ok) {
+    return NextResponse.json({ error: "Walrus upload failed" }, { status: 502 });
+  }
+
+  const data = await res.json();
+  const rawBlobId: string =
+    data?.newlyCreated?.blobObject?.blobId ?? data?.alreadyCertified?.blobId;
+  if (!rawBlobId) {
+    return NextResponse.json({ error: "No blobId in response" }, { status: 502 });
+  }
+
+  // base64url → 0x-prefixed bytes32 (for on-chain storage)
+  const bytes = Uint8Array.from(
+    atob(rawBlobId.replace(/-/g, "+").replace(/_/g, "/")),
+    c => c.charCodeAt(0),
+  );
+  const blobId =
+    ("0x" + Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("")).padStart(
+      66, "0x" + "0".repeat(64).slice(2),
+    ) as `0x${string}`;
+
+  return NextResponse.json({ blobId, rawBlobId });
+}
+```
 
 ---
 
-## 2. Walrus Utils (`app/utils/walrus.ts`) — new file
+## 3. Contract: `GameBlobRegistry`
 
-Pure fetch, no on-chain calls.
+New contract to deploy on Base Sepolia alongside the existing suite. Stores the archive
+blobId for every completed regular game.
+
+**Interface it depends on** (already deployed):
+- `GameResults.isGameResultRecorded(uint256 gameId) → bool`
+- `GameResults.getGameResult(uint256 gameId) → GameResult { gameId, winner, loser, timestamp }`
+
+**Storage:** `mapping(uint256 gameId => bytes32 blobId)`
+
+**Write function:** `record(uint256 gameId, bytes32 blobId)`
+- Reverts if `blobs[gameId] != bytes32(0)` (already recorded)
+- Reverts if `!gameResults.isGameResultRecorded(gameId)` (game not complete)
+- Reverts if `msg.sender` is not `result.winner` or `result.loser`
+- Stores blobId, emits `BlobRecorded(gameId, blobId)`
+
+**Read function:** `getBlob(uint256 gameId) → bytes32`
+
+**Deployment:** Constructor takes `address _gameResults`. No owner, no upgradeability —
+intentionally minimal. Add deployed address to `deployed_addresses.json` and
+`CONTRACT_ADDRESSES_BY_CHAIN_ID` under key `GAME_BLOB_REGISTRY`.
+
+---
+
+## 4. API Route: `/api/game-blob/route.ts`
+
+**Scope: mid-game live snapshots only.** Not used for completed-game storage — that goes
+on-chain via `GameBlobRegistry` or `Tournament.recordResult`.
+
+Mutable in-memory pointer: `gameId → { blobId, rawBlobId }`. Ephemeral by design — its
+only job is to let a second device fetch the current in-progress snapshot during an active
+game. Entries can be evicted after game end.
+
+```
+GET  ?gameId=X                          → { blobId, rawBlobId } | 404
+POST { gameId, blobId, rawBlobId }      → 200
+```
+
+In-memory map is sufficient for the hackathon. For production replace with a short-TTL
+KV store (Vercel KV, Upstash) — expiry keyed to the turn time.
+
+---
+
+## 4. Walrus Utils (`app/utils/walrus.ts`)
 
 ```typescript
-const PUBLISHER = "https://publisher.walrus-testnet.walrus.space/v1/blobs";
 const AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space/v1/blobs";
 
-export async function uploadMatchRecord(record: MatchRecord): Promise<`0x${string}`>
-// PUT JSON → parse blobId from response → return as 0x-prefixed bytes32
+export async function uploadGameSnapshot(
+  record: GameRecord,
+  epochs: 1 | 15 = 1,
+): Promise<{ blobId: `0x${string}`; rawBlobId: string }> {
+  const res = await fetch(`/api/walrus/upload?epochs=${epochs}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(record),
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  return res.json() as Promise<{ blobId: `0x${string}`; rawBlobId: string }>;
+}
 
-export async function fetchMatchRecord(blobId: `0x${string}`): Promise<MatchRecord>
-// GET blob → parse JSON → return MatchRecord
-```
+export async function fetchGameRecord(rawBlobId: string): Promise<GameRecord> {
+  const res = await fetch(`${AGGREGATOR}/${rawBlobId}`);
+  if (!res.ok) throw new Error(`Blob fetch failed: ${res.status}`);
+  return res.json() as Promise<GameRecord>;
+}
 
-**Key implementation notes:**
-- Walrus PUT response contains a `blobId` string — must zero-pad to 32 bytes and prefix with `0x` before passing to `recordResult`.
-- Always wrap `uploadMatchRecord` in try/catch. If upload fails, call `recordResult` with `bytes32(0)` — the match still resolves on-chain.
-- `fetchMatchRecord` should throw on non-200 or JSON parse failure so callers can show a "replay unavailable" state.
-
----
-
-## 3. Hook: `app/hooks/useMatchRecord.ts`
-
-React Query wrapper. Caches by `blobId`. Skip fetch when blobId is zero or null.
-
-```typescript
-const ZERO_HASH = "0x" + "0".repeat(64);
-
-export function useMatchRecord(blobId: `0x${string}` | null | undefined) {
-  return useQuery({
-    queryKey: ["matchRecord", blobId],
-    queryFn: () => fetchMatchRecord(blobId!),
-    enabled: !!blobId && blobId !== ZERO_HASH,
-    staleTime: Infinity,   // blobs are immutable
+export async function updateGamePointer(
+  gameId: string,
+  blobId: `0x${string}`,
+  rawBlobId: string,
+): Promise<void> {
+  await fetch("/api/game-blob", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gameId, blobId, rawBlobId }),
   });
 }
-// → { data: MatchRecord | undefined, isLoading, error }
+
+export async function fetchGamePointer(
+  gameId: string,
+): Promise<{ blobId: `0x${string}`; rawBlobId: string } | null> {
+  const res = await fetch(`/api/game-blob?gameId=${gameId}`);
+  if (!res.ok) return null;
+  return res.json();
+}
 ```
 
 ---
 
-## 4. Component: `app/components/MatchReplay.tsx`
-
-Fetches a `MatchRecord` from Walrus and renders a read-only game replay.
-
-**Props:**
-```typescript
-interface Props {
-  blobId: `0x${string}`;
-}
-```
-
-**Logic:**
-1. `useMatchRecord(blobId)` — show spinner while loading, error state if fetch fails.
-2. Once loaded, step through `record.turns` with prev / next controls.
-3. Render `<SimulatedGameDisplay />` in replay mode (see §4.1 below).
-
-### 4.1 `SimulatedGameDisplay` replay mode refactor
-
-`SimulatedGameDisplay` is currently coupled to tutorial step logic. For replay, add a `mode` prop:
+## 5. Serialization Helper (`app/utils/serializeGameRecord.ts`)
 
 ```typescript
-interface SimulatedGameDisplayProps {
-  mode: "tutorial" | "replay";
-  // replay-only:
-  replayTurns?: TurnRecord[];
-  replayInitialState?: GameState;
-}
+export function serializeGameRecord(
+  gameState: /* type from GameDisplay internal state */,
+  context: {
+    gameId: bigint;
+    player1: string;
+    player2: string;
+    winner?: string;
+    tournamentId?: bigint;
+    matchId?: bigint;
+  },
+): GameRecord
 ```
 
-When `mode === "replay"`:
-- Suppress all tutorial overlays, task lists, and step-driven highlights.
-- Replace step-driven state machine with a turn index driven by the parent's prev/next controls.
-- All interactive fleet/action buttons disabled.
-
-The existing tutorial path is unchanged — the parity rule (`CLAUDE.md`) holds because replay mode is additive.
+Pulls accumulated turns and current ship state from in-memory game state. Called after
+every confirmed move (for live snapshots) and again at game end (for the archive).
 
 ---
 
-## 5. Game Integration — Post-Game Upload
+## 6. Game Integration (`GameDisplay.tsx`)
 
-When a tournament game ends, the frontend serializes and uploads the match record, then calls `recordResult`.
+### After each confirmed move
 
-### 5.1 Hook: `app/hooks/useTournamentMatchForGame.ts`
+```typescript
+// Non-blocking — never awaited in the render path
+const pushLiveSnapshot = useCallback(async () => {
+  try {
+    const record = serializeGameRecord(gameState, { gameId, player1, player2 });
+    const { blobId, rawBlobId } = await uploadGameSnapshot(record, 1);
+    await updateGamePointer(gameId.toString(), blobId, rawBlobId);
+  } catch {
+    // silently ignore — live snapshot is best-effort
+  }
+}, [gameState, gameId, player1, player2]);
 
-Scan active tournament brackets to find if a given `gameId` belongs to a tournament match.
+// Call after writeContract for moveShip confirms (in the success callback / event handler)
+```
+
+### At game end
+
+1. Serialize full game record (all turns + final state).
+2. Upload to Walrus with `epochs=15` (~1 month).
+3. Record blobId on-chain:
+   - Tournament game → `Tournament.recordResult(tournamentId, matchId, blobId)`
+   - Regular game → `GameBlobRegistry.record(gameId, blobId)` signed by the player
+4. Evict the server pointer entry for this gameId (no longer needed).
+
+Surface as a non-blocking UI step: "Saving replay…" badge. Failure is non-fatal — the
+game result is already secured by `GameResults`. Store `rawBlobId` in localStorage as a
+display-only cache so the replay link appears immediately without a contract read.
+
+Apply the same logic to `SimulatedGameDisplay.tsx` (parity rule — tutorial games take the
+regular-game path with no tournament context).
+
+---
+
+## 7. Hook: `app/hooks/useTournamentMatchForGame.ts`
+
+Scans tournament brackets to find if a `gameId` belongs to a match.
 
 ```typescript
 export function useTournamentMatchForGame(gameId: bigint | null)
 // → { tournamentId: bigint, matchId: bigint } | null
 ```
 
-Implementation: reads `tournamentCount`, fetches all brackets, finds the match where `match.gameId === gameId`. Cache with React Query; only runs when `gameId` is non-null.
+---
 
-### 5.2 Where to hook into `GameDisplay.tsx`
-
-In the `GameResultRecorded` event handler (or wherever game-end state is set), add a post-game step:
+## 8. Hook: `app/hooks/useGameRecord.ts`
 
 ```typescript
-// After game ends and GameResultRecorded fires:
-const match = useTournamentMatchForGame(gameId);
-if (match) {
-  const record = serializeMatchRecord(gameState, match);
-  const blobId = await uploadMatchRecord(record).catch(() => ZERO_HASH);
-  await writeContract({
-    functionName: "recordResult",
-    args: [match.tournamentId, match.matchId, blobId],
+export function useGameRecord(rawBlobId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["gameRecord", rawBlobId],
+    queryFn: () => fetchGameRecord(rawBlobId!),
+    enabled: !!rawBlobId,
+    staleTime: Infinity,   // immutable once archived; snapshots are replaced, not mutated
   });
 }
 ```
 
-Surface this as a non-blocking step in the game-end UI ("Submitting tournament result…") — failure should not block the player from seeing their win.
+Note: live snapshots have the same `rawBlobId` until the next move uploads a new one.
+The query key changes per move, so React Query fetches the latest automatically when
+a watcher reports a new pointer.
 
-### 5.3 Serialization helper (`app/utils/serializeMatchRecord.ts`)
+---
+
+## 9. Replay Component (`app/components/GameReplay.tsx`)
 
 ```typescript
-export function serializeMatchRecord(
-  gameState: SimulatedGameState,
-  match: { tournamentId: bigint; matchId: bigint; gameId: bigint },
-): MatchRecord
+interface Props {
+  rawBlobId: string;
+}
 ```
 
-Pulls `turns`, `finalShipPositions`, `finalHullValues` from the existing in-memory game state. This data is already present — it just needs packaging.
+1. `useGameRecord(rawBlobId)` — spinner while loading, "replay unavailable" on error.
+2. Renders `<SimulatedGameDisplay mode="replay" turns={record.turns} currentTurn={idx} />`
+3. Prev / Next buttons + scrub slider control `idx`.
 
 ---
 
-## 6. Bracket: "View Replay" Button
+## 10. `SimulatedGameDisplay` Replay Mode
 
-In `TournamentBracket.tsx` (built in the World ID phase), the match card has a placeholder slot for the replay link. Fill it in:
-
-```tsx
-{match.walrusBlobId !== ZERO_HASH && (
-  <Link href={`/tournaments/${tournamentId}/matches/${match.matchId}`}>
-    View Replay
-  </Link>
-)}
-```
-
----
-
-## 7. Admin Panel: Walrus blob for `resolveDraw`
-
-In `TournamentAdminPanel.tsx`, the "Resolve as Draw" button currently passes `bytes32(0)`. In the Walrus phase, optionally upload a partial match record before resolving:
+Add `mode` prop:
 
 ```typescript
-const blobId = await uploadMatchRecord(record).catch(() => ZERO_HASH);
-await resolveDraw(tournamentId, matchId, blobId);
+interface SimulatedGameDisplayProps {
+  mode: "tutorial" | "replay";
+  // replay-only:
+  replayTurns?: TurnRecord[];
+  replayCurrentTurn?: number;   // controlled by GameReplay parent
+}
 ```
 
-This is optional — `bytes32(0)` is valid and the match resolves correctly without a blob.
+When `mode === "replay"`: suppress tutorial overlays; disable all interactive controls;
+drive state from `replayCurrentTurn` index instead of step machine. Tutorial path
+unchanged — parity rule holds because replay mode is purely additive.
 
 ---
 
-## 8. Page: `app/tournaments/[tournamentId]/matches/[matchId]/page.tsx`
+## 11. Entry Points for Replay Links
 
-Match detail / replay page.
+**Tournament bracket** (`TournamentBracket.tsx`): `walrusBlobId` field is already on
+`TournamentMatch`. `hasReplay` check and "View replay" link already exist — just wire
+`rawBlobId` through alongside `blobId`.
 
-```tsx
-// Reads match from useTournament, then:
-<div>
-  <MatchMeta match={match} />        // players, round, winner, timestamp
-  {match.walrusBlobId !== ZERO_HASH
-    ? <MatchReplay blobId={match.walrusBlobId} />
-    : <p>Replay not available for this match.</p>
-  }
-</div>
-```
+**Game history / past games**: call `fetchGamePointer(gameId)` or read localStorage
+fallback. Show "View Replay" when a pointer exists.
+
+**Live game spectator / second device**: call `fetchGamePointer(gameId)` on an interval
+matching turn time → always shows latest snapshot.
 
 ---
 
-## 9. Implementation Order
+## 12. Implementation Order
 
-1. `MatchRecord` type additions to `app/types/types.ts`
-2. `app/utils/walrus.ts` — pure utils, no deps, testable immediately
-3. `useMatchRecord` hook
-4. `useTournamentMatchForGame` hook
-5. `serializeMatchRecord` helper
-6. Game integration in `GameDisplay.tsx` — post-game upload + `recordResult`
-7. `SimulatedGameDisplay` replay mode prop
-8. `MatchReplay` component
-9. Match replay page (`/tournaments/[id]/matches/[matchId]`)
-10. "View Replay" button in `TournamentBracket`
-11. Optional: Walrus blob for `resolveDraw` in admin panel
+1. `TurnRecord` / `GameRecord` types in `app/types/types.ts`
+2. `/api/walrus/upload/route.ts` — verify publisher response format with a curl test
+3. `/api/game-blob/route.ts` — pointer store
+4. `app/utils/walrus.ts` — upload, fetch, pointer helpers
+5. `app/utils/serializeGameRecord.ts` — confirm field names against live game state
+6. `useTournamentMatchForGame` hook
+7. Per-move snapshot + game-end archive in `GameDisplay.tsx`
+8. Parity changes in `SimulatedGameDisplay.tsx`
+9. `useGameRecord` hook
+10. `SimulatedGameDisplay` replay mode prop
+11. `GameReplay` component
+12. Wire replay links into bracket and game history
 
 ---
 
-## 10. Open Items
+## 13. Implementation Order
 
-| # | Item | Blocker |
+1. Deploy `GameBlobRegistry` — constructor takes `GameResults` address; add to `deployed_addresses.json` and `CONTRACT_ADDRESSES_BY_CHAIN_ID`
+2. `TurnRecord` / `GameRecord` types in `app/types/types.ts`
+3. `/api/walrus/upload/route.ts` — verify publisher response format with a curl test first
+4. `/api/game-blob/route.ts` — ephemeral mid-game pointer only
+5. `app/utils/walrus.ts` — upload, fetch, pointer helpers
+6. `app/utils/serializeGameRecord.ts` — confirm field names against live game state
+7. `useTournamentMatchForGame` hook
+8. Per-move snapshot in `GameDisplay.tsx` + pointer update
+9. Game-end archive upload + on-chain recording (`GameBlobRegistry` or `recordResult`)
+10. Parity changes in `SimulatedGameDisplay.tsx`
+11. `useGameRecord` hook
+12. `SimulatedGameDisplay` replay mode prop
+13. `GameReplay` component
+14. Wire replay links into bracket and game history
+
+---
+
+## 14. Open Items
+
+| # | Item | Notes |
 |---|---|---|
-| D | `SimulatedGameDisplay` replay mode refactor | Needed for `MatchReplay` — confirm scope with team before touching this file |
-| E | `useTournamentMatchForGame` — scanning all brackets could be expensive if many tournaments exist; may need pagination or a server index | Scale concern, not a hackathon blocker |
-| G | Exact Walrus `blobId` encoding — confirm byte order and padding from testnet docs | Needed before `uploadMatchRecord` is correct |
+| A | Deploy `GameBlobRegistry` | Needs `GameResults` address from `deployed_addresses.json` |
+| B | Confirm `TurnRecord` field names against game state internals | Serializer depends on this |
+| C | Publisher response shape — validate `newlyCreated` vs `alreadyCertified` branches | Curl test against testnet publisher before building the route |
+| D | `bytes32` conversion from base64url — verify padding for IDs shorter than 32 bytes | |
+| E | Mainnet epoch count for 1-month target | Testnet: 15 × 2 days = 30 days; make this a named constant |
+| F | `send-object-to` publisher param | For production: transfer blob objects to an app-controlled Sui address |
+| G | React Query cache invalidation for live snapshots | `rawBlobId` changes each move — pointer fetch must invalidate the `useGameRecord` query |
+| H | `GameBlobRegistry` ABI — add to `app/contracts/` and `CONTRACT_ABIS` after deployment | |
