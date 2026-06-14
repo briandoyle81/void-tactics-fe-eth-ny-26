@@ -117,35 +117,77 @@ Set short TTL live snapshots to `epochs=1` (minimum). Set archive to `epochs=15`
 
 ---
 
-## 1. Types (`app/types/types.ts`)
+## 1. Existing replay implementation (`explore-traditional` branch)
+
+The web2 branch (`remotes/origin/explore-traditional`) has a complete replay feature built
+directly into `GameDisplay.tsx`. **Use this as the UI template — do not build a separate
+replay component.** Key details:
+
+**State (inside `GameDisplay`):**
+```typescript
+type ReplayTurn = { id: number; playerId: string; round: number; actions: unknown; snapshot: GameDataView; submittedAt: string; }
+const [replayStep, setReplayStep] = useState<number | null>(null); // null=live, -1=initial, 0+=turn index
+const [replayTurns, setReplayTurns] = useState<ReplayTurn[]>([]);
+const [replayInitialState, setReplayInitialState] = useState<GameDataView | null>(null);
+const [replayLoading, setReplayLoading] = useState(false);
+const [replayAutoPlay, setReplayAutoPlay] = useState(false);
+```
+
+**Display overlay:** `const displayGame = replaySnapshotGame ?? game` — the existing grid
+renders `displayGame` without knowing whether it's live or replay. No grid changes needed.
+
+**Controls** (inline on the board, bottom-left):
+- "Replay" button → calls `fetchAndStartReplay()`, sets `replayStep = -1`
+- Prev / counter ("Move N/Total · Rd X") / Next buttons
+- ▶▶ Play / ⏸ Pause autoplay toggle
+- Exit button → `replayStep = null` (back to live)
+
+**Data shape** the web2 API returns:
+```typescript
+{ initialState: GameDataView; turns: { snapshot: GameDataView; round: number; ... }[] }
+```
+
+Each turn carries a **full `GameDataView` snapshot**, not just the actions. This means no
+state reconstruction during replay — each step just swaps in the snapshot.
+
+**`SimulatedGameDisplay`** — check the web2 branch for whether it has the same replay
+controls; apply identically per the parity rule.
+
+---
+
+## 2. Types (`app/types/types.ts`)
+
+Match the web2 snapshot-per-turn shape so the existing replay UI works without changes:
 
 ```typescript
 export interface TurnRecord {
   turnNumber: number;
-  player: string;
-  shipId: number;
-  action: string;
-  fromPosition: [number, number];
-  toPosition: [number, number];
-  targetShipId?: number;
-  damageDealt?: number;
-  timestamp: number;   // block timestamp (unix seconds)
+  round: number;
+  player: string;          // address
+  actions: unknown;        // same shape as web2 `actions` field
+  snapshot: GameDataView;  // full board state after this turn — drives replay display
+  timestamp: number;       // block timestamp (unix seconds)
 }
 
 export interface GameRecord {
   gameId: string;
-  timestamp: number;     // game start
+  initialState: GameDataView;  // board state before turn 1
   player1: string;
   player2: string;
-  winner: string;        // address, or zero address for draw/in-progress
+  winner: string;              // address, or zero address if in-progress
   turns: TurnRecord[];
-  finalShipPositions: Record<string, [number, number]>;
-  finalHullValues: Record<string, number>;
   // Present when this was a tournament bracket match
   tournamentId?: number;
   matchId?: number;
 }
 ```
+
+`GameDataView` is the existing type from `GameDisplay.tsx` — do not redefine it, import
+or reference the existing type. Confirm the exact shape by reading `GameDisplay.tsx` before
+implementing the serializer.
+
+**Blob size implication:** full snapshots per turn make blobs larger than action-only
+recording, but eliminate any reconstruction logic and match the existing UI exactly.
 
 ---
 
@@ -385,36 +427,41 @@ a watcher reports a new pointer.
 
 ---
 
-## 9. Replay Component (`app/components/GameReplay.tsx`)
+## 9. Replay integration in `GameDisplay.tsx`
 
-```typescript
-interface Props {
-  rawBlobId: string;
-}
-```
+**UI/UX must match the web2 branch exactly.** The underlying data source is different
+(Walrus blob instead of Prisma), but everything the user sees and interacts with should
+be identical:
 
-1. `useGameRecord(rawBlobId)` — spinner while loading, "replay unavailable" on error.
-2. Renders `<SimulatedGameDisplay mode="replay" turns={record.turns} currentTurn={idx} />`
-3. Prev / Next buttons + scrub slider control `idx`.
+- `replayStep` state (null=live, -1=initial, 0+=turn index)
+- `displayGame` overlay — grid renders the replay snapshot transparently
+- Prev / counter ("Move N/Total · Rd X") / Next buttons
+- ▶▶ Play / ⏸ Pause autoplay
+- Exit button back to live
+- "Replay · Move N/Total" banner when replaying
+
+**What changes underneath:**
+
+- Web2 `fetchAndStartReplay` → calls `GET /api/games/${gameId}/replay` (Prisma/DB)
+- Walrus version → fetches `GameRecord` blob from Walrus aggregator using `rawBlobId`,
+  then maps `record.turns` → `replayTurns` and `record.initialState` → `replayInitialState`
+
+The `rawBlobId` for a completed game is sourced from:
+1. `GameBlobRegistry.getBlob(gameId, playerAddress)` — on-chain read via `useReadContract`;
+   bytes32 → base64url conversion needed
+2. Tournament bracket: `match.walrusBlobId` → same bytes32 → base64url conversion
+
+Show the "Replay" button only when a non-zero blobId is found. While loading, show the
+same loading state as web2 ("Loading…" / "…").
 
 ---
 
-## 10. `SimulatedGameDisplay` Replay Mode
+## 10. `SimulatedGameDisplay` replay mode
 
-Add `mode` prop:
-
-```typescript
-interface SimulatedGameDisplayProps {
-  mode: "tutorial" | "replay";
-  // replay-only:
-  replayTurns?: TurnRecord[];
-  replayCurrentTurn?: number;   // controlled by GameReplay parent
-}
-```
-
-When `mode === "replay"`: suppress tutorial overlays; disable all interactive controls;
-drive state from `replayCurrentTurn` index instead of step machine. Tutorial path
-unchanged — parity rule holds because replay mode is purely additive.
+Check the `explore-traditional` branch for whether `SimulatedGameDisplay` already has
+replay controls. If it does, port the same way as `GameDisplay` above. If not, add
+identical controls following the parity rule. The replay UI is not tutorial-specific and
+must appear in both components with the same look, feel, and behaviour.
 
 ---
 
@@ -473,13 +520,20 @@ matching turn time → always shows latest snapshot.
 | # | Item | Notes |
 |---|---|---|
 | A | Deploy `GameBlobRegistry` | Needs `GameResults` address from `deployed_addresses.json` |
-| B | Confirm `TurnRecord` field names against game state internals | Serializer depends on this |
-| C | Publisher response shape — validate `newlyCreated` vs `alreadyCertified` branches | Curl test against testnet publisher before building the route |
-| D | `bytes32` conversion from base64url — verify padding for IDs shorter than 32 bytes | |
-| E | Mainnet epoch count for 1-month target | Testnet: 15 × 2 days = 30 days; make this a named constant |
-| F | `send-object-to` publisher param | For production: transfer blob objects to an app-controlled Sui address |
-| G | React Query cache invalidation for live snapshots | `rawBlobId` changes each move — pointer fetch must invalidate the `useGameRecord` query |
-| H | `GameBlobRegistry` ABI — add to `app/contracts/` and `CONTRACT_ABIS` after deployment | |
-| I | Replay source selection — prefer blob from player who moved last; fall back to opponent | Requires knowing which player submitted most recently (check `lastMove` event block timestamps) |
-| J | Payment on mainnet | Testnet publisher is free; mainnet needs WAL — app subsidy vs user-pays TBD |
-| K | **Future: blob deletion on snapshot update** | Deleting the previous snapshot blob after each upload would refund unused epoch storage on mainnet. Requires: (1) `send-object-to` on every upload so the app's Sui server wallet owns the blob object, (2) server-side deletion call after each successful new upload. Not worth implementing until mainnet and only if epochs are long enough for the refund to matter. Minimum TTL is 1 epoch regardless, so `epochs=1` live snapshots already minimise waste without deletion. |
+
+
+---
+
+## 15. Resolved Design Decisions
+
+| # | Decision | Resolution |
+|---|---|---|
+| I | Replay source selection | Use only the connected player's own blob — `GameBlobRegistry.getBlob(gameId, connectedAddress)`. No fallback to opponent's blob. Empty slot = "replay unavailable." |
+| J | Mainnet WAL payment | Out of scope until mainnet. Testnet publisher is free. |
+| K | Blob deletion on snapshot update + `send-object-to` | Both are part of the same future mainnet optimization. `send-object-to` transfers blob ownership to an app Sui wallet, enabling server-side deletion of old snapshots for storage refunds. Not needed until mainnet with long epochs. `epochs=1` already minimizes waste in the meantime. |
+| B | `bigint` serialization for `GameDataView` snapshots | `GameDataView` is the correct snapshot type. Serialize with a `replacer` that converts `bigint` → string; deserialize with a matching `reviver` that converts back before handing to the replay display. |
+| C | Publisher response shape | Confirmed via curl against testnet. `newlyCreated` response: `data.newlyCreated.blobObject.blobId` (base64url, 43 chars = 32 bytes). `alreadyCertified` response: `data.alreadyCertified.blobId`. `blobId` is always 32 bytes of base64url — decode → 64 hex chars → prefix `0x` for on-chain storage. Blobs are `deletable: true` by default. Cost field is in FROST. |
+| D | `bytes32` ↔ base64url conversion | Covered in §2 (upload route: base64url → bytes32) and §4 (walrus.ts: bytes32 → base64url for aggregator fetches). Walrus blobIds are always exactly 32 bytes so padding is not a concern. |
+| E | Epoch count constants | Covered in §4 — define `EPOCHS_LIVE = 1` and `EPOCHS_ARCHIVE = 15` as named constants in `walrus.ts`. |
+| G | React Query cache invalidation for live snapshots | Covered in §8 — `rawBlobId` changes each move so the `useGameRecord` query key changes automatically. No manual invalidation needed. |
+| H | `GameBlobRegistry` ABI | Covered by implementation step 1 — add JSON to `app/contracts/` and register in `CONTRACT_ABIS` and `CONTRACT_ADDRESSES_BY_CHAIN_ID` after deployment. |
