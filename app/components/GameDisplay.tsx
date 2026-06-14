@@ -57,7 +57,7 @@ import type { Abi } from "viem";
 import { type GameRecord, type TurnRecord } from "../types/types";
 import { buildInitialRecord, appendTurn, finalizeRecord } from "../utils/serializeGameRecord";
 import { useTournamentMatchForGame } from "../hooks/useTournamentMatchForGame";
-import { jsonReplacer, EPOCHS_LIVE, EPOCHS_ARCHIVE } from "../utils/walrus";
+import { jsonReplacer, jsonReviver, EPOCHS_LIVE, EPOCHS_ARCHIVE } from "../utils/walrus";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
@@ -94,7 +94,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const gameContract = useGameContract();
 
   // ── Walrus game record ──────────────────────────────────────────────────────
+  const gameRecordRef = React.useRef<GameRecord | null>(null);
   const [gameRecord, setGameRecord] = React.useState<GameRecord | null>(null);
+  const lastMoveTimestampRef = React.useRef<bigint | undefined>(undefined);
+  const archivedRef = React.useRef(false);
 
   // ── Replay ──────────────────────────────────────────────────────────────────
   const [replayStep, setReplayStep] = React.useState<number | null>(null);
@@ -412,106 +415,118 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }).catch(() => {});
   }, [address, game.metadata.gameId]);
 
-  const appendTurnAndUpload = React.useCallback(async (snapshot: GameDataView, player: string, actions: unknown) => {
-    setGameRecord((prev) => {
-      const base = prev ?? buildInitialRecord(
-        String(game.metadata.gameId),
-        game.metadata.creator,
-        game.metadata.joiner,
-        snapshot,
-      );
-      const updated = appendTurn(base, snapshot, player, actions);
-      void uploadGameRecordToWalrus(updated, EPOCHS_LIVE).then((result) => {
-        if (result) void updateGameBlobPointer(result.rawBlobId);
-      });
-      return updated;
-    });
-  }, [game.metadata.gameId, game.metadata.creator, game.metadata.joiner, uploadGameRecordToWalrus, updateGameBlobPointer]);
-
-  const archiveGameToWalrus = React.useCallback(async (record: GameRecord, winner: string) => {
-    const final = finalizeRecord(record, winner);
-    const result = await uploadGameRecordToWalrus(final, EPOCHS_ARCHIVE);
-    if (!result || !address) return;
-    try {
-      await writeContractAsync({
-        address: GAME_BLOB_REGISTRY_ADDRESS,
-        abi: GAME_BLOB_REGISTRY_ABI,
-        functionName: "record",
-        args: [game.metadata.gameId, address, result.blobIdHex],
-        chainId: baseSepolia.id,
-      });
-    } catch {
-      // Non-critical: on-chain record is best-effort
-    }
-    if (tournamentMatch) {
-      try {
-        await writeContractAsync({
-          address: CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].TOURNAMENT,
-          abi: CONTRACT_ABIS.TOURNAMENT as Abi,
-          functionName: "recordResult",
-          args: [tournamentMatch.tournamentId, tournamentMatch.matchId, result.blobIdHex],
-          chainId: baseSepolia.id,
-        });
-      } catch {
-        // Non-critical
-      }
-    }
-  }, [address, game.metadata.gameId, uploadGameRecordToWalrus, writeContractAsync, tournamentMatch]);
-
-  // Initialize game record on first load
+  // Initialize game record once on mount
   React.useEffect(() => {
-    if (!gameRecord && game.metadata.gameId) {
-      setGameRecord(buildInitialRecord(
+    if (!gameRecordRef.current && game.metadata.gameId) {
+      const initial = buildInitialRecord(
         String(game.metadata.gameId),
         game.metadata.creator,
         game.metadata.joiner,
         game,
-      ));
+      );
+      gameRecordRef.current = initial;
+      setGameRecord(initial);
     }
-  }, [game, gameRecord]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount only
 
-  // Archive when game ends
+  // Upload to Walrus after every confirmed move — ours OR opponent's.
+  // game.lastMove.timestamp changes whenever game refetches with a new move.
+  // Each player uploads their own blob, so both blobs always contain full history.
   React.useEffect(() => {
-    if (!gameRecord) return;
+    const newTs = game.lastMove?.timestamp;
+    if (newTs === lastMoveTimestampRef.current) return; // no new move
+    lastMoveTimestampRef.current = newTs;
+
+    // Only participants upload (not spectators)
+    if (!address || !game.lastMove) return;
+    const creatorAddr = game.metadata.creator.toLowerCase();
+    const joinerAddr = game.metadata.joiner.toLowerCase();
+    const myAddr = address.toLowerCase();
+    if (myAddr !== creatorAddr && myAddr !== joinerAddr) return;
+
+    // Who just moved: after a move, currentTurn switches to the other player
+    const currentTurnAddr = game.turnState.currentTurn.toLowerCase();
+    const whoJustMoved =
+      currentTurnAddr === creatorAddr ? game.metadata.joiner : game.metadata.creator;
+
+    const prev = gameRecordRef.current;
+    const base = prev ?? buildInitialRecord(
+      String(game.metadata.gameId),
+      game.metadata.creator,
+      game.metadata.joiner,
+      game,
+    );
+    const updated = appendTurn(base, game, whoJustMoved, game.lastMove);
+    gameRecordRef.current = updated;
+    setGameRecord(updated);
+
+    void uploadGameRecordToWalrus(updated, EPOCHS_LIVE).then((result) => {
+      if (result) void updateGameBlobPointer(result.rawBlobId);
+    });
+  }, [game, address, uploadGameRecordToWalrus, updateGameBlobPointer]);
+
+  // Archive once when game ends
+  React.useEffect(() => {
     const winner = game.metadata.winner;
-    if (!winner || winner === ZERO_ADDR || gameRecord.winner) return;
-    void archiveGameToWalrus(gameRecord, winner);
-  }, [game.metadata.winner, gameRecord, archiveGameToWalrus]);
+    if (!winner || winner === ZERO_ADDR || archivedRef.current) return;
+    const record = gameRecordRef.current;
+    if (!record) return;
+    archivedRef.current = true;
+    const final = finalizeRecord(record, winner);
+    void uploadGameRecordToWalrus(final, EPOCHS_ARCHIVE).then(async (result) => {
+      if (!result || !address) return;
+      try {
+        await writeContractAsync({
+          address: GAME_BLOB_REGISTRY_ADDRESS,
+          abi: GAME_BLOB_REGISTRY_ABI,
+          functionName: "record",
+          args: [game.metadata.gameId, address, result.blobIdHex],
+          chainId: baseSepolia.id,
+        });
+      } catch { /* non-critical */ }
+      if (tournamentMatch) {
+        try {
+          await writeContractAsync({
+            address: CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].TOURNAMENT,
+            abi: CONTRACT_ABIS.TOURNAMENT as Abi,
+            functionName: "recordResult",
+            args: [tournamentMatch.tournamentId, tournamentMatch.matchId, result.blobIdHex],
+            chainId: baseSepolia.id,
+          });
+        } catch { /* non-critical */ }
+      }
+    });
+  }, [game.metadata.winner, address, uploadGameRecordToWalrus, writeContractAsync, tournamentMatch, game.metadata.gameId]);
 
   // ── Replay callbacks ────────────────────────────────────────────────────────
 
   const fetchAndStartReplay = React.useCallback(async () => {
     if (replayLoading) return;
     const gameId = String(game.metadata.gameId);
-    const player = address;
     setReplayLoading(true);
     try {
-      // Try current player's blob first, then opponent's
-      const players = [
-        player,
+      // Always load from Walrus — try current player's blob, then opponent's
+      const candidates = [
+        address,
         address === game.metadata.creator ? game.metadata.joiner : game.metadata.creator,
-      ].filter(Boolean);
+      ].filter((p): p is `0x${string}` => !!p);
       let record: GameRecord | null = null;
-      for (const p of players) {
-        if (!p) continue;
-        const ptrRes = await fetch(`/api/game-blob?gameId=${gameId}&player=${p}`);
-        const { rawBlobId } = (await ptrRes.json()) as { rawBlobId: string | null };
-        if (!rawBlobId) continue;
-        const blobRes = await fetch(`https://aggregator.walrus-testnet.walrus.space/v1/blobs/${rawBlobId}`);
-        if (!blobRes.ok) continue;
-        const text = await blobRes.text();
+      for (const p of candidates) {
         try {
-          // Use JSON.parse with bigint reviver
-          const { jsonReviver } = await import("../utils/walrus");
-          record = JSON.parse(text, jsonReviver) as GameRecord;
-          break;
-        } catch { continue; }
+          const ptrRes = await fetch(`/api/game-blob?gameId=${gameId}&player=${p}`);
+          if (!ptrRes.ok) continue;
+          const { rawBlobId } = (await ptrRes.json()) as { rawBlobId: string | null };
+          if (!rawBlobId) continue;
+          const blobRes = await fetch(`https://aggregator.walrus-testnet.walrus.space/v1/blobs/${rawBlobId}`);
+          if (!blobRes.ok) continue;
+          const text = await blobRes.text();
+          const parsed = JSON.parse(text, jsonReviver) as GameRecord;
+          if (parsed.turns.length > 0) { record = parsed; break; }
+        } catch { /* try next candidate */ }
       }
-      if (!record && gameRecord) {
-        record = gameRecord;
-      }
-      if (!record) {
-        toast.error("No replay data available yet.");
+      if (!record || record.turns.length === 0) {
+        toast.error("No replay data on Walrus yet — make some moves first.");
         return;
       }
       setReplayInitialState(record.initialState);
@@ -522,7 +537,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     } finally {
       setReplayLoading(false);
     }
-  }, [replayLoading, game.metadata.gameId, game.metadata.creator, game.metadata.joiner, address, gameRecord]);
+  }, [replayLoading, game.metadata.gameId, game.metadata.creator, game.metadata.joiner, address]);
 
   const exitReplay = React.useCallback(() => {
     setReplayStep(null);
@@ -2123,16 +2138,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       targetShipId: submittedTargetShipId,
                       timestamp: BigInt(Date.now()),
                     });
-
-                    if (address) {
-                      void appendTurnAndUpload(game, address, {
-                        shipId: selectedShipId?.toString(),
-                        actionType: computedActionType,
-                        targetShipId: submittedTargetShipId.toString(),
-                        newRow: computedRow,
-                        newCol: computedCol,
-                      });
-                    }
 
                     toast.success("Move submitted successfully!");
                     recordPlayerMove();
@@ -4077,15 +4082,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     targetShipId: submittedTargetShipId,
                     timestamp: BigInt(Date.now()),
                   });
-                  if (address) {
-                    void appendTurnAndUpload(game, address, {
-                      shipId: selectedShipId?.toString(),
-                      actionType: computedActionType,
-                      targetShipId: submittedTargetShipId.toString(),
-                      newRow: computedRow,
-                      newCol: computedCol,
-                    });
-                  }
                   toast.success("Move submitted successfully!");
                   recordPlayerMove();
                   refetchGame();

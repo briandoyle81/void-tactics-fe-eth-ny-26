@@ -12,9 +12,13 @@ Void Tactics is a turn-based tactical space combat game where players build flee
 
 The contracts are described in detail in the contracts repo README. This document covers what was built on the frontend side — mostly features that live entirely here, between the browser and the chain.
 
+## Dynamic Wallet
+
+Because the game is 100% onchain, players previously had to approve a transaction manually via the wallet popup for each move. With Dynamic embedded wallets, the transaction submission process is seamlessly integrated into the existing UI.
+
 ### Ship Purchases via Dynamic Flow
 
-Players need ships to play. The ship purchase flow now runs through [Dynamic](https://dynamic.xyz) using their Flow payment SDK. A player picks a ship type, Dynamic opens a payment modal, the transaction goes through Flow's cross-chain rails, and the contract mints the ship NFT. No swap-and-bridge step visible to the user.
+Players need ships to play. The ship purchase flow now includes purchases using multiple tokens on multiple chains via [Dynamic](https://dynamic.xyz) using their Flow payment SDK. A player picks a ship package, Dynamic opens a payment modal, the transaction goes through Flow's cross-chain rails, and the contract mints the ship NFT. No swap-and-bridge step visible to the user.
 
 Dynamic also handles all wallet connection across the app — the same session powers login, signing, and payment without making the user juggle multiple auth steps. For a game that's supposed to be accessible to people outside the usual DeFi power-user demographic, that's the whole point.
 
@@ -30,7 +34,7 @@ The rp-context endpoint (`/api/world-id/rp-context`) issues a short-lived signed
 
 Every confirmed move uploads a full game state snapshot to [Walrus](https://walrus.site) — a decentralized blob store that's chain-agnostic and Sui-based, accessed here entirely over HTTP from an EVM app. Each player maintains their own blob; when you submit a move, the upload also includes your opponent's last move (already in client memory at submission time), so either player's blob contains the complete record.
 
-**Why this matters beyond just storage:** EVM RPC providers cap historical event log queries to 2,000–10,000 blocks per request. Reconstructing move-by-move game history from on-chain events via a browser is unreliable past a certain game length — you hit pagination limits and rate caps. Walrus sidesteps the problem entirely: one blob fetch returns the full game state, no matter how long the game ran or how long ago it was played.
+**Why this matters beyond just storage:** EVM RPC providers cap historical event log queries to 2,000–10,000 blocks per request. Reconstructing move-by-move game history from on-chain events via a browser is unreliable past a certain game length — you hit pagination limits and rate caps. Walrus sidesteps the problem entirely: one blob fetch returns the full game state.
 
 The replay UI is built directly into the game view: a "Replay" button appears during any live game. It fetches the current snapshot from Walrus, loads it into memory, and lets the player step backward and forward through every move with Prev / Next / Play / Pause / Exit controls. Exiting replay drops back to the live board exactly where the game is now.
 

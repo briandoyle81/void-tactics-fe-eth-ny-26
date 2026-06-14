@@ -42,12 +42,17 @@ export async function uploadToWalrus(
     throw new Error(`Walrus upload failed: ${res.status} ${await res.text()}`);
   }
   const json = (await res.json()) as {
+    // Walrus API returns either shape depending on version
+    newlyCreated?: { blobObject?: { blobId?: string } };
+    alreadyCertified?: { blobId?: string };
     data?: {
       newlyCreated?: { blobObject?: { blobId?: string } };
       alreadyCertified?: { blobId?: string };
     };
   };
   const rawBlobId =
+    json.newlyCreated?.blobObject?.blobId ??
+    json.alreadyCertified?.blobId ??
     json.data?.newlyCreated?.blobObject?.blobId ??
     json.data?.alreadyCertified?.blobId;
   if (!rawBlobId) {
