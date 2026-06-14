@@ -1,7 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-const LOG_PATH = path.join(process.cwd(), "data", "mint-log.jsonl");
+// Vercel's filesystem is read-only except /tmp; use it there, local data/ dir elsewhere
+const LOG_PATH = process.env.VERCEL
+  ? "/tmp/mint-log.jsonl"
+  : path.join(process.cwd(), "data", "mint-log.jsonl");
 
 export type MintLogStatus = "attempting" | "minted" | "failed";
 
