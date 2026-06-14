@@ -20,10 +20,10 @@ dependable foundation for replay or multi-device live viewing.
 
 ### Two-tier Walrus strategy
 
-| Tier | Trigger | TTL | Purpose |
-|---|---|---|---|
-| **Live snapshot** | After each `moveShip` confirms | 2× turn time (min 1 epoch) | Multi-device mid-game access |
-| **Archive** | Game ends | 1 month (15 epochs testnet) | Permanent replay |
+| Tier              | Trigger                        | TTL                         | Purpose                      |
+| ----------------- | ------------------------------ | --------------------------- | ---------------------------- |
+| **Live snapshot** | After each `moveShip` confirms | 2× turn time (min 1 epoch)  | Multi-device mid-game access |
+| **Archive**       | Game ends                      | 1 month (15 epochs testnet) | Permanent replay             |
 
 **Each player maintains their own blob.** Storage is doubled but each player can only
 affect their own entry. A corrupt or missing blob from one player is covered by the other.
@@ -73,11 +73,12 @@ needed for completed games.
   one `record` transaction from their wallet.
 
 **Security model for `GameBlobRegistry`:**
-1. *Game must be complete* — checks `GameResults.isGameResultRecorded(gameId)`. Cannot
+
+1. _Game must be complete_ — checks `GameResults.isGameResultRecorded(gameId)`. Cannot
    record a blob for an in-progress game.
-2. *Caller must be a participant* — checks `msg.sender == result.winner || result.loser`
+2. _Caller must be a participant_ — checks `msg.sender == result.winner || result.loser`
    via `GameResults.getGameResult(gameId)`. Third parties cannot write.
-3. *First-write wins* — once set, the blobId is immutable. No overwriting replays.
+3. _First-write wins_ — once set, the blobId is immutable. No overwriting replays.
 
 A player submitting a falsified replay blob cannot affect game outcomes — winner/loser is
 already immutably recorded in `GameResults`. The replay is cosmetic only.
@@ -94,6 +95,7 @@ This is an EVM app; players have no Sui wallet. The testnet publisher is public 
 subsidized — no WAL payment required. All uploads go through a server-side API route.
 
 At testnet pricing (100 FROST/KiB/epoch + ~8,200 FROST fixed overhead per upload):
+
 - Live snapshot (1 epoch, growing ~1–50 KB): effectively free
 - Archive (15 epochs, ~50 KB): ~83,000 FROST ≈ 0.00008 WAL — sub-cent
 - 50 moves × live snapshots: ~500,000 FROST ≈ 0.0005 WAL total — still sub-cent
@@ -124,11 +126,20 @@ directly into `GameDisplay.tsx`. **Use this as the UI template — do not build 
 replay component.** Key details:
 
 **State (inside `GameDisplay`):**
+
 ```typescript
-type ReplayTurn = { id: number; playerId: string; round: number; actions: unknown; snapshot: GameDataView; submittedAt: string; }
+type ReplayTurn = {
+  id: number;
+  playerId: string;
+  round: number;
+  actions: unknown;
+  snapshot: GameDataView;
+  submittedAt: string;
+};
 const [replayStep, setReplayStep] = useState<number | null>(null); // null=live, -1=initial, 0+=turn index
 const [replayTurns, setReplayTurns] = useState<ReplayTurn[]>([]);
-const [replayInitialState, setReplayInitialState] = useState<GameDataView | null>(null);
+const [replayInitialState, setReplayInitialState] =
+  useState<GameDataView | null>(null);
 const [replayLoading, setReplayLoading] = useState(false);
 const [replayAutoPlay, setReplayAutoPlay] = useState(false);
 ```
@@ -137,12 +148,14 @@ const [replayAutoPlay, setReplayAutoPlay] = useState(false);
 renders `displayGame` without knowing whether it's live or replay. No grid changes needed.
 
 **Controls** (inline on the board, bottom-left):
+
 - "Replay" button → calls `fetchAndStartReplay()`, sets `replayStep = -1`
 - Prev / counter ("Move N/Total · Rd X") / Next buttons
 - ▶▶ Play / ⏸ Pause autoplay toggle
 - Exit button → `replayStep = null` (back to live)
 
 **Data shape** the web2 API returns:
+
 ```typescript
 { initialState: GameDataView; turns: { snapshot: GameDataView; round: number; ... }[] }
 ```
@@ -163,18 +176,18 @@ Match the web2 snapshot-per-turn shape so the existing replay UI works without c
 export interface TurnRecord {
   turnNumber: number;
   round: number;
-  player: string;          // address
-  actions: unknown;        // same shape as web2 `actions` field
-  snapshot: GameDataView;  // full board state after this turn — drives replay display
-  timestamp: number;       // block timestamp (unix seconds)
+  player: string; // address
+  actions: unknown; // same shape as web2 `actions` field
+  snapshot: GameDataView; // full board state after this turn — drives replay display
+  timestamp: number; // block timestamp (unix seconds)
 }
 
 export interface GameRecord {
   gameId: string;
-  initialState: GameDataView;  // board state before turn 1
+  initialState: GameDataView; // board state before turn 1
   player1: string;
   player2: string;
-  winner: string;              // address, or zero address if in-progress
+  winner: string; // address, or zero address if in-progress
   turns: TurnRecord[];
   // Present when this was a tournament bracket match
   tournamentId?: number;
@@ -217,25 +230,30 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    return NextResponse.json({ error: "Walrus upload failed" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Walrus upload failed" },
+      { status: 502 },
+    );
   }
 
   const data = await res.json();
   const rawBlobId: string =
     data?.newlyCreated?.blobObject?.blobId ?? data?.alreadyCertified?.blobId;
   if (!rawBlobId) {
-    return NextResponse.json({ error: "No blobId in response" }, { status: 502 });
+    return NextResponse.json(
+      { error: "No blobId in response" },
+      { status: 502 },
+    );
   }
 
   // base64url → 0x-prefixed bytes32 (for on-chain storage)
   const bytes = Uint8Array.from(
     atob(rawBlobId.replace(/-/g, "+").replace(/_/g, "/")),
-    c => c.charCodeAt(0),
+    (c) => c.charCodeAt(0),
   );
-  const blobId =
-    ("0x" + Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("")).padStart(
-      66, "0x" + "0".repeat(64).slice(2),
-    ) as `0x${string}`;
+  const blobId = (
+    "0x" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+  ).padStart(66, "0x" + "0".repeat(64).slice(2)) as `0x${string}`;
 
   return NextResponse.json({ blobId, rawBlobId });
 }
@@ -249,6 +267,7 @@ New contract to deploy on Base Sepolia alongside the existing suite. Stores the 
 blobId for every completed regular game.
 
 **Interface it depends on** (already deployed):
+
 - `GameResults.isGameResultRecorded(uint256 gameId) → bool`
 - `GameResults.getGameResult(uint256 gameId) → GameResult { gameId, winner, loser, timestamp }`
 
@@ -257,6 +276,7 @@ blobId for every completed regular game.
 Each player owns their own slot. A player cannot write to the opponent's slot.
 
 **Write function:** `record(uint256 gameId, bytes32 blobId)`
+
 - Reverts if `!gameResults.isGameResultRecorded(gameId)` (game not complete)
 - Reverts if `msg.sender` is not `result.winner` or `result.loser`
 - No first-write-wins — a player may update their own slot (e.g. if they re-upload)
@@ -266,10 +286,6 @@ Each player owns their own slot. A player cannot write to the opponent's slot.
 
 **Replay preference:** call `getBlob` for both participants; prefer whichever is non-zero.
 If both are present they should be equivalent — either can serve the replay.
-
-**Deployment:** Constructor takes `address _gameResults`. No owner, no upgradeability —
-intentionally minimal. Add deployed address to `deployed_addresses.json` and
-`CONTRACT_ADDRESSES_BY_CHAIN_ID` under key `GAME_BLOB_REGISTRY`.
 
 ---
 
@@ -402,7 +418,7 @@ regular-game path with no tournament context).
 Scans tournament brackets to find if a `gameId` belongs to a match.
 
 ```typescript
-export function useTournamentMatchForGame(gameId: bigint | null)
+export function useTournamentMatchForGame(gameId: bigint | null);
 // → { tournamentId: bigint, matchId: bigint } | null
 ```
 
@@ -416,7 +432,7 @@ export function useGameRecord(rawBlobId: string | null | undefined) {
     queryKey: ["gameRecord", rawBlobId],
     queryFn: () => fetchGameRecord(rawBlobId!),
     enabled: !!rawBlobId,
-    staleTime: Infinity,   // immutable once archived; snapshots are replaced, not mutated
+    staleTime: Infinity, // immutable once archived; snapshots are replaced, not mutated
   });
 }
 ```
@@ -447,6 +463,7 @@ be identical:
   then maps `record.turns` → `replayTurns` and `record.initialState` → `replayInitialState`
 
 The `rawBlobId` for a completed game is sourced from:
+
 1. `GameBlobRegistry.getBlob(gameId, playerAddress)` — on-chain read via `useReadContract`;
    bytes32 → base64url conversion needed
 2. Tournament bracket: `match.walrusBlobId` → same bytes32 → base64url conversion
@@ -517,23 +534,22 @@ matching turn time → always shows latest snapshot.
 
 ## 14. Open Items
 
-| # | Item | Notes |
-|---|---|---|
-| A | Deploy `GameBlobRegistry` | Needs `GameResults` address from `deployed_addresses.json` |
-
+| #   | Item                      | Notes                                                      |
+| --- | ------------------------- | ---------------------------------------------------------- |
+| A   | Deploy `GameBlobRegistry` | Needs `GameResults` address from `deployed_addresses.json` |
 
 ---
 
 ## 15. Resolved Design Decisions
 
-| # | Decision | Resolution |
-|---|---|---|
-| I | Replay source selection | Use only the connected player's own blob — `GameBlobRegistry.getBlob(gameId, connectedAddress)`. No fallback to opponent's blob. Empty slot = "replay unavailable." |
-| J | Mainnet WAL payment | Out of scope until mainnet. Testnet publisher is free. |
-| K | Blob deletion on snapshot update + `send-object-to` | Both are part of the same future mainnet optimization. `send-object-to` transfers blob ownership to an app Sui wallet, enabling server-side deletion of old snapshots for storage refunds. Not needed until mainnet with long epochs. `epochs=1` already minimizes waste in the meantime. |
-| B | `bigint` serialization for `GameDataView` snapshots | `GameDataView` is the correct snapshot type. Serialize with a `replacer` that converts `bigint` → string; deserialize with a matching `reviver` that converts back before handing to the replay display. |
-| C | Publisher response shape | Confirmed via curl against testnet. `newlyCreated` response: `data.newlyCreated.blobObject.blobId` (base64url, 43 chars = 32 bytes). `alreadyCertified` response: `data.alreadyCertified.blobId`. `blobId` is always 32 bytes of base64url — decode → 64 hex chars → prefix `0x` for on-chain storage. Blobs are `deletable: true` by default. Cost field is in FROST. |
-| D | `bytes32` ↔ base64url conversion | Covered in §2 (upload route: base64url → bytes32) and §4 (walrus.ts: bytes32 → base64url for aggregator fetches). Walrus blobIds are always exactly 32 bytes so padding is not a concern. |
-| E | Epoch count constants | Covered in §4 — define `EPOCHS_LIVE = 1` and `EPOCHS_ARCHIVE = 15` as named constants in `walrus.ts`. |
-| G | React Query cache invalidation for live snapshots | Covered in §8 — `rawBlobId` changes each move so the `useGameRecord` query key changes automatically. No manual invalidation needed. |
-| H | `GameBlobRegistry` ABI | Covered by implementation step 1 — add JSON to `app/contracts/` and register in `CONTRACT_ABIS` and `CONTRACT_ADDRESSES_BY_CHAIN_ID` after deployment. |
+| #   | Decision                                            | Resolution                                                                                                                                                                                                                                                                                                                                                             |
+| --- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I   | Replay source selection                             | Use only the connected player's own blob — `GameBlobRegistry.getBlob(gameId, connectedAddress)`. No fallback to opponent's blob. Empty slot = "replay unavailable."                                                                                                                                                                                                    |
+| J   | Mainnet WAL payment                                 | Out of scope until mainnet. Testnet publisher is free.                                                                                                                                                                                                                                                                                                                 |
+| K   | Blob deletion on snapshot update + `send-object-to` | Both are part of the same future mainnet optimization. `send-object-to` transfers blob ownership to an app Sui wallet, enabling server-side deletion of old snapshots for storage refunds. Not needed until mainnet with long epochs. `epochs=1` already minimizes waste in the meantime.                                                                              |
+| B   | `bigint` serialization for `GameDataView` snapshots | `GameDataView` is the correct snapshot type. Serialize with a `replacer` that converts `bigint` → string; deserialize with a matching `reviver` that converts back before handing to the replay display.                                                                                                                                                               |
+| C   | Publisher response shape                            | Confirmed via curl against testnet. `newlyCreated` response: `data.newlyCreated.blobObject.blobId` (base64url, 43 chars = 32 bytes). `alreadyCertified` response: `data.alreadyCertified.blobId`. `blobId` is always 32 bytes of base64url — decode → 64 hex chars → prefix `0x` for on-chain storage. Blobs are `deletable: true` by default. Cost field is in FROST. |
+| D   | `bytes32` ↔ base64url conversion                    | Covered in §2 (upload route: base64url → bytes32) and §4 (walrus.ts: bytes32 → base64url for aggregator fetches). Walrus blobIds are always exactly 32 bytes so padding is not a concern.                                                                                                                                                                              |
+| E   | Epoch count constants                               | Covered in §4 — define `EPOCHS_LIVE = 1` and `EPOCHS_ARCHIVE = 15` as named constants in `walrus.ts`.                                                                                                                                                                                                                                                                  |
+| G   | React Query cache invalidation for live snapshots   | Covered in §8 — `rawBlobId` changes each move so the `useGameRecord` query key changes automatically. No manual invalidation needed.                                                                                                                                                                                                                                   |
+| H   | `GameBlobRegistry` ABI                              | Covered by implementation step 1 — add JSON to `app/contracts/` and register in `CONTRACT_ABIS` and `CONTRACT_ADDRESSES_BY_CHAIN_ID` after deployment.                                                                                                                                                                                                                 |

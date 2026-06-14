@@ -81,6 +81,7 @@ import {
   TUTORIAL_COMPLETION_RETREAT_PRIMARY_CTA_SUPPORTING,
   type TutorialGridPanelConfig,
 } from "./TutorialGridPanelConfigs";
+import type { TurnRecord } from "../types/types";
 
 interface SimulatedGameDisplayProps {
   tutorialContext: TutorialContextValue;
@@ -288,6 +289,40 @@ export function SimulatedGameDisplay({
   } = tutorialContext;
 
   const [claimCompleteCached, setClaimCompleteCached] = useState(false);
+
+  // ── Replay (parity with GameDisplay — tutorial has no Walrus uploads, button only shows if data exists) ─
+  const [replayStep, setReplayStep] = useState<number | null>(null);
+  const [replayTurns, setReplayTurns] = useState<TurnRecord[]>([]);
+  const [replayAutoPlay, setReplayAutoPlay] = useState(false);
+  const replayAutoPlayRef = useRef(false);
+
+  const isReplaying = replayStep !== null;
+
+  const exitReplay = useCallback(() => {
+    setReplayStep(null);
+    setReplayAutoPlay(false);
+    replayAutoPlayRef.current = false;
+  }, []);
+
+  useEffect(() => { replayAutoPlayRef.current = replayAutoPlay; }, [replayAutoPlay]);
+
+  useEffect(() => {
+    if (!replayAutoPlay || !isReplaying) return;
+    const total = replayTurns.length;
+    const timer = setInterval(() => {
+      if (!replayAutoPlayRef.current) { clearInterval(timer); return; }
+      setReplayStep((prev) => {
+        if (prev === null || prev >= total - 1) {
+          setReplayAutoPlay(false);
+          replayAutoPlayRef.current = false;
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [replayAutoPlay, isReplaying, replayTurns.length]);
 
   useEffect(() => {
     if (!address) {
@@ -4548,6 +4583,77 @@ export function SimulatedGameDisplay({
                   setDragOverCell={setDragOverCell}
                 />
               </div>
+              {/* Replay banner */}
+              {isReplaying && (
+                <div
+                  className="pointer-events-none absolute top-1 left-1 z-[230] px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
+                  style={{
+                    ...STYLE_LABEL,
+                    color: "var(--color-cyan)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
+                    border: "1px solid var(--color-steel)",
+                  }}
+                >
+                  {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
+                </div>
+              )}
+              {/* Replay controls (bottom-left) — only shown when replay data exists */}
+              {replayTurns.length > 0 && (
+                <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
+                  <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+                    {!isReplaying && (
+                      <button
+                        onClick={() => { setReplayStep(-1); }}
+                        className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                        style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-text-secondary)", backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)", borderRadius: 0 }}
+                      >
+                        Replay
+                      </button>
+                    )}
+                    {isReplaying && (
+                      <div
+                        className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
+                        style={{ borderColor: "var(--color-steel)", backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)", borderRadius: 0 }}
+                      >
+                        <button
+                          onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                          disabled={replayStep <= -1}
+                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                          style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+                        >
+                          ◀ Prev
+                        </button>
+                        <span className="text-[11px] font-mono text-text-muted min-w-[5rem] text-center">
+                          {replayStep < 0 ? "Start" : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`}
+                        </span>
+                        <button
+                          onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                          disabled={replayStep >= replayTurns.length - 1}
+                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                          style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+                        >
+                          Next ▶
+                        </button>
+                        <button
+                          onClick={() => setReplayAutoPlay((p) => !p)}
+                          disabled={replayStep >= replayTurns.length - 1}
+                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                          style={{ ...STYLE_LABEL, borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)", color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)", backgroundColor: "transparent", borderRadius: 0 }}
+                        >
+                          {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
+                        </button>
+                        <button
+                          onClick={exitReplay}
+                          className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+                          style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+                        >
+                          ✕ Exit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {tutorialGridPanelConfig && (
                 <TutorialGridTaskPanel
                   title={tutorialGridPanelConfig.title}

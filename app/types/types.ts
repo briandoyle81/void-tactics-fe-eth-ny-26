@@ -522,3 +522,23 @@ export interface TournamentSummary {
   champion: Address;
   runnerUp: Address;
 }
+
+export interface TurnRecord {
+  turnNumber: number;
+  round: number;
+  player: string; // address
+  actions: unknown;
+  snapshot: GameDataView;
+  timestamp: number;
+}
+
+export interface GameRecord {
+  gameId: string;
+  initialState: GameDataView;
+  player1: string; // address
+  player2: string; // address
+  winner: string; // address or "" if in-progress
+  turns: TurnRecord[];
+  tournamentId?: number;
+  matchId?: number;
+}

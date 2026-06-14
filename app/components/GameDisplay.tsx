@@ -51,9 +51,22 @@ import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
+import { useWriteContract } from "wagmi";
+import { baseSepolia } from "viem/chains";
+import type { Abi } from "viem";
+import { type GameRecord, type TurnRecord } from "../types/types";
+import { buildInitialRecord, appendTurn, finalizeRecord } from "../utils/serializeGameRecord";
+import { useTournamentMatchForGame } from "../hooks/useTournamentMatchForGame";
+import { jsonReplacer, EPOCHS_LIVE, EPOCHS_ARCHIVE } from "../utils/walrus";
+import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
 const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
+
+const GAME_BLOB_REGISTRY_ABI = CONTRACT_ABIS.GAME_BLOB_REGISTRY as Abi;
+const GAME_BLOB_REGISTRY_ADDRESS =
+  CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].GAME_BLOB_REGISTRY;
+const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
@@ -76,8 +89,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Tooltip disable toggle
   const [disableTooltips, setDisableTooltips] = React.useState(false);
   const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   const appChainId = useSelectedChainId();
   const gameContract = useGameContract();
+
+  // ── Walrus game record ──────────────────────────────────────────────────────
+  const [gameRecord, setGameRecord] = React.useState<GameRecord | null>(null);
+
+  // ── Replay ──────────────────────────────────────────────────────────────────
+  const [replayStep, setReplayStep] = React.useState<number | null>(null);
+  const [replayTurns, setReplayTurns] = React.useState<TurnRecord[]>([]);
+  const [replayInitialState, setReplayInitialState] = React.useState<GameDataView | null>(null);
+  const [replayLoading, setReplayLoading] = React.useState(false);
+  const [replayAutoPlay, setReplayAutoPlay] = React.useState(false);
+  const replayAutoPlayRef = React.useRef(false);
   const { clearAllTransactions, transactionState } = useTransaction();
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
   const [previewPosition, setPreviewPosition] = useState<{
@@ -164,9 +189,22 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Use the fetched game data if available, otherwise fall back to initial game
   const game = gameData || initialGame;
+
+  // ── Tournament match lookup (for recording blobId on-chain after game ends) ─
+  const tournamentMatch = useTournamentMatchForGame(game.metadata.gameId);
+
+  // ── Replay overlay: replaySnapshotGame → displayGame ───────────────────────
+  const replaySnapshotGame: GameDataView | null = React.useMemo(() => {
+    if (replayStep === null) return null;
+    if (replayStep < 0) return replayInitialState;
+    return replayTurns[replayStep]?.snapshot ?? null;
+  }, [replayStep, replayInitialState, replayTurns]);
+  const displayGame: GameDataView = replaySnapshotGame ?? game;
+  const isReplaying = replayStep !== null;
+
   const aliveShipPositions = React.useMemo(
-    () => game.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
-    [game.shipPositions],
+    () => displayGame.shipPositions.filter((shipPosition) => (shipPosition.status ?? 0) === 0),
+    [displayGame.shipPositions],
   );
 
   /** Matches fleet card grids `grid-cols-1 sm:grid-cols-2` (Tailwind sm = 640px). */
@@ -321,8 +359,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [optimisticLastMove, setOptimisticLastMove] = React.useState<
     LastMove | null
   >(null);
-  const displayedLastMove: LastMove | undefined =
-    optimisticLastMove ?? game.lastMove;
+  const displayedLastMove: LastMove | undefined = isReplaying
+    ? (replaySnapshotGame?.lastMove ?? undefined)
+    : (optimisticLastMove ?? game.lastMove);
 
   // Enable real-time event listening for game updates
   useContractEvents();
@@ -347,6 +386,171 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, []);
   useResetSelectionOnTurnChange(game.turnState.currentTurn, resetSelection);
 
+  // ── Walrus upload helpers ──────────────────────────────────────────────────
+
+  const uploadGameRecordToWalrus = React.useCallback(async (record: GameRecord, epochs: number) => {
+    try {
+      const res = await fetch("/api/walrus/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: record, epochs }, jsonReplacer),
+      });
+      if (!res.ok) return null;
+      const { rawBlobId, blobIdHex } = (await res.json()) as { rawBlobId: string; blobIdHex: `0x${string}` };
+      return { rawBlobId, blobIdHex };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const updateGameBlobPointer = React.useCallback(async (rawBlobId: string) => {
+    if (!address) return;
+    await fetch("/api/game-blob", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: String(game.metadata.gameId), player: address, rawBlobId }),
+    }).catch(() => {});
+  }, [address, game.metadata.gameId]);
+
+  const appendTurnAndUpload = React.useCallback(async (snapshot: GameDataView, player: string, actions: unknown) => {
+    setGameRecord((prev) => {
+      const base = prev ?? buildInitialRecord(
+        String(game.metadata.gameId),
+        game.metadata.creator,
+        game.metadata.joiner,
+        snapshot,
+      );
+      const updated = appendTurn(base, snapshot, player, actions);
+      void uploadGameRecordToWalrus(updated, EPOCHS_LIVE).then((result) => {
+        if (result) void updateGameBlobPointer(result.rawBlobId);
+      });
+      return updated;
+    });
+  }, [game.metadata.gameId, game.metadata.creator, game.metadata.joiner, uploadGameRecordToWalrus, updateGameBlobPointer]);
+
+  const archiveGameToWalrus = React.useCallback(async (record: GameRecord, winner: string) => {
+    const final = finalizeRecord(record, winner);
+    const result = await uploadGameRecordToWalrus(final, EPOCHS_ARCHIVE);
+    if (!result || !address) return;
+    try {
+      await writeContractAsync({
+        address: GAME_BLOB_REGISTRY_ADDRESS,
+        abi: GAME_BLOB_REGISTRY_ABI,
+        functionName: "record",
+        args: [game.metadata.gameId, address, result.blobIdHex],
+        chainId: baseSepolia.id,
+      });
+    } catch {
+      // Non-critical: on-chain record is best-effort
+    }
+    if (tournamentMatch) {
+      try {
+        await writeContractAsync({
+          address: CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].TOURNAMENT,
+          abi: CONTRACT_ABIS.TOURNAMENT as Abi,
+          functionName: "recordResult",
+          args: [tournamentMatch.tournamentId, tournamentMatch.matchId, result.blobIdHex],
+          chainId: baseSepolia.id,
+        });
+      } catch {
+        // Non-critical
+      }
+    }
+  }, [address, game.metadata.gameId, uploadGameRecordToWalrus, writeContractAsync, tournamentMatch]);
+
+  // Initialize game record on first load
+  React.useEffect(() => {
+    if (!gameRecord && game.metadata.gameId) {
+      setGameRecord(buildInitialRecord(
+        String(game.metadata.gameId),
+        game.metadata.creator,
+        game.metadata.joiner,
+        game,
+      ));
+    }
+  }, [game, gameRecord]);
+
+  // Archive when game ends
+  React.useEffect(() => {
+    if (!gameRecord) return;
+    const winner = game.metadata.winner;
+    if (!winner || winner === ZERO_ADDR || gameRecord.winner) return;
+    void archiveGameToWalrus(gameRecord, winner);
+  }, [game.metadata.winner, gameRecord, archiveGameToWalrus]);
+
+  // ── Replay callbacks ────────────────────────────────────────────────────────
+
+  const fetchAndStartReplay = React.useCallback(async () => {
+    if (replayLoading) return;
+    const gameId = String(game.metadata.gameId);
+    const player = address;
+    setReplayLoading(true);
+    try {
+      // Try current player's blob first, then opponent's
+      const players = [
+        player,
+        address === game.metadata.creator ? game.metadata.joiner : game.metadata.creator,
+      ].filter(Boolean);
+      let record: GameRecord | null = null;
+      for (const p of players) {
+        if (!p) continue;
+        const ptrRes = await fetch(`/api/game-blob?gameId=${gameId}&player=${p}`);
+        const { rawBlobId } = (await ptrRes.json()) as { rawBlobId: string | null };
+        if (!rawBlobId) continue;
+        const blobRes = await fetch(`https://aggregator.walrus-testnet.walrus.space/v1/blobs/${rawBlobId}`);
+        if (!blobRes.ok) continue;
+        const text = await blobRes.text();
+        try {
+          // Use JSON.parse with bigint reviver
+          const { jsonReviver } = await import("../utils/walrus");
+          record = JSON.parse(text, jsonReviver) as GameRecord;
+          break;
+        } catch { continue; }
+      }
+      if (!record && gameRecord) {
+        record = gameRecord;
+      }
+      if (!record) {
+        toast.error("No replay data available yet.");
+        return;
+      }
+      setReplayInitialState(record.initialState);
+      setReplayTurns(record.turns);
+      setReplayStep(-1);
+    } catch {
+      toast.error("Could not load replay.");
+    } finally {
+      setReplayLoading(false);
+    }
+  }, [replayLoading, game.metadata.gameId, game.metadata.creator, game.metadata.joiner, address, gameRecord]);
+
+  const exitReplay = React.useCallback(() => {
+    setReplayStep(null);
+    setReplayAutoPlay(false);
+    replayAutoPlayRef.current = false;
+  }, []);
+
+  React.useEffect(() => {
+    replayAutoPlayRef.current = replayAutoPlay;
+  }, [replayAutoPlay]);
+
+  React.useEffect(() => {
+    if (!replayAutoPlay || !isReplaying) return;
+    const total = replayTurns.length;
+    const timer = setInterval(() => {
+      if (!replayAutoPlayRef.current) { clearInterval(timer); return; }
+      setReplayStep((prev) => {
+        if (prev === null || prev >= total - 1) {
+          setReplayAutoPlay(false);
+          replayAutoPlayRef.current = false;
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [replayAutoPlay, isReplaying, replayTurns.length]);
 
   // Countdown for remaining turn time (in seconds)
   const [turnSecondsLeft, setTurnSecondsLeft] = React.useState<number>(0);
@@ -1920,6 +2124,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       timestamp: BigInt(Date.now()),
                     });
 
+                    if (address) {
+                      void appendTurnAndUpload(game, address, {
+                        shipId: selectedShipId?.toString(),
+                        actionType: computedActionType,
+                        targetShipId: submittedTargetShipId.toString(),
+                        newRow: computedRow,
+                        newCol: computedCol,
+                      });
+                    }
+
                     toast.success("Move submitted successfully!");
                     recordPlayerMove();
                     refetchGame();
@@ -2954,7 +3168,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   <div className="absolute inset-0 min-h-0 overflow-hidden">
                     <GameGrid
                       grid={grid}
-                      allShipPositions={game.shipPositions}
+                      allShipPositions={displayGame.shipPositions}
                       shipMap={shipMap}
                       selectedShipId={selectedShipId}
                       previewPosition={previewPosition}
@@ -3764,7 +3978,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             <div className="absolute inset-0 min-h-0 overflow-hidden">
         <GameGrid
           grid={grid}
-                allShipPositions={game.shipPositions}
+                allShipPositions={displayGame.shipPositions}
           shipMap={shipMap}
           selectedShipId={selectedShipId}
           previewPosition={previewPosition}
@@ -3852,6 +4066,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 onTransactionSent={() => setAwaitingTurnSyncAfterSubmit(true)}
                 onSuccess={() => {
                   const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
+                  const submittedTargetShipId = targetShipId ?? 0n;
                   setOptimisticLastMove({
                     shipId: selectedShipId!,
                     oldRow: currentPosition?.position.row ?? computedRow,
@@ -3859,9 +4074,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
                     newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
                     actionType: computedActionType,
-                    targetShipId: targetShipId ?? 0n,
+                    targetShipId: submittedTargetShipId,
                     timestamp: BigInt(Date.now()),
                   });
+                  if (address) {
+                    void appendTurnAndUpload(game, address, {
+                      shipId: selectedShipId?.toString(),
+                      actionType: computedActionType,
+                      targetShipId: submittedTargetShipId.toString(),
+                      newRow: computedRow,
+                      newCol: computedCol,
+                    });
+                  }
                   toast.success("Move submitted successfully!");
                   recordPlayerMove();
                   refetchGame();
@@ -3875,6 +4099,94 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           })() : undefined}
         />
             </div>
+          {/* Replay banner */}
+          {isReplaying && (
+            <div
+              className="pointer-events-none absolute top-1 left-1 z-[230] px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
+              style={{
+                ...STYLE_LABEL,
+                color: "var(--color-cyan)",
+                backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
+                border: "1px solid var(--color-steel)",
+              }}
+            >
+              {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
+            </div>
+          )}
+          {/* Replay controls (bottom-left) */}
+          <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
+            <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+              {!isReplaying && (
+                <button
+                  onClick={() => void fetchAndStartReplay()}
+                  disabled={replayLoading}
+                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-text-secondary)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  {replayLoading ? "Loading…" : "Replay"}
+                </button>
+              )}
+              {isReplaying && (
+                <div
+                  className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
+                  style={{
+                    borderColor: "var(--color-steel)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  <button
+                    onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                    disabled={replayStep <= -1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+                  >
+                    ◀ Prev
+                  </button>
+                  <span className="text-[11px] font-mono text-text-muted min-w-[5rem] text-center">
+                    {replayStep < 0
+                      ? "Start"
+                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`}
+                  </span>
+                  <button
+                    onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                    disabled={replayStep >= replayTurns.length - 1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+                  >
+                    Next ▶
+                  </button>
+                  <button
+                    onClick={() => setReplayAutoPlay((p) => !p)}
+                    disabled={replayStep >= replayTurns.length - 1}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+                    style={{
+                      ...STYLE_LABEL,
+                      borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
+                      color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
+                      backgroundColor: "transparent",
+                      borderRadius: 0,
+                    }}
+                  >
+                    {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
+                  </button>
+                  <button
+                    onClick={exitReplay}
+                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+                  >
+                    ✕ Exit
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           {game.metadata.winner ===
             "0x0000000000000000000000000000000000000000" &&
             process.env.NODE_ENV === "development" && (
