@@ -3,6 +3,7 @@
 > **Note for judges:** This repository couldn't be forked from the original because the original is also mine — GitHub doesn't allow forking your own repo into the same account. The hackathon features described here (Dynamic Flow purchases, World ID tournament registration, Walrus game recording and replay) were all built after the hackathon start time. The original pre-hackathon deployment is at [voidtactics.xyz](https://www.voidtactics.xyz) for comparison.
 
 **Hackathon Live Deployment:** https://void-tactics-fe-eth-ny-26.vercel.app/
+**Demo video**: https://youtu.be/r8ehGtyE14E
 **Original Deployment:** https://www.voidtactics.xyz
 **Contracts:** https://github.com/briandoyle81/warpflow-contracts
 
