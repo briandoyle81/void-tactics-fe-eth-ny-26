@@ -38,10 +38,11 @@ const REVERT_MESSAGES: Record<string, string> = {
 
 function parseRevertMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
+  console.error("[TournamentRegister] contract error:", msg);
   for (const [revert, friendly] of Object.entries(REVERT_MESSAGES)) {
     if (msg.includes(revert)) return friendly;
   }
-  return "Registration failed. Please try again.";
+  return `Registration failed: ${msg.slice(0, 120)}`;
 }
 
 interface Props {
