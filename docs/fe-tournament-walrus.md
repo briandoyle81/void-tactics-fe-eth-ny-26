@@ -22,33 +22,42 @@ dependable foundation for replay or multi-device live viewing.
 
 | Tier | Trigger | TTL | Purpose |
 |---|---|---|---|
-| **Live snapshot** | After each move | 2× turn time (min 1 epoch) | Multi-device mid-game access |
+| **Live snapshot** | After each `moveShip` confirms | 2× turn time (min 1 epoch) | Multi-device mid-game access |
 | **Archive** | Game ends | 1 month (15 epochs testnet) | Permanent replay |
 
-**Live snapshot** — after each `moveShip` confirms, the game client serializes the full
-accumulated move history and uploads it to Walrus with a short TTL. A server-side pointer
-(`/api/game-blob`) maps `gameId → { blobId, rawBlobId }`. Any device fetches the pointer,
-then pulls the snapshot from Walrus in one request.
+**Each player maintains their own blob.** Storage is doubled but each player can only
+affect their own entry. A corrupt or missing blob from one player is covered by the other.
 
-**Archive** — when the game ends, one final upload with a 1-month TTL replaces the need
-for any live snapshots. For tournament games the blobId goes on-chain via `recordResult`.
-For regular games the server pointer is updated with the long-lived blobId.
+**Live snapshot** — when a player's `moveShip` transaction confirms, the game client
+serializes the full accumulated move history and uploads it. The serialized state at that
+moment already includes the opponent's previous move, because that `lastMove` is what the
+client was displaying when the player chose their action — no extra fetch required. The
+upload is a complete record of everything both players have done up to and including the
+submitter's current move.
 
-### Why not on-chain per-move storage
+A server-side pointer (`/api/game-blob?gameId=X&player=Y`) maps each player's latest
+blobId. Any device fetches one pointer then pulls the snapshot in one aggregator request.
 
-Storing a blobId on-chain each move costs gas and requires a wallet transaction per move
-— unacceptable UX. The server pointer is the right tradeoff: blob data is on Walrus
-(decentralised), only the 32-byte pointer is on our server.
+**Archive** — when the game ends, each player uploads a final blob with a 1-month TTL
+and records the blobId on-chain via `GameBlobRegistry.record(gameId, blobId)` (regular
+games) or `Tournament.recordResult` (tournament games).
+
+### Coverage between the two blobs
+
+At any point in the game, the two players' blobs differ by at most one move (the move
+just submitted, before the opponent has responded). Between them, full history is always
+available. For replay, prefer the blob from whichever player submitted last; fall back to
+the other.
 
 ### Multi-device pointer lookup
 
 ```
-After each move:
-  1. Serialize state → POST /api/walrus/upload → returns { blobId, rawBlobId }
-  2. POST /api/game-blob { gameId, blobId, rawBlobId }   ← lightweight pointer update
+After moveShip confirms:
+  1. Serialize full state (includes opponent's lastMove) → POST /api/walrus/upload?epochs=1
+  2. POST /api/game-blob { gameId, player, blobId, rawBlobId }
 
 Second device wanting current state:
-  1. GET /api/game-blob?gameId=X → { rawBlobId }
+  1. GET /api/game-blob?gameId=X&player=Y → { rawBlobId }
   2. GET aggregator/v1/blobs/{rawBlobId} → full GameRecord JSON
 ```
 
@@ -201,15 +210,20 @@ blobId for every completed regular game.
 - `GameResults.isGameResultRecorded(uint256 gameId) → bool`
 - `GameResults.getGameResult(uint256 gameId) → GameResult { gameId, winner, loser, timestamp }`
 
-**Storage:** `mapping(uint256 gameId => bytes32 blobId)`
+**Storage:** `mapping(uint256 gameId => mapping(address player => bytes32 blobId))`
+
+Each player owns their own slot. A player cannot write to the opponent's slot.
 
 **Write function:** `record(uint256 gameId, bytes32 blobId)`
-- Reverts if `blobs[gameId] != bytes32(0)` (already recorded)
 - Reverts if `!gameResults.isGameResultRecorded(gameId)` (game not complete)
 - Reverts if `msg.sender` is not `result.winner` or `result.loser`
-- Stores blobId, emits `BlobRecorded(gameId, blobId)`
+- No first-write-wins — a player may update their own slot (e.g. if they re-upload)
+- Stores `blobs[gameId][msg.sender] = blobId`, emits `BlobRecorded(gameId, msg.sender, blobId)`
 
-**Read function:** `getBlob(uint256 gameId) → bytes32`
+**Read function:** `getBlob(uint256 gameId, address player) → bytes32`
+
+**Replay preference:** call `getBlob` for both participants; prefer whichever is non-zero.
+If both are present they should be equivalent — either can serve the replay.
 
 **Deployment:** Constructor takes `address _gameResults`. No owner, no upgradeability —
 intentionally minimal. Add deployed address to `deployed_addresses.json` and
@@ -227,8 +241,8 @@ only job is to let a second device fetch the current in-progress snapshot during
 game. Entries can be evicted after game end.
 
 ```
-GET  ?gameId=X                          → { blobId, rawBlobId } | 404
-POST { gameId, blobId, rawBlobId }      → 200
+GET  ?gameId=X&player=Y                 → { blobId, rawBlobId } | 404
+POST { gameId, player, blobId, rawBlobId }  → 200
 ```
 
 In-memory map is sufficient for the hackathon. For production replace with a short-TTL
@@ -466,3 +480,6 @@ matching turn time → always shows latest snapshot.
 | F | `send-object-to` publisher param | For production: transfer blob objects to an app-controlled Sui address |
 | G | React Query cache invalidation for live snapshots | `rawBlobId` changes each move — pointer fetch must invalidate the `useGameRecord` query |
 | H | `GameBlobRegistry` ABI — add to `app/contracts/` and `CONTRACT_ABIS` after deployment | |
+| I | Replay source selection — prefer blob from player who moved last; fall back to opponent | Requires knowing which player submitted most recently (check `lastMove` event block timestamps) |
+| J | Payment on mainnet | Testnet publisher is free; mainnet needs WAL — app subsidy vs user-pays TBD |
+| K | **Future: blob deletion on snapshot update** | Deleting the previous snapshot blob after each upload would refund unused epoch storage on mainnet. Requires: (1) `send-object-to` on every upload so the app's Sui server wallet owns the blob object, (2) server-side deletion call after each successful new upload. Not worth implementing until mainnet and only if epochs are long enough for the refund to matter. Minimum TTL is 1 epoch regardless, so `epochs=1` live snapshots already minimise waste without deletion. |
