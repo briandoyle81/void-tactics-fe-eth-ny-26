@@ -42,5 +42,6 @@
   "DeployModule#ShipPurchaser": "0xF62C778650cA1B66cFa84177e344A2298E587Fd5",
   "DeployModule#TutorialClaim": "0x96c0d9D103F9df57732707Dc63cCbc50cC71ed19",
   "DeployModule#DroneYard": "0xF27e7274A8D9a3FA45Cee6b3824Ed5F165bAAADF",
-  "DeployModule#Game": "0x5801c1303e13899FCbC6702b16B77183F1ddB8f4"
+  "DeployModule#Game": "0x5801c1303e13899FCbC6702b16B77183F1ddB8f4",
+  "GameBlobRegistryModule#GameBlobRegistry": "0xDab9f61b7243b37E9B1f471d0f18ef758AABDF0E"
 }
