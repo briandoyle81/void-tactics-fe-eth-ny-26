@@ -1,6 +1,6 @@
 # Void Tactics — Frontend
 
-> **Note for judges:** This repository couldn't be forked from the original because the original is also mine — GitHub doesn't allow forking your own repo into the same account. The hackathon features described here (Dynamic Flow purchases, World ID tournament registration, Walrus game recording and replay) were all built after the hackathon start time. The original pre-hackathon deployment is at [voidtactics.xyz](https://www.voidtactics.xyz) for comparison.
+> **Note for judges:** This repository couldn't be forked from the original because the original is also mine — GitHub doesn't allow forking your own repo into the same account. The hackathon features described here (Dynamic Flow purchases, World ID tournament registration, game recording and replay) were all built after the hackathon start time. The original pre-hackathon deployment is at [voidtactics.xyz](https://www.voidtactics.xyz) for comparison.
 
 **Hackathon Live Deployment:** https://void-tactics-fe-eth-ny-26.vercel.app/
 **Demo video**: https://youtu.be/r8ehGtyE14E
@@ -33,15 +33,13 @@ The reason this matters for a bracket: one person running five wallets should no
 
 The rp-context endpoint (`/api/world-id/rp-context`) issues a short-lived signed nonce using the managed RP signing key. No frontend secret exposure; no server-side wallet.
 
-### Game Recording and Match Replay (Walrus)
+### Game Recording and Match Replay (localStorage)
 
-Every confirmed move uploads a full game state snapshot to [Walrus](https://walrus.site) — a decentralized blob store that's chain-agnostic and Sui-based, accessed here entirely over HTTP from an EVM app. Each player maintains their own blob; when you submit a move, the upload also includes your opponent's last move (already in client memory at submission time), so either player's blob contains the complete record.
+Every confirmed move updates a full game state snapshot in the browser's `localStorage`, keyed by game ID. Recording is entirely client-side and single-device: only the browser that played the game can replay it.
 
-**Why this matters beyond just storage:** EVM RPC providers cap historical event log queries to 2,000–10,000 blocks per request. Reconstructing move-by-move game history from on-chain events via a browser is unreliable past a certain game length — you hit pagination limits and rate caps. Walrus sidesteps the problem entirely: one blob fetch returns the full game state.
+The replay UI is built directly into the game view: a "Replay" button appears during any live game. It loads the locally stored record into memory and lets the player step backward and forward through every move with Prev / Next / Play / Pause / Exit controls. Exiting replay drops back to the live board exactly where the game is now. If no local record exists for a game — a different device played it, or storage was cleared — the button is replaced with an alert instead of empty controls.
 
-The replay UI is built directly into the game view: a "Replay" button appears during any live game. It fetches the current snapshot from Walrus, loads it into memory, and lets the player step backward and forward through every move with Prev / Next / Play / Pause / Exit controls. Exiting replay drops back to the live board exactly where the game is now.
-
-At game end, a final archive blob is uploaded with a 1-month TTL and the blob ID is recorded on-chain via `GameBlobRegistry.record()`. Tournament matches additionally call `Tournament.recordResult()`. After that point, the replay survives independently of the team running any server.
+The tutorial (simulated game) does not record moves and has no replay affordance.
 
 ---
 
@@ -78,7 +76,7 @@ The app runs on four testnets. Chain selection is in the UI and persists to `loc
 | Ronin Saigon   | 2020        | `?chain=ronin-saigon`                                              |
 | Xai Testnet v2 | 37714555429 | `?chain=xai-testnet-v2`                                            |
 
-Tournaments and Walrus recording are Base Sepolia only (where the Tournament and GameBlobRegistry contracts are deployed).
+Tournaments are Base Sepolia only (where the Tournament contract is deployed). Game recording/replay works on any chain since it's local-storage-based.
 
 ---
 
@@ -89,7 +87,6 @@ Tournaments and Walrus recording are Base Sepolia only (where the Tournament and
 - **Dynamic** — wallet connection, authentication, and Flow payments
 - **TanStack React Query 5** — server and chain state
 - **World ID IDKit v4** — human uniqueness verification for tournament registration
-- **Walrus testnet** — decentralized blob storage for game state and replays
 - **Tailwind CSS 4**
 - **PostHog** — analytics
 

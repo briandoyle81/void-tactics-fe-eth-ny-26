@@ -51,21 +51,13 @@ import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
-import { useWriteContract } from "wagmi";
-import { baseSepolia } from "viem/chains";
-import type { Abi } from "viem";
 import { type GameRecord, type TurnRecord } from "../types/types";
 import { buildInitialRecord, appendTurn, finalizeRecord } from "../utils/serializeGameRecord";
-import { useTournamentMatchForGame } from "../hooks/useTournamentMatchForGame";
-import { jsonReplacer, jsonReviver, EPOCHS_LIVE, EPOCHS_ARCHIVE } from "../utils/walrus";
-import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
+import { saveGameRecord, loadGameRecord } from "../utils/gameRecordStorage";
 
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
 const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
 
-const GAME_BLOB_REGISTRY_ABI = CONTRACT_ABIS.GAME_BLOB_REGISTRY as Abi;
-const GAME_BLOB_REGISTRY_ADDRESS =
-  CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].GAME_BLOB_REGISTRY;
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
@@ -89,11 +81,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Tooltip disable toggle
   const [disableTooltips, setDisableTooltips] = React.useState(false);
   const { address } = useAccount();
-  const { writeContractAsync } = useWriteContract();
   const appChainId = useSelectedChainId();
   const gameContract = useGameContract();
 
-  // ── Walrus game record ──────────────────────────────────────────────────────
+  // ── Game record (persisted to localStorage) ────────────────────────────────
   const gameRecordRef = React.useRef<GameRecord | null>(null);
   const [gameRecord, setGameRecord] = React.useState<GameRecord | null>(null);
   const lastMoveTimestampRef = React.useRef<bigint | undefined>(undefined);
@@ -103,7 +94,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [replayStep, setReplayStep] = React.useState<number | null>(null);
   const [replayTurns, setReplayTurns] = React.useState<TurnRecord[]>([]);
   const [replayInitialState, setReplayInitialState] = React.useState<GameDataView | null>(null);
-  const [replayLoading, setReplayLoading] = React.useState(false);
+  const [replayNotFound, setReplayNotFound] = React.useState(false);
   const [replayAutoPlay, setReplayAutoPlay] = React.useState(false);
   const replayAutoPlayRef = React.useRef(false);
   const { clearAllTransactions, transactionState } = useTransaction();
@@ -192,9 +183,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Use the fetched game data if available, otherwise fall back to initial game
   const game = gameData || initialGame;
-
-  // ── Tournament match lookup (for recording blobId on-chain after game ends) ─
-  const tournamentMatch = useTournamentMatchForGame(game.metadata.gameId);
 
   // ── Replay overlay: replaySnapshotGame → displayGame ───────────────────────
   const replaySnapshotGame: GameDataView | null = React.useMemo(() => {
@@ -389,32 +377,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, []);
   useResetSelectionOnTurnChange(game.turnState.currentTurn, resetSelection);
 
-  // ── Walrus upload helpers ──────────────────────────────────────────────────
-
-  const uploadGameRecordToWalrus = React.useCallback(async (record: GameRecord, epochs: number) => {
-    try {
-      const res = await fetch("/api/walrus/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: record, epochs }, jsonReplacer),
-      });
-      if (!res.ok) return null;
-      const { rawBlobId, blobIdHex } = (await res.json()) as { rawBlobId: string; blobIdHex: `0x${string}` };
-      return { rawBlobId, blobIdHex };
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const updateGameBlobPointer = React.useCallback(async (rawBlobId: string) => {
-    if (!address) return;
-    await fetch("/api/game-blob", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameId: String(game.metadata.gameId), player: address, rawBlobId }),
-    }).catch(() => {});
-  }, [address, game.metadata.gameId]);
-
   // Initialize game record once on mount
   React.useEffect(() => {
     if (!gameRecordRef.current && game.metadata.gameId) {
@@ -430,15 +392,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount only
 
-  // Upload to Walrus after every confirmed move — ours OR opponent's.
+  // Save to localStorage after every confirmed move — ours OR opponent's.
   // game.lastMove.timestamp changes whenever game refetches with a new move.
-  // Each player uploads their own blob, so both blobs always contain full history.
   React.useEffect(() => {
     const newTs = game.lastMove?.timestamp;
     if (newTs === lastMoveTimestampRef.current) return; // no new move
     lastMoveTimestampRef.current = newTs;
 
-    // Only participants upload (not spectators)
+    // Only participants record (not spectators)
     if (!address || !game.lastMove) return;
     const creatorAddr = game.metadata.creator.toLowerCase();
     const joinerAddr = game.metadata.joiner.toLowerCase();
@@ -460,13 +421,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     const updated = appendTurn(base, game, whoJustMoved, game.lastMove);
     gameRecordRef.current = updated;
     setGameRecord(updated);
+    saveGameRecord(String(game.metadata.gameId), updated);
+  }, [game, address]);
 
-    void uploadGameRecordToWalrus(updated, EPOCHS_LIVE).then((result) => {
-      if (result) void updateGameBlobPointer(result.rawBlobId);
-    });
-  }, [game, address, uploadGameRecordToWalrus, updateGameBlobPointer]);
-
-  // Archive once when game ends
+  // Finalize the record once when the game ends
   React.useEffect(() => {
     const winner = game.metadata.winner;
     if (!winner || winner === ZERO_ADDR || archivedRef.current) return;
@@ -474,75 +432,31 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (!record) return;
     archivedRef.current = true;
     const final = finalizeRecord(record, winner);
-    void uploadGameRecordToWalrus(final, EPOCHS_ARCHIVE).then(async (result) => {
-      if (!result || !address) return;
-      try {
-        await writeContractAsync({
-          address: GAME_BLOB_REGISTRY_ADDRESS,
-          abi: GAME_BLOB_REGISTRY_ABI,
-          functionName: "record",
-          args: [game.metadata.gameId, address, result.blobIdHex],
-          chainId: baseSepolia.id,
-        });
-      } catch { /* non-critical */ }
-      if (tournamentMatch) {
-        try {
-          await writeContractAsync({
-            address: CONTRACT_ADDRESSES_BY_CHAIN_ID[baseSepolia.id].TOURNAMENT,
-            abi: CONTRACT_ABIS.TOURNAMENT as Abi,
-            functionName: "recordResult",
-            args: [tournamentMatch.tournamentId, tournamentMatch.matchId, result.blobIdHex],
-            chainId: baseSepolia.id,
-          });
-        } catch { /* non-critical */ }
-      }
-    });
-  }, [game.metadata.winner, address, uploadGameRecordToWalrus, writeContractAsync, tournamentMatch, game.metadata.gameId]);
+    gameRecordRef.current = final;
+    setGameRecord(final);
+    saveGameRecord(String(game.metadata.gameId), final);
+  }, [game.metadata.winner, game.metadata.gameId]);
 
   // ── Replay callbacks ────────────────────────────────────────────────────────
 
-  const fetchAndStartReplay = React.useCallback(async () => {
-    if (replayLoading) return;
+  const fetchAndStartReplay = React.useCallback(() => {
     const gameId = String(game.metadata.gameId);
-    setReplayLoading(true);
-    try {
-      // Always load from Walrus — try current player's blob, then opponent's
-      const candidates = [
-        address,
-        address === game.metadata.creator ? game.metadata.joiner : game.metadata.creator,
-      ].filter((p): p is `0x${string}` => !!p);
-      let record: GameRecord | null = null;
-      for (const p of candidates) {
-        try {
-          const ptrRes = await fetch(`/api/game-blob?gameId=${gameId}&player=${p}`);
-          if (!ptrRes.ok) continue;
-          const { rawBlobId } = (await ptrRes.json()) as { rawBlobId: string | null };
-          if (!rawBlobId) continue;
-          const blobRes = await fetch(`https://aggregator.walrus-testnet.walrus.space/v1/blobs/${rawBlobId}`);
-          if (!blobRes.ok) continue;
-          const text = await blobRes.text();
-          const parsed = JSON.parse(text, jsonReviver) as GameRecord;
-          if (parsed.turns.length > 0) { record = parsed; break; }
-        } catch { /* try next candidate */ }
-      }
-      if (!record || record.turns.length === 0) {
-        toast.error("No replay data on Walrus yet — make some moves first.");
-        return;
-      }
-      setReplayInitialState(record.initialState);
-      setReplayTurns(record.turns);
-      setReplayStep(-1);
-    } catch {
-      toast.error("Could not load replay.");
-    } finally {
-      setReplayLoading(false);
+    const record = loadGameRecord<GameRecord>(gameId);
+    if (!record || record.turns.length === 0) {
+      setReplayNotFound(true);
+      return;
     }
-  }, [replayLoading, game.metadata.gameId, game.metadata.creator, game.metadata.joiner, address]);
+    setReplayNotFound(false);
+    setReplayInitialState(record.initialState);
+    setReplayTurns(record.turns);
+    setReplayStep(-1);
+  }, [game.metadata.gameId]);
 
   const exitReplay = React.useCallback(() => {
     setReplayStep(null);
     setReplayAutoPlay(false);
     replayAutoPlayRef.current = false;
+    setReplayNotFound(false);
   }, []);
 
   React.useEffect(() => {
@@ -4112,10 +4026,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           {/* Replay controls (bottom-left) */}
           <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
             <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
-              {!isReplaying && (
+              {!isReplaying && !replayNotFound && (
                 <button
-                  onClick={() => void fetchAndStartReplay()}
-                  disabled={replayLoading}
+                  onClick={fetchAndStartReplay}
                   className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
                   style={{
                     ...STYLE_LABEL,
@@ -4125,8 +4038,29 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     borderRadius: 0,
                   }}
                 >
-                  {replayLoading ? "Loading…" : "Replay"}
+                  Replay
                 </button>
+              )}
+              {!isReplaying && replayNotFound && (
+                <div
+                  className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-warning-red)",
+                    color: "var(--color-warning-red)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  <span>Replay not available — not recorded on this device</span>
+                  <button
+                    onClick={() => setReplayNotFound(false)}
+                    className="px-1.5 py-0.5 border border-solid"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+                  >
+                    ✕
+                  </button>
+                </div>
               )}
               {isReplaying && (
                 <div
