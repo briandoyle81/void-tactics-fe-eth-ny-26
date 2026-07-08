@@ -390,6 +390,8 @@ const ManageNavy: React.FC = () => {
     "id" | "cost" | "accuracy" | "hull" | "speed"
   >("id");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("asc");
+  const [shipPage, setShipPage] = React.useState(0);
+  const SHIPS_PER_PAGE = 100;
   const [showDebugButtons, setShowDebugButtons] = React.useState(false);
   const [isMobileManageNavyLayout, setIsMobileManageNavyLayout] =
     React.useState(false);
@@ -765,6 +767,19 @@ const ManageNavy: React.FC = () => {
     activeCompositionFleet,
     filteredAndSortedShips,
   ]);
+
+  React.useEffect(() => {
+    setShipPage(0);
+  }, [activeNavyFilters, sortBy, sortOrder, fleetCompositionSelectedId]);
+
+  const paginatedShips = React.useMemo(
+    () =>
+      shipsForGridDisplay.slice(
+        shipPage * SHIPS_PER_PAGE,
+        (shipPage + 1) * SHIPS_PER_PAGE,
+      ),
+    [shipsForGridDisplay, shipPage],
+  );
 
   const activeCompositionThreatTotal = React.useMemo(() => {
     if (!activeCompositionFleet) return 0;
@@ -1629,7 +1644,8 @@ const ManageNavy: React.FC = () => {
           </div>
         )}
 
-        {selectedShips.size > 0 &&
+        {canRecycle &&
+          selectedShips.size > 0 &&
           (() => {
             // Filter out ships that are in fleets
             const recyclableShips = Array.from(selectedShips).filter((id) => {
@@ -2239,10 +2255,66 @@ const ManageNavy: React.FC = () => {
                   color: "var(--color-text-primary)",
                 }}
               >
-                [YOUR SHIPS] - Showing {filteredAndSortedShips.length} of{" "}
-                {ships.length} ships
+                [YOUR SHIPS] - Showing{" "}
+                {filteredAndSortedShips.length > SHIPS_PER_PAGE
+                  ? `${shipPage * SHIPS_PER_PAGE + 1}–${Math.min(
+                      (shipPage + 1) * SHIPS_PER_PAGE,
+                      filteredAndSortedShips.length,
+                    )} of ${filteredAndSortedShips.length}`
+                  : filteredAndSortedShips.length}{" "}
+                of {ships.length} ships
               </h4>
               <div className="flex flex-wrap items-center gap-2">
+                {shipsForGridDisplay.length > SHIPS_PER_PAGE && (
+                  <>
+                    <button
+                      onClick={() => setShipPage((p) => Math.max(0, p - 1))}
+                      disabled={shipPage === 0}
+                      className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
+                      style={{
+                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        borderColor: shipPage === 0 ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                        color: shipPage === 0 ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                        backgroundColor: "var(--color-steel)",
+                        borderRadius: 0,
+                        opacity: shipPage === 0 ? 0.4 : 1,
+                      }}
+                    >
+                      &lt; PREV
+                    </button>
+                    <span
+                      className="text-sm uppercase tracking-wider"
+                      style={{
+                        fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
+                      {shipPage + 1} / {Math.ceil(shipsForGridDisplay.length / SHIPS_PER_PAGE)}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setShipPage((p) =>
+                          Math.min(
+                            Math.ceil(shipsForGridDisplay.length / SHIPS_PER_PAGE) - 1,
+                            p + 1,
+                          ),
+                        )
+                      }
+                      disabled={(shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length}
+                      className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
+                      style={{
+                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        borderColor: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? "var(--color-gunmetal)" : "var(--color-cyan)",
+                        color: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? "var(--color-text-secondary)" : "var(--color-cyan)",
+                        backgroundColor: "var(--color-steel)",
+                        borderRadius: 0,
+                        opacity: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? 0.4 : 1,
+                      }}
+                    >
+                      NEXT &gt;
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={handleSelectAll}
                   className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
@@ -2385,7 +2457,7 @@ const ManageNavy: React.FC = () => {
             ref={shipGridRef}
             className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3"
           >
-            {shipsForGridDisplay.map((ship: Ship) => {
+            {paginatedShips.map((ship: Ship) => {
               const shipCv = Number(ship.shipData.costsVersion);
               const costsVersionStale =
                 globalCostsVersion !== null &&

@@ -168,19 +168,42 @@ part of the documented pattern). Verified with `tsc --noEmit`, `eslint`, and
 game, verify weapons fire, tooltip shows, confirm widget works, pan gesture
 is smooth). Recommend doing this before calling Stage 1 fully closed.
 
-**Stage 2 — Decided feature ports that don't require the web2/web3 toggle.**
-- Ship-selection pagination (`ManageNavy.tsx`) — frontend-only, straightforward.
-- Multi-select batch recycle UX (`ManageNavy.tsx`) — port the batch-select
-  UI, keep the existing 10-purchase (`amountPurchased >= 10`) gate intact.
-- Tie/draw UI (`Games.tsx`) — wire up `TIE_ADDRESS`/"DRAW" styling now;
-  functionally inert until the separate `GameContract` update (assumed, see
-  above) ships and actually emits draw outcomes.
-- Header dual-login shell — build the "show both wallet-connect and
-  auth-button when logged out" UI now. The "toggle to the appropriate
-  widget once logged in" half depends on the app knowing its current
-  mode, so full behavior lands with Stage 3 once a mode flag exists (see
-  below); until then this can hide behind whichever mode is active by
-  default.
+**Stage 2 — Decided feature ports that don't require the web2/web3 toggle.
+Partially done.**
+
+- **Ship-selection pagination (`ManageNavy.tsx`) — DONE.** Added `shipPage`
+  state, `SHIPS_PER_PAGE = 100`, a page-reset effect (on filter/sort/fleet
+  changes), a `paginatedShips` memo, and Prev/Next controls with a
+  "Showing X–Y of Z" header, matching `explore-traditional`'s
+  implementation. Select-all/selection state still operates on the full
+  filtered set (`shipsForGridDisplay`), not just the visible page —
+  pagination only affects what's rendered.
+- **Multi-select batch recycle UX (`ManageNavy.tsx`) — DONE, with a gating
+  fix.** The batch "[RECYCLE N SHIPS]" button (recycle several selected
+  ships in one `ShipActionButton` call) already existed on `main` — but it
+  had **no `canRecycle` gate at all**, unlike the adjacent single-ship
+  recycle modal which does check `amountPurchased >= 10`. This was a real
+  gap against the "web3 keeps the 10-purchase minimum" decision: a player
+  under the minimum could bulk-recycle via multi-select while being blocked
+  from the single-ship flow. Fixed by adding `canRecycle &&` to the batch
+  button's render condition, so both paths are now consistently gated.
+- **Tie/draw UI (`Games.tsx`) — DONE.** Added `TIE_ADDRESS =
+  "0x0…001"`, `isDraw` check, and purple "DRAW" accent/badge styling,
+  matching `explore-traditional` exactly. `--color-purple` was already
+  registered in the `@theme` block in `globals.css`, so `border-purple`/
+  `bg-purple`/`text-purple` utilities work with no CSS changes needed.
+  Functionally inert until the separate `GameContract` update (assumed, see
+  above) actually emits `TIE_ADDRESS` as a winner value.
+- **Header dual-login shell — NOT done, flagging rather than building a
+  stub.** On inspection, `main` has no web2 auth surface at all yet — no
+  NextAuth, no `AuthButton`/`Connect`/`HeaderUtcWidget` components, no
+  `/api/auth` route. Building a second login button now would mean either
+  porting a meaningful slice of the Stage 3 auth/data-layer work early (out
+  of scope for "doesn't require the web2/web3 toggle"), or adding a
+  cosmetic button that doesn't actually do anything — which is exactly the
+  kind of half-finished feature this project's conventions warn against.
+  Recommend deferring the entire Header redesign to Stage 3, once real web2
+  auth exists to wire the second login path into.
 - AI opponent, Lobbies REST-based opponent-fleet-preview, and any other
   web2-only plumbing are explicitly **not** touched in this stage (AI
   opponent is eliminated outright; opponent-fleet-preview gets
