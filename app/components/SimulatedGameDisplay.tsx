@@ -3054,8 +3054,7 @@ export function SimulatedGameDisplay({
                               <p
                                 className="text-[11px] leading-relaxed whitespace-pre-line text-text-primary"
                                 style={{
-                                  fontFamily:
-                                    "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                  ...STYLE_MONO,
                                 }}
                               >
                                 {toMobileTouchCopy(tutorialGridPanelConfig.brief)}
@@ -3064,8 +3063,7 @@ export function SimulatedGameDisplay({
                               <div
                                 className="space-y-1 text-[11px] leading-relaxed text-text-primary"
                                 style={{
-                                  fontFamily:
-                                    "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                  ...STYLE_MONO,
                                 }}
                               >
                                 {mapNodeToMobileTouchCopy(tutorialGridPanelConfig.brief)}
@@ -3078,8 +3076,7 @@ export function SimulatedGameDisplay({
                                 <p
                                   className="text-[10px] uppercase tracking-wider text-cyan/90"
                                   style={{
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                    ...STYLE_MONO,
                                   }}
                                 >
                                   {mapNodeToMobileTouchCopy(
@@ -3089,8 +3086,7 @@ export function SimulatedGameDisplay({
                                 <ol
                                   className="list-decimal list-outside pl-4 space-y-0.5 text-[11px] leading-snug text-text-primary"
                                   style={{
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                    ...STYLE_MONO,
                                   }}
                                 >
                                   {tutorialGridPanelConfig.tasks.map((task, idx) => {
@@ -3111,8 +3107,7 @@ export function SimulatedGameDisplay({
                                 <p
                                   className="text-[10px] uppercase tracking-wider text-cyan/95"
                                   style={{
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                    ...STYLE_MONO,
                                   }}
                                 >
                                   {tutorialGridPanelConfig.primaryCta.eyebrow}
@@ -3120,8 +3115,7 @@ export function SimulatedGameDisplay({
                                 <p
                                   className="text-sm font-bold uppercase tracking-wide text-white"
                                   style={{
-                                    fontFamily:
-                                      "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                    ...STYLE_LABEL,
                                   }}
                                 >
                                   {tutorialGridPanelConfig.primaryCta.headline}
@@ -3129,8 +3123,7 @@ export function SimulatedGameDisplay({
                                 <div
                                   className="text-[11px] leading-relaxed text-text-primary"
                                   style={{
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                    ...STYLE_MONO,
                                   }}
                                 >
                                   {tutorialGridPanelConfig.primaryCta.supporting}
@@ -3854,8 +3847,7 @@ export function SimulatedGameDisplay({
                   onClick={onBack}
                   className="flex min-h-0 w-full items-center justify-center px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
                   style={{
-                    fontFamily:
-                      "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-gunmetal)",
                     color: "var(--color-text-secondary)",
                     backgroundColor: "var(--color-steel)",
@@ -3898,8 +3890,7 @@ export function SimulatedGameDisplay({
                   <div
                     className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
                     style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       color: "var(--color-text-secondary)",
                     }}
                   >
@@ -3916,8 +3907,7 @@ export function SimulatedGameDisplay({
                     <span
                       className="font-mono"
                       style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        ...STYLE_MONO,
                         color: isMyTurn
                           ? "var(--color-cyan)"
                           : "var(--color-warning-red)",
@@ -4027,8 +4017,7 @@ export function SimulatedGameDisplay({
                           : ""
                       }`}
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: "var(--color-phosphor-green)",
                         borderTopColor: "var(--color-phosphor-green)",
                         borderLeftColor: "var(--color-phosphor-green)",
@@ -4047,8 +4036,7 @@ export function SimulatedGameDisplay({
                     onClick={handleCancelMove}
                     className="min-w-0 flex-[1] px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
                     style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor: "var(--color-gunmetal)",
                       borderTopColor: "var(--color-steel)",
                       borderLeftColor: "var(--color-steel)",
@@ -4137,8 +4125,7 @@ export function SimulatedGameDisplay({
                                 }}
                                 className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
                                 style={{
-                                  fontFamily:
-                                    "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                  ...STYLE_MONO,
                                   borderRadius: 0,
                                   backgroundColor: "var(--color-slate)",
                                   color: "var(--color-text-primary)",
@@ -4183,8 +4170,7 @@ export function SimulatedGameDisplay({
                           <div
                             className="shrink-0 text-xs mb-2 uppercase tracking-wide"
                             style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              ...STYLE_MONO,
                               color: "var(--color-text-secondary)",
                             }}
                           >
@@ -4210,8 +4196,7 @@ export function SimulatedGameDisplay({
                                 ? "var(--color-cyan)"
                                 : "var(--color-warning-red)";
                               const targetButtonStyle: React.CSSProperties = {
-                                fontFamily:
-                                  "var(--font-rajdhani), 'Arial Black', sans-serif",
+                                ...STYLE_LABEL,
                                 borderColor: isSelectedTarget
                                   ? accentColor
                                   : "var(--color-gunmetal)",
@@ -4292,8 +4277,7 @@ export function SimulatedGameDisplay({
                     }}
                     className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
                     style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor:
                         actionOverride === ActionType.Retreat
                           ? "var(--color-warning-red)"
@@ -4600,8 +4584,7 @@ export function SimulatedGameDisplay({
                       onClick={() => setIsLastMovePanelMinimized(false)}
                       className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: "var(--color-purple)",
                         color: "var(--color-purple)",
                         backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
@@ -4616,8 +4599,7 @@ export function SimulatedGameDisplay({
                         <span
                           className="text-xs uppercase tracking-wider"
                           style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                             color: "var(--color-purple)",
                           }}
                         >
@@ -4628,8 +4610,7 @@ export function SimulatedGameDisplay({
                           onClick={() => setIsLastMovePanelMinimized(true)}
                           className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
                           style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                             borderColor: "var(--color-purple)",
                             color: "var(--color-purple)",
                             backgroundColor: "var(--color-near-black)",

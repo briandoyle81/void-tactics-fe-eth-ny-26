@@ -1962,8 +1962,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             const computedCol = computedMoveCoords.col;
 
             const submitMoveButtonStyle: React.CSSProperties = {
-              fontFamily:
-                "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor: "var(--color-phosphor-green)",
               borderTopColor: "var(--color-phosphor-green)",
               borderLeftColor: "var(--color-phosphor-green)",
@@ -2139,8 +2138,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             style={
               isRail
                 ? {
-                    fontFamily:
-                      "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-gunmetal)",
                     borderTopColor: "var(--color-steel)",
                     borderLeftColor: "var(--color-steel)",
@@ -2151,8 +2149,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     borderRadius: 0,
                   }
                 : {
-                    fontFamily:
-                      "var(--font-rajdhani), 'Arial Black', sans-serif",
+                    ...STYLE_LABEL,
                     borderColor: "var(--color-gunmetal)",
                     borderTopColor: "var(--color-steel)",
                     borderLeftColor: "var(--color-steel)",
@@ -2475,8 +2472,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   }}
                   className="w-full px-3 py-1.5 text-sm uppercase font-semibold tracking-wider"
                   style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
+                    ...STYLE_MONO,
                     borderRadius: 0,
                     backgroundColor: "var(--color-slate)",
                     color: "var(--color-text-primary)",
@@ -2519,8 +2515,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div
                 className="shrink-0 text-xs mb-2 uppercase tracking-wide"
                 style={{
-                  fontFamily:
-                    "var(--font-jetbrains-mono), 'Courier New', monospace",
+                  ...STYLE_MONO,
                   color: "var(--color-text-secondary)",
                 }}
               >
@@ -2543,8 +2538,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       onClick={() => setTargetShipId(target.shipId)}
                       className={proposedMoveTargetBtnClass}
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: isSelectedTarget
                           ? accentColor
                           : "var(--color-gunmetal)",
@@ -2593,8 +2587,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             }}
             className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
-              fontFamily:
-                "var(--font-rajdhani), 'Arial Black', sans-serif",
+              ...STYLE_LABEL,
               borderColor:
                 actionOverride === ActionType.Retreat
                   ? "var(--color-warning-red)"
@@ -3436,8 +3429,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <span
                       className="uppercase font-bold tracking-wider"
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         color:
                           game.metadata.winner === address
                             ? "var(--color-phosphor-green)"
@@ -3564,8 +3556,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         <div
                           className="inline-block"
                           style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                             borderColor: "var(--color-amber)",
                             color: "var(--color-amber)",
                             backgroundColor: "var(--color-steel)",
@@ -3644,8 +3635,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <div
                       className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         color: "var(--color-text-secondary)",
                       }}
                     >
@@ -3664,8 +3654,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       <span
                         className="font-mono"
                         style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                          ...STYLE_MONO,
                           color: isMyTurnEffective
                             ? "var(--color-cyan)"
                             : "var(--color-warning-red)",
@@ -3973,7 +3962,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 ]}
                 className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
                 style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+                  ...STYLE_LABEL,
                   color: "var(--color-phosphor-green)",
                   backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
                   borderRight: "1px solid var(--color-gunmetal)",
@@ -4128,8 +4117,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       onClick={() => setIsDebugPanelMinimized(false)}
                       className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
                       style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
+                        ...STYLE_LABEL,
                         borderColor: "var(--color-cyan)",
                         color: "var(--color-cyan)",
                         backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
@@ -4144,8 +4132,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         <span
                           className="text-xs uppercase tracking-wider"
                           style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                             color: "var(--color-cyan)",
                           }}
                         >
@@ -4156,8 +4143,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           onClick={() => setIsDebugPanelMinimized(true)}
                           className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
                           style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            ...STYLE_LABEL,
                             borderColor: "var(--color-cyan)",
                             color: "var(--color-cyan)",
                             backgroundColor: "var(--color-near-black)",
@@ -4225,8 +4211,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 }}
                             className="border-2 border-solid px-2 py-1 text-xs font-semibold uppercase tracking-wider transition-colors duration-150"
                 style={{
-                              fontFamily:
-                                "var(--font-rajdhani), 'Arial Black', sans-serif",
+                              ...STYLE_LABEL,
                   borderColor: "var(--color-cyan)",
                   color: "var(--color-cyan)",
                   backgroundColor: "var(--color-steel)",
@@ -4254,8 +4239,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 }}
                             className="border-2 border-solid px-2 py-1 text-xs font-semibold uppercase tracking-wider transition-colors duration-150"
                 style={{
-                              fontFamily:
-                                "var(--font-rajdhani), 'Arial Black', sans-serif",
+                              ...STYLE_LABEL,
                   borderColor: "var(--color-phosphor-green)",
                   color: "var(--color-phosphor-green)",
                   backgroundColor: "var(--color-steel)",
@@ -4287,8 +4271,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     onClick={() => setIsLastMovePanelMinimized(false)}
                     className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
                     style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
+                      ...STYLE_LABEL,
                       borderColor: "var(--color-purple)",
                       color: "var(--color-purple)",
                       backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
@@ -4303,8 +4286,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       <span
                         className="text-xs uppercase tracking-wider"
                         style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          ...STYLE_LABEL,
                           color: "var(--color-purple)",
                         }}
                       >
@@ -4315,8 +4297,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         onClick={() => setIsLastMovePanelMinimized(true)}
                         className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
                         style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          ...STYLE_LABEL,
                           borderColor: "var(--color-purple)",
                           color: "var(--color-purple)",
                           backgroundColor: "var(--color-near-black)",

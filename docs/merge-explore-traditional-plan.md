@@ -68,41 +68,48 @@ branches, independent of the backend swap. Grouped by whether they're safe
 `port-improvements-to-master.md` already has line-by-line instructions for
 each (its Tier A/B/C plan).
 
-### Needs a product decision before porting
+### Product decisions — resolved
 
-1. **AI opponent** ("PLAY vs AI" in `Lobbies.tsx` + `/api/lobbies/vs-ai`).
-   The decision logic itself (`aiDispatch.ts`, `aiEvaluate.ts`,
-   `aiGreedy.ts`, `aiIterativeDeepening.ts`, `aiMinimax.ts`) is pure/portable
-   with zero web3 dependency. The lobby-creation plumbing is web2-only
-   (REST route) — a web3 version would need either a client-side "vs AI"
-   mode that skips the lobby contract, or a new contract flow.
-   → **Do you want AI opponents in the web3 version, and if so, contract
-   changes or client-only?**
-2. **Ship-selection pagination** (`ManageNavy.tsx`): `shipPage` state,
-   `SHIPS_PER_PAGE = 100`, "Showing X–Y of Z" with prev/next controls. Pure
-   frontend, no backend dependency.
-   → **Port as-is to both versions?** (Recommend yes — straightforward.)
-3. **Relaxed ship recycling** (`ManageNavy.tsx`): `canRecycle` changed from a
-   contract-gated check (`amountPurchased >= 10`) to always `true`, plus
-   support for recycling multiple selected ships in one action. The
-   multi-select UX is portable; the gating relaxation is a rules change that
-   main's contract currently enforces via `recycleReward`/`amountPurchased`.
-   → **Keep the 10-purchase minimum on web3, or relax the contract too?**
-4. **Draw/tie game outcomes** (`Games.tsx`): UI is built (`TIE_ADDRESS`
-   sentinel, purple "DRAW" styling) but depends on the on-chain
-   `GameContract` actually emitting a draw winner value.
-   → **Does main's deployed contract support draw outcomes today?** If not,
-   this is blocked on a contract change, not just a frontend port.
-5. **`Lobbies.tsx` opponent-fleet-preview**: reworked around REST fetches on
-   explore-traditional — pure web2 plumbing, not a UI decision, just needs
-   re-implementing against contract reads for the web3 path.
-6. **`Header.tsx`**: RainbowKit wallet button replaced with
-   `AuthButton.tsx`/`Connect.tsx` + new `HeaderUtcWidget.tsx` on web2. For a
-   combined app, the header likely needs to conditionally render
-   wallet-connect vs. auth-button + currency widget based on mode.
-7. **`Info.tsx`**: only a 69-line diff — likely a minor copy/layout tweak
-   despite a commit message mentioning "info page"; worth a quick visual
-   diff rather than a real decision point.
+1. **AI opponent: eliminated.** Do not port "PLAY vs AI" in `Lobbies.tsx`,
+   `/api/lobbies/vs-ai`, or the AI utility files (`aiDispatch.ts`,
+   `aiEvaluate.ts`, `aiGreedy.ts`, `aiIterativeDeepening.ts`,
+   `aiMinimax.ts`). This feature is dropped from the merged app entirely —
+   not carried forward into either mode, not left as a later decision point.
+2. **Ship-selection pagination: port, frontend-only.** `ManageNavy.tsx`'s
+   `shipPage` state, `SHIPS_PER_PAGE = 100`, and "Showing X–Y of Z"
+   prev/next controls port to both modes as pure frontend — no backend
+   involvement, confirmed straightforward.
+3. **Ship recycling: web3 keeps the 10-purchase minimum.** `canRecycle`
+   stays gated on `amountPurchased >= 10` on the web3 path — main's contract
+   enforcement is not relaxed. The **multi-select batch recycle UX** (select
+   several ships, recycle them in one action) is separable from the gating
+   rule and still ports on top of the existing gate check.
+4. **Draw/tie game outcomes: proceed, contract update assumed.** Port the
+   `Games.tsx` tie UI (`TIE_ADDRESS` sentinel, purple "DRAW" styling) on the
+   assumption that main's on-chain `GameContract` will be updated separately
+   to support/emit a draw winner value. The frontend work isn't blocked on
+   that update landing first, but the feature won't function in production
+   until it does — track the contract change as a dependency, not a
+   blocker for this porting work.
+5. **Tournament & Flow-payment: web3-only, for now.** Both stay hidden
+   entirely in web2 mode; no web2 equivalent is being built at this stage
+   (see the "What must stay web3-only" section below).
+6. **`Header.tsx`: needs a real mode-aware redesign, not a straight swap.**
+   When the user isn't logged in via either method, the header must offer
+   **both** login paths — wallet connect (web3) and the auth button
+   (web2) — rather than picking one. Once the user logs in through either
+   path, the header toggles to show only the widget appropriate to that
+   mode (wallet address/chain UI for web3; `AuthButton`/`HeaderUtcWidget`
+   for web2). This is real design/build work, not a file-for-file port.
+
+### Still to check (minor, not a real decision point)
+
+- **`Lobbies.tsx` opponent-fleet-preview**: reworked around REST fetches on
+  explore-traditional — pure web2 plumbing, no UI decision needed, just
+  needs re-implementing against contract reads for the web3 path.
+- **`Info.tsx`**: only a 69-line diff — likely a minor copy/layout tweak
+  despite a commit message mentioning "info page"; worth a quick visual
+  diff rather than a real decision point.
 
 ### Not net-new (already exists on main)
 
@@ -122,43 +129,92 @@ gutted `useShipAttributesContract.ts`/other `use*Contract*.ts` stubs,
 were deleted on web2 but are required on web3), `next-auth.d.ts`, and
 everything under `app/api/`, `app/lib/`, `prisma/`.
 
-Also dropped entirely on web2 and needing an explicit decision: the
-**tournament system** and **Flow-payment flow**. If the combined app is
-meant to support both modes, these either need to (a) stay web3-only
-(hidden/disabled in web2 mode), or (b) get a web2 equivalent built — this
-wasn't attempted on `explore-traditional` at all.
+Also dropped entirely on web2: the **tournament system** and
+**Flow-payment flow**. **Resolved**: both render web3-only for now — hidden
+entirely when the app is in web2 mode. No web2 equivalent is in scope at
+this stage; revisit later if web2 needs its own tournament/payment story.
 
-## Proposed integration approach
+## Proposed integration approach — staged (resolved)
 
-Rather than merging the branches, treat this as three separate tracks:
+Confirmed: this is a staged effort, not one big merge. Three stages, each
+shippable on its own:
 
-1. **Cherry-pick the "safe to port" UI/perf improvements** listed above onto
-   `main` directly, following the Tier A/B/C recipe already written in
-   `docs/port-improvements-to-master.md` (it gives exact files and even
-   specific commits to cherry-pick, e.g. `42ae37a` for the overload damage
-   fix, `434aaad` for `TutorialGridPanelConfigs.tsx`).
-2. **Resolve the product decisions above** (AI opponent scope, recycle
-   gating, draw outcomes, header mode-switching) before touching those files.
-3. **Build a data-layer abstraction** so a single codebase can run in web3
-   mode (contracts) or web2 mode (API routes) behind a runtime toggle —
-   this is the actual "combine main and explore-traditional" work, and it's
-   a substantial new effort, not a diff-reconciliation. Realistically this
-   means introducing an interface (e.g. a `GameDataProvider`) that both the
-   existing `use*Contract.ts` hooks and new REST-backed hooks implement, and
-   swapping the implementation based on a mode flag (similar in spirit to
-   the existing chain-selection-via-localStorage pattern in
-   `app/config/networks.ts`).
+**Stage 1 — Safe UI/perf cherry-picks (no decisions, no data-layer work).
+DONE.**
 
-## Open questions for you to confirm
+Before porting anything, verified current `main` against every Tier A/B/C
+item in `docs/port-improvements-to-master.md`. Turned out **nearly all of
+it was already on `main`** — the branch-diff research earlier in this plan
+compared against a stale reference point; `main` had independently picked up
+most of this refactor already (the hooks, `gameGridRanges.ts` functions,
+`GameGridTooltip`/`GameGridConfirmWidget` extraction, the overload damage
+fix, the RAF-throttled pan handler, the `React.memo`/`mountedRef`/timing-
+constant work on all 10 weapon-animation files, the tutorial/live
+`retreatPrepShipId` parity fix, and the CSS/tutorial-copy patches were all
+confirmed present and correct). AI utility files (`aiDispatch.ts` etc.) were
+never brought over, consistent with the AI-opponent-eliminated decision.
 
-1. Do you want the AI opponent feature in the web3 version? Client-only or
-   contract-backed?
-2. Should web3 keep the 10-purchase recycle minimum, or relax it to match
-   web2?
-3. Does main's `GameContract` support draw/tie outcomes today? If not, is
-   that in scope for this effort?
-4. Should tournaments and Flow-payments be web3-only (hidden in web2 mode),
-   or do they need web2 equivalents eventually?
-5. Given the scale of the data-layer work (item 3 above), do you want this
-   staged — e.g. ship the safe UI/perf cherry-picks first as a quick win,
-   then tackle the web2/web3 toggle as a separate, larger effort?
+The one real gap found: `GameDisplay.tsx` and `SimulatedGameDisplay.tsx`
+still had leftover inline `fontFamily: "var(--font-rajdhani)…"` /
+`"var(--font-jetbrains-mono)…"` strings that hadn't been converted to the
+shared `STYLE_LABEL`/`STYLE_MONO` constants (21 and 19 occurrences
+respectively). Bulk-replaced all of them (one line in `GameDisplay.tsx` left
+alone — a `"var(--font-rajdhani), sans-serif"` variant missing the `'Arial
+Black'` fallback, which isn't an exact match for `STYLE_LABEL` and wasn't
+part of the documented pattern). Verified with `tsc --noEmit`, `eslint`, and
+`npm run build` — all clean.
+
+**Not done as part of this stage:** a manual dev-server smoke test (open a
+game, verify weapons fire, tooltip shows, confirm widget works, pan gesture
+is smooth). Recommend doing this before calling Stage 1 fully closed.
+
+**Stage 2 — Decided feature ports that don't require the web2/web3 toggle.**
+- Ship-selection pagination (`ManageNavy.tsx`) — frontend-only, straightforward.
+- Multi-select batch recycle UX (`ManageNavy.tsx`) — port the batch-select
+  UI, keep the existing 10-purchase (`amountPurchased >= 10`) gate intact.
+- Tie/draw UI (`Games.tsx`) — wire up `TIE_ADDRESS`/"DRAW" styling now;
+  functionally inert until the separate `GameContract` update (assumed, see
+  above) ships and actually emits draw outcomes.
+- Header dual-login shell — build the "show both wallet-connect and
+  auth-button when logged out" UI now. The "toggle to the appropriate
+  widget once logged in" half depends on the app knowing its current
+  mode, so full behavior lands with Stage 3 once a mode flag exists (see
+  below); until then this can hide behind whichever mode is active by
+  default.
+- AI opponent, Lobbies REST-based opponent-fleet-preview, and any other
+  web2-only plumbing are explicitly **not** touched in this stage (AI
+  opponent is eliminated outright; opponent-fleet-preview gets
+  re-implemented against contract reads only if/when web2 mode is actually
+  built in Stage 3).
+
+**Stage 3 — Data-layer abstraction (the actual "combine main and
+explore-traditional" work).** Build the mode toggle so a single codebase can
+run in web3 mode (contracts) or web2 mode (API routes) behind a runtime
+flag. This is a substantial new effort, not a diff-reconciliation.
+Realistically this means introducing an interface (e.g. a
+`GameDataProvider`) that both the existing `use*Contract.ts` hooks and new
+REST-backed hooks implement, swapping the implementation based on a mode
+flag (similar in spirit to the existing chain-selection-via-localStorage
+pattern in `app/config/networks.ts`). Tournament and Flow-payment components
+render only when the mode flag is web3 (per the resolved decision above);
+the Header's login-toggle behavior becomes fully functional once this flag
+exists.
+
+## Resolved
+
+All prior open questions are settled:
+
+1. AI opponent — eliminated, not ported to either mode.
+2. Ship-selection pagination — ported to both, frontend-only.
+3. Ship recycling — web3 keeps the 10-purchase minimum; batch-recycle UX
+   ports on top of that gate.
+4. Draw/tie outcomes — ported on the assumption of a separate `GameContract`
+   update; tracked as a dependency, not a blocker for frontend work.
+5. Tournaments & Flow-payments — web3-only for now, hidden in web2 mode.
+6. Header — needs both login paths when logged out, toggles to the
+   appropriate one once logged in (full toggle behavior lands with Stage 3).
+7. Staged effort confirmed — see the three stages above.
+
+Remaining non-decision items to double check when their stage comes up:
+`Lobbies.tsx` opponent-fleet-preview re-implementation, and a quick visual
+diff of `Info.tsx`.
