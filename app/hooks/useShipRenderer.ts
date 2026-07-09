@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Ship } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
+import { toShipVisual } from "../utils/toShipVisual";
 import {
   getCachedShipData,
   cacheShipData,
@@ -177,7 +178,7 @@ export function useShipRenderer(ship: Ship): ShipImageState {
     setImageState({ dataUrl: null, isLoading: true, error: null });
 
     try {
-      const dataUrl = renderShip(currentShip);
+      const dataUrl = renderShip(toShipVisual(currentShip));
 
       if (!dataUrl || typeof dataUrl !== "string") {
         throw new Error(`renderShip returned invalid result: ${dataUrl}`);

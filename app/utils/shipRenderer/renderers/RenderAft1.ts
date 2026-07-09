@@ -3,7 +3,7 @@
  * Ported from RenderAft1.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<g id="Image_4_Image"><path d="M227 108h-1v1h1v-1Zm-7 0h-1v1h1v-1Zm-16 0h-2l-1 1h5l-2-1Zm-8 0h-2l-1 1h3v-1Zm-9 0h-1v1h1v-1Zm-3 0-1-1-1 1v1h2v-1Zm-7 0h-1v1h1v-1Zm2 9h-1v1h1v-1Zm7 40h-1v1h1v-1Zm-14 21-1-1-2 1v-2h-3l-3-4-3-3v-2h-7v-11l7-7v-7l-3-2v-9l3-3 3-2v-8h5v-12h2v-4h5v-2h5l-2-2 1-1 1-1h5l1 4h3l1-4h9l2 1 1 2v2h2l1-4h5l1 3 1 2h16l3 3 2 4v4h9l4 1 4 2 1 2 1 2v9l-2 2-1 2h-5v3h5l3 2v9l-2 5-6 1v3h5l3 2v6l-1 6-1 1-1 2h-6l-1 2h-10v-3l-1 2-1 1-3 1-4 1h-15l-2 3h-5l-3-3v3h-5l-3-3-1 2v1h-5l-3-3-2 3h-6l-1-2Z" style="fill:`;
@@ -30,7 +30,7 @@ const COLOR_5 = "hsl(223, 6%, 24%)";
 const COLOR_6 = "hsl(213, 10%, 18%)";
 const COLOR_7 = "hsl(225, 17%, 9%)";
 
-export function renderAft1(ship: Ship): string {
+export function renderAft1(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

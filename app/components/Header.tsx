@@ -32,6 +32,9 @@ import {
 import { switchWalletToAppChain } from "../utils/switchWalletChain";
 import { readRpcErrorCode } from "../utils/ensureUiChainsInWallet";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { setAppMode } from "../config/appMode";
+import AuthSignIn from "./AuthSignIn";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
 
@@ -546,15 +549,27 @@ const Header: React.FC = () => {
   }, []);
 
   const isConnected = account.isConnected;
+  const { isLoggedIn: isWeb2LoggedIn } = useCurrentUser();
 
-  const showMobileWalletMenu =
-    isHydrated && (isConnecting || isConnected);
+  // The hamburger/expanded panel is always reachable once hydrated so a
+  // logged-out player can still find the web2 sign-in option on mobile.
+  const showMobileWalletMenu = isHydrated;
 
   useEffect(() => {
-    if (!isConnected && !isConnecting) {
+    if (!isConnected && !isConnecting && !isWeb2LoggedIn) {
       setIsMobileMenuOpen(false);
     }
-  }, [isConnected, isConnecting]);
+  }, [isConnected, isConnecting, isWeb2LoggedIn]);
+
+  // The login method the player actually used is the mode signal — keep the
+  // app-mode toggle in sync so the rest of the app renders the right data layer.
+  useEffect(() => {
+    if (isConnected) {
+      setAppMode("web3");
+    } else if (isWeb2LoggedIn) {
+      setAppMode("web2");
+    }
+  }, [isConnected, isWeb2LoggedIn]);
 
   const renderMobileTrailingSlot = () => {
     const assignMenuRef = (el: HTMLElement | null) => {
@@ -570,14 +585,10 @@ const Header: React.FC = () => {
         />
       );
     }
-    if (!isConnected && !isConnecting) {
-      return (
-        <div ref={assignMenuRef} className="shrink-0">
-          <HeaderDisconnectedConnect connectButtonClassName="px-3 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 text-xs" />
-        </div>
-      );
-    }
-    return (
+
+    // The hamburger always opens the expanded panel below (which shows the
+    // right widget for whichever mode is active — see the desktop panel).
+    const hamburger = (
       <button
         ref={assignMenuRef}
         type="button"
@@ -614,6 +625,16 @@ const Header: React.FC = () => {
         </span>
       </button>
     );
+
+    if (!isConnected && !isConnecting && !isWeb2LoggedIn) {
+      return (
+        <div className="flex shrink-0 items-center gap-2">
+          <HeaderDisconnectedConnect connectButtonClassName="px-3 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 text-xs" />
+          {hamburger}
+        </div>
+      );
+    }
+    return hamburger;
   };
 
   return (
@@ -672,9 +693,19 @@ const Header: React.FC = () => {
                 </div>
               )}
 
-              {!isConnected && !isConnecting && (
-                <div className="hidden md:flex items-center md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+              {!isConnected && !isConnecting && !isWeb2LoggedIn && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
                   <HeaderDisconnectedConnect connectButtonClassName="px-6 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-auto" />
+                  <span className="text-center text-xs font-mono text-text-muted uppercase tracking-wider">
+                    or
+                  </span>
+                  <AuthSignIn />
+                </div>
+              )}
+
+              {!isConnected && !isConnecting && isWeb2LoggedIn && (
+                <div className="flex items-center md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+                  <AuthSignIn />
                 </div>
               )}
 

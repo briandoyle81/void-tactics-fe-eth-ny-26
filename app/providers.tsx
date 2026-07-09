@@ -6,6 +6,7 @@ import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
+import { SessionProvider } from "next-auth/react";
 import { TransactionProvider } from "./providers/TransactionContext";
 import { type ReactNode, useEffect, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -61,14 +62,16 @@ const AppContent = memo(function AppContent({ children }: { children: ReactNode 
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <DynamicWagmiConnector>
-            <AppContent>{children}</AppContent>
-          </DynamicWagmiConnector>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </DynamicContextProvider>
+    <SessionProvider>
+      <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
+        <WagmiProvider config={wagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <DynamicWagmiConnector>
+              <AppContent>{children}</AppContent>
+            </DynamicWagmiConnector>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </DynamicContextProvider>
+    </SessionProvider>
   );
 }

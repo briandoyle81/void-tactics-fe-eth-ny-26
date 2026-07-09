@@ -3,7 +3,7 @@
  * Ported from ImageRenderer.sol
  */
 
-import { Ship } from "../../types/types";
+import { ShipVisual } from "../../types/shipVisual";
 import { renderSpecial } from "./renderers/RenderSpecial";
 import { renderAft } from "./renderers/RenderAft";
 import { renderWeapon } from "./renderers/RenderWeapon";
@@ -26,10 +26,10 @@ const SVG_END = "</svg>";
  * @param ship The ship to render
  * @returns Data URI string (data:image/svg+xml;base64,...)
  */
-export function renderShip(ship: Ship): string {
+export function renderShip(ship: ShipVisual): string {
   try {
     // Return appropriate image URI based on ship state
-    if (ship.shipData.timestampDestroyed > BigInt(0)) {
+    if (ship.shipData.timestampDestroyed > 0) {
       return DESTROYED_IMAGE;
     } else if (!ship.shipData.constructed) {
       return UNCONSTRUCTED_IMAGE;

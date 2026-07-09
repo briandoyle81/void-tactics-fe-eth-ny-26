@@ -14,7 +14,9 @@ import AlphaDiscordNoticeBar from "./components/AlphaDiscordNoticeBar";
 import FlowWalletNoticeBar from "./components/FlowWalletNoticeBar";
 import SiteFooter from "./components/SiteFooter";
 import ManageNavy from "./components/ManageNavy";
+import ManageNavyWeb2 from "./components/ManageNavyWeb2";
 import Lobbies from "./components/Lobbies";
+import LobbiesWeb2 from "./components/LobbiesWeb2";
 import Games from "./components/Games";
 import Profile from "./components/Profile";
 import Info from "./components/Info";
@@ -29,6 +31,7 @@ import { useOwnedShips } from "./hooks/useOwnedShips";
 import { usePlayerGames } from "./hooks/usePlayerGames";
 import { TUTORIAL_STEP_STORAGE_KEY } from "./types/onboarding";
 import { MAP_ADMIN_ADDRESS } from "./config/alpha";
+import { useAppMode } from "./hooks/useAppMode";
 import posthog from "posthog-js";
 
 /** Tabs we may persist; includes owner-only names so refresh works before contract reads resolve. */
@@ -51,6 +54,7 @@ export default function Home() {
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const { ships, isLoading: shipsLoading } = useOwnedShips();
   const { games: playerGames, isLoading: gamesLoading } = usePlayerGames();
+  const appMode = useAppMode();
 
   // Initialize with default tab to prevent hydration mismatch
   const [activeTab, setActiveTab] = useState("Info");
@@ -588,8 +592,10 @@ export default function Home() {
                   : "var(--color-steel)",
               }}
             >
-              {activeTab === "Manage Navy" && <ManageNavy />}
-              {activeTab === "Lobbies" && <Lobbies />}
+              {activeTab === "Manage Navy" &&
+                (appMode === "web2" ? <ManageNavyWeb2 /> : <ManageNavy />)}
+              {activeTab === "Lobbies" &&
+                (appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />)}
               {activeTab === "Profile" && <Profile />}
               {activeTab === "Info" && <Info />}
               {activeTab === "Ship Attributes" && <ShipAttributes />}

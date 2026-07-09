@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Ship } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
+import { toShipVisual } from "../utils/toShipVisual";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useAccount, useReadContract } from "wagmi";
 import { TransactionButton } from "./TransactionButton";
@@ -165,7 +166,7 @@ const ShipConstructor: React.FC = () => {
   // Render the ship using local renderer
   const shipImageDataUrl = useMemo(() => {
     try {
-      return renderShip(mockShip);
+      return renderShip(toShipVisual(mockShip));
     } catch (error) {
       console.error("Error rendering ship:", error);
       return null;

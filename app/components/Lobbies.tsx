@@ -42,6 +42,7 @@ import { LobbyRejectButton } from "./LobbyRejectButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { calculateShipRank, getRankColor } from "../utils/shipLevel";
+import { toShipVisual } from "../utils/toShipVisual";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { MapDisplay } from "./MapDisplay";
 import { usePlayerGames } from "../hooks/usePlayerGames";
@@ -4123,10 +4124,10 @@ const Lobbies: React.FC = () => {
                             {shipData.shipData?.constructed && (
                               <span
                                 className={`text-xs px-2 py-1 rounded-none border ${getRankColor(
-                                  calculateShipRank(shipData).rank,
+                                  calculateShipRank(toShipVisual(shipData)).rank,
                                 )}`}
                               >
-                                R{calculateShipRank(shipData).rank}
+                                R{calculateShipRank(toShipVisual(shipData)).rank}
                               </span>
                             )}
                           </div>

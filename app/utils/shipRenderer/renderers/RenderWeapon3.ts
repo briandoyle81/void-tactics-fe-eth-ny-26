@@ -3,7 +3,7 @@
  * Ported from RenderWeapon3.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<polygon points="133.24 101.75 133.66 100.5 136.49 100 139.32 99.5 140.11 97.16 134.3 96.45 128.49 95.75 122.68 93.18 116.87 90.6 120.68 88.64 124.49 86.67 120.68 84.98 116.86 83.28 121.68 81 126.49 78.72 134.99 77.74 134.99 76 138.99 76 138.99 78.18 149.53 77.84 160.07 77.51 161.76 80.24 162.72 78.53 163.67 76.82 168.47 77.5 168.84 79.5 169.22 81.5 170.6 82.3 171.99 83.1 171.99 91.06 170.59 91.6 169.19 92.14 168.68 94.07 168.18 96 163.71 96 161.05 92.5 161.02 94.25 160.99 96 152.99 96 152.99 97.75 155.99 100.25 155.99 103 132.82 103 133.24 101.75" style="fill:`;
@@ -42,7 +42,7 @@ const COLOR_9 = "hsl(223, 10%, 13%)";
 const COLOR_10 = "hsl(225, 17%, 9%)";
 const COLOR_11 = "hsl(228, 20%, 6%)";
 
-export function renderWeapon3(ship: Ship): string {
+export function renderWeapon3(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

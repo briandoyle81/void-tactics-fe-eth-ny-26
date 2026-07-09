@@ -10,6 +10,7 @@ import {
   getShieldName,
 } from "../types/types";
 import { getRankProgressInfo, getRankColor } from "../utils/shipLevel";
+import { toShipVisual } from "../utils/toShipVisual";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { Attributes } from "../types/types";
 
@@ -300,7 +301,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
   };
 
   const borderStyle = getIndustrialBorderStyle();
-  const rankInfo = getRankProgressInfo(ship);
+  const rankInfo = getRankProgressInfo(toShipVisual(ship));
   const rankTooltipLines =
     rankInfo.nextRank == null
       ? [`Kills: ${rankInfo.shipsDestroyed}`, "Max rank reached"]

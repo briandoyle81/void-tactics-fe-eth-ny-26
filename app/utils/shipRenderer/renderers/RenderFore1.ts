@@ -3,7 +3,7 @@
  * Ported from RenderFore1.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M50 119v-1h-1v1h1Zm-19 0v-1h-1v1h1Zm26 1v-1h-1v1h1Zm4 1v-1h-1v1h1Zm-48-1-1-1v3l1-1v-1Zm16 2v-1h-1v1h1Zm46 2-1-1-1 1h2Zm-25 3h-3l-6 1h13l-4-1Zm-10 1v-1h-1v1h1Zm-4 1v-1h-1v1h1Zm14 1v-1h-1v1h1Zm-7 0-1-1-1 1h2Zm-5 0v-1h-1v1h1Zm35 1v-1h-1v1h1Zm-36 32-4-4h-3l-2-2-2-2-7-1-7-1-1-7-2-2-1-2v-8l-4-5v-8l4-3 4-4h8l8 1 2-3 3-2h13l8-9h17l2 2 2 2 1 2 1 3h10v11l-2 1v32l-2 1-2 2v3l-4 3h-3l-1 2-1 2H40l-4-4Z" style="fill:`;
@@ -42,7 +42,7 @@ const COLOR_9 = "hsl(223, 10%, 13%)";
 const COLOR_10 = "hsl(224, 12%, 14%)";
 const COLOR_11 = "hsl(225, 17%, 9%)";
 
-export function renderFore1(ship: Ship): string {
+export function renderFore1(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

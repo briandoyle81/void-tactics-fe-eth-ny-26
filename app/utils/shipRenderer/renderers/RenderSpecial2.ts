@@ -3,7 +3,7 @@
  * Ported from RenderSpecial2.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="m49 52-2-3 2-5 3-1 2-1v-7h-3l-3-1v-5h3v2l1 2 2-3 3-2-3-2 2-3h2l2 4h6l4 3 2-1v-4h2l1 3-2 3-1 2-1 3v3l2 2 3 2-2 4-2 3h-1v-1l1-2 1-3-2-3-3 1v8l-1 2-1 2h-2v-1l1-1 1-1-1-3-1-3-2-1v3h-2l-3-4-1 2-2 1v1l1 2 1 1h1-3l-2-3-2 2v2l1 1h2l-1 1v1h-2l-1-2Zm42 11v-3l1-2-3 1-3 1 1 2v2l-1-1-1-2v-2l1-2h2l2-1v-2h-4l-1-1-1-1v-4h2l1 4h1l5-4h3l-1-2v-3h3v5h2l1-4h3l-1 5-1 2-1 1h3l2-1v4l-2-2-2 1-2 2 2 1 1 1 3 4-2 1-1 1h-1v-1l1-2-1-1-2-2h-1v2l1 1-1 2-2 1h-2l3-2v-2h-5v3l-1 2-1-2Zm-9 143v-1h1v1h-1Zm20 26v-1h2l1-5-2-2-1-2-6 3v3h-2v-6h-1l-2 1-2 1-2 1h-1v2l3 3-1 1h-1l-2-2-2-2v-2l1-2 2-2h1l1-1h4l-2-1-2-1v-2l1 1h2l-1-1v-1h-4l-1-1v-1h5v-6h1l2-1-1-2v-3h3v4h1l2-1h2l2-1 3 1 3 2v2l1-7h3v13l-3 2v1l1 1h4l1 3 2 2-2 3-1 3h-3v-2h2l-1-5-3-1-3-1-1 1 2 2 2 1-1 2v3l-2 2-2 2h-2v-1Z" style="fill:`;
@@ -30,7 +30,7 @@ const COLOR_5 = "hsl(27, 39%, 35%)";
 const COLOR_6 = "hsl(24, 57%, 27%)";
 const COLOR_7 = "hsl(20, 6%, 10%)";
 
-export function renderSpecial2(ship: Ship): string {
+export function renderSpecial2(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

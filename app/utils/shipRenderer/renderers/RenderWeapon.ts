@@ -3,7 +3,7 @@
  * Ported from RenderWeapon.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { renderWeapon1 } from "./RenderWeapon1";
 import { renderWeapon2 } from "./RenderWeapon2";
 import { renderWeapon3 } from "./RenderWeapon3";
@@ -18,7 +18,7 @@ const MainWeapon = {
   PlasmaCannon: 3,
 } as const;
 
-export function renderWeapon(ship: Ship): string {
+export function renderWeapon(ship: ShipVisual): string {
   if (ship.equipment.mainWeapon === MainWeapon.Laser) {
     return renderWeapon1(ship);
   } else if (ship.equipment.mainWeapon === MainWeapon.Railgun) {

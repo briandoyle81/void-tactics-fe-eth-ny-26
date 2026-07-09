@@ -1,11 +1,11 @@
-import { Ship } from "../../types/types";
+import { ShipVisual } from "../../types/shipVisual";
 
 export interface IRenderComponent {
-  render(ship: Ship): string;
+  render(ship: ShipVisual): string;
 }
 
 export interface IReturnSVG {
-  render(ship: Ship): string;
+  render(ship: ShipVisual): string;
 }
 
-export type ShipRendererInput = Ship;
+export type ShipRendererInput = ShipVisual;

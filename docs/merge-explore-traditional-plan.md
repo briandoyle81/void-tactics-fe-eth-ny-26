@@ -211,17 +211,295 @@ Partially done.**
   built in Stage 3).
 
 **Stage 3 — Data-layer abstraction (the actual "combine main and
-explore-traditional" work).** Build the mode toggle so a single codebase can
-run in web3 mode (contracts) or web2 mode (API routes) behind a runtime
-flag. This is a substantial new effort, not a diff-reconciliation.
+explore-traditional" work). In progress — multi-session effort, per your
+call to do this "one subsystem at a time, ongoing."**
+
 Realistically this means introducing an interface (e.g. a
 `GameDataProvider`) that both the existing `use*Contract.ts` hooks and new
 REST-backed hooks implement, swapping the implementation based on a mode
 flag (similar in spirit to the existing chain-selection-via-localStorage
 pattern in `app/config/networks.ts`). Tournament and Flow-payment components
-render only when the mode flag is web3 (per the resolved decision above);
-the Header's login-toggle behavior becomes fully functional once this flag
-exists.
+should render only when the mode flag is web3 (per the resolved decision
+above) — **not done yet**, still to wire up.
+
+### Subsystem 1 — Auth + mode toggle: DONE
+
+- **Dependencies**: added `@prisma/client`, `@prisma/adapter-pg`, `pg`,
+  `next-auth@4`, `clsx` (runtime) and `prisma`, `@types/pg`, `dotenv`, `tsx`
+  (dev), matching `explore-traditional`'s exact versions. Added
+  `db:generate`/`db:migrate`/`db:studio`/`db:seed`/`postinstall` scripts.
+- **Prisma**: copied `prisma/schema.prisma` (full schema — Users, Ships,
+  Fleets, Lobbies, Games, GameTurns, Maps, Config, PlayerStats) and all 11
+  migrations verbatim from `explore-traditional`, plus `prisma.config.ts` and
+  `app/lib/prisma.ts`. Ran `prisma generate` successfully.
+  - **Changed from source**: made the `prisma` client singleton in
+    `app/lib/prisma.ts` a lazy `Proxy` instead of eagerly constructing (and
+    throwing on missing `DATABASE_URL`) at module-import time. The original
+    eager version broke `npm run build` for the *entire app* — including
+    pages that never touch the DB — the moment any file imported anything
+    that transitively pulled in `prisma.ts` (e.g. the new NextAuth route).
+    Since this app must keep building and running in web3-only
+    configurations with no Neon DB configured, the client now only connects
+    (and only requires `DATABASE_URL`) on first actual use.
+- **NextAuth**: copied `app/lib/auth.ts` (Google OAuth provider config),
+  `app/api/auth/[...nextauth]/route.ts` (with the `signIn` callback that
+  upserts a `User` row), and `app/types/next-auth.d.ts` verbatim. Added
+  `SessionProvider` to `app/providers.tsx` alongside the existing
+  wagmi/Dynamic providers — both auth systems now coexist in the same
+  provider tree.
+- **`useCurrentUser.ts`**: copied verbatim (thin `useSession()` wrapper) —
+  this is distinct from `explore-traditional`'s `useAccount.ts` stub (which
+  replaces wagmi's real hook and is correctly still on the "never port"
+  list); `useCurrentUser` doesn't conflict with anything on web3.
+- **Sign-in UI**: `explore-traditional` had two near-duplicate components for
+  this — a generic white "Sign in with Google" `AuthButton.tsx`, and a
+  game-styled `Connect.tsx`. Used the game-styled one, but renamed it to
+  `AuthSignIn.tsx` — `main` (per `posthog-setup-report.md`) already uses the
+  name `Connect.tsx` for an unrelated wallet-tracking component, so reusing
+  that name would collide. Did not port the generic `AuthButton.tsx`.
+- **`app/config/appMode.ts` / `app/hooks/useAppMode.ts`**: new — the actual
+  web3/web2 mode flag, built as a localStorage + custom-event store,
+  mirroring `networks.ts`'s existing chain-selection pattern exactly
+  (`getAppMode`/`setAppMode`/`useAppMode`, `VOID_TACTICS_APP_MODE_CHANGED_EVENT`).
+  Nothing reads this flag to switch data sources yet (see "Not done" below)
+  — right now it only records which login method the user last used.
+- **`Header.tsx` dual-login** (the item Stage 2 explicitly deferred): now
+  shows both `HeaderDisconnectedConnect` (wallet) and `AuthSignIn` (Google)
+  side by side when logged out of both; shows only the wallet UI once
+  connected; shows only `AuthSignIn`'s signed-in view when logged in via
+  Google without a wallet. Logging in via either method calls `setAppMode()`
+  — the login method itself is the mode signal. Also had to loosen the
+  mobile hamburger/expanded-panel gating (`showMobileWalletMenu`), which
+  previously only appeared once wallet-connected/connecting — otherwise
+  mobile users logged out of everything would have had no way to reach the
+  Google sign-in option at all.
+- Verified with `tsc --noEmit`, `eslint`, and `npm run build` — all clean.
+  `npm run build` now succeeds with **no `DATABASE_URL` set at all**,
+  confirming the lazy-Prisma fix actually solves the web3-only-build
+  problem.
+
+### Needs from you before this actually runs against a real database
+
+You said the Neon DB is already provisioned, but I don't have (and
+shouldn't be given, in chat) the actual connection string or OAuth
+credentials. I added empty placeholder keys to `.env` — fill these in
+yourself (e.g. via your editor or `! echo ... >> .env.local`):
+
+```
+DATABASE_URL=
+DATABASE_URL_UNPOOLED=
+NEXTAUTH_SECRET=
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+`DATABASE_URL_UNPOOLED` should be Neon's direct (non-pgbouncer) connection
+string, used only for running migrations (see `prisma.config.ts`).
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` need a Google OAuth app registered
+with `http://localhost:3000/api/auth/callback/google` (and your prod URL)
+as an authorized redirect URI. Once filled in, run `npm run db:migrate` to
+apply the schema to your database, then `npm run dev` and try signing in
+with Google from the header.
+
+### Not done yet (future subsystems)
+
+- **No `GameDataProvider` abstraction exists yet** — the `appMode` flag is
+  wired to the login UI but nothing reads it to switch between contract
+  calls and API calls. This is the core remaining work.
+- **None of the ~33 web2 API routes are ported** (games, lobbies, ships,
+  leaderboard, maps, tutorial, user stats, admin). Each is effectively its
+  own future subsystem.
+- **Tournament/Flow-payment mode-gating** — not yet wired to `useAppMode()`.
+- Google OAuth app registration and Neon connection strings — yours to do
+  (see above).
+
+### Subsystem 2 — Ships (data layer): DONE
+
+Corrected architecture per your guidance — no identity bridging, no
+crossover. `app/types/types.ts` (`bigint`/`0x${string}`) stays exactly as-is,
+web3-only, forever. Web2 gets its own fully parallel type system:
+
+- **`app/types/web2Ship.ts`** — new. `Web2Ship`/`Web2ShipEquipment`/
+  `Web2ShipTraits`/`Web2ShipColors`/`Web2ShipData`, copied field-for-field
+  from `explore-traditional`'s (in-place-edited) `types/types.ts` — plain
+  `number` ids, `string` owner (a NextAuth user id, not an address). Zero
+  overlap with the web3 `Ship` type by design.
+- **`app/lib/dbToType.ts`** (`dbShipToShip`) and **`app/lib/shipGen.ts`**
+  (`generateShip`) — ported, with their type imports redirected from
+  `../types/types` to `../types/web2Ship`. Otherwise verbatim.
+- **`app/lib/shipCosts.ts`, `economyConfig.ts`, `purchaseTiers.ts`,
+  `customizeCost.ts`, `getCurrentCosts.ts`, `recalcStaleShips.ts`,
+  `apiFetch.ts`, `apiMutate.ts`, `bigintJson.ts`, `shipNames.json`** — all
+  ported verbatim; none of these touch `types/types.ts` at all (structural
+  typing or DB-shaped types only).
+- **`app/utils/shipAttributesCalculatorWeb2.ts`** — new. The web3
+  `shipAttributesCalculator.ts` is pure logic parameterized on `Ship`; since
+  it can't be reused without importing the web3 type, this is a parallel
+  copy parameterized on `Web2Ship` instead (`calculateAttributesFromContractsWeb2`).
+  `Attributes` (the *return* type) has no bigint fields, so it's shared
+  as-is from `types/types.ts` — no duplication needed there.
+- **`app/hooks/useShipDataCacheWeb2.ts`** — new. Parallel to
+  `useShipDataCache.ts`'s localStorage caching, typed on `Web2Ship`. Already
+  used a distinct cache-key namespace on `explore-traditional` (`"legacy"`
+  instead of a contract address), so it can't collide with web3's cache —
+  preserved that.
+- **`app/hooks/useOwnedShipsWeb2.ts`** — new (parallel to `useOwnedShips.ts`,
+  which stays untouched and web3-only). Fetches from `/api/ships` via
+  `apiFetch`, paginating through cursors.
+- **10 API routes ported verbatim** under `app/api/ships/`: list/paginate
+  (`route.ts`), recycle-one (`[id]/route.ts` `DELETE`), construct one/bulk
+  (`[id]/construct`, `construct`), customize preview+apply
+  (`[id]/customize`), claim-free (`claim-free`), attributes
+  (`attributes` — redirected to import `calculateAttributesFromContractsWeb2`
+  instead of the web3 calculator), bulk recycle (`recycle`), and both
+  purchase flows (`purchase/usd`, `purchase/utc`).
+- Verified with `tsc --noEmit`, `eslint`, and `npm run build` — all clean;
+  all 10 routes show up correctly in the build's route list.
+
+**Deliberately left out of this pass** (own future work):
+- `app/api/games/[id]/ships/route.ts` and `useGameShips.ts` — these return
+  ships *for a specific game* and depend on the `Game` Prisma model and a
+  game-state blob; that's the **games** subsystem's concern, not ships'.
+
+### Subsystem 2 — Ships (UI wiring): DONE
+
+Discussed the rendering-layer question before building: pure canvas/SVG ship
+rendering doesn't touch ids or ownership at all, so duplicating it into a
+second ~20-file tree would be pure maintenance debt with no separation
+benefit — decided (with your sign-off, given both modes will be maintained
+"for a bit") to share it via a minimal structural type, while keeping the
+actual ships page/actions genuinely parallel (new component, not branches in
+`ManageNavy.tsx`) since that's where real mode-specific logic belongs and
+React hooks can't be called conditionally anyway.
+
+- **`app/types/shipVisual.ts`** — new. `ShipVisual` holds only
+  `equipment`/`traits`/a few `shipData` flags — no ids, no ownership. Both
+  `Ship` and `Web2Ship` satisfy the equipment/traits fields structurally;
+  the only mismatch was `shipData.timestampDestroyed` (`bigint` on `Ship` vs
+  `number` on `Web2Ship`), so `ShipVisual` fixes that field as `number`.
+- **`app/utils/shipRenderer/*` (all ~20 files) and `app/utils/shipLevel.ts`**
+  — redirected from `Ship` to `ShipVisual`. One behavior fix along the way:
+  `ImageRenderer.ts`'s destroyed check changed from `> BigInt(0)` to `> 0`
+  to match the new field type.
+- **`app/utils/toShipVisual.ts`** — new. The one-line adapter web3 call sites
+  need (`Number()`-converts `timestampDestroyed`); `Web2Ship` needs no
+  adapter since it already matches `ShipVisual` exactly.
+- **Fixed up existing web3 call sites** to pass `toShipVisual(ship)` instead
+  of `ship` directly to the now-shared functions: `GameGrid.tsx`,
+  `HeroShipShowcase.tsx`, `Lobbies.tsx`, `ShipCard.tsx`, `ShipConstructor.tsx`,
+  `ShipImage.tsx`, `useShipRenderer.ts`, `useShipImageCache.ts`,
+  `navyFilters.ts`, and `shipLevel.test.ts` (simplified its `makeShip` test
+  fixture to build a `ShipVisual` directly, since the rank/tier functions it
+  exercises never needed the id/owner fields it was fabricating anyway).
+  This was a wider blast radius than expected going in — `tsc --noEmit`
+  caught every site; all fixed and verified (`70/70` vitest tests still
+  pass).
+- **Parallel (not shared), because they're infrastructure, not pure logic**:
+  - `app/hooks/useShipRendererWeb2.ts` — same in-memory rendered-image cache
+    strategy as `useShipRenderer.ts`, backed by `useShipDataCacheWeb2`
+    instead. Both call the same shared `renderShip()`.
+  - `app/components/ShipImageWeb2.tsx` — same presentation as `ShipImage.tsx`,
+    calls the web2 hook.
+  - `app/components/ShipCardWeb2.tsx` — intentionally simpler than the
+    875-line web3 `ShipCard.tsx` (no fleet-composition drag state, no
+    in-game tooltip variant) — construct/recycle/select actions calling the
+    ship API routes directly.
+  - `app/components/ManageNavyWeb2.tsx` — the actual web2 ships page: list
+    (via `useOwnedShipsWeb2`), purchase (USD + UTC tiers from
+    `PURCHASE_TIERS`), claim-free, construct (single/all), recycle
+    (single/bulk). Deliberately **not** feature-parity with `ManageNavy.tsx`
+    (no filters/sort/fleet-composition/pagination yet) — a first working
+    slice, not the whole page.
+  - Wired into `app/page.tsx`: the "Manage Navy" tab now renders
+    `<ManageNavyWeb2 />` when `useAppMode() === "web2"`, `<ManageNavy />`
+    otherwise. Rest of the tab shell (other tabs, wallet-gated admin checks,
+    etc.) is untouched — full page-shell mode-gating is still open.
+- Verified with `tsc --noEmit`, `eslint`, `npx vitest run` (70/70), and
+  `npm run build` — all clean.
+
+**Known gap carried over from the source branch, not introduced here**: the
+USD purchase route (`/api/ships/purchase/usd`) has no real payment
+gate — no Stripe/checkout integration exists anywhere in
+`explore-traditional`, it just grants ships directly. Treat it as a
+placeholder until a real payment step is added; the UTC (credit-balance)
+purchase path is the more legitimate one for now.
+
+**Still open for a future pass**: filters/sort/pagination/fleet-composition
+parity with `ManageNavy.tsx`; a way to display the user's current UTC
+balance (no `/api/user/me`-equivalent endpoint exists yet); full page-shell
+mode-gating beyond the single "Manage Navy" tab.
+
+### Subsystem 3 — Lobbies: DONE (with a real scope boundary — see below)
+
+- **`app/types/web2Lobby.ts`** — new. `Web2Lobby`/`Web2Fleet` and friends,
+  `number` ids and `string` user ids, mirroring `explore-traditional`'s
+  lobby shapes. One correction versus the source: that branch's own
+  `dbLobbyToLobby` cast `creatorId`/`joinerId` (Google OAuth subs) *as*
+  `` `0x${string}` `` to satisfy the shared web3 `Lobby` type — exactly the
+  identity-crossover shortcut you told me not to take. Web2's `creator`/
+  `joiner`/`reservedJoiner` fields are plain `string` here, with `""` as the
+  "unset" sentinel instead of the zero address.
+- **Found a pre-existing collision and undid it**: `app/utils/lobbyFormatters.ts`
+  already exists on `main` (bigint-typed, e.g. `formatThreatShort(costLimit:
+  bigint)`) — I initially overwrote it with `explore-traditional`'s
+  number-typed version before `tsc` caught 6 broken call sites in
+  `Lobbies.tsx`/`TournamentCard.tsx`. Reverted immediately and instead added
+  **`app/utils/lobbyFormattersWeb2.ts`** with number-typed formatter
+  functions, importing the shared threshold constants
+  (`SKIRMISH_THREAT_LIMIT`, `MIN_SHIPS_FOR_LOBBIES`, etc.) from the
+  original file since those have no bigint/identity concern at all. Lesson
+  for future subsystems: check whether a same-named file already exists on
+  `main` *before* checking out from `explore-traditional`, not after.
+- **`app/types/web2Game.ts`** — new, and deliberately narrow: just enough
+  (`Web2GameDataView`, `Web2GameMetadata`, `Web2TurnState`,
+  `Web2ShipPosition`, `Web2GameGridDimensions`) to create a `Game` row when
+  a lobby's fleets are both submitted. This is *not* the games subsystem —
+  no turn-submission or display types live here. `Attributes` (shared, no
+  bigint fields) is reused as-is.
+- **`app/lib/createGameFromLobby.ts`** — ported, type imports redirected to
+  `web2Ship`/`web2Game`; `winner` sentinel changed from the zero address to
+  `""` to match the no-crossover identity model.
+- **8 of 9 lobby API routes ported** under `app/api/lobbies/`: list/create
+  (`route.ts`), leave (`[id]/route.ts` `DELETE`), accept, fleet (submits a
+  fleet and auto-starts the game once both are complete), join,
+  quit-with-penalty, reject, timeout-joiner, and player-state. Only
+  `route.ts` needed a type redirect (`Lobby`/`LobbyStatus` →
+  `Web2Lobby`/`Web2LobbyStatus`, dropped the fake-`0x` casts and the
+  `isAiGame` field entirely).
+- **Explicitly not ported**: `/api/lobbies/vs-ai` (AI opponent eliminated,
+  per Stage 2) and `/api/admin/lobbies` (admin tooling to pre-create lobbies
+  by email — deferred, not core player flow).
+- **`app/hooks/useLobbyListWeb2.ts` / `useLobbiesWeb2.ts`** — parallel to
+  the existing web3 `useLobbyList.ts`/`useLobbies.ts` (untouched). Excludes
+  `createAiLobby` (eliminated feature) and `timeoutGame` (calls
+  `/api/games/[id]/timeout`, which belongs to the not-yet-built games
+  subsystem).
+- **`app/components/LobbiesWeb2.tsx`** — new page: browse open lobbies,
+  create (threat/turn-time/score presets matching the server's validation
+  bounds), join, leave, decline a reserved invite, submit a fleet (ship
+  multi-select only — **no starting-position picker**, the server already
+  falls back to default positions when none are given), and the
+  creator/joiner timeout-penalty actions. Gated on owning at least
+  `MIN_SHIPS_FOR_LOBBIES` (10) constructed ships, matching the source's
+  requirement. Wired into `page.tsx`'s "Lobbies" tab behind
+  `useAppMode() === "web2"`, same pattern as ships.
+- Verified with `tsc --noEmit`, `eslint`, `npx vitest run` (70/70), and
+  `npm run build` — all clean; all 8 lobby routes show up in the build's
+  route list.
+
+**The real scope boundary to be upfront about**: submitting a fleet can
+create a `Game` row via `createGameFromLobby`, but **there is no web2
+`GameDisplay` yet** — once a lobby reaches `InGame`, `LobbiesWeb2.tsx`
+just shows "Game started — playing it out isn't available in web2 mode
+yet" rather than pretending there's somewhere to go. Actually playing a
+started game is the **games** subsystem, still future work.
+
+**Still open for a future pass**: the fleet starting-position picker (grid
+placement UI, currently server-default-only); `/api/admin/lobbies`; and, as
+above, the games subsystem itself (turn submission, web2 `GameDisplay`,
+replay) — without it, a web2 lobby can reach "game started" but not
+actually be played.
 
 ## Resolved
 

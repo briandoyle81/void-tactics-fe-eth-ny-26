@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { renderShip } from "../utils/shipRenderer";
 import { Ship, Attributes } from "../types/types";
 import { calculateShipRank } from "../utils/shipLevel";
+import { toShipVisual } from "../utils/toShipVisual";
 import { SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
 import {
   getMainWeaponName,
@@ -186,12 +187,12 @@ export const HeroShipShowcase: React.FC<{
   );
 
   // Calculate ship rank
-  const shipRank = useMemo(() => calculateShipRank(heroShip), [heroShip]);
+  const shipRank = useMemo(() => calculateShipRank(toShipVisual(heroShip)), [heroShip]);
 
   // Render the hero ship
   const heroShipImage = useMemo(() => {
     try {
-      return renderShip(heroShip);
+      return renderShip(toShipVisual(heroShip));
     } catch (error) {
       console.error("Error rendering hero ship:", error);
       return null;

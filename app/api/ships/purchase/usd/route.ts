@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/app/lib/prisma";
+import { requireAuth } from "@/app/lib/auth";
+import { generateShip } from "@/app/lib/shipGen";
+import { PURCHASE_TIERS, getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
+import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+
+export async function POST(req: NextRequest) {
+  const { userId, error } = await requireAuth();
+  if (error) return error;
+
+  const { tier } = await req.json() as { tier: number };
+  const tierConfig = PURCHASE_TIERS.find((t) => t.tier === tier);
+  if (!tierConfig) {
+    return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  }
+
+  const costs = await getCurrentCosts();
+
+  const [, ...ships] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId! },
+      data: { purchasedShipCount: { increment: tierConfig.shipCount } },
+    }),
+    ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
+      const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
+      const shipsDestroyed = getGuaranteedKillsForTierShip(tierConfig.tier, i);
+      return prisma.ship.create({
+        data: {
+          ownerId: userId!,
+          name,
+          equipment: equipment as never,
+          traits: { ...traits, serialNumber: traits.serialNumber.toString() } as never,
+          cost,
+          costsVersion,
+          shiny,
+          isFree: false,
+          constructed: false,
+          shipsDestroyed,
+        },
+      });
+    }),
+  ]);
+
+  return NextResponse.json(
+    { ships: ships.map((s) => ({ id: s.id, name: s.name })) },
+    { status: 201 },
+  );
+}

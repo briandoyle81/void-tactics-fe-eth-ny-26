@@ -3,7 +3,7 @@
  * Ported from RenderForePerfect.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="m30 125-7 5 58 23 5-5 1-4 4-3v-17l-1-3-2-9-34 1-24 12z" style="fill:`;
@@ -39,7 +39,7 @@ const COLOR_8 = "hsl(213, 10%, 18%)";
 const COLOR_9 = "hsl(223, 10%, 13%)";
 const COLOR_10 = "hsl(10, 46%, 58%)";
 
-export function renderForePerfect(ship: Ship): string {
+export function renderForePerfect(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

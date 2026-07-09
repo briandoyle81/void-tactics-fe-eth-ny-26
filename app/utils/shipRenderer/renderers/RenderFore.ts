@@ -3,7 +3,7 @@
  * Ported from RenderFore.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { renderFore0 } from "./RenderFore0";
 import { renderFore1 } from "./RenderFore1";
 import { renderFore2 } from "./RenderFore2";
@@ -24,7 +24,7 @@ const Shields = {
   Advanced: 3, // Heavy in contract
 } as const;
 
-export function renderFore(ship: Ship): string {
+export function renderFore(ship: ShipVisual): string {
   // If the ship is perfect, use the perfect renderer
   // Perfect: accuracy=2, hull=2, speed=2, and (armor=Heavy OR shields=Advanced)
   if (

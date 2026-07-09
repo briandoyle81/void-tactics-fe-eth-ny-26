@@ -3,7 +3,7 @@
  * Ported from RenderWeapon4.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M129 84h-1v1h1v-1Zm6 18 1-2 3-1 3-1 2-1 1-2-1-1-3 3-1-1-1-1 2-3v-1h-8l-1-2h-11l-1 2h-9l-1 2h-5v-1l-1-1 2-2 2-2v-6l-4-1v-3h6l1 2h9l1 2h11v-2h7l7-5-2-2-1-1h-6v-3l3-3h6l1 1v2h6v2h5v5l10 1 2 1 1 1v4h-1l-1 3-1 4-5 3h-4l-3 3-3 2 1 1 1 1h4v4h-24l1-1Z" style="fill:`;
@@ -54,7 +54,7 @@ const COLOR_13 = "hsl(222, 14%, 18%)";
 const COLOR_14 = "hsl(223, 10%, 14%)";
 const COLOR_15 = "hsl(228, 15%, 13%)";
 
-export function renderWeapon4(ship: Ship): string {
+export function renderWeapon4(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

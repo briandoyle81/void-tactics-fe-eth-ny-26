@@ -2,6 +2,7 @@ import React from "react";
 import { useShipRenderer } from "../hooks/useShipRenderer";
 import { Ship } from "../types/types";
 import { calculateShipRank } from "../utils/shipLevel";
+import { toShipVisual } from "../utils/toShipVisual";
 
 /** Rank ⭐ overlay size; reactor skull discs on cards use the same em box. */
 export const SHIP_IMAGE_RANK_STAR_BOX =
@@ -71,7 +72,7 @@ export function ShipImage({
           fontSize: rankStarBox,
         }}
       >
-        {Array.from({ length: calculateShipRank(ship).rank }, (_, i) => (
+        {Array.from({ length: calculateShipRank(toShipVisual(ship)).rank }, (_, i) => (
           <span key={i}>⭐</span>
         ))}
       </div>

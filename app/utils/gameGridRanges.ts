@@ -742,3 +742,317 @@ export function computeHoverShootingRange({
   }
   return positions;
 }
+
+export type ConfirmWidgetAnchor = {
+  left: string;
+  top: string;
+  transform: string;
+} | null;
+
+/**
+ * Compute the best placement for the grid's confirm-move widget to avoid
+ * covering the target ship, weapon beam path, and move arrow. Tries
+ * below → above → right → left in priority order adjusted for movement
+ * direction, skipping positions that cover the target or leave the grid.
+ * Extracted verbatim from `GameGrid.tsx` — same logic, same output.
+ */
+export function computeConfirmWidgetAnchor(params: {
+  showConfirmWidget: boolean;
+  previewPosition: { row: number; col: number } | null;
+  selectedShipId: bigint | null;
+  targetShipId: bigint | null;
+  grid: (ShipPosition | null)[][];
+  allShipPositions?: readonly ShipPosition[];
+}): ConfirmWidgetAnchor {
+  const { showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions } = params;
+
+  if (!showConfirmWidget) return null;
+
+  // Resolve the anchor cell: target ship always wins when one is selected,
+  // otherwise fall back to staged destination, then selected ship's current cell.
+  let destRow = 0, destCol = 0;
+  const hasRealTarget = targetShipId != null && targetShipId !== 0n;
+  if (hasRealTarget) {
+    let found = false;
+    outer0: for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        if (grid[r][c]?.shipId === targetShipId) {
+          destRow = r; destCol = c; found = true; break outer0;
+        }
+      }
+    }
+    if (!found && allShipPositions) {
+      const sp = allShipPositions.find((p) => p.shipId === targetShipId);
+      if (sp) { destRow = sp.position.row; destCol = sp.position.col; found = true; }
+    }
+    if (!found) return null;
+  } else if (previewPosition) {
+    destRow = previewPosition.row;
+    destCol = previewPosition.col;
+  } else {
+    let found = false;
+    if (selectedShipId) {
+      outer0: for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          if (grid[r][c]?.shipId === selectedShipId) {
+            destRow = r; destCol = c; found = true; break outer0;
+          }
+        }
+      }
+      if (!found && allShipPositions) {
+        const sp = allShipPositions.find((p) => p.shipId === selectedShipId);
+        if (sp) { destRow = sp.position.row; destCol = sp.position.col; found = true; }
+      }
+    }
+    if (!found) return null;
+  }
+
+  // Find the ship's current (non-preview) cell to know the movement direction
+  let shipRow = destRow, shipCol = destCol;
+  outer: for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      const cell = grid[r][c];
+      if (cell?.shipId === selectedShipId && !cell.isPreview) {
+        shipRow = r; shipCol = c;
+        break outer;
+      }
+    }
+  }
+
+  // Find the target ship's cell (if any)
+  let targetRow: number | null = null, targetCol: number | null = null;
+  if (targetShipId) {
+    outer2: for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        if (grid[r][c]?.shipId === targetShipId) {
+          targetRow = r; targetCol = c;
+          break outer2;
+        }
+      }
+    }
+    // Fallback: allShipPositions
+    if (targetRow === null && allShipPositions) {
+      const sp = allShipPositions.find((p) => p.shipId === targetShipId);
+      if (sp) { targetRow = sp.position.row; targetCol = sp.position.col; }
+    }
+  }
+
+  type Side = "below" | "above" | "right" | "left";
+
+  // Approximate grid cells covered by the widget for each placement.
+  // Widget is ~2.5 cols wide and ~1 row tall.
+  const covers = (side: Side): { rMin: number; rMax: number; cMin: number; cMax: number } => {
+    switch (side) {
+      case "below": return { rMin: destRow + 1, rMax: destRow + 1, cMin: destCol - 1, cMax: destCol + 1 };
+      case "above": return { rMin: destRow - 1, rMax: destRow - 1, cMin: destCol - 1, cMax: destCol + 1 };
+      case "right": return { rMin: destRow,     rMax: destRow,     cMin: destCol + 1, cMax: destCol + 2 };
+      case "left":  return { rMin: destRow,     rMax: destRow,     cMin: destCol - 2, cMax: destCol - 1 };
+    }
+  };
+
+  const inBounds = (side: Side) => {
+    switch (side) {
+      case "below": return destRow < 10;
+      case "above": return destRow > 0;
+      case "right": return destCol <= 14;
+      case "left":  return destCol >= 2;
+    }
+  };
+
+  const conflictsTarget = (side: Side) => {
+    if (targetRow === null || targetCol === null) return false;
+    const { rMin, rMax, cMin, cMax } = covers(side);
+    return targetRow >= rMin && targetRow <= rMax && targetCol >= cMin && targetCol <= cMax;
+  };
+
+  // Build priority order: prefer sides perpendicular to movement direction,
+  // and prefer opposite to where the attack beam points (toward target).
+  const dr = destRow - shipRow;
+  const dc = destCol - shipCol;
+  const tdr = targetRow !== null ? targetRow - destRow : 0;
+  const tdc = targetCol !== null ? targetCol - destCol : 0;
+
+  // "away from target" direction
+  const targetBelow = tdr > 0, targetAbove = tdr < 0;
+  const targetRight = tdc > 0, targetLeft  = tdc < 0;
+
+  // "incoming arrow" direction
+  const arrowFromAbove = dr > 0, arrowFromBelow = dr < 0;
+  const arrowFromLeft  = dc > 0, arrowFromRight = dc < 0;
+
+  // Score each side: lower = preferred
+  const score = (side: Side): number => {
+    let s = 0;
+    // Avoid sides where the target is
+    if (side === "below" && targetBelow) s += 10;
+    if (side === "above" && targetAbove) s += 10;
+    if (side === "right" && targetRight) s += 10;
+    if (side === "left"  && targetLeft)  s += 10;
+    // Prefer sides not in the arrow's incoming path
+    if (side === "above" && arrowFromAbove) s += 3;
+    if (side === "below" && arrowFromBelow) s += 3;
+    if (side === "left"  && arrowFromLeft)  s += 3;
+    if (side === "right" && arrowFromRight) s += 3;
+    // Prefer below/above over left/right (fits better visually)
+    if (side === "right" || side === "left") s += 1;
+    return s;
+  };
+
+  const sides: Side[] = ["below", "above", "right", "left"];
+  const sorted = sides
+    .filter(inBounds)
+    .sort((a, b) => score(a) - score(b));
+
+  // Pick the best side that doesn't conflict; fall back to any valid side
+  const best = sorted.find((s) => !conflictsTarget(s)) ?? sorted[0] ?? "below";
+
+  const L = `${((destCol + 0.5) / 17) * 100}%`;
+  const Lright = `${((destCol + 1) / 17) * 100}%`;
+  const Lleft = `${(destCol / 17) * 100}%`;
+  const Tmid = `${((destRow + 0.5) / 11) * 100}%`;
+
+  switch (best) {
+    case "below": return { left: L,      top: `${((destRow + 1) / 11) * 100}%`, transform: "translate(-50%, 3px)" };
+    case "above": return { left: L,      top: `${(destRow / 11) * 100}%`,        transform: "translate(-50%, calc(-100% - 3px))" };
+    case "right": return { left: Lright, top: Tmid,                               transform: "translate(4px, -50%)" };
+    case "left":  return { left: Lleft,  top: Tmid,                               transform: "translate(calc(-100% - 4px), -50%)" };
+  }
+}
+
+export type DamageLabelTarget = { shipId: bigint; row: number; col: number };
+
+/** Same target list as the floating damage-label overlay (keeps destroy-preview art in sync). */
+export function collectDamageLabelTargets(params: {
+  grid: (ShipPosition | null)[][];
+  allShipPositions?: readonly ShipPosition[];
+  selectedShipId: bigint | null;
+  targetShipId: bigint | null;
+  draggedShipId: bigint | null;
+  dragOverCell: { row: number; col: number } | null;
+  dragValidTargets: Array<{
+    shipId: bigint;
+    position: { row: number; col: number };
+  }>;
+  validTargets: Array<{
+    shipId: bigint;
+    position: { row: number; col: number };
+  }>;
+  labelTargets?: Array<{
+    shipId: bigint;
+    position: { row: number; col: number };
+  }>;
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialType: number;
+}): DamageLabelTarget[] {
+  const {
+    grid,
+    allShipPositions,
+    selectedShipId,
+    targetShipId,
+    draggedShipId,
+    dragOverCell,
+    dragValidTargets,
+    validTargets,
+    labelTargets,
+    selectedWeaponType,
+    specialType,
+  } = params;
+
+  // RAM mode has no weapon damage labels; ram-specific labels are rendered separately.
+  if (selectedWeaponType === "ram") return [];
+
+  const targetsToShow: DamageLabelTarget[] = [];
+  const selectedShipSide =
+    selectedShipId != null
+      ? (() => {
+          for (let r = 0; r < grid.length; r++) {
+            const row = grid[r];
+            for (let c = 0; c < row.length; c++) {
+              const cell = row[c];
+              if (cell?.shipId === selectedShipId) {
+                return cell.isCreator;
+              }
+            }
+          }
+          const fallback = allShipPositions?.find(
+            (sp) => sp.shipId === selectedShipId,
+          );
+          return fallback?.isCreator ?? null;
+        })()
+      : null;
+
+  const shouldShowTargetLabel = (
+    shipId: bigint,
+    fallbackIsCreator?: boolean,
+  ) => {
+    if (selectedShipSide == null) return true;
+    const targetSide =
+      fallbackIsCreator ??
+      (() => {
+        for (let r = 0; r < grid.length; r++) {
+          const row = grid[r];
+          for (let c = 0; c < row.length; c++) {
+            const cell = row[c];
+            if (cell?.shipId === shipId) return cell.isCreator;
+          }
+        }
+        const fallback = allShipPositions?.find((sp) => sp.shipId === shipId);
+        return fallback?.isCreator;
+      })();
+    if (targetSide == null) return true;
+
+    if (selectedWeaponType === "special" && specialType === 2) {
+      return targetSide === selectedShipSide;
+    }
+    return targetSide !== selectedShipSide;
+  };
+
+  const pushTargetIfAllowed = (
+    shipId: bigint,
+    row: number,
+    col: number,
+    fallbackIsCreator?: boolean,
+  ) => {
+    if (!shouldShowTargetLabel(shipId, fallbackIsCreator)) return;
+    if (targetsToShow.some((t) => t.shipId === shipId)) return;
+    targetsToShow.push({ shipId, row, col });
+  };
+
+  if (targetShipId) {
+    grid.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        if (cell && cell.shipId === targetShipId) {
+          pushTargetIfAllowed(cell.shipId, r, c, cell.isCreator);
+        }
+      });
+    });
+  }
+
+  if (draggedShipId && dragOverCell) {
+    dragValidTargets.forEach((target) => {
+      pushTargetIfAllowed(
+        target.shipId,
+        target.position.row,
+        target.position.col,
+      );
+    });
+  }
+
+  const targetsForLabels = labelTargets ?? validTargets;
+  const hasSingleSelectedTarget =
+    targetShipId != null && targetShipId !== 0n;
+
+  // When a specific destination is active (drag or hover), only show labels for that
+  // destination's valid targets — not the full multi-origin threat range.
+  if (selectedShipId && !hasSingleSelectedTarget && !(draggedShipId && dragOverCell)) {
+    targetsForLabels.forEach((target) => {
+      pushTargetIfAllowed(
+        target.shipId,
+        target.position.row,
+        target.position.col,
+      );
+    });
+  }
+
+  return targetsToShow;
+}

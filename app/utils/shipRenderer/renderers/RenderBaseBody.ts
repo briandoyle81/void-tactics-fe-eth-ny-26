@@ -3,7 +3,7 @@
  * Ported from RenderBaseBody.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M107 135h-3v1h3v-1Zm-15 0h-1v1h1v-1Zm50 20h-1v1h1v-1Zm-9 16h-1v-2l-4-5h-12l-7-7v-2h-6l-2 4H87l-1-4h-4l1-42h9l7-7h15l3 7h5l9-9h32l4 3v6h7l3 3v30l-8 7v11h-4l-5 4h-5l-2 4h-3l-1-3h-2v3h-7l-3-2v2h-2l-1-1Z" style="fill:`;
@@ -39,7 +39,7 @@ const COLOR_8 = "hsl(213, 10%, 18%)";
 const COLOR_9 = "hsl(223, 10%, 13%)";
 const COLOR_10 = "hsl(225, 17%, 9%)";
 
-export function renderBaseBody(ship: Ship): string {
+export function renderBaseBody(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

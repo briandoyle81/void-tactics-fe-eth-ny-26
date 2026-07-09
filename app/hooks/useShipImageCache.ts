@@ -4,6 +4,7 @@ import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import { Ship } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
+import { toShipVisual } from "../utils/toShipVisual";
 
 const SHIPS_ABI = CONTRACT_ABIS.SHIPS as Abi;
 
@@ -241,7 +242,7 @@ export function useShipImageCache(ship: Ship) {
   const generateImageLocally = useCallback((): string | null => {
     try {
       debugLog(`🎨 Generating image locally for ship ${ship.id.toString()}`);
-      const dataUrl = renderShip(ship);
+      const dataUrl = renderShip(toShipVisual(ship));
 
       // Test the image before saving
       const testImg = new Image();

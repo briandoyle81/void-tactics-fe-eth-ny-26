@@ -3,7 +3,7 @@
  * Ported from RenderSpecial.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { renderSpecial1 } from "./RenderSpecial1";
 import { renderSpecial2 } from "./RenderSpecial2";
 import { renderSpecial3 } from "./RenderSpecial3";
@@ -16,7 +16,7 @@ const Special = {
   FlakArray: 3,
 } as const;
 
-export function renderSpecial(ship: Ship): string {
+export function renderSpecial(ship: ShipVisual): string {
   if (ship.equipment.special === Special.None) {
     return "";
   } else if (ship.equipment.special === Special.EMP) {

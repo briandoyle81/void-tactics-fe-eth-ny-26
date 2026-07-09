@@ -3,7 +3,7 @@
  * Ported from RenderSpecial1.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 =
@@ -36,7 +36,7 @@ const COLOR_4 = "hsl(198, 80%, 26%)";
 const COLOR_5 = "hsl(56, 100%, 50%)";
 const COLOR_6 = "hsl(201, 86%, 14%)";
 
-export function renderSpecial1(ship: Ship): string {
+export function renderSpecial1(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

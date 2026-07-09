@@ -6,20 +6,17 @@ import {
   getRankColor,
   getTierColor,
 } from "../shipLevel";
-import { Ship } from "../../types/types";
+import { ShipVisual } from "../../types/shipVisual";
 
 function makeShip(overrides: {
   shipsDestroyed?: number;
   accuracy?: number;
   hull?: number;
   speed?: number;
-}): Ship {
+}): ShipVisual {
   return {
-    name: "Test",
-    id: 1n,
     equipment: { mainWeapon: 0, armor: 0, shields: 0, special: 0 },
     traits: {
-      serialNumber: 0n,
       colors: { h1: 0, s1: 0, l1: 0, h2: 0, s2: 0, l2: 0 },
       variant: 0,
       accuracy: overrides.accuracy ?? 50,
@@ -28,14 +25,10 @@ function makeShip(overrides: {
     },
     shipData: {
       shipsDestroyed: overrides.shipsDestroyed ?? 0,
-      costsVersion: 0,
-      cost: 0,
       shiny: false,
       constructed: true,
-      inFleet: false,
-      timestampDestroyed: 0n,
+      timestampDestroyed: 0,
     },
-    owner: "0x0000000000000000000000000000000000000000",
   };
 }
 

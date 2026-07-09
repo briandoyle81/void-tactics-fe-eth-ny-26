@@ -3,7 +3,7 @@
  * Ported from RenderAft2.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M223 200h5v-2h-5v2Zm21-15h-1v1h1v-1Zm-8-25-1-2 1-9h6l-1 11-5 1v-1Zm0 0h1v-1h-1v1Zm5 23 3 1 1-1v-10h-4v10Zm-41-83h-5l-1 1 4 3h3l4-3-5-1Zm14 2v-2h-2v3h2v-1Zm-23 1-1-1-2 1h3Zm2-2v-1h-1v1h1Z" style="fill:`;
@@ -30,7 +30,7 @@ const COLOR_5 = "hsl(213, 9%, 20%)";
 const COLOR_6 = "hsl(213, 10%, 18%)";
 const COLOR_7 = "hsl(223, 17%, 9%)";
 
-export function renderAft2(ship: Ship): string {
+export function renderAft2(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

@@ -3,7 +3,7 @@
  * Ported from RenderShield3.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M169 155h-46v-39h46v39Zm-66-29H91v11h12v-11Z" style="fill:`;
@@ -42,7 +42,7 @@ const COLOR_9 = "hsl(213, 10%, 18%)";
 const COLOR_10 = "hsl(223, 10%, 13%)";
 const COLOR_11 = "hsl(225, 17%, 9%)";
 
-export function renderShield3(ship: Ship): string {
+export function renderShield3(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

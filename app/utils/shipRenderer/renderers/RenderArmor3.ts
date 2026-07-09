@@ -3,7 +3,7 @@
  * Ported from RenderArmor3.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path d="M173 140H81v-19l17-3 20-2 8-8 43 2 4 11v19z" style="fill:`;
@@ -39,7 +39,7 @@ const COLOR_8 = "hsl(213, 10%, 18%)";
 const COLOR_9 = "hsl(223, 10%, 13%)";
 const COLOR_10 = "hsl(225, 17%, 9%)";
 
-export function renderArmor3(ship: Ship): string {
+export function renderArmor3(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny

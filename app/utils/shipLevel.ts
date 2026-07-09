@@ -1,4 +1,4 @@
-import { Ship } from "../types/types";
+import { ShipVisual } from "../types/shipVisual";
 
 /**
  * Calculate ship rank based on ships destroyed
@@ -10,7 +10,7 @@ import { Ship } from "../types/types";
  * 300-999 kills → Rank 5 (40% bonus)
  * 1000+ kills → Rank 6 (50% bonus)
  */
-export function calculateShipRank(ship: Ship): {
+export function calculateShipRank(ship: ShipVisual): {
   rank: number;
   shipsDestroyed: number;
 } {
@@ -38,7 +38,7 @@ export function calculateShipRank(ship: Ship): {
   };
 }
 
-export function getRankProgressInfo(ship: Ship): {
+export function getRankProgressInfo(ship: ShipVisual): {
   rank: number;
   shipsDestroyed: number;
   nextRank: number | null;
@@ -66,7 +66,7 @@ export function getRankProgressInfo(ship: Ship): {
  * Calculate ship tier based on average stats
  * Uses the same logic as useNavyAnalytics.ts
  */
-export function calculateShipTier(ship: Ship): {
+export function calculateShipTier(ship: ShipVisual): {
   tier: string;
   numericTier: number;
   averageStat: number;

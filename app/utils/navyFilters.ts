@@ -6,6 +6,7 @@ import {
   getSpecialName,
 } from "../types/types";
 import { calculateShipRank } from "./shipLevel";
+import { toShipVisual } from "./toShipVisual";
 
 /** Matches construct-all UI: batch cap when there are more than this many targets. */
 export const STALE_COST_SYNC_BATCH_CAP = 150;
@@ -246,7 +247,7 @@ export function shipMatchesNavyFilter(
     case "data_threat":
       return numOk && ship.shipData.cost <= n;
     case "data_rank":
-      return numOk && calculateShipRank(ship).rank === n;
+      return numOk && calculateShipRank(toShipVisual(ship)).rank === n;
     default:
       return true;
   }

@@ -3,12 +3,12 @@
  * Ported from RenderAft.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { renderAft0 } from "./RenderAft0";
 import { renderAft1 } from "./RenderAft1";
 import { renderAft2 } from "./RenderAft2";
 
-export function renderAft(ship: Ship): string {
+export function renderAft(ship: ShipVisual): string {
   // Use the speed to determine which aft class to use
   if (ship.traits.speed === 0) {
     return renderAft0(ship);

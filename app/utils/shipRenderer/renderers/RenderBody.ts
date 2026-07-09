@@ -3,7 +3,7 @@
  * Ported from RenderBody.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { renderBaseBody } from "./RenderBaseBody";
 import { renderShield1 } from "./RenderShield1";
 import { renderShield2 } from "./RenderShield2";
@@ -27,7 +27,7 @@ const Armor = {
   Heavy: 3,
 } as const;
 
-export function renderBody(ship: Ship): string {
+export function renderBody(ship: ShipVisual): string {
   // If both shields and armor are None, return base body
   if (
     ship.equipment.shields === Shields.None &&

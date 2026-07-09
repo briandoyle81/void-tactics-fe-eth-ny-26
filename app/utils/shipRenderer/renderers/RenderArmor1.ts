@@ -3,7 +3,7 @@
  * Ported from RenderArmor1.sol
  */
 
-import { Ship } from "../../../types/types";
+import { ShipVisual } from "../../../types/shipVisual";
 import { blendHSL } from "../utils";
 
 const PART_1 = `<path fill="`;
@@ -36,7 +36,7 @@ const COLOR_7 = "hsl(213, 9%, 20%)";
 const COLOR_8 = "hsl(213, 10%, 18%)";
 const COLOR_9 = "hsl(223, 10%, 13%)";
 
-export function renderArmor1(ship: Ship): string {
+export function renderArmor1(ship: ShipVisual): string {
   const chunk1 =
     PART_1 +
     (ship.shipData.shiny
