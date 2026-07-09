@@ -37,6 +37,15 @@ import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { GameEvents } from "./GameEvents";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
+import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
+import {
+  toGridShipMap,
+  toGridShipPositionGrid,
+  toGridShipPositions,
+  toGridTargets,
+  toGridIdSet,
+  displayIdToBigint,
+} from "../utils/toGridDisplay";
 import {
   computeMovementRange,
   computeShootingRange,
@@ -1940,6 +1949,145 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       : "SUBMIT",
   [computedActionType, selectedWeaponType, specialType, targetShipId]);
 
+  // ── GameGrid boundary adapter ───────────────────────────────────────────
+  // GameGrid and its subtree render on plain `number` ids (GridShip /
+  // GridShipPosition); this component stays bigint internally for contract
+  // calls. Convert only at this boundary — see app/types/gridDisplay.ts.
+  const gridForDisplay = React.useMemo(() => toGridShipPositionGrid(grid), [grid]);
+  const allShipPositionsForDisplay = React.useMemo(
+    () => toGridShipPositions(displayGame.shipPositions),
+    [displayGame.shipPositions],
+  );
+  const shipMapForDisplay = React.useMemo(() => toGridShipMap(shipMap), [shipMap]);
+  const selectedShipIdForDisplay = selectedShipId != null ? Number(selectedShipId) : null;
+  const targetShipIdForDisplay = targetShipId != null ? Number(targetShipId) : null;
+  const draggedShipIdForDisplay = draggedShipId != null ? Number(draggedShipId) : null;
+  const hoveredCellForDisplay: GameGridTooltipHoveredCell | null = React.useMemo(
+    () =>
+      hoveredCell
+        ? {
+            shipId: Number(hoveredCell.shipId),
+            row: hoveredCell.row,
+            col: hoveredCell.col,
+            isCreator: hoveredCell.isCreator,
+            fromFleet: hoveredCell.fromFleet,
+          }
+        : null,
+    [hoveredCell],
+  );
+  const validTargetsForDisplay = React.useMemo(() => toGridTargets(validTargets), [validTargets]);
+  const labelTargetsForDisplay = React.useMemo(
+    () => (labelTargets ? toGridTargets(labelTargets) : undefined),
+    [labelTargets],
+  );
+  const assistableTargetsForDisplay = React.useMemo(
+    () => toGridTargets(assistableTargets),
+    [assistableTargets],
+  );
+  const assistableTargetsFromStartForDisplay = React.useMemo(
+    () => toGridTargets(assistableTargetsFromStart),
+    [assistableTargetsFromStart],
+  );
+  const dragValidTargetsForDisplay = React.useMemo(
+    () => toGridTargets(dragValidTargets),
+    [dragValidTargets],
+  );
+  const hoverValidTargetsForDisplay = React.useMemo(
+    () => toGridTargets(hoverValidTargets),
+    [hoverValidTargets],
+  );
+  const movedShipIdsSetForDisplay = React.useMemo(
+    () => toGridIdSet(movedShipIdsSet),
+    [movedShipIdsSet],
+  );
+  const lastMoveShipIdForDisplay = lastMoveShipId != null ? Number(lastMoveShipId) : null;
+  const lastMoveTargetShipIdForDisplay =
+    lastMoveTargetShipId != null ? Number(lastMoveTargetShipId) : null;
+  const retreatPrepShipIdForDisplay =
+    retreatPrepShipId != null ? Number(retreatPrepShipId) : null;
+
+  const isShipOwnedByCurrentPlayerForDisplay = React.useCallback(
+    (shipId: number) => isShipOwnedByCurrentPlayer(BigInt(shipId)),
+    [isShipOwnedByCurrentPlayer],
+  );
+  const getShipAttributesForDisplay = React.useCallback(
+    (shipId: number) => getShipAttributes(BigInt(shipId)),
+    [getShipAttributes],
+  );
+  const calculateDamageForDisplay = React.useCallback(
+    (
+      targetShipId: number,
+      weaponType?: "weapon" | "special",
+      showReducedDamage?: boolean,
+      shooterShipIdOverride?: number,
+    ) =>
+      calculateDamageForShip(
+        BigInt(targetShipId),
+        weaponType,
+        showReducedDamage,
+        shooterShipIdOverride != null ? BigInt(shooterShipIdOverride) : undefined,
+      ),
+    [calculateDamageForShip],
+  );
+
+  const setSelectedShipIdForDisplay = React.useCallback(
+    (shipId: number | null) => setSelectedShipId(displayIdToBigint(shipId)),
+    [setSelectedShipId],
+  );
+  const setTargetShipIdForDisplay = React.useCallback(
+    (shipId: number | null) => setTargetShipId(displayIdToBigint(shipId)),
+    [setTargetShipId],
+  );
+  const setHoveredCellForDisplay = React.useCallback(
+    (cell: GameGridTooltipHoveredCell | null) =>
+      setHoveredCell(
+        cell
+          ? {
+              shipId: BigInt(cell.shipId),
+              row: cell.row,
+              col: cell.col,
+              isCreator: cell.isCreator,
+              fromFleet: cell.fromFleet,
+            }
+          : null,
+      ),
+    [setHoveredCell],
+  );
+  const setDraggedShipIdForDisplay = React.useCallback(
+    (shipId: number | null) => setDraggedShipId(displayIdToBigint(shipId)),
+    [setDraggedShipId],
+  );
+
+  const renderShipCard = React.useCallback(
+    (cell: GameGridTooltipHoveredCell): React.ReactNode | null => {
+      const ship = shipMap.get(BigInt(cell.shipId));
+      if (!ship) return null;
+      const attributes = getShipAttributes(BigInt(cell.shipId));
+      return (
+        <ShipCard
+          ship={ship}
+          isStarred={false}
+          onToggleStar={() => {}}
+          isSelected={false}
+          onToggleSelection={() => {}}
+          onRecycleClick={() => {}}
+          showInGameProperties={true}
+          inGameAttributes={attributes || undefined}
+          attributesLoading={!attributes}
+          hideRecycle={true}
+          hideCheckbox={true}
+          tooltipMode={true}
+          isCurrentPlayerShip={isShipOwnedByCurrentPlayer(BigInt(cell.shipId))}
+          flipShip={cell.isCreator}
+          hasMoved={movedShipIdsSet.has(BigInt(cell.shipId))}
+          gameViewMode={true}
+          tooltipGridPosition={{ row: cell.row, col: cell.col }}
+        />
+      );
+    },
+    [shipMap, getShipAttributes, isShipOwnedByCurrentPlayer, movedShipIdsSet],
+  );
+
   /** Top of proposed-move panel: 2/3 submit + 1/3 cancel (side), or horizontal row (wide). */
   const renderProposedMoveSubmitCancelRow = (): React.ReactNode => {
     const isRail = useSideLayout;
@@ -3079,61 +3227,62 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 >
                   <div className="absolute inset-0 min-h-0 overflow-hidden">
                     <GameGrid
-                      grid={grid}
-                      allShipPositions={displayGame.shipPositions}
-                      shipMap={shipMap}
-                      selectedShipId={selectedShipId}
+                      grid={gridForDisplay}
+                      allShipPositions={allShipPositionsForDisplay}
+                      shipMap={shipMapForDisplay}
+                      selectedShipId={selectedShipIdForDisplay}
                       previewPosition={previewPosition}
-                      targetShipId={targetShipId}
+                      targetShipId={targetShipIdForDisplay}
                       selectedWeaponType={selectedWeaponType}
-                      hoveredCell={hoveredCell}
-                      draggedShipId={draggedShipId}
+                      hoveredCell={hoveredCellForDisplay}
+                      draggedShipId={draggedShipIdForDisplay}
                       dragOverCell={dragOverCell}
                       movementRange={movementRange}
                       shootingRange={shootingRange}
-                      validTargets={validTargets}
-                      labelTargets={labelTargets}
-                      assistableTargets={assistableTargets}
-                      assistableTargetsFromStart={assistableTargetsFromStart}
+                      validTargets={validTargetsForDisplay}
+                      labelTargets={labelTargetsForDisplay}
+                      assistableTargets={assistableTargetsForDisplay}
+                      assistableTargetsFromStart={assistableTargetsFromStartForDisplay}
                       dragShootingRange={dragShootingRange}
-                      dragValidTargets={dragValidTargets}
+                      dragValidTargets={dragValidTargetsForDisplay}
                       hoverShootingRange={hoverShootingRange}
-                      hoverValidTargets={hoverValidTargets}
+                      hoverValidTargets={hoverValidTargetsForDisplay}
                       onMoveTileHover={setHoverPreviewPosition}
                       isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
-                      isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
-                      movedShipIdsSet={movedShipIdsSet}
+                      isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
+                      movedShipIdsSet={movedShipIdsSetForDisplay}
                       specialType={specialType}
                       blockedGrid={blockedGrid}
                       scoringGrid={scoringGrid}
                       onlyOnceGrid={onlyOnceGrid}
-                      calculateDamage={calculateDamageForShip}
-                      getShipAttributes={getShipAttributes}
+                      calculateDamage={calculateDamageForDisplay}
+                      getShipAttributes={getShipAttributesForDisplay}
                       disableTooltips={true}
                       address={address}
                       currentTurn={game.turnState.currentTurn}
                       highlightedMovePosition={highlightedMovePosition}
-                      lastMoveShipId={lastMoveShipId}
+                      lastMoveShipId={lastMoveShipIdForDisplay}
                       lastMoveOldPosition={lastMoveOldPosition}
                       lastMoveNewPosition={lastMoveNewPosition}
                       lastMoveActionType={lastMoveActionType}
-                      lastMoveTargetShipId={lastMoveTargetShipId}
+                      lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
                       lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
                       rammingPreviewPosition={
                         isRammingMovePreview && previewPosition ? previewPosition : null
                       }
                       isRammingMovePreview={isRammingMovePreview}
-                      retreatPrepShipId={retreatPrepShipId}
+                      retreatPrepShipId={retreatPrepShipIdForDisplay}
                       retreatPrepIsCreator={retreatPrepIsCreator}
                       tutorialDefaultLabel={tutorialDefaultLabel}
                       onGridRightClickDeselect={handleGridRightClickDeselect}
-                      setSelectedShipId={setSelectedShipId}
+                      setSelectedShipId={setSelectedShipIdForDisplay}
                       setPreviewPosition={setPreviewPosition}
-                      setTargetShipId={setTargetShipId}
+                      setTargetShipId={setTargetShipIdForDisplay}
                       setSelectedWeaponType={setWeaponTypeFromGrid}
-                      setHoveredCell={setHoveredCell}
-                      setDraggedShipId={setDraggedShipId}
+                      setHoveredCell={setHoveredCellForDisplay}
+                      setDraggedShipId={setDraggedShipIdForDisplay}
                       setDragOverCell={setDragOverCell}
+                      renderShipCard={renderShipCard}
                     />
                   </div>
                 {game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
@@ -3885,61 +4034,62 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           >
             <div className="absolute inset-0 min-h-0 overflow-hidden">
         <GameGrid
-          grid={grid}
-                allShipPositions={displayGame.shipPositions}
-          shipMap={shipMap}
-          selectedShipId={selectedShipId}
+          grid={gridForDisplay}
+                allShipPositions={allShipPositionsForDisplay}
+          shipMap={shipMapForDisplay}
+          selectedShipId={selectedShipIdForDisplay}
           previewPosition={previewPosition}
-          targetShipId={targetShipId}
+          targetShipId={targetShipIdForDisplay}
           selectedWeaponType={selectedWeaponType}
-          hoveredCell={hoveredCell}
-          draggedShipId={draggedShipId}
+          hoveredCell={hoveredCellForDisplay}
+          draggedShipId={draggedShipIdForDisplay}
           dragOverCell={dragOverCell}
           movementRange={movementRange}
           shootingRange={shootingRange}
-          validTargets={validTargets}
-          labelTargets={labelTargets}
-          assistableTargets={assistableTargets}
-          assistableTargetsFromStart={assistableTargetsFromStart}
+          validTargets={validTargetsForDisplay}
+          labelTargets={labelTargetsForDisplay}
+          assistableTargets={assistableTargetsForDisplay}
+          assistableTargetsFromStart={assistableTargetsFromStartForDisplay}
           dragShootingRange={dragShootingRange}
-          dragValidTargets={dragValidTargets}
+          dragValidTargets={dragValidTargetsForDisplay}
           hoverShootingRange={hoverShootingRange}
-          hoverValidTargets={hoverValidTargets}
+          hoverValidTargets={hoverValidTargetsForDisplay}
           onMoveTileHover={setHoverPreviewPosition}
                 isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
-          isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
-          movedShipIdsSet={movedShipIdsSet}
+          isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
+          movedShipIdsSet={movedShipIdsSetForDisplay}
           specialType={specialType}
           blockedGrid={blockedGrid}
           scoringGrid={scoringGrid}
           onlyOnceGrid={onlyOnceGrid}
-          calculateDamage={calculateDamageForShip}
-          getShipAttributes={getShipAttributes}
+          calculateDamage={calculateDamageForDisplay}
+          getShipAttributes={getShipAttributesForDisplay}
           disableTooltips={disableTooltips}
           address={address}
           currentTurn={game.turnState.currentTurn}
           highlightedMovePosition={highlightedMovePosition}
-          lastMoveShipId={lastMoveShipId}
+          lastMoveShipId={lastMoveShipIdForDisplay}
           lastMoveOldPosition={lastMoveOldPosition}
                 lastMoveNewPosition={lastMoveNewPosition}
           lastMoveActionType={lastMoveActionType}
-          lastMoveTargetShipId={lastMoveTargetShipId}
+          lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
           lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
           rammingPreviewPosition={
             isRammingMovePreview && previewPosition ? previewPosition : null
           }
           isRammingMovePreview={isRammingMovePreview}
-          retreatPrepShipId={retreatPrepShipId}
+          retreatPrepShipId={retreatPrepShipIdForDisplay}
           retreatPrepIsCreator={retreatPrepIsCreator}
           tutorialDefaultLabel={tutorialDefaultLabel}
           onGridRightClickDeselect={handleGridRightClickDeselect}
-          setSelectedShipId={setSelectedShipId}
+          setSelectedShipId={setSelectedShipIdForDisplay}
           setPreviewPosition={setPreviewPosition}
-          setTargetShipId={setTargetShipId}
+          setTargetShipId={setTargetShipIdForDisplay}
           setSelectedWeaponType={setWeaponTypeFromGrid}
-          setHoveredCell={setHoveredCell}
-          setDraggedShipId={setDraggedShipId}
+          setHoveredCell={setHoveredCellForDisplay}
+          setDraggedShipId={setDraggedShipIdForDisplay}
           setDragOverCell={setDragOverCell}
+          renderShipCard={renderShipCard}
           showConfirmWidget={showConfirmWidget}
           confirmWidgetLabel={confirmWidgetLabel}
           onCancelMove={handleCancelMove}

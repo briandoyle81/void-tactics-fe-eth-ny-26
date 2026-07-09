@@ -1,4 +1,5 @@
 import { Attributes, ShipPosition, ActionType } from "../types/types";
+import { GridShipPosition } from "../types/gridDisplay";
 
 export function hasLineOfSight(
   row0: number,
@@ -759,10 +760,10 @@ export type ConfirmWidgetAnchor = {
 export function computeConfirmWidgetAnchor(params: {
   showConfirmWidget: boolean;
   previewPosition: { row: number; col: number } | null;
-  selectedShipId: bigint | null;
-  targetShipId: bigint | null;
-  grid: (ShipPosition | null)[][];
-  allShipPositions?: readonly ShipPosition[];
+  selectedShipId: number | null;
+  targetShipId: number | null;
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
 }): ConfirmWidgetAnchor {
   const { showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions } = params;
 
@@ -771,7 +772,7 @@ export function computeConfirmWidgetAnchor(params: {
   // Resolve the anchor cell: target ship always wins when one is selected,
   // otherwise fall back to staged destination, then selected ship's current cell.
   let destRow = 0, destCol = 0;
-  const hasRealTarget = targetShipId != null && targetShipId !== 0n;
+  const hasRealTarget = targetShipId != null && targetShipId !== 0;
   if (hasRealTarget) {
     let found = false;
     outer0: for (let r = 0; r < grid.length; r++) {
@@ -919,26 +920,26 @@ export function computeConfirmWidgetAnchor(params: {
   }
 }
 
-export type DamageLabelTarget = { shipId: bigint; row: number; col: number };
+export type DamageLabelTarget = { shipId: number; row: number; col: number };
 
 /** Same target list as the floating damage-label overlay (keeps destroy-preview art in sync). */
 export function collectDamageLabelTargets(params: {
-  grid: (ShipPosition | null)[][];
-  allShipPositions?: readonly ShipPosition[];
-  selectedShipId: bigint | null;
-  targetShipId: bigint | null;
-  draggedShipId: bigint | null;
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
+  selectedShipId: number | null;
+  targetShipId: number | null;
+  draggedShipId: number | null;
   dragOverCell: { row: number; col: number } | null;
   dragValidTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   validTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   labelTargets?: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   selectedWeaponType: "weapon" | "special" | "ram";
@@ -982,7 +983,7 @@ export function collectDamageLabelTargets(params: {
       : null;
 
   const shouldShowTargetLabel = (
-    shipId: bigint,
+    shipId: number,
     fallbackIsCreator?: boolean,
   ) => {
     if (selectedShipSide == null) return true;
@@ -1008,7 +1009,7 @@ export function collectDamageLabelTargets(params: {
   };
 
   const pushTargetIfAllowed = (
-    shipId: bigint,
+    shipId: number,
     row: number,
     col: number,
     fallbackIsCreator?: boolean,
@@ -1040,7 +1041,7 @@ export function collectDamageLabelTargets(params: {
 
   const targetsForLabels = labelTargets ?? validTargets;
   const hasSingleSelectedTarget =
-    targetShipId != null && targetShipId !== 0n;
+    targetShipId != null && targetShipId !== 0;
 
   // When a specific destination is active (drag or hover), only show labels for that
   // destination's valid targets — not the full multi-origin threat range.

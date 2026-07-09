@@ -2,11 +2,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { RETREAT_GLOW_BUILD_MS } from "../../constants/animationTiming";
-import { Ship } from "../../types/types";
-import { ShipImage } from "../ShipImage";
+import { GridShip } from "../../types/gridDisplay";
+import { GridShipImage } from "../GridShipImage";
 
 interface RetreatPrepAnimationProps {
-  ship: Ship;
+  ship: GridShip;
   /** True if ship belongs to creator, false if joiner. Retreat flip: creator = native (no flip), joiner = opposite of native (flip). */
   isCreator: boolean;
   /** Same outline as selected ship: ring-2 ring-blue-400 (current player) or ring-2 ring-purple-400 (opponent). */
@@ -82,7 +82,7 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
           transform: shipFlipForRetreat,
         }}
       >
-        <ShipImage
+        <GridShipImage
           ship={ship}
           className="w-full h-full object-contain"
           showLoadingState={false}

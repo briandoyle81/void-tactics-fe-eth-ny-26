@@ -4,10 +4,10 @@ interface UseGridCellSetsParams {
   movementRange: readonly { row: number; col: number }[];
   shootingRange: readonly { row: number; col: number }[];
   effectiveShootingRange: readonly { row: number; col: number }[];
-  validTargets: readonly { shipId: bigint }[];
-  effectiveValidTargets: readonly { shipId: bigint }[];
-  assistableTargets: readonly { shipId: bigint }[];
-  assistableTargetsFromStart: readonly { shipId: bigint }[];
+  validTargets: readonly { shipId: number }[];
+  effectiveValidTargets: readonly { shipId: number }[];
+  assistableTargets: readonly { shipId: number }[];
+  assistableTargetsFromStart: readonly { shipId: number }[];
   tutorialHighlightCells?: readonly { row: number; col: number }[];
 }
 

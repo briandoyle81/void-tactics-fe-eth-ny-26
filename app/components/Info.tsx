@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useLayoutEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import { OnboardingTutorial } from "./OnboardingTutorial";
 import {
   TUTORIAL_STEP_STORAGE_KEY,
@@ -24,28 +24,32 @@ const Info: React.FC = () => {
     cooldownSeconds,
     error: freeShipError,
   } = useFreeShipClaiming();
-  // Check if there's a saved tutorial step on mount
-  const [showTutorial, setShowTutorial] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(TUTORIAL_STEP_STORAGE_KEY);
-      // Auto-show tutorial if there's a saved step (user was in progress)
-      return saved !== null;
-    }
-    return false;
-  });
+  // Check if there's a saved tutorial step on mount. Must start `false` to
+  // match the server-rendered markup (no `window` there) — reading
+  // localStorage here instead of in an effect caused a hydration mismatch,
+  // since `typeof window !== "undefined"` is already true on the client's
+  // first (hydration) render.
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Check if the tutorial has ever been completed (fix 5)
-  const [tutorialCompleted] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [tutorialCompleted, setTutorialCompleted] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TUTORIAL_STEP_STORAGE_KEY);
+    // Auto-show tutorial if there's a saved step (user was in progress)
+    setShowTutorial(saved !== null);
+
     const raw = localStorage.getItem(TUTORIAL_COMPLETED_STEPS_KEY);
-    if (!raw) return false;
+    if (!raw) return;
     try {
       const ids: string[] = JSON.parse(raw);
-      return ids.includes("completion-retreat") || ids.includes("completion-sniper");
+      setTutorialCompleted(
+        ids.includes("completion-retreat") || ids.includes("completion-sniper"),
+      );
     } catch {
-      return false;
+      // ignore malformed cache
     }
-  });
+  }, []);
 
   // Notify the top-level layout when tutorial is active so it can mirror
   // the full-width game view layout (no extra padding/max-width).

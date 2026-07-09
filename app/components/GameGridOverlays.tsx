@@ -1,12 +1,8 @@
 "use client";
 
 import React from "react";
-import {
-  ShipPosition,
-  Attributes,
-  Ship,
-  ActionType,
-} from "../types/types";
+import { Attributes, ActionType } from "../types/types";
+import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { LaserShootingAnimation } from "./weapon-animations/LaserShootingAnimation";
 import { MissileShootingAnimation } from "./weapon-animations/MissileShootingAnimation";
 import { PlasmaShootingAnimation } from "./weapon-animations/PlasmaShootingAnimation";
@@ -18,47 +14,47 @@ import { WarpFieldCollapseAnimation } from "./weapon-animations/WarpFieldCollaps
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 
 type Position = { row: number; col: number };
-type TargetRef = { shipId: bigint; position: Position };
+type TargetRef = { shipId: number; position: Position };
 
 interface GameGridOverlaysProps {
-  grid: (ShipPosition | null)[][];
-  allShipPositions?: readonly ShipPosition[];
-  shipMap: Map<bigint, Ship>;
-  selectedShipId: bigint | null;
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
+  shipMap: Map<number, GridShip>;
+  selectedShipId: number | null;
   previewPosition: Position | null;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   selectedWeaponType: "weapon" | "special" | "ram";
-  draggedShipId: bigint | null;
+  draggedShipId: number | null;
   dragOverCell: Position | null;
   validTargets: TargetRef[];
   labelTargets?: TargetRef[];
   effectiveDragCell: Position | null;
-  effectiveDragShipId: bigint | null;
+  effectiveDragShipId: number | null;
   effectiveValidTargets: TargetRef[];
   isCurrentPlayerTurn: boolean;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
   specialType: number;
   calculateDamage: (
-    targetShipId: bigint,
+    targetShipId: number,
     weaponType?: "weapon" | "special",
     showReducedDamage?: boolean,
-    shooterShipIdOverride?: bigint,
+    shooterShipIdOverride?: number,
   ) => {
     reducedDamage: number;
     willKill: boolean;
     reactorCritical: boolean;
   };
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  getShipAttributes: (shipId: number) => Attributes | null;
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
-  lastMoveShipId?: bigint | null;
+  lastMoveShipId?: number | null;
   lastMoveOldPosition?: Position | null;
   lastMoveNewPosition?: Position | null;
   lastMoveActionType?: ActionType | null;
-  lastMoveTargetShipId?: bigint | null;
+  lastMoveTargetShipId?: number | null;
   rammingPreviewPosition?: Position | null;
   isRammingMovePreview?: boolean;
   showLastMoveEmpReplayWhenSelected?: boolean;
-  retreatPrepShipId?: bigint | null;
+  retreatPrepShipId?: number | null;
   tutorialHighlightCells?: readonly {
     row: number;
     col: number;
@@ -69,9 +65,9 @@ interface GameGridOverlaysProps {
   movementTileSet: Set<string>;
   isHoveringValidTarget: boolean;
   selectedShipCreatorSide: boolean | null;
-  directedWeaponBeamTargetId: bigint | null;
+  directedWeaponBeamTargetId: number | null;
   flakEffectCells: Position[];
-  findShipPositionById: (shipId: bigint | null | undefined) => Position | null;
+  findShipPositionById: (shipId: number | null | undefined) => Position | null;
   useCompactMobileDamageLabels: boolean;
 }
 
@@ -625,7 +621,7 @@ export function GameGridOverlays({
             {selectedShipId &&
               selectedWeaponType === "special" &&
               specialType === 3 &&
-              targetShipId === 0n && (
+              targetShipId === 0 && (
                 <FlakExplosionAnimation
                   gridContainerRef={gridContainerRef}
                   targetCells={flakEffectCells}
@@ -637,7 +633,7 @@ export function GameGridOverlays({
               selectedWeaponType === "special" &&
               specialType === 1 &&
               targetShipId != null &&
-              targetShipId !== 0n &&
+              targetShipId !== 0 &&
               !showLastMoveEmpReplayWhenSelected &&
               (() => {
                 // Determine attacker position: preview > drag > current
@@ -758,7 +754,7 @@ export function GameGridOverlays({
               selectedWeaponType === "special" &&
               specialType === 2 &&
               targetShipId != null &&
-              targetShipId !== 0n &&
+              targetShipId !== 0 &&
               (() => {
                 // Determine attacker position: preview > drag > current
                 let attackerRow = -1;
@@ -805,7 +801,7 @@ export function GameGridOverlays({
             {lastMoveShipId != null &&
               (lastMoveActionType as ActionType) === ActionType.Special &&
               lastMoveTargetShipId != null &&
-              lastMoveTargetShipId !== 0n &&
+              lastMoveTargetShipId !== 0 &&
               shipMap.get(lastMoveShipId)?.equipment.special === 2 &&
               (() => {
                 let attackerRow = -1;
@@ -1169,7 +1165,7 @@ export function GameGridOverlays({
                     const shipId = cell?.shipId;
                     const targetsForLabels = labelTargets ?? validTargets;
                     const hasSingleSelectedTarget =
-                      targetShipId != null && targetShipId !== 0n;
+                      targetShipId != null && targetShipId !== 0;
                     const damageLabelOnThisShip =
                       shipId != null &&
                       selectedShipId != null &&

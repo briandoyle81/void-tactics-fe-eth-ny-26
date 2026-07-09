@@ -2,16 +2,16 @@
 
 import React from "react";
 import Image from "next/image";
-import { ShipPosition, Attributes, Ship, ActionType } from "../types/types";
-import { ShipImage } from "./ShipImage";
+import { Attributes, ActionType } from "../types/types";
+import { GridShip, GridShipPosition } from "../types/gridDisplay";
+import { GridShipImage } from "./GridShipImage";
 import { calculateShipRank } from "../utils/shipLevel";
-import { toShipVisual } from "../utils/toShipVisual";
 import { RetreatPrepAnimation } from "./weapon-animations/RetreatPrepAnimation";
 
 type Position = { row: number; col: number };
-type TargetRef = { shipId: bigint; position: Position };
+type TargetRef = { shipId: number; position: Position };
 type HoveredCell = {
-  shipId: bigint;
+  shipId: number;
   row: number;
   col: number;
   isCreator: boolean;
@@ -19,36 +19,36 @@ type HoveredCell = {
 } | null;
 
 interface GameGridCellProps {
-  cell: ShipPosition | null;
+  cell: GridShipPosition | null;
   rowIndex: number;
   colIndex: number;
-  grid: (ShipPosition | null)[][];
-  shipMap: Map<bigint, Ship>;
-  selectedShipId: bigint | null;
+  grid: (GridShipPosition | null)[][];
+  shipMap: Map<number, GridShip>;
+  selectedShipId: number | null;
   previewPosition: Position | null;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   selectedWeaponType: "weapon" | "special" | "ram";
   hoveredCell: HoveredCell;
-  draggedShipId: bigint | null;
+  draggedShipId: number | null;
   assistableTargets: TargetRef[];
   assistableTargetsFromStart: TargetRef[];
   isCurrentPlayerTurn: boolean;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  movedShipIdsSet: Set<bigint>;
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  movedShipIdsSet: Set<number>;
   specialType: number;
   blockedGrid: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  getShipAttributes: (shipId: number) => Attributes | null;
   address: string | undefined;
   highlightedMovePosition?: Position | null;
-  lastMoveShipId?: bigint | null;
+  lastMoveShipId?: number | null;
   lastMoveOldPosition?: Position | null;
   lastMoveActionType?: ActionType | null;
-  lastMoveTargetShipId?: bigint | null;
+  lastMoveTargetShipId?: number | null;
   lastMoveIsCurrentPlayer?: boolean | undefined;
   isRammingMovePreview?: boolean;
-  retreatPrepShipId?: bigint | null;
+  retreatPrepShipId?: number | null;
   retreatPrepIsCreator?: boolean | null;
   isMyTurn: boolean;
   movementTileSet: Set<string>;
@@ -56,22 +56,22 @@ interface GameGridCellProps {
   tutorialHighlightKeySet?: Set<string> | null;
   effectiveDragCell: Position | null;
   effectiveShootingTileSet: Set<string>;
-  effectiveValidTargetIdSet: Set<bigint>;
-  validTargetIdSet: Set<bigint>;
-  assistableTargetIdSet: Set<bigint>;
-  assistableTargetsFromStartIdSet: Set<bigint>;
+  effectiveValidTargetIdSet: Set<number>;
+  validTargetIdSet: Set<number>;
+  assistableTargetIdSet: Set<number>;
+  assistableTargetsFromStartIdSet: Set<number>;
   isHoveringValidTarget: boolean;
   lastMoveActionNum: number;
-  projectedDamageByShipId: Map<bigint, number>;
-  projectedRepairByShipId: Map<bigint, number>;
-  destroyPreviewShipIds: Set<bigint>;
+  projectedDamageByShipId: Map<number, number>;
+  projectedRepairByShipId: Map<number, number>;
+  destroyPreviewShipIds: Set<number>;
   lastDragOverCellRef: React.RefObject<Position | null>;
-  setSelectedShipId: (shipId: bigint | null) => void;
+  setSelectedShipId: (shipId: number | null) => void;
   setPreviewPosition: (position: Position | null) => void;
-  setTargetShipId: (shipId: bigint | null) => void;
+  setTargetShipId: (shipId: number | null) => void;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setHoveredCell: (cell: HoveredCell) => void;
-  setDraggedShipId: (shipId: bigint | null) => void;
+  setDraggedShipId: (shipId: number | null) => void;
   setDragOverCell: (cell: Position | null) => void;
   setHoveredMoveTile: (cell: Position | null) => void;
   onMoveTileHover?: (cell: Position | null) => void;
@@ -375,7 +375,7 @@ export function GameGridCell({
                           ) {
                             // Flak affects all targets in range, so we don't need to set a specific target
                             // Just indicate that flak is ready to fire
-                            setTargetShipId(0n); // Use 0n to indicate area-of-effect
+                            setTargetShipId(0); // Use 0 to indicate area-of-effect
                           } else {
                             // EMP and other specials target individual ships
                             setTargetShipId(cell.shipId);
@@ -1074,7 +1074,7 @@ export function GameGridCell({
                             isLastMoveDestroyedTargetCell || shouldPreviewDestroyedTarget;
 
                           return (
-                            <ShipImage
+                            <GridShipImage
                               ship={ship}
                               className={`${imageClassName} ${
                                 shouldHideShipArt
@@ -1265,7 +1265,7 @@ export function GameGridCell({
                           }
 
                           const rank = ship.shipData.constructed
-                            ? calculateShipRank(toShipVisual(ship)).rank
+                            ? calculateShipRank(ship).rank
                             : 0;
 
                           const dot = (

@@ -1,38 +1,44 @@
 "use client";
 
 import React from "react";
-import { Ship, Attributes } from "../types/types";
-import ShipCard from "./ShipCard";
 import { measureGridCellViewportBounds } from "./GameGrid";
 
+export interface GameGridTooltipHoveredCell {
+  shipId: number;
+  row: number;
+  col: number;
+  isCreator: boolean;
+  fromFleet?: boolean;
+}
+
 interface GameGridTooltipProps {
-  hoveredCell: { shipId: bigint; row: number; col: number; isCreator: boolean; [key: string]: unknown } | null;
+  hoveredCell: GameGridTooltipHoveredCell | null;
   disableTooltips: boolean;
-  draggedShipId: bigint | null;
-  shipMap: Map<bigint, Ship>;
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  draggedShipId: number | null;
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
   gridLayoutRef: React.RefObject<HTMLDivElement | null>;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  movedShipIdsSet: Set<bigint>;
+  /**
+   * Builds the tooltip's ship-card content for the hovered cell, or `null`
+   * to hide the tooltip (e.g. ship not found). Delegated to the caller
+   * because the actual card component (`ShipCard` for web3, `ShipCardWeb2`
+   * for web2) is mode-specific and action-heavy — not something this shared
+   * positioning layer should own. See app/types/gridDisplay.ts.
+   */
+  renderShipCard: (hoveredCell: GameGridTooltipHoveredCell) => React.ReactNode | null;
 }
 
 export function GameGridTooltip({
   hoveredCell,
   disableTooltips,
   draggedShipId,
-  shipMap,
-  getShipAttributes,
   gridContainerRef,
   gridLayoutRef,
-  isShipOwnedByCurrentPlayer,
-  movedShipIdsSet,
+  renderShipCard,
 }: GameGridTooltipProps) {
   if (!hoveredCell || disableTooltips || draggedShipId) return null;
 
-  const ship = shipMap.get(hoveredCell.shipId);
-  const attributes = getShipAttributes(hoveredCell.shipId);
-  if (!ship) return null;
+  const cardContent = renderShipCard(hoveredCell);
+  if (!cardContent) return null;
 
   const gridEl = gridContainerRef.current;
   if (!gridEl) return null;
@@ -139,25 +145,7 @@ export function GameGridTooltip({
       style={{ left: `${tooltipLeft}px`, top: `${tooltipTop}px` }}
     >
       <div className="min-w-[22rem] w-[24rem] opacity-100">
-        <ShipCard
-          ship={ship}
-          isStarred={false}
-          onToggleStar={() => {}}
-          isSelected={false}
-          onToggleSelection={() => {}}
-          onRecycleClick={() => {}}
-          showInGameProperties={true}
-          inGameAttributes={attributes || undefined}
-          attributesLoading={!attributes}
-          hideRecycle={true}
-          hideCheckbox={true}
-          tooltipMode={true}
-          isCurrentPlayerShip={isShipOwnedByCurrentPlayer(hoveredCell.shipId)}
-          flipShip={hoveredCell.isCreator}
-          hasMoved={movedShipIdsSet.has(hoveredCell.shipId)}
-          gameViewMode={true}
-          tooltipGridPosition={{ row: hoveredCell.row, col: hoveredCell.col }}
-        />
+        {cardContent}
       </div>
     </div>
   );

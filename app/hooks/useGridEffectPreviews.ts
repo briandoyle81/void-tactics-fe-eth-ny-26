@@ -1,8 +1,8 @@
 import React from "react";
-import { ShipPosition } from "../types/types";
+import { GridShipPosition } from "../types/gridDisplay";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 
-type Target = { shipId: bigint; position: { row: number; col: number } };
+type Target = { shipId: number; position: { row: number; col: number } };
 
 /**
  * Bundles the grid's "what visual effects should show right now" derived
@@ -14,13 +14,13 @@ type Target = { shipId: bigint; position: { row: number; col: number } };
  * selection/targeting" inputs.
  */
 export function useGridEffectPreviews(params: {
-  grid: (ShipPosition | null)[][];
-  allShipPositions?: readonly ShipPosition[];
-  selectedShipId: bigint | null;
-  targetShipId: bigint | null;
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
+  selectedShipId: number | null;
+  targetShipId: number | null;
   previewPosition: { row: number; col: number } | null;
   effectiveDragCell: { row: number; col: number } | null;
-  effectiveDragShipId: bigint | null;
+  effectiveDragShipId: number | null;
   effectiveShootingRange: Array<{ row: number; col: number }>;
   effectiveValidTargets: Target[];
   shootingRange: Array<{ row: number; col: number }>;
@@ -29,19 +29,19 @@ export function useGridEffectPreviews(params: {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialType: number;
   isCurrentPlayerTurn: boolean;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  lastMoveTargetShipId?: bigint | null;
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  lastMoveTargetShipId?: number | null;
   calculateDamage: (
-    targetShipId: bigint,
+    targetShipId: number,
     weaponType?: "weapon" | "special",
     showReducedDamage?: boolean,
-    shooterShipIdOverride?: bigint,
+    shooterShipIdOverride?: number,
   ) => {
     reducedDamage: number;
     willKill: boolean;
     reactorCritical: boolean;
   };
-  getShipAttributes: (shipId: bigint) => { reactorCriticalTimer: number } | null;
+  getShipAttributes: (shipId: number) => { reactorCriticalTimer: number } | null;
 }) {
   const {
     grid,
@@ -77,7 +77,7 @@ export function useGridEffectPreviews(params: {
       selectedShipId != null &&
       (previewPosition != null || effectiveDragCell != null);
     if (stagingOwnShot) {
-      if (targetShipId == null || targetShipId === 0n) return null;
+      if (targetShipId == null || targetShipId === 0) return null;
       return targetShipId;
     }
     return targetShipId || lastMoveTargetShipId || null;
@@ -111,7 +111,7 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const projectedDamageByShipId = React.useMemo(() => {
-    const map = new Map<bigint, number>();
+    const map = new Map<number, number>();
 
     const shouldShowDamagePreview =
       selectedShipId != null &&
@@ -122,10 +122,10 @@ export function useGridEffectPreviews(params: {
 
     if (!shouldShowDamagePreview) return map;
 
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
 
     // Selected target (locked shot)
-    if (targetShipId != null && targetShipId !== 0n) {
+    if (targetShipId != null && targetShipId !== 0) {
       ids.add(targetShipId);
     }
 
@@ -168,7 +168,7 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const projectedRepairByShipId = React.useMemo(() => {
-    const map = new Map<bigint, number>();
+    const map = new Map<number, number>();
 
     const shouldShowRepairPreview =
       selectedShipId != null &&
@@ -179,9 +179,9 @@ export function useGridEffectPreviews(params: {
 
     if (!shouldShowRepairPreview) return map;
 
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
 
-    if (targetShipId != null && targetShipId !== 0n) {
+    if (targetShipId != null && targetShipId !== 0) {
       ids.add(targetShipId);
     }
 
@@ -215,7 +215,7 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const destroyPreviewShipIds = React.useMemo(() => {
-    const ids = new Set<bigint>();
+    const ids = new Set<number>();
     const targetsToShow = collectDamageLabelTargets({
       grid,
       allShipPositions,
@@ -267,7 +267,7 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const findShipPositionById = React.useCallback(
-    (shipId: bigint | null | undefined): { row: number; col: number } | null => {
+    (shipId: number | null | undefined): { row: number; col: number } | null => {
       if (shipId == null) return null;
 
       // Primary: find in currently rendered grid.

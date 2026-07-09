@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Ship, Attributes, ShipPosition, getMainWeaponName, getSpecialName } from "../types/types";
+import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
+import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { STYLE_LABEL } from "../styles/fontStyles";
 
 interface ConfirmWidgetAnchor {
@@ -17,18 +18,18 @@ interface GameGridConfirmWidgetProps {
   onCancelMove: () => void;
   /** When provided, replaces the default confirm button (e.g. pass a TransactionButton). */
   confirmButton?: React.ReactNode;
-  selectedShipId: bigint | null;
-  shipMap: Map<bigint, Ship>;
+  selectedShipId: number | null;
+  shipMap: Map<number, GridShip>;
   selectedWeaponType: "weapon" | "special" | "ram";
   specialType: number;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   isRammingMovePreview: boolean;
   movementRange: readonly { row: number; col: number }[];
-  grid: (ShipPosition | null)[][];
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  grid: (GridShipPosition | null)[][];
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  getShipAttributes: (shipId: number) => Attributes | null;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
-  setTargetShipId: (id: bigint | null) => void;
+  setTargetShipId: (id: number | null) => void;
 }
 
 export function GameGridConfirmWidget({
@@ -50,7 +51,7 @@ export function GameGridConfirmWidget({
   setSelectedWeaponType,
   setTargetShipId,
 }: GameGridConfirmWidgetProps) {
-  const hasRealTarget = targetShipId != null && targetShipId !== 0n;
+  const hasRealTarget = targetShipId != null && targetShipId !== 0;
 
   const embeddedWeaponSelector = (() => {
     if (hasRealTarget) return null;
@@ -80,7 +81,7 @@ export function GameGridConfirmWidget({
               onClick={() => {
                 setSelectedWeaponType(value);
                 if (value === "special" && specialType === 3) {
-                  setTargetShipId(0n);
+                  setTargetShipId(0);
                 } else if (selectedWeaponType === "special" && specialType === 3) {
                   setTargetShipId(null);
                 }

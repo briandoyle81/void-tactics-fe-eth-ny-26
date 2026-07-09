@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { ShipPosition, Attributes, Ship, ActionType } from "../types/types";
+import { Attributes, ActionType } from "../types/types";
+import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { useGridCellSets } from "../hooks/useGridCellSets";
 import { useGridPanZoom } from "../hooks/useGridPanZoom";
 import { useGridEffectPreviews } from "../hooks/useGridEffectPreviews";
 import { computeConfirmWidgetAnchor } from "../utils/gameGridRanges";
 import { GameGridCell } from "./GameGridCell";
 import { GameGridOverlays } from "./GameGridOverlays";
-import { GameGridTooltip } from "./GameGridTooltip";
+import { GameGridTooltip, GameGridTooltipHoveredCell } from "./GameGridTooltip";
 import { GameGridWeaponSelector } from "./GameGridWeaponSelector";
 import { GameGridConfirmWidget } from "./GameGridConfirmWidget";
 
@@ -56,75 +57,75 @@ export function measureGridCellViewportBounds(
 
 
 interface GameGridProps {
-  grid: (ShipPosition | null)[][];
-  allShipPositions?: readonly ShipPosition[];
-  shipMap: Map<bigint, Ship>;
-  selectedShipId: bigint | null;
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
+  shipMap: Map<number, GridShip>;
+  selectedShipId: number | null;
   previewPosition: { row: number; col: number } | null;
-  targetShipId: bigint | null;
+  targetShipId: number | null;
   selectedWeaponType: "weapon" | "special" | "ram";
   hoveredCell: {
-    shipId: bigint;
+    shipId: number;
     row: number;
     col: number;
     isCreator: boolean;
     fromFleet?: boolean;
   } | null;
-  draggedShipId: bigint | null;
+  draggedShipId: number | null;
   dragOverCell: { row: number; col: number } | null;
   movementRange: Array<{ row: number; col: number }>;
   shootingRange: Array<{ row: number; col: number }>;
   validTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   labelTargets?: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>; // Optional: when provided (GameDisplay), used for damage labels; otherwise fall back to validTargets
   assistableTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   assistableTargetsFromStart: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   dragShootingRange: Array<{ row: number; col: number }>;
   dragValidTargets: Array<{
-    shipId: bigint;
+    shipId: number;
     position: { row: number; col: number };
   }>;
   isCurrentPlayerTurn: boolean;
-  isShipOwnedByCurrentPlayer: (shipId: bigint) => boolean;
-  movedShipIdsSet: Set<bigint>;
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  movedShipIdsSet: Set<number>;
   specialType: number;
   blockedGrid: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
   calculateDamage: (
-    targetShipId: bigint,
+    targetShipId: number,
     weaponType?: "weapon" | "special",
     showReducedDamage?: boolean,
-    shooterShipIdOverride?: bigint,
+    shooterShipIdOverride?: number,
   ) => {
     reducedDamage: number;
     willKill: boolean;
     reactorCritical: boolean;
   };
-  getShipAttributes: (shipId: bigint) => Attributes | null;
+  getShipAttributes: (shipId: number) => Attributes | null;
   disableTooltips: boolean;
   address: string | undefined;
   currentTurn: string;
   highlightedMovePosition?: { row: number; col: number } | null;
-  lastMoveShipId?: bigint | null;
+  lastMoveShipId?: number | null;
   lastMoveOldPosition?: { row: number; col: number } | null; // Old position for last move preview
   // New position for the last move (to position). When playing back weapon
   // effects for the last move, the beam should originate from this "to"
   // position rather than the old position.
   lastMoveNewPosition?: { row: number; col: number } | null;
   lastMoveActionType?: ActionType | null; // When Retreat, show warp collapse at old position
-  lastMoveTargetShipId?: bigint | null;
+  lastMoveTargetShipId?: number | null;
   lastMoveIsCurrentPlayer?: boolean | undefined; // true = blue outline, false = red outline
   /** Ramming preview destination tile. */
   rammingPreviewPosition?: { row: number; col: number } | null;
@@ -132,7 +133,7 @@ interface GameGridProps {
   isRammingMovePreview?: boolean;
   /** When set, last-move EMP replay still shows while a ship is selected (e.g. tutorial ship-destruction). */
   showLastMoveEmpReplayWhenSelected?: boolean;
-  retreatPrepShipId?: bigint | null;
+  retreatPrepShipId?: number | null;
   retreatPrepIsCreator?: boolean | null; // For retreat prep flip direction
   /**
    * **Tutorial highlight**: cells that show a gentle pulsing yellow tint under ships
@@ -150,25 +151,25 @@ interface GameGridProps {
   tutorialDefaultLabel?: string;
   /** Extra clears (e.g. retreat override) after right-click deselect on the grid. */
   onGridRightClickDeselect?: () => void;
-  setSelectedShipId: (shipId: bigint | null) => void;
+  setSelectedShipId: (shipId: number | null) => void;
   setPreviewPosition: (position: { row: number; col: number } | null) => void;
-  setTargetShipId: (shipId: bigint | null) => void;
+  setTargetShipId: (shipId: number | null) => void;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setHoveredCell: (
     cell: {
-      shipId: bigint;
+      shipId: number;
       row: number;
       col: number;
       isCreator: boolean;
       fromFleet?: boolean;
     } | null,
   ) => void;
-  setDraggedShipId: (shipId: bigint | null) => void;
+  setDraggedShipId: (shipId: number | null) => void;
   setDragOverCell: (cell: { row: number; col: number } | null) => void;
   /** Shooting-range overlay from the hovered movement tile (parent-computed). */
   hoverShootingRange?: Array<{ row: number; col: number }>;
   /** Valid targets from the hovered movement tile (parent-computed). */
-  hoverValidTargets?: Array<{ shipId: bigint; position: { row: number; col: number } }>;
+  hoverValidTargets?: Array<{ shipId: number; position: { row: number; col: number } }>;
   /** Called when the pointer enters or leaves a movement tile (passes null on leave). */
   onMoveTileHover?: (cell: { row: number; col: number } | null) => void;
   showConfirmWidget?: boolean;
@@ -176,6 +177,13 @@ interface GameGridProps {
   onConfirmMove?: () => void;
   onCancelMove?: () => void;
   confirmButton?: React.ReactNode;
+  /**
+   * Builds the tooltip's ship-card content for the hovered cell. Delegated
+   * to the caller because the actual card component (`ShipCard` for web3,
+   * `ShipCardWeb2` for web2) is mode-specific and action-heavy. See
+   * `GameGridTooltip`.
+   */
+  renderShipCard: (hoveredCell: GameGridTooltipHoveredCell) => React.ReactNode | null;
 }
 
 export function GameGrid({
@@ -239,6 +247,7 @@ export function GameGrid({
   onConfirmMove,
   onCancelMove,
   confirmButton,
+  renderShipCard,
 }: GameGridProps) {
   const { outerWrapperRef, gridContainerRef, zoom } = useGridPanZoom();
   /** The bordered CSS grid (cells); tracks are inset by border — use for cell math vs overlay. */
@@ -256,7 +265,7 @@ export function GameGrid({
   const effectiveShootingRange = effectiveDragCell
     ? (draggedShipId ? dragShootingRange : hoverShootingRange)
     : [];
-  const effectiveValidTargets: Array<{ shipId: bigint; position: { row: number; col: number } }> =
+  const effectiveValidTargets: Array<{ shipId: number; position: { row: number; col: number } }> =
     effectiveDragCell
       ? (draggedShipId ? dragValidTargets : hoverValidTargets)
       : [];
@@ -527,17 +536,14 @@ export function GameGrid({
             useCompactMobileDamageLabels={useCompactMobileDamageLabels}
           />
 
-          {/* Ship tooltip: absolute inside grid container so it tracks dynamic layout */}
+          {/* GridShip tooltip: absolute inside grid container so it tracks dynamic layout */}
           <GameGridTooltip
             hoveredCell={hoveredCell}
             disableTooltips={disableTooltips}
             draggedShipId={draggedShipId}
-            shipMap={shipMap}
-            getShipAttributes={getShipAttributes}
             gridContainerRef={gridContainerRef}
             gridLayoutRef={gridLayoutRef}
-            isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
-            movedShipIdsSet={movedShipIdsSet}
+            renderShipCard={renderShipCard}
           />
 
           {/* Floating weapon selector — appears above selected ship; stays visible when targeting */}
