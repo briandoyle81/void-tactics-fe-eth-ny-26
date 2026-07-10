@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useContractEvents } from "../hooks/useContractEvents";
 import GameDisplay from "./GameDisplay";
+import { GameLogCard } from "./GameLogCard";
 import { GameDataView } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 
@@ -40,15 +41,6 @@ const Games: React.FC = () => {
     const nowSec = Math.floor(Date.now() / 1000);
     const elapsed = Math.max(0, nowSec - turnStartSec);
     return Math.max(0, turnTimeSec - elapsed);
-  };
-
-  // Helper function to format seconds as mm:ss
-  const formatSeconds = (total: number): string => {
-    const m = Math.floor(total / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (total % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
   };
 
   const sortedGames = useMemo(() => {
@@ -290,7 +282,7 @@ const Games: React.FC = () => {
       ) : (
         <div className="space-y-4">
           <div className="font-mono text-xs text-text-muted tracking-widest">
-            // {sortedGames.length} ENGAGEMENT{sortedGames.length !== 1 ? "S" : ""} ON RECORD
+            {"// "}{sortedGames.length} ENGAGEMENT{sortedGames.length !== 1 ? "S" : ""} ON RECORD
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -298,102 +290,39 @@ const Games: React.FC = () => {
               const isFinished = game.metadata.winner !== ZERO_ADDRESS;
               const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
               const isVictory = isFinished && !isDraw && game.metadata.winner === address;
-              const accentClass = isFinished
-                ? isDraw ? "border-purple" : isVictory ? "border-phosphor-green" : "border-warning-red"
-                : "border-amber";
-              const accentColor = isFinished
-                ? isDraw ? "var(--color-purple)" : isVictory ? "var(--color-phosphor-green)" : "var(--color-warning-red)"
-                : "var(--color-amber)";
               const remaining = isFinished ? 0 : calculateTimeRemaining(game);
               return (
-              <div
-                key={game.metadata.gameId.toString()}
-                className={`corner-bracket border-2 ${accentClass} bg-near-black p-4 rounded-none`}
-                style={{ "--bracket-color": accentColor } as React.CSSProperties}
-              >
-                {/* Card header */}
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <h3 className="font-mono font-bold tracking-wider text-text-primary">
-                    ENGAGEMENT #{game.metadata.gameId.toString()}
-                  </h3>
-                  <span
-                    className={`shrink-0 border px-2 py-0.5 font-mono text-xs font-bold tracking-wider rounded-none ${
-                      isFinished
-                        ? isDraw
-                          ? "border-purple/50 bg-purple/10 text-purple"
-                          : isVictory
-                            ? "border-phosphor-green/50 bg-phosphor-green/10 text-phosphor-green"
-                            : "border-warning-red/50 bg-warning-red/10 text-warning-red"
-                        : "border-amber/50 bg-amber/10 text-amber"
-                    }`}
-                  >
-                    {isFinished ? (isDraw ? "DRAW" : isVictory ? "VICTORY" : "DEFEAT") : "IN PROGRESS"}
-                  </span>
-                </div>
-
-                {/* Data readouts */}
-                <div className="space-y-0">
-                  <div className="data-readout">
-                    <span className="data-readout-label">Lobby</span>
-                    <span className="font-mono text-xs">{game.metadata.lobbyId.toString()}</span>
-                  </div>
-                  <div className="data-readout">
-                    <span className="data-readout-label">Creator</span>
-                    <span className="font-mono text-xs">
-                      {game.metadata.creator.slice(0, 6)}…{game.metadata.creator.slice(-4)}
-                    </span>
-                  </div>
-                  <div className="data-readout">
-                    <span className="data-readout-label">Joiner</span>
-                    <span className="font-mono text-xs">
-                      {game.metadata.joiner.slice(0, 6)}…{game.metadata.joiner.slice(-4)}
-                    </span>
-                  </div>
-                  <div className="data-readout">
-                    <span className="data-readout-label">Date</span>
-                    <span className="font-mono text-xs">
-                      {new Date(Number(game.metadata.startedAt) * 1000).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="data-readout">
-                    <span className="data-readout-label">Score</span>
-                    <span className="font-mono text-xs font-bold">
-                      {game.creatorScore.toString()} / {game.joinerScore.toString()}
-                      <span className="opacity-40 font-normal"> of {game.maxScore.toString()}</span>
-                    </span>
-                  </div>
-                  {!isFinished && (
+                <GameLogCard
+                  key={game.metadata.gameId.toString()}
+                  gameIdLabel={game.metadata.gameId.toString()}
+                  isFinished={isFinished}
+                  isDraw={isDraw}
+                  isVictory={isVictory}
+                  lobbyIdLabel={game.metadata.lobbyId.toString()}
+                  identityRows={
                     <>
                       <div className="data-readout">
-                        <span className="data-readout-label">Initiative</span>
-                        <span className={`font-mono text-xs font-bold ${game.turnState.currentTurn === address ? "text-phosphor-green" : "text-warning-red"}`}>
-                          {game.turnState.currentTurn === address ? "YOURS" : "OPPONENT"}
+                        <span className="data-readout-label">Creator</span>
+                        <span className="font-mono text-xs">
+                          {game.metadata.creator.slice(0, 6)}…{game.metadata.creator.slice(-4)}
                         </span>
                       </div>
                       <div className="data-readout">
-                        <span className="data-readout-label">Turn Timer</span>
-                        <span className={`font-mono text-xs font-bold ${remaining <= 10 ? "text-warning-red" : ""}`}>
-                          {formatSeconds(remaining)}
+                        <span className="data-readout-label">Joiner</span>
+                        <span className="font-mono text-xs">
+                          {game.metadata.joiner.slice(0, 6)}…{game.metadata.joiner.slice(-4)}
                         </span>
                       </div>
                     </>
-                  )}
-                </div>
-
-                {/* Action */}
-                <div className="mt-4 pt-3 border-t border-gunmetal">
-                  <button
-                    className={`w-full rounded-none border-2 py-2.5 font-mono font-bold tracking-widest transition-all duration-200 text-sm ${
-                      isFinished
-                        ? "border-gunmetal text-text-muted hover:border-cyan hover:text-cyan hover:bg-cyan/5"
-                        : "border-cyan text-cyan hover:bg-cyan/10"
-                    }`}
-                    onClick={() => setSelectedGame(game)}
-                  >
-                    {isFinished ? "VIEW RECORD" : "ENTER ENGAGEMENT"}
-                  </button>
-                </div>
-              </div>
+                  }
+                  dateLabel={new Date(Number(game.metadata.startedAt) * 1000).toLocaleDateString()}
+                  creatorScore={Number(game.creatorScore)}
+                  joinerScore={Number(game.joinerScore)}
+                  maxScore={Number(game.maxScore)}
+                  isMyTurn={game.turnState.currentTurn === address}
+                  turnSecondsRemaining={remaining}
+                  onSelect={() => setSelectedGame(game)}
+                />
               );
             })}
           </div>

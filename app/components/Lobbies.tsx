@@ -28,6 +28,7 @@ import { toast } from "react-hot-toast";
 import { cacheShipsData } from "../hooks/useShipDataCache";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
+import { toShipCardData } from "../utils/toShipCardData";
 import {
   getMainWeaponName,
   getSpecialName,
@@ -281,7 +282,7 @@ const Lobbies: React.FC = () => {
 
   const savedFleetCompositions = useMemo(() => {
     if (!chainId || !address) return [] as FleetComposition[];
-    return readFleetCompositionPersisted(chainId, address).fleets;
+    return readFleetCompositionPersisted(`${chainId}:${address.toLowerCase()}`).fleets;
   }, [chainId, address]);
 
   // Live lobby data for the currently selected lobby (avoids relying on lobby list refresh timing)
@@ -3706,7 +3707,10 @@ const Lobbies: React.FC = () => {
                                       className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
                                     >
                                       <ShipCard
-                                        ship={ship}
+                                        ship={toShipCardData(ship)}
+                                        shipImage={
+                                          <ShipImage ship={ship} className="h-full w-full" />
+                                        }
                                         isStarred={false}
                                         onToggleStar={() => {}}
                                         isSelected={selectedShips.includes(
@@ -3938,7 +3942,10 @@ const Lobbies: React.FC = () => {
                                       className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
                                     >
                                       <ShipCard
-                                        ship={ship}
+                                        ship={toShipCardData(ship)}
+                                        shipImage={
+                                          <ShipImage ship={ship} className="h-full w-full" />
+                                        }
                                         isStarred={false}
                                         onToggleStar={() => {}}
                                         isSelected={selectedShips.includes(
@@ -4198,7 +4205,7 @@ const Lobbies: React.FC = () => {
                         ) : (
                           <div className="text-center text-amber text-sm">
                             {shipData.shipData?.timestampDestroyed > 0n
-                              ? `DESTROYED ${formatDestroyedDate(shipData.shipData.timestampDestroyed)}`
+                              ? `DESTROYED ${formatDestroyedDate(Number(shipData.shipData.timestampDestroyed))}`
                               : "UNDER CONSTRUCTION"}
                           </div>
                         )}

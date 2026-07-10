@@ -179,8 +179,8 @@ interface GameGridProps {
   confirmButton?: React.ReactNode;
   /**
    * Builds the tooltip's ship-card content for the hovered cell. Delegated
-   * to the caller because the actual card component (`ShipCard` for web3,
-   * `ShipCardWeb2` for web2) is mode-specific and action-heavy. See
+   * to the caller because building `ShipCard`'s `ShipCardData`/`shipImage`
+   * props from a raw `Ship`/`Web2Ship` is mode-specific. See
    * `GameGridTooltip`.
    */
   renderShipCard: (hoveredCell: GameGridTooltipHoveredCell) => React.ReactNode | null;

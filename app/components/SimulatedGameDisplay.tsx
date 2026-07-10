@@ -50,6 +50,7 @@ import { getScriptedStateForTutorialStepId } from "../data/tutorialScriptedState
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
+import { toShipCardData } from "../utils/toShipCardData";
 import {
   GAME_VIEW_SIDE_ROOT_CLASS,
   useGameViewChromeLayout,
@@ -2963,7 +2964,8 @@ export function SimulatedGameDisplay({
       const attributes = getShipAttributes(BigInt(cell.shipId));
       return (
         <ShipCard
-          ship={ship}
+          ship={toShipCardData(ship)}
+          shipImage={<ShipImage ship={ship} className="h-full w-full" />}
           isStarred={false}
           onToggleStar={() => {}}
           isSelected={false}
@@ -3665,7 +3667,8 @@ export function SimulatedGameDisplay({
                   <div className="space-y-0.5">
                     <div className="origin-top scale-[0.9] transform-gpu">
                       <ShipCard
-                        ship={selectedShip}
+                        ship={toShipCardData(selectedShip)}
+                        shipImage={<ShipImage ship={selectedShip} className="h-full w-full" />}
                         isStarred={false}
                         onToggleStar={() => {}}
                         isSelected={true}
@@ -3867,7 +3870,7 @@ export function SimulatedGameDisplay({
                             borderRadius: 0,
                           }}
                         >
-                          <FleeSafetySwitch gameId={0n} locked />
+                          <FleeSafetySwitch locked renderConfirmButton={() => null} />
                         </div>
                       ) : null}
                     </div>
@@ -3912,7 +3915,8 @@ export function SimulatedGameDisplay({
                         return (
                           <ShipCard
                             key={`my-${shipId}`}
-                            ship={ship}
+                            ship={toShipCardData(ship)}
+                            shipImage={<ShipImage ship={ship} className="h-full w-full" />}
                             isStarred={false}
                             onToggleStar={() => {}}
                             isSelected={false}
@@ -3953,7 +3957,8 @@ export function SimulatedGameDisplay({
                         return (
                           <ShipCard
                             key={`opp-${shipId}`}
-                            ship={ship}
+                            ship={toShipCardData(ship)}
+                            shipImage={<ShipImage ship={ship} className="h-full w-full" />}
                             isStarred={false}
                             onToggleStar={() => {}}
                             isSelected={false}
@@ -4066,7 +4071,7 @@ export function SimulatedGameDisplay({
                 </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                <FleeSafetySwitch gameId={0n} locked />
+                <FleeSafetySwitch locked renderConfirmButton={() => null} />
               </div>
             </div>
             <div
@@ -4955,7 +4960,7 @@ export function SimulatedGameDisplay({
                       : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                     return (
                       <div key={shipId}>
-                        <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
+                        <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
                       </div>
                     );
                   })}
@@ -4974,7 +4979,7 @@ export function SimulatedGameDisplay({
                       : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                     return (
                       <div key={shipId}>
-                        <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
+                        <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} />
                       </div>
                     );
                   })}

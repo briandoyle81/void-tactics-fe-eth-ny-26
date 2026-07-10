@@ -38,8 +38,15 @@ export async function POST(req: NextRequest) {
     prisma.user.findUnique({ where: { id: userId! }, select: { purchasedShipCount: true } }),
   ]);
 
-  const earnCredit = (user?.purchasedShipCount ?? 0) >= economy.purchaseThresholdForRewards;
-  const creditEarned = earnCredit ? validIds.length * economy.recycleRewardUtc : 0;
+  const purchasedShipCount = user?.purchasedShipCount ?? 0;
+  if (purchasedShipCount < economy.purchaseThresholdForRewards) {
+    return NextResponse.json(
+      { error: `Unlocks after ${economy.purchaseThresholdForRewards} ship purchases (${purchasedShipCount}/${economy.purchaseThresholdForRewards})` },
+      { status: 403 },
+    );
+  }
+
+  const creditEarned = validIds.length * economy.recycleRewardUtc;
 
   await prisma.$transaction([
     prisma.ship.deleteMany({ where: { id: { in: validIds } } }),

@@ -7,6 +7,7 @@ import { useMapNameWeb2 } from "../hooks/useMapNameWeb2";
 import type { Web2GameDataView } from "../types/web2Game";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import GameDisplayWeb2 from "./GameDisplayWeb2";
+import { GameLogCard } from "./GameLogCard";
 
 // Web2-mode counterpart to `Games.tsx` — same list/detail navigation pattern
 // and card layout, backed by `usePlayerGamesWeb2`/session user id instead of
@@ -33,12 +34,6 @@ const GamesWeb2: React.FC = () => {
     const nowSec = Math.floor(Date.now() / 1000);
     const elapsed = Math.max(0, nowSec - turnStartSec);
     return Math.max(0, turnTimeSec - elapsed);
-  };
-
-  const formatSeconds = (total: number): string => {
-    const m = Math.floor(total / 60).toString().padStart(2, "0");
-    const s = (total % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
   };
 
   const sortedGames = useMemo(() => {
@@ -178,7 +173,6 @@ const GamesWeb2: React.FC = () => {
                 game={game}
                 userId={userId}
                 remaining={game.metadata.winner === "" ? calculateTimeRemaining(game) : 0}
-                formatSeconds={formatSeconds}
                 onSelect={() => setSelectedGame(game)}
               />
             ))}
@@ -196,100 +190,41 @@ const GameCardWeb2: React.FC<{
   game: Web2GameDataView;
   userId: string | null;
   remaining: number;
-  formatSeconds: (total: number) => string;
   onSelect: () => void;
-}> = ({ game, userId, remaining, formatSeconds, onSelect }) => {
+}> = ({ game, userId, remaining, onSelect }) => {
   const { name: mapName } = useMapNameWeb2(game.mapId);
   const isFinished = game.metadata.winner !== "";
   const isDraw = isFinished && game.metadata.winner === WEB2_TIE_SENTINEL;
   const isVictory = isFinished && !isDraw && game.metadata.winner === userId;
-  const accentClass = isFinished
-    ? isDraw ? "border-purple" : isVictory ? "border-phosphor-green" : "border-warning-red"
-    : "border-amber";
-  const accentColor = isFinished
-    ? isDraw ? "var(--color-purple)" : isVictory ? "var(--color-phosphor-green)" : "var(--color-warning-red)"
-    : "var(--color-amber)";
   const isCreatorMe = game.metadata.creator === userId;
 
   return (
-    <div
-      className={`corner-bracket border-2 ${accentClass} bg-near-black p-4 rounded-none`}
-      style={{ "--bracket-color": accentColor } as React.CSSProperties}
-    >
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="font-mono font-bold tracking-wider text-text-primary">
-          ENGAGEMENT #{game.metadata.gameId}
-        </h3>
-        <span
-          className={`shrink-0 border px-2 py-0.5 font-mono text-xs font-bold tracking-wider rounded-none ${
-            isFinished
-              ? isDraw
-                ? "border-purple/50 bg-purple/10 text-purple"
-                : isVictory
-                  ? "border-phosphor-green/50 bg-phosphor-green/10 text-phosphor-green"
-                  : "border-warning-red/50 bg-warning-red/10 text-warning-red"
-              : "border-amber/50 bg-amber/10 text-amber"
-          }`}
-        >
-          {isFinished ? (isDraw ? "DRAW" : isVictory ? "VICTORY" : "DEFEAT") : "IN PROGRESS"}
-        </span>
-      </div>
-
-      <div className="space-y-0">
-        <div className="data-readout">
-          <span className="data-readout-label">Lobby</span>
-          <span className="font-mono text-xs">{game.metadata.lobbyId}</span>
-        </div>
-        <div className="data-readout">
-          <span className="data-readout-label">Map</span>
-          <span className="font-mono text-xs">{mapName ?? `#${game.mapId}`}</span>
-        </div>
-        <div className="data-readout">
-          <span className="data-readout-label">You are</span>
-          <span className="font-mono text-xs">{isCreatorMe ? "Creator" : "Joiner"}</span>
-        </div>
-        <div className="data-readout">
-          <span className="data-readout-label">Date</span>
-          <span className="font-mono text-xs">{new Date(game.metadata.startedAt).toLocaleDateString()}</span>
-        </div>
-        <div className="data-readout">
-          <span className="data-readout-label">Score</span>
-          <span className="font-mono text-xs font-bold">
-            {game.creatorScore} / {game.joinerScore}
-            <span className="opacity-40 font-normal"> of {game.maxScore}</span>
-          </span>
-        </div>
-        {!isFinished && (
-          <>
-            <div className="data-readout">
-              <span className="data-readout-label">Initiative</span>
-              <span className={`font-mono text-xs font-bold ${game.turnState.currentTurn === userId ? "text-phosphor-green" : "text-warning-red"}`}>
-                {game.turnState.currentTurn === userId ? "YOURS" : "OPPONENT"}
-              </span>
-            </div>
-            <div className="data-readout">
-              <span className="data-readout-label">Turn Timer</span>
-              <span className={`font-mono text-xs font-bold ${remaining <= 10 ? "text-warning-red" : ""}`}>
-                {formatSeconds(remaining)}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="mt-4 pt-3 border-t border-gunmetal">
-        <button
-          className={`w-full rounded-none border-2 py-2.5 font-mono font-bold tracking-widest transition-all duration-200 text-sm ${
-            isFinished
-              ? "border-gunmetal text-text-muted hover:border-cyan hover:text-cyan hover:bg-cyan/5"
-              : "border-cyan text-cyan hover:bg-cyan/10"
-          }`}
-          onClick={onSelect}
-        >
-          {isFinished ? "VIEW RECORD" : "ENTER ENGAGEMENT"}
-        </button>
-      </div>
-    </div>
+    <GameLogCard
+      gameIdLabel={String(game.metadata.gameId)}
+      isFinished={isFinished}
+      isDraw={isDraw}
+      isVictory={isVictory}
+      lobbyIdLabel={String(game.metadata.lobbyId)}
+      identityRows={
+        <>
+          <div className="data-readout">
+            <span className="data-readout-label">Map</span>
+            <span className="font-mono text-xs">{mapName ?? `#${game.mapId}`}</span>
+          </div>
+          <div className="data-readout">
+            <span className="data-readout-label">You are</span>
+            <span className="font-mono text-xs">{isCreatorMe ? "Creator" : "Joiner"}</span>
+          </div>
+        </>
+      }
+      dateLabel={new Date(game.metadata.startedAt).toLocaleDateString()}
+      creatorScore={game.creatorScore}
+      joinerScore={game.joinerScore}
+      maxScore={game.maxScore}
+      isMyTurn={game.turnState.currentTurn === userId}
+      turnSecondsRemaining={remaining}
+      onSelect={onSelect}
+    />
   );
 };
 

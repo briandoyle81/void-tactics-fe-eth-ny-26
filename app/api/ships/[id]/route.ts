@@ -25,20 +25,25 @@ export async function DELETE(
     prisma.user.findUnique({ where: { id: userId! }, select: { purchasedShipCount: true } }),
   ]);
 
-  const earnCredit = (user?.purchasedShipCount ?? 0) >= economy.purchaseThresholdForRewards;
-  const creditEarned = earnCredit ? economy.recycleRewardUtc : 0;
+  const purchasedShipCount = user?.purchasedShipCount ?? 0;
+  if (purchasedShipCount < economy.purchaseThresholdForRewards) {
+    return NextResponse.json(
+      { error: `Unlocks after ${economy.purchaseThresholdForRewards} ship purchases (${purchasedShipCount}/${economy.purchaseThresholdForRewards})` },
+      { status: 403 },
+    );
+  }
+
+  const creditEarned = economy.recycleRewardUtc;
 
   await prisma.$transaction([
     prisma.ship.update({
       where: { id: shipId },
       data: { destroyed: true, destroyedAt: new Date() },
     }),
-    ...(earnCredit
-      ? [prisma.user.update({
-          where: { id: userId! },
-          data: { creditBalance: { increment: creditEarned } },
-        })]
-      : []),
+    prisma.user.update({
+      where: { id: userId! },
+      data: { creditBalance: { increment: creditEarned } },
+    }),
   ]);
 
   return NextResponse.json({ ok: true, creditEarned });

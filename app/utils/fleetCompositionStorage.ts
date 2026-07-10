@@ -1,5 +1,13 @@
 /**
- * Local-only fleet composition presets (Manage Navy). Scoped by chain + wallet.
+ * Local-only fleet composition presets (Manage Navy). Shared, number/bigint-
+ * agnostic module — ship ids are always stored as `string[]`, and the only
+ * per-mode variable is a caller-supplied `scopeKey` (localStorage key
+ * partition, e.g. web3's `${chainId}:${address.toLowerCase()}` or web2's
+ * `userId`) and `scopeTag` (an import/export compatibility tag, e.g. web3's
+ * `String(chainId)` or a fixed web2 constant). See the "display-layer
+ * exception" precedent (GridShip/useGameplayInteraction): no real bigint/
+ * number distinction exists here, so this is a single shared file, not a
+ * twin.
  */
 
 export type FleetComposition = {
@@ -14,20 +22,20 @@ export const FLEET_COMPOSITION_EXPORT_KIND =
 export type FleetCompositionExportFile = {
   version: "1";
   kind: typeof FLEET_COMPOSITION_EXPORT_KIND;
-  chainId: number;
+  /** Import/export compatibility tag — see module doc comment. */
+  scopeTag: string;
   exportedAt: string;
   fleets: FleetComposition[];
 };
 
-function storageKey(chainId: number, address: string): string {
-  return `void-tactics-fleet-composition-v1:${chainId}:${address.toLowerCase()}`;
+function storageKey(scopeKey: string): string {
+  return `void-tactics-fleet-composition-v1:${scopeKey}`;
 }
 
 export function fleetCompositionLocalNoticeSessionKey(
-  chainId: number,
-  address: string,
+  scopeKey: string,
 ): string {
-  return `void-tactics-fleet-composition-local-notice-v1:${chainId}:${address.toLowerCase()}`;
+  return `void-tactics-fleet-composition-local-notice-v1:${scopeKey}`;
 }
 
 export type FleetCompositionPersisted = {
@@ -37,14 +45,13 @@ export type FleetCompositionPersisted = {
 };
 
 export function readFleetCompositionPersisted(
-  chainId: number,
-  address: string | undefined,
+  scopeKey: string,
 ): FleetCompositionPersisted {
-  if (typeof window === "undefined" || !address) {
+  if (typeof window === "undefined" || !scopeKey) {
     return { fleets: [], selectedFleetId: null };
   }
   try {
-    const raw = localStorage.getItem(storageKey(chainId, address));
+    const raw = localStorage.getItem(storageKey(scopeKey));
     if (!raw) return { fleets: [], selectedFleetId: null };
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") {
@@ -82,14 +89,13 @@ export function readFleetCompositionPersisted(
 }
 
 export function writeFleetCompositionPersisted(
-  chainId: number,
-  address: string,
+  scopeKey: string,
   fleets: FleetComposition[],
   selectedFleetId: string | null,
 ): void {
-  if (typeof window === "undefined" || !address) return;
+  if (typeof window === "undefined" || !scopeKey) return;
   try {
-    const k = storageKey(chainId, address);
+    const k = storageKey(scopeKey);
     if (fleets.length === 0) {
       localStorage.removeItem(k);
     } else {
@@ -115,7 +121,7 @@ export function newFleetCompositionId(): string {
 
 export function parseFleetCompositionImport(
   json: string,
-  expectedChainId: number,
+  expectedScopeTag: string,
 ):
   | { ok: true; fleets: FleetComposition[] }
   | { ok: false; error: string } {
@@ -131,13 +137,13 @@ export function parseFleetCompositionImport(
     if (o.version !== "1") {
       return { ok: false, error: "Unsupported export version." };
     }
-    if (typeof o.chainId !== "number" || !Number.isFinite(o.chainId)) {
-      return { ok: false, error: "Missing chain id in file." };
+    if (typeof o.scopeTag !== "string" || !o.scopeTag) {
+      return { ok: false, error: "Missing scope tag in file." };
     }
-    if (o.chainId !== expectedChainId) {
+    if (o.scopeTag !== expectedScopeTag) {
       return {
         ok: false,
-        error: `This file is for chain ${o.chainId}; switch networks or use a matching export.`,
+        error: `This file is for a different scope (${o.scopeTag}); switch networks/accounts or use a matching export.`,
       };
     }
     const fleetsRaw = o.fleets;
@@ -168,14 +174,34 @@ export function parseFleetCompositionImport(
 }
 
 export function buildFleetCompositionExport(
-  chainId: number,
+  scopeTag: string,
   fleets: FleetComposition[],
 ): FleetCompositionExportFile {
   return {
     version: "1",
     kind: FLEET_COMPOSITION_EXPORT_KIND,
-    chainId,
+    scopeTag,
     exportedAt: new Date().toISOString(),
     fleets,
   };
+}
+
+/**
+ * Reorders `items` so the active fleet's ships come first (in the fleet's
+ * saved order), followed by everything else — pure, generic over any item
+ * type as long as the caller can stringify its id. Shared between web3
+ * (`Ship[]`, bigint `id`) and web2 (`Web2Ship[]`, number `id`).
+ */
+export function reorderByFleetComposition<T>(
+  items: T[],
+  activeFleet: FleetComposition | undefined,
+  getId: (item: T) => string,
+): T[] {
+  if (!activeFleet) return items;
+  const idSet = new Set(activeFleet.shipIds);
+  const inOrder = activeFleet.shipIds
+    .map((id) => items.find((item) => getId(item) === id))
+    .filter((item): item is T => item != null);
+  const rest = items.filter((item) => !idSet.has(getId(item)));
+  return [...inOrder, ...rest];
 }

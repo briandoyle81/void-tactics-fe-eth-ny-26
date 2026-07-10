@@ -20,6 +20,7 @@ import {
 } from "../hooks/useMapsContract";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
+import { toShipCardData } from "../utils/toShipCardData";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 
 interface MapDisplayProps {
@@ -776,7 +777,8 @@ export function MapDisplay({
                 >
                   <div className="min-w-[22rem] w-[24rem] opacity-100">
                     <ShipCard
-                      ship={ship as Ship}
+                      ship={toShipCardData(ship as Ship)}
+                      shipImage={<ShipImage ship={ship as Ship} className="h-full w-full" />}
                       isStarred={false}
                       onToggleStar={() => {}}
                       isSelected={false}

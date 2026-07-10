@@ -20,8 +20,8 @@ interface GameGridTooltipProps {
   /**
    * Builds the tooltip's ship-card content for the hovered cell, or `null`
    * to hide the tooltip (e.g. ship not found). Delegated to the caller
-   * because the actual card component (`ShipCard` for web3, `ShipCardWeb2`
-   * for web2) is mode-specific and action-heavy — not something this shared
+   * because building `ShipCard`'s `ShipCardData`/`shipImage` props from a
+   * raw `Ship`/`Web2Ship` is mode-specific — not something this shared
    * positioning layer should own. See app/types/gridDisplay.ts.
    */
   renderShipCard: (hoveredCell: GameGridTooltipHoveredCell) => React.ReactNode | null;

@@ -253,6 +253,69 @@ export function shipMatchesNavyFilter(
   }
 }
 
+export type NavySortField = "id" | "cost" | "accuracy" | "hull" | "speed";
+export type NavySortOrder = "asc" | "desc";
+
+/** AND across filter categories, OR within a category, then sorted. Shared shape with app/utils/navyFiltersWeb2.ts's twin. */
+export function filterAndSortShips(
+  ships: Ship[],
+  activeFilters: NavyFilterCriterion[],
+  sortBy: NavySortField,
+  sortOrder: NavySortOrder,
+  starredShipIds: Set<string>,
+): Ship[] {
+  const filtered = ships.filter((ship) => {
+    if (activeFilters.length === 0) return true;
+    const byCategory = new Map<NavyFilterCategory, NavyFilterCriterion[]>();
+    for (const criterion of activeFilters) {
+      const existing = byCategory.get(criterion.category);
+      if (existing) {
+        existing.push(criterion);
+      } else {
+        byCategory.set(criterion.category, [criterion]);
+      }
+    }
+    for (const criteria of byCategory.values()) {
+      const matchesAnyInCategory = criteria.some((criterion) =>
+        shipMatchesNavyFilter(ship, criterion.category, criterion.value, starredShipIds),
+      );
+      if (!matchesAnyInCategory) return false;
+    }
+    return true;
+  });
+
+  return [...filtered].sort((a, b) => {
+    let aValue: number | bigint;
+    let bValue: number | bigint;
+    switch (sortBy) {
+      case "cost":
+        aValue = a.shipData.cost;
+        bValue = b.shipData.cost;
+        break;
+      case "accuracy":
+        aValue = a.traits.accuracy;
+        bValue = b.traits.accuracy;
+        break;
+      case "hull":
+        aValue = a.traits.hull;
+        bValue = b.traits.hull;
+        break;
+      case "speed":
+        aValue = a.traits.speed;
+        bValue = b.traits.speed;
+        break;
+      default: // 'id'
+        aValue = a.id;
+        bValue = b.id;
+    }
+    if (sortOrder === "asc") {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+    }
+  });
+}
+
 export function isEquipmentOrTraitFilterCategory(category: NavyFilterCategory): boolean {
   return (
     category === "eq_weapon" ||

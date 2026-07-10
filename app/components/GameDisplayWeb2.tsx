@@ -37,7 +37,8 @@ import { GameTurnLabel } from "./GameTurnLabel";
 import { GameFleetCard } from "./GameFleetCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { toGameScoreDataWeb2, toGameWinnerResultWeb2 } from "../utils/gameDisplayDataWeb2";
-import { FleeSafetySwitchWeb2 } from "./FleeSafetySwitchWeb2";
+import { FleeSafetySwitch } from "./FleeSafetySwitch";
+import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
 import { STYLE_LABEL } from "../styles/fontStyles";
 
 // Web2-mode counterpart to `GameDisplay.tsx`. Genuinely playable (grid
@@ -437,7 +438,14 @@ export default function GameDisplayWeb2({
                 {gameWinnerResult === "tie" ? "TIE" : gameWinnerResult === "me" ? "VICTORY" : "DEFEAT"}
               </div>
             ) : (
-              !readOnly && <FleeSafetySwitchWeb2 gameId={gameId} onFlee={() => { refetchGame(); refetch?.(); }} />
+              !readOnly && (
+                <FleeSafetySwitch
+                  onFlee={() => { refetchGame(); refetch?.(); }}
+                  renderConfirmButton={(onSuccess) => (
+                    <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
+                  )}
+                />
+              )
             )}
             <button
               type="button"

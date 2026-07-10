@@ -1,21 +1,22 @@
 "use client";
 
 import React from "react";
-import { Ship } from "../types/types";
-import { ShipImage, SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
+import { SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
 import {
   getMainWeaponName,
   getSpecialName,
   getArmorName,
   getShieldName,
 } from "../types/types";
-import { getRankProgressInfo, getRankColor } from "../utils/shipLevel";
-import { toShipVisual } from "../utils/toShipVisual";
+import { getRankColor } from "../utils/shipLevel";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { Attributes } from "../types/types";
+import type { ShipCardData } from "../types/shipCardData";
 
 interface ShipCardProps {
-  ship: Ship;
+  ship: ShipCardData;
+  /** Rendered ship art — caller builds `<ShipImage ship={...} .../>` (web3) or `<ShipImageWeb2 ship={...} .../>` (web2). */
+  shipImage: React.ReactNode;
   isStarred: boolean;
   onToggleStar: () => void;
   isSelected: boolean;
@@ -57,7 +58,8 @@ interface ShipCardProps {
 }
 
 const ShipCard: React.FC<ShipCardProps> = ({
-  ship,
+  ship: data,
+  shipImage,
   isStarred,
   onToggleStar,
   isSelected,
@@ -100,7 +102,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     const isDisabledInGame =
       showInGameProperties &&
       inGameAttributes &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !data.isDestroyed &&
       inGameAttributes.hullPoints === 0;
 
     if (isInGameView && isDisabledInGame) {
@@ -118,11 +120,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     }
 
     // Game view (tooltip or Ship Details): blue for current player, red for opponent
-    if (
-      isInGameView &&
-      ship.shipData.constructed &&
-      !ship.shipData.timestampDestroyed
-    ) {
+    if (isInGameView && data.isConstructed && !data.isDestroyed) {
       if (!isCurrentPlayerShip && hasMoved) {
         return tooltipMode
           ? "border-steel bg-near-black"
@@ -142,27 +140,22 @@ const ShipCard: React.FC<ShipCardProps> = ({
         ? "border-phosphor-green bg-near-black"
         : "border-phosphor-green bg-phosphor-green/20";
     }
-    if (ship.shipData.timestampDestroyed > 0n) {
+    if (data.isDestroyed) {
       return tooltipMode
         ? "border-warning-red bg-near-black"
         : "border-warning-red bg-black/60";
     }
-    if (ship.shipData.inFleet) {
+    if (data.inFleet) {
       return tooltipMode
         ? "border-amber bg-near-black"
         : "border-amber bg-amber/20";
     }
-    if (
-      costsVersionStale &&
-      ship.shipData.constructed &&
-      ship.shipData.timestampDestroyed === 0n &&
-      !ship.shipData.inFleet
-    ) {
+    if (costsVersionStale && data.isConstructed && !data.isDestroyed && !data.inFleet) {
       return tooltipMode
         ? "border-amber bg-near-black"
         : "border-amber bg-amber/20";
     }
-    if (ship.shipData.constructed) {
+    if (data.isConstructed) {
       if (selectionMode) {
         return tooltipMode
           ? canSelect
@@ -201,7 +194,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
     const isDisabledInGame =
       showInGameProperties &&
       inGameAttributes &&
-      ship.shipData.timestampDestroyed === 0n &&
+      !data.isDestroyed &&
       inGameAttributes.hullPoints === 0;
 
     if (isInGameView && isDisabledInGame) {
@@ -225,7 +218,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
       };
     }
 
-    if (isInGameView && ship.shipData.constructed && !ship.shipData.timestampDestroyed) {
+    if (isInGameView && data.isConstructed && !data.isDestroyed) {
       // Opponent ship has already acted this round: grey instead of red "team" border.
       if (!isCurrentPlayerShip && hasMoved) {
         return { ...greyFleetCardBorder };
@@ -246,7 +239,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (ship.shipData.timestampDestroyed > 0n) {
+    if (data.isDestroyed) {
       return {
         borderColor: "var(--color-warning-red)",
         borderTopColor: "var(--color-warning-red)",
@@ -254,7 +247,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (ship.shipData.inFleet) {
+    if (data.inFleet) {
       return {
         borderColor: "var(--color-amber)",
         borderTopColor: "var(--color-amber)",
@@ -262,12 +255,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (
-      costsVersionStale &&
-      ship.shipData.constructed &&
-      ship.shipData.timestampDestroyed === 0n &&
-      !ship.shipData.inFleet
-    ) {
+    if (costsVersionStale && data.isConstructed && !data.isDestroyed && !data.inFleet) {
       return {
         borderColor: "var(--color-amber)",
         borderTopColor: "var(--color-amber)",
@@ -275,7 +263,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (ship.shipData.constructed) {
+    if (data.isConstructed) {
       if (selectionMode) {
         return {
           borderColor: canSelect ? "var(--color-gunmetal)" : "var(--color-gunmetal)",
@@ -301,20 +289,19 @@ const ShipCard: React.FC<ShipCardProps> = ({
   };
 
   const borderStyle = getIndustrialBorderStyle();
-  const rankInfo = getRankProgressInfo(toShipVisual(ship));
   const rankTooltipLines =
-    rankInfo.nextRank == null
-      ? [`Kills: ${rankInfo.shipsDestroyed}`, "Max rank reached"]
+    data.rankNextRank == null
+      ? [`Kills: ${data.rankShipsDestroyed}`, "Max rank reached"]
       : [
-          `Kills: ${rankInfo.shipsDestroyed}`,
-          `Next rank (R${rankInfo.nextRank}) in ${rankInfo.killsToNextRank} kill${rankInfo.killsToNextRank === 1 ? "" : "s"}`,
+          `Kills: ${data.rankShipsDestroyed}`,
+          `Next rank (R${data.rankNextRank}) in ${data.rankKillsToNextRank} kill${data.rankKillsToNextRank === 1 ? "" : "s"}`,
         ];
   const rankTooltipAccent =
-    rankInfo.rank <= 2
+    data.rank <= 2
       ? "var(--color-phosphor-green)"
-      : rankInfo.rank <= 4
+      : data.rank <= 4
         ? "var(--color-cyan)"
-        : rankInfo.rank === 5
+        : data.rank === 5
           ? "var(--color-amber)"
           : "var(--color-warning-red)";
 
@@ -355,18 +342,15 @@ const ShipCard: React.FC<ShipCardProps> = ({
         className="relative mb-3 h-48 w-full min-h-0 [container-type:size]"
         style={flipShip ? { transform: "scaleX(-1)" } : undefined}
       >
-        <ShipImage
-          key={`${ship.id.toString()}-${
-            ship.shipData.constructed ? "constructed" : "unconstructed"
-          }`}
-          ship={ship}
+        <div
           className="h-full w-full border border-solid"
           style={{
             borderColor: shipArtBorderColor,
             borderRadius: 0, // Square corners
           }}
-          showLoadingState={true}
-        />
+        >
+          {shipImage}
+        </div>
 
         {/* Game view indicators for tooltip */}
         {(tooltipMode || gameViewMode) && inGameAttributes && (
@@ -531,7 +515,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
               useCompactStatGrid ? "text-base" : "text-lg"
             }`}
           >
-            {ship.name || `Ship #${ship.id}`}
+            {data.name || `Ship #${data.id}`}
           </h5>
         </div>
         <div className="flex items-center gap-2">
@@ -542,10 +526,10 @@ const ShipCard: React.FC<ShipCardProps> = ({
                 e.stopPropagation();
                 onRecycleClick();
               }}
-              disabled={ship.shipData.inFleet}
+              disabled={data.inFleet}
               className="p-1 text-warning-red hover:text-warning-red hover:bg-warning-red/10 rounded-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               title={
-                ship.shipData.inFleet
+                data.inFleet
                   ? "Cannot recycle ship in fleet"
                   : "Recycle ship"
               }
@@ -576,7 +560,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                 onToggleSelection();
               }}
               onClick={(e) => e.stopPropagation()}
-              disabled={ship.shipData.inFleet}
+              disabled={data.inFleet}
               className="w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 accentColor: "var(--color-cyan)",
@@ -602,40 +586,40 @@ const ShipCard: React.FC<ShipCardProps> = ({
               className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs px-2 py-1 border border-solid uppercase font-semibold tracking-wider"
               style={{
                 fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                backgroundColor: ship.shipData.shiny
+                backgroundColor: data.isShiny
                   ? "var(--color-near-black)"
                   : "var(--color-near-black)",
-                color: ship.shipData.shiny
+                color: data.isShiny
                   ? "var(--color-amber)"
                   : "var(--color-text-secondary)",
-                borderColor: ship.shipData.shiny
+                borderColor: data.isShiny
                   ? "var(--color-amber)"
                   : "var(--color-gunmetal)",
-                borderTopColor: ship.shipData.shiny
+                borderTopColor: data.isShiny
                   ? "var(--color-amber)"
                   : "var(--color-steel)",
-                borderLeftColor: ship.shipData.shiny
+                borderLeftColor: data.isShiny
                   ? "var(--color-amber)"
                   : "var(--color-steel)",
                 borderRadius: 0, // Square corners
               }}
             >
-              {ship.shipData.shiny ? "SHINY ★" : "COMMON"}
+              {data.isShiny ? "SHINY ★" : "COMMON"}
             </span>
           )}
           {/* Rank */}
-          {ship.shipData.constructed && !hideRankLabel && (
+          {data.isConstructed && !hideRankLabel && (
             <div className="relative group">
               <span
                 className={`text-xs px-2 py-1 border border-solid uppercase font-semibold tracking-wider cursor-default ${getRankColor(
-                  rankInfo.rank,
+                  data.rank,
                 )}`}
                 style={{
                   fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
                   borderRadius: 0, // Square corners
                 }}
               >
-                R{rankInfo.rank}
+                R{data.rank}
               </span>
               <div
                 className="pointer-events-none absolute right-0 top-full mt-1 hidden min-w-max border border-solid px-2 py-1 text-xs group-hover:block z-20"
@@ -660,7 +644,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
 
       {/* Compact Stats or Construction Message */}
       <div className="space-y-2 text-sm">
-        {ship.shipData.constructed ? (
+        {data.isConstructed ? (
           <div
             className={`grid gap-y-1 text-xs relative ${
               useCompactStatGrid
@@ -694,7 +678,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <div className="flex justify-between">
                       <span className="opacity-60">Weapon:</span>
                       <span className="ml-2">
-                        {getMainWeaponName(ship.equipment.mainWeapon)}
+                        {getMainWeaponName(data.equipment.mainWeapon)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -718,7 +702,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="opacity-60">
-                        {ship.equipment.shields > 0
+                        {data.equipment.shields > 0
                           ? "Shields:"
                           : "Armor:"}
                       </span>
@@ -729,7 +713,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <div className="flex justify-between">
                       <span className="opacity-60">Special:</span>
                       <span className="ml-2">
-                        {getSpecialName(ship.equipment.special)}
+                        {getSpecialName(data.equipment.special)}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 col-span-full">
@@ -737,24 +721,24 @@ const ShipCard: React.FC<ShipCardProps> = ({
                         <span className="opacity-60">Status:</span>
                         <span
                           className={`ml-2 ${
-                            ship.shipData.timestampDestroyed > 0n
+                            data.isDestroyed
                               ? "text-warning-red"
                               : hasMoved
                               ? "text-amber"
                               : gameViewMode || tooltipMode
                               ? "text-cyan" // Unmoved in game view
-                              : ship.shipData.inFleet
+                              : data.inFleet
                               ? "text-amber"
                               : "text-phosphor-green"
                           }`}
                         >
-                          {ship.shipData.timestampDestroyed > 0n
-                            ? `DESTROYED ${formatDestroyedDate(ship.shipData.timestampDestroyed)}`
+                          {data.isDestroyed
+                            ? `DESTROYED ${formatDestroyedDate(data.timestampDestroyedSeconds)}`
                             : hasMoved
                             ? "MOVED"
                             : gameViewMode || tooltipMode
                             ? "READY" // Unmoved in game view
-                            : ship.shipData.inFleet
+                            : data.inFleet
                             ? "IN FLEET"
                             : "READY"}
                         </span>
@@ -762,7 +746,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                       <div className="flex items-center">
                         <span className="opacity-60">Threat:</span>
                         <span className="ml-2 font-bold">
-                          {ship.shipData.cost}
+                          {data.cost}
                         </span>
                       </div>
                     </div>
@@ -774,36 +758,36 @@ const ShipCard: React.FC<ShipCardProps> = ({
               <>
                 <div className="flex justify-between">
                   <span className="opacity-60">Acc:</span>
-                  <span className="ml-2">{ship.traits.accuracy}</span>
+                  <span className="ml-2">{data.traits.accuracy}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">Hull:</span>
-                  <span className="ml-2">{ship.traits.hull}</span>
+                  <span className="ml-2">{data.traits.hull}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">Speed:</span>
-                  <span className="ml-2">{ship.traits.speed}</span>
+                  <span className="ml-2">{data.traits.speed}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">Wpn:</span>
                   <span className="ml-2">
-                    {getMainWeaponName(ship.equipment.mainWeapon)}
+                    {getMainWeaponName(data.equipment.mainWeapon)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">
-                    {ship.equipment.shields > 0 ? "Shd:" : "Arm:"}
+                    {data.equipment.shields > 0 ? "Shd:" : "Arm:"}
                   </span>
                   <span className="ml-2">
-                    {ship.equipment.shields > 0
-                      ? getShieldName(ship.equipment.shields)
-                      : getArmorName(ship.equipment.armor)}
+                    {data.equipment.shields > 0
+                      ? getShieldName(data.equipment.shields)
+                      : getArmorName(data.equipment.armor)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-60">Spc:</span>
                   <span className="ml-2">
-                    {getSpecialName(ship.equipment.special)}
+                    {getSpecialName(data.equipment.special)}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 col-span-full">
@@ -811,31 +795,31 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <span className="opacity-60">Status:</span>
                     <span
                       className={`ml-2 ${
-                        ship.shipData.timestampDestroyed > 0n
+                        data.isDestroyed
                           ? "text-warning-red"
                           : hasMoved
                           ? "text-amber"
                           : gameViewMode || tooltipMode
                           ? "text-cyan" // Unmoved in game view
-                          : ship.shipData.inFleet
+                          : data.inFleet
                           ? "text-amber"
                           : "text-phosphor-green"
                       }`}
                     >
-                      {ship.shipData.timestampDestroyed > 0n
-                        ? `DESTROYED ${formatDestroyedDate(ship.shipData.timestampDestroyed)}`
+                      {data.isDestroyed
+                        ? `DESTROYED ${formatDestroyedDate(data.timestampDestroyedSeconds)}`
                         : hasMoved
                         ? "MOVED"
                         : gameViewMode || tooltipMode
                         ? "READY" // Unmoved in game view
-                        : ship.shipData.inFleet
+                        : data.inFleet
                         ? "IN FLEET"
                         : "READY"}
                     </span>
                   </div>
                   <div className="flex items-center">
                     <span className="opacity-60">Threat:</span>
-                    <span className="ml-2 font-bold">{ship.shipData.cost}</span>
+                    <span className="ml-2 font-bold">{data.cost}</span>
                   </div>
                 </div>
               </>

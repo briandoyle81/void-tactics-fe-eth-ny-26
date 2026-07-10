@@ -1,23 +1,25 @@
 "use client";
 
 import React, { useState } from "react";
-import { TransactionButton } from "./TransactionButton";
-import { useGameContract } from "../hooks/useGameContract";
-import { toast } from "react-hot-toast";
 
 interface FleeSafetySwitchProps {
-  gameId: bigint;
-  onFlee?: () => void;
   /** When true, lever cannot be toggled (e.g. tutorial). */
   locked?: boolean;
+  /**
+   * Builds the CONFIRM button inside the retreat modal — web3 wraps a
+   * `TransactionButton` (contract `flee` call), web2 wraps a REST call via
+   * `apiMutate`. Must call `onSuccess` once the flee action has actually
+   * completed, so the lever/modal reset and the caller's `onFlee` fires.
+   */
+  renderConfirmButton: (onSuccess: () => void) => React.ReactNode;
+  onFlee?: () => void;
 }
 
 export function FleeSafetySwitch({
-  gameId,
-  onFlee,
   locked = false,
+  renderConfirmButton,
+  onFlee,
 }: FleeSafetySwitchProps) {
-  const gameContract = useGameContract();
   const [isLeverOpen, setIsLeverOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -33,7 +35,7 @@ export function FleeSafetySwitch({
     setShowConfirmModal(true);
   };
 
-  const handleConfirmFlee = () => {
+  const handleConfirmFleeSuccess = () => {
     setShowConfirmModal(false);
     setIsLeverOpen(false);
     onFlee?.();
@@ -100,7 +102,7 @@ export function FleeSafetySwitch({
             <div className="hazard-border max-w-md mx-4 w-full">
               <div className="bg-near-black p-6">
                 <div className="text-center mb-1">
-                  <span className="text-[10px] font-mono text-text-muted tracking-widest">// CONFIRMATION REQUIRED //</span>
+                  <span className="text-[10px] font-mono text-text-muted tracking-widest">{"// CONFIRMATION REQUIRED //"}</span>
                 </div>
                 <h2 className="text-warning-red font-mono text-xl font-bold mb-4 text-center tracking-widest">
                   [RETREAT]
@@ -120,34 +122,7 @@ export function FleeSafetySwitch({
                     STAND DOWN
                   </button>
 
-                  <TransactionButton
-                    transactionId={`flee-game-${gameId}`}
-                    contractAddress={gameContract.address}
-                    abi={gameContract.abi}
-                    functionName="flee"
-                    args={[gameId]}
-                    onSuccess={() => {
-                      toast.success("Disengaged from battle.");
-                      handleConfirmFlee();
-                    }}
-                    onError={(error) => {
-                      console.error("Error disengaging:", error);
-                      const errorMessage = error.message || String(error);
-                      if (
-                        errorMessage.includes("User rejected") ||
-                        errorMessage.includes("User denied")
-                      ) {
-                        toast.error("Transaction declined");
-                      } else {
-                        toast.error("[ERR] Disengage failed: " + errorMessage);
-                      }
-                    }}
-                    className="flex-1 px-4 py-2 bg-warning-red/20 hover:bg-warning-red/30 text-white font-mono font-bold rounded-none border border-warning-red transition-colors tracking-wider"
-                    loadingText="DISENGAGING..."
-                    errorText="[ERR]"
-                  >
-                    CONFIRM
-                  </TransactionButton>
+                  {renderConfirmButton(handleConfirmFleeSuccess)}
                 </div>
               </div>
             </div>

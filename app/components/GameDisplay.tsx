@@ -15,6 +15,7 @@ import {
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
+import { toShipCardData } from "../utils/toShipCardData";
 import { useGetGameMapState } from "../hooks/useMapsContract";
 import { useGameContract, useGetGame } from "../hooks/useGameContract";
 import {
@@ -33,6 +34,7 @@ import {
   useSpecialData,
 } from "../hooks/useShipAttributesContract";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
+import { FleeConfirmButtonWeb3 } from "./FleeConfirmButtonWeb3";
 import { GameScoreBox } from "./GameScoreBox";
 import { GameTurnLabel } from "./GameTurnLabel";
 import { GameFleetCard } from "./GameFleetCard";
@@ -1227,7 +1229,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       const attributes = getShipAttributes(BigInt(cell.shipId));
       return (
         <ShipCard
-          ship={ship}
+          ship={toShipCardData(ship)}
+          shipImage={<ShipImage ship={ship} className="h-full w-full" />}
           isStarred={false}
           onToggleStar={() => {}}
           isSelected={false}
@@ -2035,7 +2038,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             return (
               <ShipCard
                 key={shipId.toString()}
-                ship={ship}
+                ship={toShipCardData(ship)}
+                shipImage={<ShipImage ship={ship} className="h-full w-full" />}
                 isStarred={false}
                 onToggleStar={() => {}}
                 isSelected={false}
@@ -2319,7 +2323,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </div>
                 <div className="space-y-1">
                   <ShipCard
-                    ship={selectedShip}
+                    ship={toShipCardData(selectedShip)}
+                    shipImage={<ShipImage ship={selectedShip} className="h-full w-full" />}
                     isStarred={false}
                     onToggleStar={() => {}}
                     isSelected={true}
@@ -2469,12 +2474,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           }}
                         >
                           <FleeSafetySwitch
-                            gameId={game.metadata.gameId}
                             onFlee={() => {
                               toast.success("You have fled the battle!");
                               setIsMobileFleeOpen(false);
                               refetch?.();
                             }}
+                            renderConfirmButton={(onSuccess) => (
+                              <FleeConfirmButtonWeb3
+                                gameId={game.metadata.gameId}
+                                onSuccess={onSuccess}
+                              />
+                            )}
                           />
                         </div>
                       ) : null}
@@ -2711,11 +2721,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
                 {gameWinnerResult === null && (
                   <FleeSafetySwitch
-                    gameId={game.metadata.gameId}
                     onFlee={() => {
                       toast.success("You have fled the battle!");
                       refetch?.();
                     }}
+                    renderConfirmButton={(onSuccess) => (
+                      <FleeConfirmButtonWeb3
+                        gameId={game.metadata.gameId}
+                        onSuccess={onSuccess}
+                      />
+                    )}
                   />
                 )}
               </div>
@@ -3589,11 +3604,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               {game.metadata.winner ===
               "0x0000000000000000000000000000000000000000" ? (
                 <FleeSafetySwitch
-                  gameId={game.metadata.gameId}
                   onFlee={() => {
                     toast.success("You have fled the battle!");
                     refetch?.();
                   }}
+                  renderConfirmButton={(onSuccess) => (
+                    <FleeConfirmButtonWeb3
+                      gameId={game.metadata.gameId}
+                      onSuccess={onSuccess}
+                    />
+                  )}
                 />
               ) : (
                 <div className="text-sm text-text-primary">
@@ -3721,7 +3741,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                         return (
                           <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
+                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
                           </div>
                         );
                       })}
@@ -3742,7 +3762,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                         return (
                           <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
+                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
                           </div>
                         );
                       })}
@@ -3766,7 +3786,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                         return (
                           <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
+                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
                           </div>
                         );
                       })}
@@ -3787,7 +3807,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
                         return (
                           <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={ship} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
+                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
                           </div>
                         );
                       })}

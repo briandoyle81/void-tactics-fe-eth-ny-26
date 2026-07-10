@@ -18,23 +18,24 @@ import {
   ManageNavyConstructDeliveryBrief,
   ManageNavyBuyShipsBrief,
   ManageNavyMobileTutorialSheet,
-  MANAGE_NAVY_TUTORIAL_MONO,
 } from "./ManageNavyTutorialPanels";
 import {
   STALE_COST_SYNC_BATCH_CAP,
   type NavyFilterCategory,
-  type NavyFilterCriterion,
-  NAVY_FILTER_GROUPS,
-  navyFilterCategoryLabel,
-  needsNavyFilterValue,
   navyFilterSecondaryOptions,
-  shipMatchesNavyFilter,
-  isEquipmentOrTraitFilterCategory,
+  filterAndSortShips,
 } from "../utils/navyFilters";
+import { useNavyFilterState } from "../hooks/useNavyFilterState";
+import { useStarredShips } from "../hooks/useStarredShips";
+import { NavyFilterToolbar } from "./NavyFilterToolbar";
+import { NavyPagination } from "./NavyPagination";
 import ShipPurchaseInterface from "./ShipPurchaseInterface";
+import { ShipPurchasePanel } from "./ShipPurchasePanel";
 import { FreeShipClaimButton } from "./FreeShipClaimButton";
 import { ShipActionButton } from "./ShipActionButton";
 import ShipCard from "./ShipCard";
+import { ShipImage } from "./ShipImage";
+import { toShipCardData } from "../utils/toShipCardData";
 import { useTransaction } from "../providers/TransactionContext";
 import { useShipsRead } from "../hooks/useShipsContract";
 import { TransactionButton } from "./TransactionButton";
@@ -65,15 +66,13 @@ import {
   persistDroneFactoryTutorialPermanentlyDismissed,
   persistFreeShipClaimClicked,
 } from "../utils/freeShipClaimTutorialStorage";
-import {
-  readFleetCompositionPersisted,
-  writeFleetCompositionPersisted,
-  newFleetCompositionId,
-  fleetCompositionLocalNoticeSessionKey,
-  parseFleetCompositionImport,
-  buildFleetCompositionExport,
-  type FleetComposition,
-} from "../utils/fleetCompositionStorage";
+import { reorderByFleetComposition } from "../utils/fleetCompositionStorage";
+import { useFleetComposition } from "../hooks/useFleetComposition";
+import { FleetCompositionSelect } from "./FleetCompositionSelect";
+import { FleetCompositionControls } from "./FleetCompositionControls";
+import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeModal";
+import { FleetCompositionCardControls } from "./FleetCompositionCardControls";
+import { RecycleConfirmModal } from "./RecycleConfirmModal";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
 
 
@@ -374,24 +373,8 @@ const ManageNavy: React.FC = () => {
   const [selectedShips, setSelectedShips] = React.useState<Set<string>>(
     new Set(),
   );
-  const [showFilterWindow, setShowFilterWindow] = React.useState(false);
-  const [filterWindowAnchor, setFilterWindowAnchor] = React.useState<{
-    top: number;
-    left: number;
-  }>({ top: 120, left: 24 });
-  const [navyFilterDraftCategory, setNavyFilterDraftCategory] =
-    React.useState<NavyFilterCategory>("constructed");
-  const [navyFilterDraftValue, setNavyFilterDraftValue] =
-    React.useState<string>("");
-  const [activeNavyFilters, setActiveNavyFilters] = React.useState<
-    NavyFilterCriterion[]
-  >([]);
-  const [sortBy, setSortBy] = React.useState<
-    "id" | "cost" | "accuracy" | "hull" | "speed"
-  >("id");
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("asc");
-  const [shipPage, setShipPage] = React.useState(0);
   const SHIPS_PER_PAGE = 100;
+  const filterState = useNavyFilterState(SHIPS_PER_PAGE);
   const [showDebugButtons, setShowDebugButtons] = React.useState(false);
   const [isMobileManageNavyLayout, setIsMobileManageNavyLayout] =
     React.useState(false);
@@ -416,9 +399,10 @@ const ManageNavy: React.FC = () => {
     };
   }, []);
 
-  // State for starred ships
-  const [starredShips, setStarredShips] = React.useState<Set<string>>(
-    new Set(),
+  // Starred ships, scoped per chain+wallet (fixes a pre-existing bug where
+  // this was a single global localStorage key shared across all wallets).
+  const { starredShips, toggleStar } = useStarredShips(
+    address ? `${chainId}:${address.toLowerCase()}` : "",
   );
   const [showShipPurchase, setShowShipPurchase] = React.useState(false);
   const showMobileShipPurchaseTakeover =
@@ -454,336 +438,82 @@ const ManageNavy: React.FC = () => {
   const [showRecycleModal, setShowRecycleModal] = React.useState(false);
   const [shipToRecycle, setShipToRecycle] = React.useState<Ship | null>(null);
 
-  const [fleetCompositions, setFleetCompositions] = React.useState<
-    FleetComposition[]
-  >([]);
-  const [fleetCompositionSelectedId, setFleetCompositionSelectedId] =
-    React.useState<string | null>(null);
-  const [fleetCompositionRenameDraft, setFleetCompositionRenameDraft] =
-    React.useState("");
-  const [showFleetCompositionLocalModal, setShowFleetCompositionLocalModal] =
-    React.useState(false);
-  const fleetSelectPendingRef = React.useRef<{ value: string } | null>(null);
-  const fleetImportInputRef = React.useRef<HTMLInputElement>(null);
-  const [fleetCompositionHydrated, setFleetCompositionHydrated] =
-    React.useState(false);
+  // validShipIds: alive + constructed ships eligible for a fleet preset.
+  // `null` while ships are still loading, so auto-prune doesn't strip
+  // presets just because the ship list is momentarily empty.
+  const validFleetCompositionShipIds = React.useMemo(
+    () =>
+      isLoading
+        ? null
+        : new Set(
+            ships
+              .filter((s) => s.shipData.constructed && s.shipData.timestampDestroyed === 0n)
+              .map((s) => s.id.toString()),
+          ),
+    [ships, isLoading],
+  );
+  const fleetComposition = useFleetComposition(
+    address ? `${chainId}:${address.toLowerCase()}` : "",
+    String(chainId),
+    validFleetCompositionShipIds,
+  );
 
   React.useEffect(() => {
     setSelectedShips(new Set());
     setShipToRecycle(null);
     setShowRecycleModal(false);
-    setShowFilterWindow(false);
-  }, [chainId]);
+    filterState.setShowFilterWindow(false);
+    // filterState is a fresh object every render; depend on the specific
+    // stable setState function it returns, not the whole object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainId, filterState.setShowFilterWindow]);
 
-  // Load starred ships from localStorage on mount
-  React.useEffect(() => {
-    const saved = localStorage.getItem("void-tactics-starred-ships");
-    if (saved) {
-      try {
-        const starredArray = JSON.parse(saved);
-        setStarredShips(new Set(starredArray));
-      } catch (error) {
-        console.error("Error loading starred ships:", error);
-      }
-    }
-  }, []);
-
-  // Save starred ships to localStorage when it changes
-  React.useEffect(() => {
-    localStorage.setItem(
-      "void-tactics-starred-ships",
-      JSON.stringify(Array.from(starredShips)),
-    );
-  }, [starredShips]);
-
-  // Toggle star status for a ship
-  const toggleStar = (shipId: string) => {
-    setStarredShips((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(shipId)) {
-        newSet.delete(shipId);
-      } else {
-        newSet.add(shipId);
-      }
-      return newSet;
-    });
-  };
-
-  const navyFilterDraftValueOptions = React.useMemo(
-    () => navyFilterSecondaryOptions(navyFilterDraftCategory, ships),
-    [navyFilterDraftCategory, ships],
-  );
-
-  React.useEffect(() => {
-    if (!needsNavyFilterValue(navyFilterDraftCategory)) return;
-    if (navyFilterDraftCategory === "data_threat") {
-      return;
-    }
-    const opts = navyFilterSecondaryOptions(navyFilterDraftCategory, ships);
-    if (opts.length === 0) return;
-    if (
-      !navyFilterDraftValue ||
-      !opts.some((o) => o.value === navyFilterDraftValue)
-    ) {
-      setNavyFilterDraftValue(opts[0].value);
-    }
-  }, [ships, navyFilterDraftCategory, navyFilterDraftValue]);
-
-  // Filter and sort ships
-  const filteredAndSortedShips = React.useMemo(() => {
-    const filtered = ships.filter((ship) => {
-      if (activeNavyFilters.length === 0) return true;
-      const byCategory = new Map<NavyFilterCategory, NavyFilterCriterion[]>();
-      for (const criterion of activeNavyFilters) {
-        const existing = byCategory.get(criterion.category);
-        if (existing) {
-          existing.push(criterion);
-        } else {
-          byCategory.set(criterion.category, [criterion]);
-        }
-      }
-      // AND across categories, OR within each category.
-      for (const criteria of byCategory.values()) {
-        const matchesAnyInCategory = criteria.some((criterion) =>
-          shipMatchesNavyFilter(
-            ship,
-            criterion.category,
-            criterion.value,
-            starredShips,
-          ),
-        );
-        if (!matchesAnyInCategory) return false;
-      }
-      return true;
-    });
-
-    // Apply sorting
-    return [...filtered].sort((a, b) => {
-      let aValue: number | bigint;
-      let bValue: number | bigint;
-
-      switch (sortBy) {
-        case "cost":
-          aValue = a.shipData.cost;
-          bValue = b.shipData.cost;
-          break;
-        case "accuracy":
-          aValue = a.traits.accuracy;
-          bValue = b.traits.accuracy;
-          break;
-        case "hull":
-          aValue = a.traits.hull;
-          bValue = b.traits.hull;
-          break;
-        case "speed":
-          aValue = a.traits.speed;
-          bValue = b.traits.speed;
-          break;
-        default: // 'id'
-          aValue = a.id;
-          bValue = b.id;
-      }
-
-      if (sortOrder === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-  }, [
-    ships,
-    activeNavyFilters,
-    sortBy,
-    sortOrder,
-    starredShips,
-  ]);
-
-  const formatNavyFilterCriterion = React.useCallback(
-    (criterion: NavyFilterCriterion): string => {
-      const categoryLabel = navyFilterCategoryLabel(criterion.category);
-      if (!needsNavyFilterValue(criterion.category)) return categoryLabel;
-      const opts = navyFilterSecondaryOptions(criterion.category, ships);
-      const valueLabel =
-        opts.find((o) => o.value === criterion.value)?.label ??
-        criterion.value;
-      return `${categoryLabel}: ${valueLabel}`;
-    },
+  const getNavyFilterSecondaryOptions = React.useCallback(
+    (category: NavyFilterCategory) => navyFilterSecondaryOptions(category, ships),
     [ships],
   );
 
-  const upsertNavyFilter = React.useCallback(
-    (category: NavyFilterCategory, value: string) => {
-      setActiveNavyFilters((prev) => {
-        const existsExact = prev.some(
-          (x) => x.category === category && x.value === value,
-        );
-        if (existsExact) return prev;
-        const nextWithoutCategory = isEquipmentOrTraitFilterCategory(category)
-          ? prev
-          : prev.filter((x) => x.category !== category);
-        return [
-          ...nextWithoutCategory,
-          { id: newFleetCompositionId(), category, value },
-        ];
-      });
-    },
-    [],
-  );
-
-  const toggleBooleanNavyFilter = React.useCallback(
-    (category: NavyFilterCategory) => {
-      setActiveNavyFilters((prev) => {
-        const hasCategory = prev.some(
-          (x) => x.category === category && x.value === "",
-        );
-        if (hasCategory) {
-          return prev.filter((x) => x.category !== category);
-        }
-        const nextWithoutCategory = prev.filter((x) => x.category !== category);
-        return [
-          ...nextWithoutCategory,
-          { id: newFleetCompositionId(), category, value: "" },
-        ];
-      });
-    },
-    [],
-  );
-
-  const toggleFilterValue = React.useCallback(
-    (category: NavyFilterCategory, value: string) => {
-      setActiveNavyFilters((prev) => {
-        const hasExact = prev.some(
-          (x) => x.category === category && x.value === value,
-        );
-        if (hasExact) {
-          return prev.filter(
-            (x) => !(x.category === category && x.value === value),
-          );
-        }
-        const nextBase = isEquipmentOrTraitFilterCategory(category)
-          ? prev
-          : prev.filter((x) => x.category !== category);
-        return [...nextBase, { id: newFleetCompositionId(), category, value }];
-      });
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    if (!address) {
-      setFleetCompositions([]);
-      setFleetCompositionSelectedId(null);
-      setFleetCompositionHydrated(false);
-      return;
-    }
-    const persisted = readFleetCompositionPersisted(chainId, address);
-    setFleetCompositions(persisted.fleets);
-    setFleetCompositionSelectedId(persisted.selectedFleetId);
-    setFleetCompositionHydrated(true);
-  }, [chainId, address]);
-
-  React.useEffect(() => {
-    if (!address || !fleetCompositionHydrated) return;
-    writeFleetCompositionPersisted(
-      chainId,
-      address,
-      fleetCompositions,
-      fleetCompositionSelectedId,
-    );
-  }, [
-    chainId,
-    address,
-    fleetCompositions,
-    fleetCompositionHydrated,
-    fleetCompositionSelectedId,
-  ]);
-
-  React.useEffect(() => {
-    if (fleetCompositionSelectedId == null) return;
-    if (!fleetCompositions.some((f) => f.id === fleetCompositionSelectedId)) {
-      setFleetCompositionSelectedId(null);
-    }
-  }, [fleetCompositions, fleetCompositionSelectedId]);
-
-  const fleetCompositionsRef = React.useRef(fleetCompositions);
-  fleetCompositionsRef.current = fleetCompositions;
-  React.useEffect(() => {
-    if (fleetCompositionSelectedId == null) {
-      setFleetCompositionRenameDraft("");
-      return;
-    }
-    const f = fleetCompositionsRef.current.find(
-      (x) => x.id === fleetCompositionSelectedId,
-    );
-    setFleetCompositionRenameDraft(f?.name ?? "");
-  }, [fleetCompositionSelectedId]);
-
-  React.useEffect(() => {
-    if (!address || isLoading) return;
-    setFleetCompositions((prev) => {
-      if (prev.length === 0) return prev;
-      let changed = false;
-      const next = prev.map((f) => {
-        const nextIds = f.shipIds.filter((id) => {
-          const s = ships.find((x) => x.id.toString() === id);
-          return (
-            s &&
-            s.shipData.constructed &&
-            s.shipData.timestampDestroyed === 0n
-          );
-        });
-        if (nextIds.length !== f.shipIds.length) changed = true;
-        return { ...f, shipIds: nextIds };
-      });
-      return changed ? next : prev;
-    });
-  }, [ships, address, isLoading]);
-
-  const activeCompositionFleet = React.useMemo(
+  // Filter and sort ships
+  const filteredAndSortedShips = React.useMemo(
     () =>
-      fleetCompositionSelectedId
-        ? fleetCompositions.find((f) => f.id === fleetCompositionSelectedId)
-        : undefined,
-    [fleetCompositionSelectedId, fleetCompositions],
+      filterAndSortShips(
+        ships,
+        filterState.activeFilters,
+        filterState.sortBy,
+        filterState.sortOrder,
+        starredShips,
+      ),
+    [ships, filterState.activeFilters, filterState.sortBy, filterState.sortOrder, starredShips],
   );
 
-  const shipsForGridDisplay = React.useMemo(() => {
-    if (!fleetCompositionSelectedId || !activeCompositionFleet) {
-      return filteredAndSortedShips;
-    }
-    const f = activeCompositionFleet;
-    const idSet = new Set(f.shipIds);
-    const inOrder = f.shipIds
-      .map((id) =>
-        filteredAndSortedShips.find((s) => s.id.toString() === id),
-      )
-      .filter((s): s is Ship => s != null);
-    const rest = filteredAndSortedShips.filter(
-      (s) => !idSet.has(s.id.toString()),
-    );
-    return [...inOrder, ...rest];
-  }, [
-    fleetCompositionSelectedId,
-    activeCompositionFleet,
-    filteredAndSortedShips,
-  ]);
+  const shipsForGridDisplay = React.useMemo(
+    () =>
+      reorderByFleetComposition(filteredAndSortedShips, fleetComposition.activeFleet, (s) =>
+        s.id.toString(),
+      ),
+    [filteredAndSortedShips, fleetComposition.activeFleet],
+  );
 
   React.useEffect(() => {
-    setShipPage(0);
-  }, [activeNavyFilters, sortBy, sortOrder, fleetCompositionSelectedId]);
+    filterState.setPage(0);
+    // filterState is a fresh object every render; depend on the specific
+    // stable setState function it returns, not the whole object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleetComposition.selectedId, filterState.setPage]);
 
   const paginatedShips = React.useMemo(
-    () =>
-      shipsForGridDisplay.slice(
-        shipPage * SHIPS_PER_PAGE,
-        (shipPage + 1) * SHIPS_PER_PAGE,
-      ),
-    [shipsForGridDisplay, shipPage],
+    () => filterState.paginate(shipsForGridDisplay),
+    // filterState is a fresh object every render; depend on the specific
+    // stable members actually used, not the whole object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shipsForGridDisplay, filterState.page, filterState.paginate],
   );
 
+  // Threat total is web3-specific: sums bigint `shipData.cost`, converting
+  // to number at this boundary (number-native-shared-components rule).
   const activeCompositionThreatTotal = React.useMemo(() => {
-    if (!activeCompositionFleet) return 0;
-    return activeCompositionFleet.shipIds.reduce((sum, id) => {
+    if (!fleetComposition.activeFleet) return 0;
+    return fleetComposition.activeFleet.shipIds.reduce((sum, id) => {
       const s = ships.find((x) => x.id.toString() === id);
       if (
         !s ||
@@ -794,175 +524,7 @@ const ManageNavy: React.FC = () => {
       }
       return sum + Number(s.shipData.cost);
     }, 0);
-  }, [activeCompositionFleet, ships]);
-
-  const fleetRenameIsDirty = React.useMemo(() => {
-    if (!activeCompositionFleet || fleetCompositionSelectedId == null) {
-      return false;
-    }
-    const next = fleetCompositionRenameDraft.trim() || "Unnamed fleet";
-    return next !== activeCompositionFleet.name;
-  }, [
-    activeCompositionFleet,
-    fleetCompositionSelectedId,
-    fleetCompositionRenameDraft,
-  ]);
-
-  const finishFleetSelect = React.useCallback((v: string) => {
-    if (v === "") {
-      setFleetCompositionSelectedId(null);
-      return;
-    }
-    if (v === "__create__") {
-      const id = newFleetCompositionId();
-      setFleetCompositions((p) => {
-        const n = p.length + 1;
-        return [...p, { id, name: `Fleet ${n}`, shipIds: [] }];
-      });
-      setFleetCompositionSelectedId(id);
-      return;
-    }
-    setFleetCompositionSelectedId(v);
-  }, []);
-
-  const onFleetCompositionSelectChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const v = e.target.value;
-      if (v === "") {
-        finishFleetSelect("");
-        return;
-      }
-      if (
-        address &&
-        typeof window !== "undefined" &&
-        sessionStorage.getItem(
-          fleetCompositionLocalNoticeSessionKey(chainId, address),
-        ) !== "1"
-      ) {
-        fleetSelectPendingRef.current = { value: v };
-        setShowFleetCompositionLocalModal(true);
-        return;
-      }
-      finishFleetSelect(v);
-    },
-    [address, chainId, finishFleetSelect],
-  );
-
-  const acknowledgeFleetCompositionLocalModal = React.useCallback(() => {
-    if (address) {
-      sessionStorage.setItem(
-        fleetCompositionLocalNoticeSessionKey(chainId, address),
-        "1",
-      );
-    }
-    setShowFleetCompositionLocalModal(false);
-    const pending = fleetSelectPendingRef.current;
-    fleetSelectPendingRef.current = null;
-    if (pending) finishFleetSelect(pending.value);
-  }, [address, chainId, finishFleetSelect]);
-
-  const cancelFleetCompositionLocalModal = React.useCallback(() => {
-    setShowFleetCompositionLocalModal(false);
-    fleetSelectPendingRef.current = null;
-  }, []);
-
-  const addShipToActiveComposition = React.useCallback(
-    (shipIdStr: string) => {
-      if (!fleetCompositionSelectedId) return;
-      setFleetCompositions((prev) =>
-        prev.map((f) => {
-          if (f.id !== fleetCompositionSelectedId) return f;
-          if (f.shipIds.includes(shipIdStr)) return f;
-          return { ...f, shipIds: [...f.shipIds, shipIdStr] };
-        }),
-      );
-    },
-    [fleetCompositionSelectedId],
-  );
-
-  const removeShipFromActiveComposition = React.useCallback(
-    (shipIdStr: string) => {
-      if (!fleetCompositionSelectedId) return;
-      setFleetCompositions((prev) =>
-        prev.map((f) => {
-          if (f.id !== fleetCompositionSelectedId) return f;
-          return { ...f, shipIds: f.shipIds.filter((id) => id !== shipIdStr) };
-        }),
-      );
-    },
-    [fleetCompositionSelectedId],
-  );
-
-  const commitFleetRename = React.useCallback(() => {
-    if (!fleetCompositionSelectedId) return;
-    const name = fleetCompositionRenameDraft.trim() || "Unnamed fleet";
-    setFleetCompositions((prev) =>
-      prev.map((f) =>
-        f.id === fleetCompositionSelectedId ? { ...f, name } : f,
-      ),
-    );
-  }, [fleetCompositionSelectedId, fleetCompositionRenameDraft]);
-
-  const deleteActiveFleet = React.useCallback(() => {
-    if (!fleetCompositionSelectedId) return;
-    if (
-      !confirm(
-        "Delete this fleet preset? It is only stored in this browser.",
-      )
-    ) {
-      return;
-    }
-    const id = fleetCompositionSelectedId;
-    setFleetCompositions((prev) => prev.filter((f) => f.id !== id));
-    setFleetCompositionSelectedId(null);
-  }, [fleetCompositionSelectedId]);
-
-  const exportFleetCompositionsFile = React.useCallback(() => {
-    if (fleetCompositions.length === 0) {
-      toast.error("No fleet presets to export");
-      return;
-    }
-    const payload = buildFleetCompositionExport(chainId, fleetCompositions);
-    const dataStr = JSON.stringify(payload, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `fleet_compositions_chain${chainId}_${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success("Fleet presets exported");
-  }, [chainId, fleetCompositions]);
-
-  const onFleetImportFileChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const text = String(reader.result ?? "");
-        const result = parseFleetCompositionImport(text, chainId);
-        if (!result.ok) {
-          toast.error(result.error);
-          return;
-        }
-        setFleetCompositions((prev) => {
-          const byId = new Map<string, FleetComposition>();
-          for (const f of prev) byId.set(f.id, f);
-          for (const f of result.fleets) byId.set(f.id, f);
-          return Array.from(byId.values());
-        });
-        toast.success(`Imported ${result.fleets.length} fleet preset(s)`);
-      };
-      reader.readAsText(file);
-    },
-    [chainId],
-  );
+  }, [fleetComposition.activeFleet, ships]);
 
   // Handle ship selection
   const toggleShipSelection = (shipId: string) => {
@@ -1251,40 +813,11 @@ const ManageNavy: React.FC = () => {
     );
 
   const fleetCompositionSelectControl = (
-    <div className="flex w-full min-w-0 flex-col gap-1 md:w-auto">
-      <label
-        className="text-[10px] font-bold uppercase tracking-wider opacity-70"
-        style={{
-          fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-          color: "var(--color-cyan)",
-        }}
-      >
-        Fleets
-      </label>
-      <select
-        value={fleetCompositionSelectedId ?? ""}
-        onChange={onFleetCompositionSelectChange}
-        className="w-full min-w-0 max-w-full px-3 py-2 text-sm font-semibold uppercase tracking-wider sm:min-w-[12rem] sm:max-w-[16rem]"
-        style={{
-          fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-          appearance: "none",
-          WebkitAppearance: "none",
-          MozAppearance: "none",
-          backgroundColor: "var(--color-near-black)",
-          color: "var(--color-text-primary)",
-          border: "2px solid var(--color-gunmetal)",
-          borderRadius: 0,
-        }}
-      >
-        <option value="">Manage Fleets</option>
-        <option value="__create__">+ Create new fleet</option>
-        {fleetCompositions.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.name}
-          </option>
-        ))}
-      </select>
-    </div>
+    <FleetCompositionSelect
+      fleetCompositions={fleetComposition.fleetCompositions}
+      selectedId={fleetComposition.selectedId}
+      onChange={fleetComposition.onSelectChange}
+    />
   );
 
   return (
@@ -1700,102 +1233,25 @@ const ManageNavy: React.FC = () => {
       </div>
 
       {/* Ship Purchase Interface */}
-      {showShipPurchase && (
-        <div
-          className={`${
-            showMobileShipPurchaseTakeover
-              ? "fixed inset-0 z-[340] mb-0 overflow-y-auto border-0 bg-near-black px-3 py-4"
-              : "mb-8 border border-gunmetal bg-near-black px-3 py-5 sm:p-8"
-          }`}
-          style={{ borderRadius: 0 }}
-        >
-          <div className={`${showMobileShipPurchaseTakeover ? "mx-auto w-full max-w-6xl" : "mx-auto max-w-6xl"}`}>
-          <div className="mb-6 flex flex-col gap-4 border-b border-cyan/20 pb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start">
-              <div className="flex flex-col gap-1">
-                <h4
-                  className="text-xl font-black uppercase tracking-[0.08em] text-primary sm:text-2xl"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                  }}
-                >
-                  Ship purchasing
-                </h4>
-                <p
-                  className="text-xs font-mono font-bold uppercase tracking-[0.08em] text-warning-red"
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  }}
-                >
-                  Prices not yet normalized for all chains
-                </p>
-              </div>
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <span className="font-mono text-sm text-secondary">
-                  PAYMENT METHOD:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setPaymentMethod("FLOW")}
-                    className={`px-3 py-1 border-2 font-mono font-bold tracking-wider transition-all duration-200 text-sm ${
-                      paymentMethod === "FLOW"
-                        ? "border-cyan text-cyan bg-cyan/10"
-                        : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
-                    }`}
-                    style={{
-                      borderRadius: 0, // Square corners for industrial theme
-                    }}
-                  >
-                    TOKENS
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod("UTC")}
-                    className={`px-3 py-1 border-2 font-mono font-bold tracking-wider transition-all duration-200 text-sm ${
-                      paymentMethod === "UTC"
-                        ? "border-amber text-amber bg-amber/10"
-                        : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
-                    }`}
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  >
-                    UTC
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod("USD")}
-                    className={`px-3 py-1 border-2 font-mono font-bold tracking-wider transition-all duration-200 text-sm ${
-                      paymentMethod === "USD"
-                        ? "border-phosphor-green text-phosphor-green bg-phosphor-green/10"
-                        : "border-gunmetal text-muted hover:border-steel hover:text-secondary"
-                    }`}
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  >
-                    Fireblocks Flow
-                  </button>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowShipPurchase(false)}
-              className="self-end text-2xl font-bold text-text-muted hover:text-text-primary sm:self-auto"
-              type="button"
-              aria-label="Close ship purchasing"
-            >
-              ×
-            </button>
-          </div>
-
-          <ShipPurchaseInterface
-            onClose={() => setShowShipPurchase(false)}
-            paymentMethod={paymentMethod}
-            onPaymentMethodChange={setPaymentMethod}
-          />
-          </div>
-        </div>
-      )}
+      <ShipPurchasePanel
+        show={showShipPurchase}
+        onClose={() => setShowShipPurchase(false)}
+        mobileTakeover={showMobileShipPurchaseTakeover}
+        warningNote="Prices not yet normalized for all chains"
+        paymentMethods={[
+          { id: "FLOW", label: "TOKENS", activeBorderClass: "border-cyan", activeTextClass: "text-cyan", activeBgClass: "bg-cyan/10" },
+          { id: "UTC", label: "UTC", activeBorderClass: "border-amber", activeTextClass: "text-amber", activeBgClass: "bg-amber/10" },
+          { id: "USD", label: "Fireblocks Flow", activeBorderClass: "border-phosphor-green", activeTextClass: "text-phosphor-green", activeBgClass: "bg-phosphor-green/10" },
+        ]}
+        activePaymentMethodId={paymentMethod}
+        onSelectPaymentMethod={(id) => setPaymentMethod(id as "FLOW" | "UTC" | "USD")}
+      >
+        <ShipPurchaseInterface
+          onClose={() => setShowShipPurchase(false)}
+          paymentMethod={paymentMethod}
+          onPaymentMethodChange={setPaymentMethod}
+        />
+      </ShipPurchasePanel>
 
       {/* Filtering and Sorting Controls */}
       <div
@@ -1809,146 +1265,32 @@ const ManageNavy: React.FC = () => {
         }}
       >
         <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-center xl:justify-between">
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <label
-              className="text-sm font-bold uppercase tracking-wider shrink-0"
-              style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                color: "var(--color-cyan)",
-              }}
-            >
-              FILTER:
-            </label>
-            <button
-              type="button"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const windowWidth = Math.min(window.innerWidth * 0.96, 72 * 16);
-                const left = Math.min(
-                  Math.max(12, rect.left),
-                  Math.max(0, window.innerWidth - windowWidth),
-                );
-                setFilterWindowAnchor({ top: rect.bottom + 8, left });
-                setShowFilterWindow(true);
-              }}
-              className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
-              style={{
-                fontFamily:
-                  "var(--font-jetbrains-mono), 'Courier New', monospace",
-                borderColor: "var(--color-cyan)",
-                color: "var(--color-cyan)",
-                backgroundColor: "var(--color-steel)",
-                borderRadius: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-slate)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-steel)";
-              }}
-            >
-              {activeNavyFilters.length > 0
-                ? `[FILTERS ${activeNavyFilters.length}]`
-                : "[FILTERS]"}
-            </button>
-            {activeNavyFilters.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveNavyFilters([])}
-                className="px-3 py-1 border border-warning-red text-warning-red hover:bg-warning-red/10 uppercase font-semibold tracking-wider text-xs transition-all duration-150"
-                style={{
-                  fontFamily:
-                    "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  borderRadius: 0,
-                }}
-              >
-                [CLEAR]
-              </button>
-            )}
-            {activeNavyFilters.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                {activeNavyFilters.map((criterion) => (
-                  <button
-                    type="button"
-                    key={criterion.id}
-                    onClick={() =>
-                      setActiveNavyFilters((prev) =>
-                        prev.filter((x) => x.id !== criterion.id),
-                      )
-                    }
-                    className="px-2 py-1 border border-cyan/60 text-primary hover:border-cyan hover:text-primary hover:bg-cyan/10 text-xs tracking-wide"
-                    style={{
-                      fontFamily:
-                        "var(--font-jetbrains-mono), 'Courier New', monospace",
-                      borderRadius: 0,
-                    }}
-                    title="Remove filter"
-                  >
-                    {formatNavyFilterCriterion(criterion)} ×
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-            <label
-              className="shrink-0 text-sm font-bold uppercase tracking-wider"
-              style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                color: "var(--color-cyan)",
-              }}
-            >
-              SORT BY:
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) =>
-                setSortBy(
-                  e.target.value as
-                    | "id"
-                    | "cost"
-                    | "accuracy"
-                    | "hull"
-                    | "speed",
-                )
-              }
-              className="min-w-0 flex-1 px-3 py-1 text-sm font-semibold uppercase tracking-wider sm:min-w-[8rem] sm:flex-none"
-              style={{
-                fontFamily:
-                  "var(--font-jetbrains-mono), 'Courier New', monospace",
-                appearance: "none",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-              }}
-            >
-              <option value="id">ID</option>
-              <option value="cost">THREAT</option>
-              <option value="accuracy">ACCURACY</option>
-              <option value="hull">HULL</option>
-              <option value="speed">SPEED</option>
-            </select>
-
-            <button
-              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-              className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
-              style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                borderColor: "var(--color-cyan)",
-                color: "var(--color-cyan)",
-                backgroundColor: "var(--color-steel)",
-                borderRadius: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-slate)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-steel)";
-              }}
-            >
-              {sortOrder === "asc" ? "↑" : "↓"}
-            </button>
-          </div>
+          <NavyFilterToolbar
+            activeFilters={filterState.activeFilters}
+            onRemoveFilter={filterState.removeFilterById}
+            onClearFilters={filterState.clearFilters}
+            sortBy={filterState.sortBy}
+            onSortByChange={filterState.setSortBy}
+            sortOrder={filterState.sortOrder}
+            onToggleSortOrder={() =>
+              filterState.setSortOrder(filterState.sortOrder === "asc" ? "desc" : "asc")
+            }
+            showFilterWindow={filterState.showFilterWindow}
+            onOpenFilterWindow={(anchor) => {
+              filterState.setFilterWindowAnchor(anchor);
+              filterState.setShowFilterWindow(true);
+            }}
+            onCloseFilterWindow={() => filterState.setShowFilterWindow(false)}
+            filterWindowAnchor={filterState.filterWindowAnchor}
+            draftCategory={filterState.draftCategory}
+            getSecondaryOptions={getNavyFilterSecondaryOptions}
+            onSelectCategory={(category) =>
+              filterState.selectDraftCategory(category, getNavyFilterSecondaryOptions)
+            }
+            onToggleFilterValue={filterState.toggleFilterValue}
+            onSetThreatFilter={filterState.setThreatFilter}
+            onSetDraftValue={filterState.setDraftValue}
+          />
 
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
             <label className="flex min-w-0 cursor-pointer items-center gap-2 text-sm">
@@ -1980,259 +1322,6 @@ const ManageNavy: React.FC = () => {
         </div>
       </div>
 
-      {showFilterWindow && (
-        <>
-          <div
-            className="fixed inset-0 z-[259]"
-            onMouseDown={() => setShowFilterWindow(false)}
-          />
-          <div
-            className="fixed z-[260] p-2"
-            style={{
-              top: `${filterWindowAnchor.top}px`,
-              left: `${filterWindowAnchor.left}px`,
-            }}
-          >
-            <div
-              className="max-h-[78vh] w-[min(96vw,72rem)] overflow-auto border border-cyan/70 bg-near-black p-4"
-              style={{ borderRadius: 0 }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <div className="mb-4 flex items-center justify-between border-b border-cyan/30 pb-3">
-                <h4
-                  className="text-lg font-black uppercase tracking-[0.08em] text-primary"
-                  style={{
-                    fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                  }}
-                >
-                  Manage Navy Filters
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowFilterWindow(false)}
-                  className="px-3 py-1 border border-cyan/80 text-primary hover:bg-cyan/10 text-xs uppercase tracking-wider"
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    borderRadius: 0,
-                  }}
-                >
-                  [CLOSE]
-                </button>
-              </div>
-
-              <section
-                className="border border-cyan/30 p-3"
-                style={{ borderRadius: 0 }}
-              >
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h5 className="text-sm font-bold uppercase tracking-wider text-primary">
-                    Select filter criteria
-                  </h5>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase tracking-wider text-muted">
-                      Threat at or below
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={
-                        activeNavyFilters.find((f) => f.category === "data_threat")
-                          ?.value ?? ""
-                      }
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        if (next === "") {
-                          setActiveNavyFilters((prev) =>
-                            prev.filter((f) => f.category !== "data_threat"),
-                          );
-                          return;
-                        }
-                        const parsed = Number(next);
-                        if (Number.isInteger(parsed) && parsed >= 0) {
-                          upsertNavyFilter("data_threat", String(parsed));
-                        }
-                      }}
-                      className="px-3 py-1 w-28 font-semibold tracking-wider text-sm"
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        borderRadius: 0,
-                      }}
-                    />
-                  </div>
-                  {needsNavyFilterValue(navyFilterDraftCategory) &&
-                    !isEquipmentOrTraitFilterCategory(
-                      navyFilterDraftCategory,
-                    ) &&
-                    navyFilterDraftCategory !== "data_threat" && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase tracking-wider text-muted">
-                        {navyFilterCategoryLabel(navyFilterDraftCategory)} value
-                      </span>
-                      {navyFilterDraftCategory === "data_rank" ? (
-                        <select
-                          value={navyFilterDraftValue}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            setNavyFilterDraftValue(next);
-                            if (next) {
-                              upsertNavyFilter("data_rank", next);
-                            }
-                          }}
-                          className="px-3 py-1 uppercase font-semibold tracking-wider text-sm"
-                          style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            appearance: "none",
-                            WebkitAppearance: "none",
-                            MozAppearance: "none",
-                            borderRadius: 0,
-                          }}
-                        >
-                          {[1, 2, 3, 4, 5].map((rank) => (
-                            <option key={rank} value={String(rank)}>
-                              {`R${rank}`}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <select
-                          value={navyFilterDraftValue}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            setNavyFilterDraftValue(next);
-                            if (next) {
-                              upsertNavyFilter(navyFilterDraftCategory, next);
-                            }
-                          }}
-                          disabled={navyFilterDraftValueOptions.length === 0}
-                          className="px-3 py-1 uppercase font-semibold tracking-wider text-sm disabled:opacity-40"
-                          style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            appearance: "none",
-                            WebkitAppearance: "none",
-                            MozAppearance: "none",
-                            borderRadius: 0,
-                          }}
-                        >
-                          {navyFilterDraftValueOptions.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {NAVY_FILTER_GROUPS.map((group) => (
-                    <div
-                      key={group.label}
-                      className="border border-cyan/20 p-2"
-                      style={{ borderRadius: 0 }}
-                    >
-                      <div className="mb-2 text-xs uppercase tracking-wider text-cyan">
-                        {group.label}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.categories.map((category) => (
-                          <div key={category} className="space-y-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNavyFilterDraftCategory(category);
-                                if (!needsNavyFilterValue(category)) {
-                                  toggleBooleanNavyFilter(category);
-                                } else if (!isEquipmentOrTraitFilterCategory(category)) {
-                                  if (category === "data_threat") {
-                                    const existing = activeNavyFilters.find(
-                                      (f) => f.category === category,
-                                    );
-                                    const next = existing?.value ?? "100";
-                                    setNavyFilterDraftValue(next);
-                                    upsertNavyFilter("data_threat", next);
-                                    return;
-                                  }
-                                  const opts = navyFilterSecondaryOptions(
-                                    category,
-                                    ships,
-                                  );
-                                  const preferred = opts.find(
-                                    (o) => o.value === navyFilterDraftValue,
-                                  )?.value;
-                                  const chosen = preferred ?? opts[0]?.value ?? "";
-                                  if (chosen) {
-                                    setNavyFilterDraftValue(chosen);
-                                    upsertNavyFilter(category, chosen);
-                                  }
-                                }
-                              }}
-                              className={`px-2 py-1 text-xs uppercase tracking-wide border ${
-                                navyFilterDraftCategory === category
-                                  ? "border-cyan bg-cyan/20 text-primary"
-                                  : "border-gunmetal text-secondary hover:border-cyan hover:text-primary"
-                              }`}
-                              style={{
-                                fontFamily:
-                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                borderRadius: 0,
-                              }}
-                            >
-                              {navyFilterCategoryLabel(category)}
-                            </button>
-                            {isEquipmentOrTraitFilterCategory(category) && (
-                              <div className="ml-1 flex flex-wrap gap-1">
-                                {navyFilterSecondaryOptions(category, ships).map(
-                                  (option) => {
-                                    const isSelected = activeNavyFilters.some(
-                                      (f) =>
-                                        f.category === category &&
-                                        f.value === option.value,
-                                    );
-                                    return (
-                                      <button
-                                        type="button"
-                                        key={`${category}-${option.value}`}
-                                        onClick={() =>
-                                          toggleFilterValue(
-                                            category,
-                                            option.value,
-                                          )
-                                        }
-                                        className={`px-2 py-0.5 text-[11px] uppercase tracking-wide border ${
-                                          isSelected
-                                            ? "border-phosphor-green bg-phosphor-green/20 text-phosphor-green"
-                                            : "border-gunmetal text-text-secondary hover:border-phosphor-green/50 hover:text-phosphor-green"
-                                        }`}
-                                        style={{
-                                          fontFamily:
-                                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                          borderRadius: 0,
-                                        }}
-                                      >
-                                        {option.label}
-                                      </button>
-                                    );
-                                  },
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Ships Display */}
       {!hasShips ? (
         <div className="text-center">
@@ -2257,8 +1346,8 @@ const ManageNavy: React.FC = () => {
               >
                 [YOUR SHIPS] - Showing{" "}
                 {filteredAndSortedShips.length > SHIPS_PER_PAGE
-                  ? `${shipPage * SHIPS_PER_PAGE + 1}–${Math.min(
-                      (shipPage + 1) * SHIPS_PER_PAGE,
+                  ? `${filterState.page * SHIPS_PER_PAGE + 1}–${Math.min(
+                      (filterState.page + 1) * SHIPS_PER_PAGE,
                       filteredAndSortedShips.length,
                     )} of ${filteredAndSortedShips.length}`
                   : filteredAndSortedShips.length}{" "}
@@ -2266,54 +1355,12 @@ const ManageNavy: React.FC = () => {
               </h4>
               <div className="flex flex-wrap items-center gap-2">
                 {shipsForGridDisplay.length > SHIPS_PER_PAGE && (
-                  <>
-                    <button
-                      onClick={() => setShipPage((p) => Math.max(0, p - 1))}
-                      disabled={shipPage === 0}
-                      className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
-                      style={{
-                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        borderColor: shipPage === 0 ? "var(--color-gunmetal)" : "var(--color-cyan)",
-                        color: shipPage === 0 ? "var(--color-text-secondary)" : "var(--color-cyan)",
-                        backgroundColor: "var(--color-steel)",
-                        borderRadius: 0,
-                        opacity: shipPage === 0 ? 0.4 : 1,
-                      }}
-                    >
-                      &lt; PREV
-                    </button>
-                    <span
-                      className="text-sm uppercase tracking-wider"
-                      style={{
-                        fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {shipPage + 1} / {Math.ceil(shipsForGridDisplay.length / SHIPS_PER_PAGE)}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setShipPage((p) =>
-                          Math.min(
-                            Math.ceil(shipsForGridDisplay.length / SHIPS_PER_PAGE) - 1,
-                            p + 1,
-                          ),
-                        )
-                      }
-                      disabled={(shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length}
-                      className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
-                      style={{
-                        fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        borderColor: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? "var(--color-gunmetal)" : "var(--color-cyan)",
-                        color: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? "var(--color-text-secondary)" : "var(--color-cyan)",
-                        backgroundColor: "var(--color-steel)",
-                        borderRadius: 0,
-                        opacity: (shipPage + 1) * SHIPS_PER_PAGE >= shipsForGridDisplay.length ? 0.4 : 1,
-                      }}
-                    >
-                      NEXT &gt;
-                    </button>
-                  </>
+                  <NavyPagination
+                    page={filterState.page}
+                    pageCount={filterState.pageCount(shipsForGridDisplay.length)}
+                    onPrev={filterState.prevPage}
+                    onNext={() => filterState.nextPage(shipsForGridDisplay.length)}
+                  />
                 )}
                 <button
                   onClick={handleSelectAll}
@@ -2357,101 +1404,20 @@ const ManageNavy: React.FC = () => {
               </div>
             </div>
 
-            <div
-              className="flex flex-col gap-2 border border-solid px-2 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-3"
-              style={{
-                borderColor: "var(--color-gunmetal)",
-                borderTopColor: "var(--color-steel)",
-                borderLeftColor: "var(--color-steel)",
-                backgroundColor: "var(--color-near-black)",
-                borderRadius: 0,
-              }}
-            >
-              {fleetCompositionSelectedId != null &&
-                activeCompositionFleet && (
-                  <>
-                    <label
-                      className="text-xs font-bold uppercase tracking-wider shrink-0"
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        color: "var(--color-cyan)",
-                      }}
-                    >
-                      Fleet name
-                    </label>
-                    <input
-                      type="text"
-                      value={fleetCompositionRenameDraft}
-                      onChange={(e) =>
-                        setFleetCompositionRenameDraft(e.target.value)
-                      }
-                      onBlur={commitFleetRename}
-                      className="min-h-10 w-full min-w-0 flex-1 px-2 py-1 text-sm sm:min-w-[8rem] sm:max-w-[16rem] sm:flex-none"
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        backgroundColor: "var(--color-slate)",
-                        color: "var(--color-text-primary)",
-                        border: "1px solid var(--color-gunmetal)",
-                        borderRadius: 0,
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={commitFleetRename}
-                      disabled={!fleetRenameIsDirty}
-                      className="px-3 py-1.5 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-xs tracking-wider transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                      style={{ borderRadius: 0 }}
-                    >
-                      [SAVE]
-                    </button>
-                    <span
-                      className="text-sm font-bold uppercase tracking-wider"
-                      style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-amber)",
-                      }}
-                    >
-                      Total threat: {activeCompositionThreatTotal}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={deleteActiveFleet}
-                      className="px-3 py-1.5 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-xs tracking-wider transition-all duration-200"
-                      style={{ borderRadius: 0 }}
-                    >
-                      [DELETE FLEET]
-                    </button>
-                  </>
-                )}
-              {fleetCompositions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={exportFleetCompositionsFile}
-                  className="px-3 py-1.5 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-xs tracking-wider transition-all duration-200"
-                  style={{ borderRadius: 0 }}
-                >
-                  [EXPORT FLEETS]
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => fleetImportInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-xs tracking-wider transition-all duration-200"
-                style={{ borderRadius: 0 }}
-              >
-                [IMPORT FLEETS]
-              </button>
-              <input
-                ref={fleetImportInputRef}
-                type="file"
-                accept=".json,application/json"
-                className="hidden"
-                onChange={onFleetImportFileChange}
-              />
-            </div>
+            <FleetCompositionControls
+              selectedId={fleetComposition.selectedId}
+              activeFleet={fleetComposition.activeFleet}
+              renameDraft={fleetComposition.renameDraft}
+              onRenameDraftChange={fleetComposition.setRenameDraft}
+              onCommitRename={fleetComposition.commitRename}
+              renameIsDirty={fleetComposition.renameIsDirty}
+              threatTotal={activeCompositionThreatTotal}
+              onDeleteActive={fleetComposition.deleteActive}
+              fleetCompositions={fleetComposition.fleetCompositions}
+              onExport={() => fleetComposition.exportFile(`fleet_compositions_chain${chainId}`)}
+              importInputRef={fleetComposition.importInputRef}
+              onImportFileChange={fleetComposition.onImportFileChange}
+            />
           </div>
           <div
             ref={shipGridRef}
@@ -2469,7 +1435,15 @@ const ManageNavy: React.FC = () => {
               return (
                 <ShipCard
                   key={ship.id.toString()}
-                  ship={ship}
+                  ship={toShipCardData(ship)}
+                  shipImage={
+                    <ShipImage
+                      key={`${ship.id.toString()}-${ship.shipData.constructed ? "constructed" : "unconstructed"}`}
+                      ship={ship}
+                      className="h-full w-full"
+                      showLoadingState={true}
+                    />
+                  }
                   isStarred={starredShips.has(ship.id.toString())}
                   onToggleStar={() => toggleStar(ship.id.toString())}
                   isSelected={selectedShips.has(ship.id.toString())}
@@ -2519,54 +1493,22 @@ const ManageNavy: React.FC = () => {
                     ) : undefined
                   }
                   fleetCompositionControls={(() => {
-                    if (
-                      !fleetCompositionSelectedId ||
-                      !activeCompositionFleet
-                    ) {
+                    if (!fleetComposition.selectedId || !fleetComposition.activeFleet) {
                       return undefined;
                     }
                     const sid = ship.id.toString();
                     const destroyed = ship.shipData.timestampDestroyed > 0n;
-                    const inComp =
-                      activeCompositionFleet.shipIds.includes(sid);
+                    const inComp = fleetComposition.activeFleet.shipIds.includes(sid);
                     if (!ship.shipData.constructed) return undefined;
                     if (destroyed && !inComp) return undefined;
 
-                    const addBtn = (
-                      <button
-                        type="button"
-                        className="w-full px-2 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                        onClick={() => addShipToActiveComposition(sid)}
-                      >
-                        [ADD TO FLEET]
-                      </button>
-                    );
-                    const removeBtn = (
-                      <button
-                        type="button"
-                        className="w-full px-2 py-2 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                        onClick={() => removeShipFromActiveComposition(sid)}
-                      >
-                        [REMOVE FROM FLEET]
-                      </button>
-                    );
-
-                    if (destroyed && inComp) {
-                      return (
-                        <div className="text-center py-3 px-2 space-y-2">
-                          <div className="text-warning-red text-xs font-mono">
-                            Destroyed: remove from preset
-                          </div>
-                          {removeBtn}
-                        </div>
-                      );
-                    }
                     return (
-                      <div className="text-center py-3 px-2">
-                        {inComp ? removeBtn : addBtn}
-                      </div>
+                      <FleetCompositionCardControls
+                        destroyedAndInComposition={destroyed && inComp}
+                        inComposition={inComp}
+                        onAdd={() => fleetComposition.addShip(sid)}
+                        onRemove={() => fleetComposition.removeShip(sid)}
+                      />
                     );
                   })()}
                 />
@@ -2576,172 +1518,60 @@ const ManageNavy: React.FC = () => {
         </div>
       )}
 
-      {showFleetCompositionLocalModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
-          <div
-            className="max-w-md w-full border-2 bg-near-black p-5"
-            style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="fleet-composition-local-title"
-          >
-            <h3
-              id="fleet-composition-local-title"
-              className="text-lg font-bold uppercase tracking-wide text-primary mb-3"
-              style={{
-                fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+      <FleetCompositionLocalNoticeModal
+        show={fleetComposition.showLocalNoticeModal}
+        onCancel={fleetComposition.cancelLocalNoticeModal}
+        onAcknowledge={fleetComposition.acknowledgeLocalNoticeModal}
+      />
+
+      <RecycleConfirmModal
+        show={showRecycleModal && shipToRecycle != null}
+        shipName={shipToRecycle ? (shipToRecycle.name || `Ship #${shipToRecycle.id}`) : ""}
+        canRecycle={canRecycle}
+        purchasedCount={amountPurchased ? Number(amountPurchased) : 0}
+        threshold={10}
+        rewardLabel={recycleReward ? formatEther(recycleReward as bigint) : "..."}
+        onCancel={handleRecycleCancel}
+        confirmButton={
+          shipToRecycle && (
+            <TransactionButton
+              transactionId={`recycle-ship-${shipToRecycle.id}`}
+              contractAddress={shipsContractAddress}
+              abi={[
+                {
+                  inputs: [
+                    {
+                      internalType: "uint256[]",
+                      name: "_shipIds",
+                      type: "uint256[]",
+                    },
+                  ],
+                  name: "shipBreaker",
+                  outputs: [],
+                  stateMutability: "nonpayable",
+                  type: "function",
+                },
+              ]}
+              functionName="shipBreaker"
+              args={[[shipToRecycle.id]]}
+              className="px-6 py-2 border border-warning-red text-warning-red hover:bg-warning-red/10 rounded-none font-mono font-bold transition-all duration-200"
+              onSuccess={() => {
+                toast.success("Ship recycled successfully!");
+                setShowRecycleModal(false);
+                setShipToRecycle(null);
+                setTimeout(() => {
+                  refetch();
+                }, 1000);
+              }}
+              onError={() => {
+                console.error("Failed to recycle ship");
               }}
             >
-              Local fleet presets
-            </h3>
-            <p
-              className="text-sm leading-relaxed text-primary mb-5"
-              style={MANAGE_NAVY_TUTORIAL_MONO}
-            >
-              Fleet compositions are saved only in this browser (local
-              storage). Clearing site data, another device, or another browser
-              will not have these presets. Use export to back up JSON and import
-              to restore on this chain.
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={cancelFleetCompositionLocalModal}
-                className="px-4 py-2 border border-steel text-secondary hover:bg-steel/50 font-mono text-sm"
-                style={{ borderRadius: 0 }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={acknowledgeFleetCompositionLocalModal}
-                className="px-4 py-2 border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm"
-                style={{ borderRadius: 0 }}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recycle Confirmation Modal */}
-      {showRecycleModal && shipToRecycle && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-near-black border border-warning-red rounded-none p-6 max-w-md mx-4">
-            <div className="text-center">
-              <div className="text-warning-red text-2xl font-mono font-bold mb-4 tracking-widest">[✕]</div>
-              {canRecycle ? (
-                <>
-                  <h3 className="text-xl font-bold text-warning-red mb-4">
-                    DESTROY SHIP PERMANENTLY?
-                  </h3>
-                  <div className="text-primary mb-4">
-                    <p className="font-bold">
-                      {shipToRecycle.name || `Ship #${shipToRecycle.id}`}
-                    </p>
-                    <p className="text-sm opacity-80 mt-2">This action will:</p>
-                    <ul className="text-sm text-left mt-2 space-y-1">
-                      <li>
-                        •{" "}
-                        <span className="text-warning-red">
-                          Permanently destroy
-                        </span>{" "}
-                        this ship
-                      </li>
-                      <li>
-                        •{" "}
-                        <span className="text-cyan">
-                          Pay out{" "}
-                          {recycleReward
-                            ? formatEther(recycleReward as bigint)
-                            : "..."}{" "}
-                          UTC
-                        </span>{" "}
-                        per ship recycled
-                      </li>
-                      <li>
-                        •{" "}
-                        <span className="text-warning-red">Cannot be reversed</span>{" "}
-                        - this is permanent
-                      </li>
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-xl font-bold text-amber mb-4">
-                    INSUFFICIENT PURCHASES
-                  </h3>
-                  <div className="text-primary mb-4">
-                    <p className="font-bold">
-                      {shipToRecycle.name || `Ship #${shipToRecycle.id}`}
-                    </p>
-                    <p className="text-sm opacity-80 mt-2">
-                      You must purchase at least 10 ships before you can recycle
-                      any ships.
-                    </p>
-                    <p className="text-sm text-amber mt-2 font-bold">
-                      Current purchases:{" "}
-                      {amountPurchased ? Number(amountPurchased) : 0} / 10
-                      required
-                    </p>
-                  </div>
-                </>
-              )}
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={handleRecycleCancel}
-                  className="px-6 py-2 border border-steel text-muted hover:border-secondary hover:text-secondary hover:bg-steel/10 rounded-none font-mono font-bold transition-all duration-200"
-                >
-                  CANCEL
-                </button>
-                {canRecycle && (
-                  <TransactionButton
-                    transactionId={`recycle-ship-${shipToRecycle.id}`}
-                    contractAddress={shipsContractAddress}
-                    abi={[
-                      {
-                        inputs: [
-                          {
-                            internalType: "uint256[]",
-                            name: "_shipIds",
-                            type: "uint256[]",
-                          },
-                        ],
-                        name: "shipBreaker",
-                        outputs: [],
-                        stateMutability: "nonpayable",
-                        type: "function",
-                      },
-                    ]}
-                    functionName="shipBreaker"
-                    args={[[shipToRecycle.id]]}
-                    className="px-6 py-2 border border-warning-red text-warning-red hover:bg-warning-red/10 rounded-none font-mono font-bold transition-all duration-200"
-                    onSuccess={() => {
-                      // Show success toast
-                      toast.success("Ship recycled successfully!");
-                      // Close modal and refetch ships data
-                      setShowRecycleModal(false);
-                      setShipToRecycle(null);
-                      // Add a small delay to ensure blockchain state is updated
-                      setTimeout(() => {
-                        refetch();
-                      }, 1000);
-                    }}
-                    onError={() => {
-                      // Keep modal open on error so user can try again
-                      console.error("Failed to recycle ship");
-                    }}
-                  >
-                    DESTROY SHIP
-                  </TransactionButton>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+              DESTROY SHIP
+            </TransactionButton>
+          )
+        }
+      />
 
       {isMobileManageNavyLayout && showConstructDeliveryTutorial && (
         <ManageNavyMobileTutorialSheet
