@@ -5,7 +5,6 @@ import { useAccount } from "wagmi";
 import posthog from "posthog-js";
 import {
   GameDataView,
-  ShipPosition,
   Attributes,
   getMainWeaponName,
   getSpecialName,
@@ -34,32 +33,28 @@ import {
   useSpecialData,
 } from "../hooks/useShipAttributesContract";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
+import { GameScoreBox } from "./GameScoreBox";
+import { GameTurnLabel } from "./GameTurnLabel";
+import { GameFleetCard } from "./GameFleetCard";
+import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
+import { toGameScoreData, toGameWinnerResult } from "../utils/toGameDisplayData";
 import { GameEvents } from "./GameEvents";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
 import {
   toGridShipMap,
-  toGridShipPositionGrid,
   toGridShipPositions,
-  toGridTargets,
   toGridIdSet,
+  toGameplayShipMap,
+  toGridLastMove,
   displayIdToBigint,
 } from "../utils/toGridDisplay";
-import {
-  computeMovementRange,
-  computeShootingRange,
-  computeLabelTargets,
-  computeHoverValidTargets,
-  computeHoverShootingRange,
-  hasLineOfSight,
-} from "../utils/gameGridRanges";
+import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
-import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
-import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
 import { type GameRecord, type TurnRecord } from "../types/types";
 import { buildInitialRecord, appendTurn, finalizeRecord } from "../utils/serializeGameRecord";
 import { saveGameRecord, loadGameRecord } from "../utils/gameRecordStorage";
@@ -108,42 +103,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const replayAutoPlayRef = React.useRef(false);
   const { clearAllTransactions, transactionState } = useTransaction();
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
-  const [previewPosition, setPreviewPosition] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [targetShipId, setTargetShipId] = useState<bigint | null>(null);
-  // Explicit per-ship action override (e.g. Retreat/Flee)
-  const [actionOverride, setActionOverride] = useState<ActionType | null>(null);
-  /** Player clicked Retreat for this ship (healthy ships); not set for auto-retreat on 0 HP. */
-  const [retreatExplicitByShipId, setRetreatExplicitByShipId] = useState<
-    Record<string, true>
-  >({});
-
-  const [selectedWeaponType, setSelectedWeaponType] = useState<
-    "weapon" | "special" | "ram"
-  >("weapon");
-  const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<
-    Record<string, "weapon" | "special">
-  >({});
-  const [hoveredCell, setHoveredCell] = useState<{
-    shipId: bigint;
-    row: number;
-    col: number;
-    isCreator: boolean;
-    fromFleet?: boolean;
-  } | null>(null);
-
-  // Drag and drop state
+  // Drag and drop state — `selectedShipId`/`draggedShipId` stay here (not
+  // owned by `useGameplayInteraction`) because resolving their equipped
+  // special's range/data needs a real `useSpecialRange`/`useSpecialData`
+  // contract-read hook call, which must happen at this component's top
+  // level before the interaction hook runs — see that hook's params doc.
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
-  const [dragOverCell, setDragOverCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] =
     useState(true);
   const [isDebugPanelMinimized, setIsDebugPanelMinimized] = useState(true);
@@ -172,15 +137,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const proposedMoveTargetBtnClass = useSideLayout
     ? "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex w-full shrink-0 items-center justify-center"
     : "h-9 px-3 py-0 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 flex items-center shrink-0";
-
-  useRetreatModeCancellation({
-    actionOverride,
-    targetShipId,
-    previewPosition,
-    selectedShipId,
-    setActionOverride,
-    setRetreatExplicitByShipId,
-  });
 
   // Fetch the current game data to get real-time updates
   const {
@@ -366,26 +322,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Enable real-time event listening for game updates
   useContractEvents();
 
-  const { recordPlayerMove } = useGamePolling({
-    gameId: Number(game.metadata.gameId),
-    turnTime: game.turnState.turnTime,
-    gameData,
-    refetchGame,
-    onRefetch: () => setTargetShipId(null),
-  });
-
-  const resetSelection = React.useCallback(() => {
-    setSelectedShipId(null);
-    setPreviewPosition(null);
-    setTargetShipId(null);
-    setActionOverride(null);
-    setDraggedShipId(null);
-    setDragOverCell(null);
-    setHoveredCell(null);
-    setRetreatExplicitByShipId({});
-  }, []);
-  useResetSelectionOnTurnChange(game.turnState.currentTurn, resetSelection);
-
   // Initialize game record once on mount
   React.useEffect(() => {
     if (!gameRecordRef.current && game.metadata.gameId) {
@@ -534,14 +470,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return `${m}:${s}`;
   };
 
-  // Clear targeting state when game data changes (after successful moves)
-  React.useEffect(() => {
-    if (gameData && gameData !== initialGame) {
-      // Game data has been updated, clear targeting state
-      setTargetShipId(null);
-    }
-  }, [gameData, initialGame]);
-
   // Get game map state directly from the Maps contract
   const { data: gameMapState, isLoading: mapLoading } = useGetGameMapState(
     Number(game.metadata.gameId),
@@ -619,64 +547,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [game.shipAttributes, game.shipIds],
   );
 
-  const isEnemyDisabledShipId = React.useCallback(
-    (shipId: bigint): boolean => {
-      const ship = shipMap.get(shipId);
-      if (!ship || !address) return false;
-      if (ship.owner === address) return false;
-      const attrs = getShipAttributes(shipId);
-      if (!attrs) return false;
-      return attrs.hullPoints === 0;
-    },
-    [shipMap, address, getShipAttributes],
-  );
-
+  // Dragged ship's equipped-special range — a real contract read, must live
+  // here (top level, before useGameplayInteraction) since hooks can't be
+  // called from inside a callback with a dynamic id. See that hook's params
+  // doc (selectedShipSpecialRange/draggedShipSpecialRange) for why.
   const draggedShipForSpecialRange =
     draggedShipId != null ? shipMap.get(draggedShipId) : null;
-  const draggedSpecialEquipmentType =
-    draggedShipForSpecialRange?.equipment.special ?? 0;
-  const { specialRange: draggedSpecialRange } = useSpecialRange(
-    draggedShipId != null ? draggedSpecialEquipmentType : 0,
+  const draggedShipSpecialType = draggedShipForSpecialRange?.equipment.special ?? 0;
+  const { specialRange: draggedShipSpecialRange } = useSpecialRange(
+    draggedShipId != null ? draggedShipSpecialType : 0,
   );
-
-  /** Drag overlays must use the dragged ship's prefs and on-chain special range, not the prior selection. */
-  const dragWeaponPlan = React.useMemo(() => {
-    if (!draggedShipId) {
-      return {
-        mode: "weapon" as const,
-        specialEquipmentType: 0,
-        specialRange: undefined as number | undefined,
-      };
-    }
-    const ship = shipMap.get(draggedShipId);
-    const attrs = getShipAttributes(draggedShipId);
-    if (attrs && attrs.hullPoints === 0) {
-      return {
-        mode: "weapon" as const,
-        specialEquipmentType: draggedSpecialEquipmentType,
-        specialRange: draggedSpecialRange,
-      };
-    }
-    const canSpecial = !!(ship && ship.equipment.special > 0);
-    const saved =
-      weaponPreferenceByShipId[draggedShipId.toString()] ?? "weapon";
-    const mode =
-      saved === "special" && canSpecial
-        ? ("special" as const)
-        : ("weapon" as const);
-    return {
-      mode,
-      specialEquipmentType: draggedSpecialEquipmentType,
-      specialRange: draggedSpecialRange,
-    };
-  }, [
-    draggedShipId,
-    shipMap,
-    getShipAttributes,
-    weaponPreferenceByShipId,
-    draggedSpecialEquipmentType,
-    draggedSpecialRange,
-  ]);
 
   // Build a set of shipIds that have already moved this round (from game data)
   const movedShipIdsSet = React.useMemo(() => {
@@ -693,239 +573,163 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, [game.creatorMovedShipIds, game.joinerMovedShipIds]);
 
 
-  // Create a 2D array to represent the grid
-  const grid: (ShipPosition | null)[][] = React.useMemo(() => {
-    const newGrid: (ShipPosition | null)[][] = Array(GRID_HEIGHT)
-      .fill(null)
-      .map(() => Array(GRID_WIDTH).fill(null));
+  // Check if it's the current player's turn
+  const isMyTurn = game.turnState.currentTurn === address;
+  const [awaitingTurnSyncAfterSubmit, setAwaitingTurnSyncAfterSubmit] =
+    React.useState(false);
+  const isMyTurnEffective = isMyTurn && !awaitingTurnSyncAfterSubmit;
+  const canActInGame = !readOnly && isMyTurnEffective;
+  const gameWinnerResult = toGameWinnerResult(game.metadata.winner, address);
+  const isGameOver = gameWinnerResult !== null;
+  const moveShipTxId = `move-ship-${selectedShipId}-${game.metadata.gameId}`;
+  const isSubmittingMove =
+    (transactionState.isPending &&
+      transactionState.activeTransactionId === moveShipTxId) ||
+    awaitingTurnSyncAfterSubmit;
 
-    // Place ships on the grid
-    aliveShipPositions.forEach((shipPosition) => {
-      const { position } = shipPosition;
+  const { recordPlayerMove } = useGamePolling({
+    gameId: Number(game.metadata.gameId),
+    turnTime: game.turnState.turnTime,
+    gameData,
+    refetchGame,
+    onRefetch: () => interaction.setTargetShipId(null),
+  });
 
-      // Optimistic last move:
-      // If we've confirmed a tx but the contract state hasn't been refetched
-      // yet, render the ship at the submitted destination (or remove it for
-      // retreat). This prevents the board from snapping back to the old
-      // state between tx receipt and the next blockchain update.
-      if (optimisticLastMove && shipPosition.shipId === optimisticLastMove.shipId) {
-        if (optimisticLastMove.actionType === ActionType.Retreat) {
-          // Ship left the board: don't render it at its old position.
-          return;
-        }
-
-        if (
-          optimisticLastMove.newRow >= 0 &&
-          optimisticLastMove.newRow < GRID_HEIGHT &&
-          optimisticLastMove.newCol >= 0 &&
-          optimisticLastMove.newCol < GRID_WIDTH
-        ) {
-          // Only place if the target cell is empty in our grid snapshot.
-          if (!newGrid[optimisticLastMove.newRow][optimisticLastMove.newCol]) {
-            newGrid[optimisticLastMove.newRow][optimisticLastMove.newCol] = {
-              ...shipPosition,
-              position: {
-                row: optimisticLastMove.newRow,
-                col: optimisticLastMove.newCol,
-              },
-            };
-          }
-        }
-
-        // Ghost at the previous square while selection + chain state lag behind the receipt
-        // (same gap as last-move replay; without this the "from" cell is empty).
-        const oR = optimisticLastMove.oldRow;
-        const oC = optimisticLastMove.oldCol;
-        const nR = optimisticLastMove.newRow;
-        const nC = optimisticLastMove.newCol;
-        if (
-          (oR !== nR || oC !== nC) &&
-          oR >= 0 &&
-          oR < GRID_HEIGHT &&
-          oC >= 0 &&
-          oC < GRID_WIDTH &&
-          !newGrid[oR][oC]
-        ) {
-          newGrid[oR][oC] = {
-            ...shipPosition,
-            position: { row: oR, col: oC },
-            isPreview: true,
-          };
-        }
-
-        // Skip the original placement (we rendered the optimistic position).
-        return;
-      }
-
-      if (
-        position.row >= 0 &&
-        position.row < GRID_HEIGHT &&
-        position.col >= 0 &&
-        position.col < GRID_WIDTH
-      ) {
-        // Always place the original ship in its original position
-        newGrid[position.row][position.col] = shipPosition;
-
-        // If this ship is selected and has a preview position, also place a preview copy
-        if (selectedShipId === shipPosition.shipId && previewPosition) {
-          newGrid[previewPosition.row][previewPosition.col] = {
-            ...shipPosition,
-            position: { row: previewPosition.row, col: previewPosition.col },
-            isPreview: true, // Mark as preview for styling
-          };
-        }
-      }
-    });
-
-    // Also show last move preview if we're displaying it (and not showing a proposed move)
-    // Check conditions directly to avoid dependency order issues
-    const isMyTurnNow = game.turnState.currentTurn === address;
-    const shouldShowLastMoveNow =
-      game.metadata.winner === "0x0000000000000000000000000000000000000000" &&
-      displayedLastMove &&
-      displayedLastMove.shipId !== 0n &&
-      selectedShipId === null;
-
-    const isShowingProposedMoveNow = (() => {
-      if (selectedShipId === null || !isMyTurnNow || previewPosition === null) {
-        return false;
-      }
-      const ship = shipMap.get(selectedShipId);
-      return ship ? ship.owner === address : false;
-    })();
-
-    // Only show last move if not showing a proposed move
-    const canShowLastMove = shouldShowLastMoveNow && !isShowingProposedMoveNow;
-
-    if (canShowLastMove && displayedLastMove) {
-      const lastMoveShipPosition = aliveShipPositions.find(
-        (pos) => pos.shipId === displayedLastMove.shipId,
-      );
-
-      if (lastMoveShipPosition) {
-        // The ship is currently at its new position
-        // Show a preview copy at the old position (ghosted/flashing)
-        const oldPos = {
-          row: displayedLastMove.oldRow,
-          col: displayedLastMove.oldCol,
-        };
-        const newPos = {
-          row: displayedLastMove.newRow,
-          col: displayedLastMove.newCol,
-        };
-
-        // If the ship moved (old position != new position), show preview at old position
-        if (oldPos.row !== newPos.row || oldPos.col !== newPos.col) {
-          if (
-            oldPos.row >= 0 &&
-            oldPos.row < GRID_HEIGHT &&
-            oldPos.col >= 0 &&
-            oldPos.col < GRID_WIDTH &&
-            // Don't overwrite if there's already a ship there (shouldn't happen, but safety check)
-            !newGrid[oldPos.row][oldPos.col]
-          ) {
-            // Place preview ship at old position (ghosted/flashing effect)
-            newGrid[oldPos.row][oldPos.col] = {
-              ...lastMoveShipPosition,
-              position: oldPos,
-              isPreview: true, // Mark as preview for styling (ghosted/flashing)
-            };
-          }
-        }
-        // The ship at new position will show pulse effect via lastMoveShipId prop in GameGrid
-      }
-
-      // For destroyed-target last-move UI, render the target ship at its
-      // reported position with status=destroyed so GameGrid can replace normal
-      // art with destroyed art in the regular ship rendering path.
-      const isTargetingLastMove =
-        displayedLastMove.actionType === ActionType.Shoot ||
-        displayedLastMove.actionType === ActionType.Special;
-      if (isTargetingLastMove && displayedLastMove.targetShipId !== 0n) {
-        const destroyedTargetShipPosition = game.shipPositions.find(
-          (shipPosition) =>
-            shipPosition.shipId === displayedLastMove.targetShipId &&
-            shipPosition.status === 1,
-        );
-        if (destroyedTargetShipPosition) {
-          const { row, col } = destroyedTargetShipPosition.position;
-          if (
-            row >= 0 &&
-            row < GRID_HEIGHT &&
-            col >= 0 &&
-            col < GRID_WIDTH &&
-            !newGrid[row][col]
-          ) {
-            newGrid[row][col] = destroyedTargetShipPosition;
-          }
-        }
-      }
-    }
-
-    return newGrid;
-  }, [
-    aliveShipPositions,
-    selectedShipId,
-    previewPosition,
-    displayedLastMove,
-    optimisticLastMove,
-    game.shipPositions,
-    game.metadata.winner,
-    game.turnState.currentTurn,
-    address,
-    shipMap,
-  ]);
-
-  // Calculate movement range for selected ship (any ship, for viewing).
-  // Logic is shared with the tutorial via computeMovementRange.
-  const movementRange = React.useMemo(
-    () =>
-      computeMovementRange({
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT,
-        selectedShipId,
-        hasShips: !!gameShips,
-        shipMap,
-        getShipAttributes,
-        shipPositions: aliveShipPositions,
-        previewPosition,
-        canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
-          occupyingShipId !== selectedShipId &&
-          isEnemyDisabledShipId(occupyingShipId),
-      }),
-    [
-      selectedShipId,
-      gameShips,
-      shipMap,
-      aliveShipPositions,
-      getShipAttributes,
-      previewPosition,
-      isEnemyDisabledShipId,
-    ],
+  // ── GameGrid interaction boundary adapter ─────────────────────────────
+  // `useGameplayInteraction` (shared with GameDisplayWeb2.tsx) works on
+  // plain numbers, matching the `GridShip` display-layer convention (see
+  // app/types/gridDisplay.ts). Convert bigint state down at the boundary
+  // via app/utils/toGridDisplay.ts, and convert the few number-native id
+  // outputs the rest of this file still needs back up to bigint.
+  const gameplayShipMap = React.useMemo(
+    () => toGameplayShipMap(shipMap),
+    [shipMap],
+  );
+  const aliveShipPositionsForInteraction = React.useMemo(
+    () => toGridShipPositions(aliveShipPositions) ?? [],
+    [aliveShipPositions],
+  );
+  const allShipPositionsForInteraction = React.useMemo(
+    () => toGridShipPositions(game.shipPositions) ?? [],
+    [game.shipPositions],
+  );
+  const movedShipIdsSetForInteraction = React.useMemo(
+    () => toGridIdSet(movedShipIdsSet),
+    [movedShipIdsSet],
+  );
+  const getShipAttributesForInteraction = React.useCallback(
+    (shipId: number) => getShipAttributes(BigInt(shipId)),
+    [getShipAttributes],
+  );
+  const lastMoveForInteraction = React.useMemo(
+    () => toGridLastMove(displayedLastMove),
+    [displayedLastMove],
+  );
+  const setSelectedShipIdForInteraction = React.useCallback(
+    (id: number | null) => setSelectedShipId(displayIdToBigint(id)),
+    [],
+  );
+  const setDraggedShipIdForInteraction = React.useCallback(
+    (id: number | null) => setDraggedShipId(displayIdToBigint(id)),
+    [],
   );
 
-  const isRammingMovePreview = React.useMemo(() => {
-    if (!selectedShipId || !previewPosition) return false;
-    const occupyingShip = aliveShipPositions.find(
-      (pos) =>
-        pos.position.row === previewPosition.row &&
-        pos.position.col === previewPosition.col &&
-        pos.shipId !== selectedShipId,
-    );
-    if (!occupyingShip) return false;
-    return isEnemyDisabledShipId(occupyingShip.shipId);
-  }, [
-    selectedShipId,
-    previewPosition,
-    aliveShipPositions,
-    isEnemyDisabledShipId,
-  ]);
+  const interaction = useGameplayInteraction({
+    gridWidth: GRID_WIDTH,
+    gridHeight: GRID_HEIGHT,
+    shipMap: gameplayShipMap,
+    getShipAttributes: getShipAttributesForInteraction,
+    allShipPositions: allShipPositionsForInteraction,
+    aliveShipPositions: aliveShipPositionsForInteraction,
+    movedShipIdsSet: movedShipIdsSetForInteraction,
+    playerAddress: address ?? null,
+    currentTurn: game.turnState.currentTurn,
+    isGameOver,
+    isCurrentPlayerTurn: canActInGame,
+    isSubmitting: isSubmittingMove,
+    blockedGrid,
+    lastMove: lastMoveForInteraction,
+    selectedShipId: selectedShipId != null ? Number(selectedShipId) : null,
+    setSelectedShipId: setSelectedShipIdForInteraction,
+    draggedShipId: draggedShipId != null ? Number(draggedShipId) : null,
+    setDraggedShipId: setDraggedShipIdForInteraction,
+    selectedShipSpecialRange: specialRange,
+    selectedShipSpecialData: (specialData ?? null) as { strength: number } | null,
+    draggedShipSpecialRange,
+  });
 
+  const {
+    previewPosition,
+    selectedWeaponType,
+    dragOverCell,
+    movementRange,
+    shootingRange,
+    dragShootingRange,
+    hoverShootingRange,
+    isRammingMovePreview,
+    isShowingProposedMove,
+    showConfirmWidget,
+    confirmWidgetLabel,
+    computedActionType,
+    computedMoveCoords,
+    handleCancelMove: interactionHandleCancelMove,
+    handleGridRightClickDeselect: interactionHandleGridRightClickDeselect,
+    retreatPrepIsCreator,
+    setSelectedWeaponType: setWeaponTypeFromGrid,
+    onMoveTileHover,
+  } = interaction;
+
+  const toBigTargets = React.useCallback(
+    (targets: { shipId: number; position: { row: number; col: number } }[]) =>
+      targets.map((t) => ({ shipId: BigInt(t.shipId), position: t.position })),
+    [],
+  );
+  const validTargets = React.useMemo(
+    () => toBigTargets(interaction.validTargets),
+    [interaction.validTargets, toBigTargets],
+  );
+  const targetShipId =
+    interaction.targetShipId != null ? BigInt(interaction.targetShipId) : null;
+  const setTargetShipId = React.useCallback(
+    (id: bigint | number | null) =>
+      interaction.setTargetShipId(
+        id == null ? null : typeof id === "bigint" ? Number(id) : id,
+      ),
+    // interaction is a fresh object every render; depend on the stable setter only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [interaction.setTargetShipId],
+  );
+
+  // Clear targeting state when game data changes (after successful moves)
   React.useEffect(() => {
-    if (!isRammingMovePreview) return;
-    if (targetShipId === null) return;
-    setTargetShipId(null);
-  }, [isRammingMovePreview, targetShipId]);
+    if (gameData && gameData !== initialGame) {
+      // Game data has been updated, clear targeting state
+      setTargetShipId(null);
+    }
+  }, [gameData, initialGame, setTargetShipId]);
+
+  const hoveredCell = interaction.hoveredCell
+    ? { ...interaction.hoveredCell, shipId: BigInt(interaction.hoveredCell.shipId) }
+    : null;
+  const setHoveredCell = React.useCallback(
+    (
+      cell:
+        | {
+            shipId: bigint;
+            row: number;
+            col: number;
+            isCreator: boolean;
+            fromFleet?: boolean;
+          }
+        | null,
+    ) =>
+      interaction.setHoveredCell(
+        cell ? { ...cell, shipId: Number(cell.shipId) } : null,
+      ),
+    // interaction is a fresh object every render; depend on the stable setter only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [interaction.setHoveredCell],
+  );
 
   const calculateDamageForShip = useDamageCalculation({
     selectedShipId,
@@ -935,437 +739,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     specialType,
   });
 
-  // Valid targets: only ships in range from current position (or from preview position when move is set). Used for selection logic.
-  const validTargets = React.useMemo(() => {
-    if (!selectedShipId || !gameShips) return [];
-    if (isRammingMovePreview) return [];
-
-    const attributes = getShipAttributes(selectedShipId);
-    // Disabled ships (0 HP) cannot shoot; only retreat is available
-    if (attributes && attributes.hullPoints === 0) return [];
-
-    const shootingRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
-
-    const currentPosition = game.shipPositions.find(
-      (pos) => pos.shipId === selectedShipId,
-    );
-
-    if (!currentPosition) return [];
-
-    const startRow = previewPosition
-      ? previewPosition.row
-      : currentPosition.position.row;
-    const startCol = previewPosition
-      ? previewPosition.col
-      : currentPosition.position.col;
-
-    const targets: {
-      shipId: bigint;
-      position: { row: number; col: number };
-    }[] = [];
-
-    game.shipPositions.forEach((shipPosition) => {
-      const ship = shipMap.get(shipPosition.shipId);
-      if (!ship) return;
-
-      if (selectedWeaponType === "special") {
-        if (specialType === 3) {
-          if (shipPosition.shipId === selectedShipId) return;
-        } else if (specialType === 1) {
-          if (ship.owner === address) return;
-        } else {
-          if (ship.owner !== address) return;
-        }
-      } else {
-        if (ship.owner === address) return;
-      }
-
-      const targetRow = shipPosition.position.row;
-      const targetCol = shipPosition.position.col;
-      const distance =
-        Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
-      const canShoot = distance === 1 || distance <= shootingRange;
-      // Repair drones can target the caster's own ship (distance 0)
-      const isSelfRepair =
-        selectedWeaponType === "special" && specialType === 2 && distance === 0;
-
-      if ((canShoot && distance > 0) || isSelfRepair) {
-        const shouldCheckLineOfSight =
-          distance > 1 &&
-          (selectedWeaponType !== "special" ||
-            (specialType !== 1 && specialType !== 2 && specialType !== 3));
-
-        if (
-          !shouldCheckLineOfSight ||
-          hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
-        ) {
-          targets.push({
-            shipId: shipPosition.shipId,
-            position: { row: targetRow, col: targetCol },
-          });
-        }
-      }
-    });
-
-    return targets;
-  }, [
-    selectedShipId,
-    previewPosition,
-    gameShips,
-    shipMap,
-    address,
-    getShipAttributes,
-    blockedGrid,
-    game.shipPositions,
-    selectedWeaponType,
-    specialRange,
-    specialType,
-    isRammingMovePreview,
-  ]);
-
-  // Targets for damage labels:
-  // - When showing move + gun range (no preview), include any enemy ship that could be shot from
-  //   the current position OR from any valid move position (full threat range).
-  // - When showing only gun range (preview set), include only targets in range from the preview position.
-  const labelTargets = React.useMemo(
-    () =>
-      computeLabelTargets({
-        selectedShipId,
-        previewPosition,
-        isRammingMovePreview,
-        shipPositions: game.shipPositions,
-        shipMap,
-        playerAddress: address ?? null,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        blockedGrid,
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT,
-      }),
-    [
-      selectedShipId,
-      previewPosition,
-      isRammingMovePreview,
-      gameShips,
-      shipMap,
-      address,
-      getShipAttributes,
-      blockedGrid,
-      game.shipPositions,
-      selectedWeaponType,
-      specialRange,
-      specialType,
-    ],
-  );
-
-  // Assist action removed from contract; keep empty arrays for API compatibility
-  const assistableTargets = React.useMemo(() => [], []);
-  const assistableTargetsFromStart = React.useMemo(() => [], []);
-
-  // Calculate shooting range for selected ship (where it could shoot from any valid move position)
-  const shootingRange = React.useMemo(
-    () =>
-      isRammingMovePreview
-        ? []
-        : computeShootingRange({
-            gridWidth: GRID_WIDTH,
-            gridHeight: GRID_HEIGHT,
-            selectedShipId,
-            hasShips: !!gameShips,
-            shipMap,
-            getShipAttributes,
-            shipPositions: game.shipPositions,
-            previewPosition,
-            selectedWeaponType,
-            specialRange,
-            specialType,
-            blockedGrid,
-          }),
-    [
-      selectedShipId,
-      gameShips,
-      isRammingMovePreview,
-      shipMap,
-      getShipAttributes,
-      game.shipPositions,
-      previewPosition,
-      selectedWeaponType,
-      specialRange,
-      specialType,
-      blockedGrid,
-    ],
-  );
-
-  // Calculate valid targets from drag position (when dragging a ship)
-  const dragValidTargets = React.useMemo(() => {
-    if (!draggedShipId || !dragOverCell || !gameShips) return [];
-
-    const attributes = getShipAttributes(draggedShipId);
-    if (!attributes) return [];
-
-    const shootingRange =
-      dragWeaponPlan.mode === "special" &&
-      dragWeaponPlan.specialRange !== undefined
-        ? dragWeaponPlan.specialRange
-        : attributes.range || 1;
-
-    const startRow = dragOverCell.row;
-    const startCol = dragOverCell.col;
-
-    const targets: {
-      shipId: bigint;
-      position: { row: number; col: number };
-    }[] = [];
-
-    const spec = dragWeaponPlan.specialEquipmentType;
-
-    // Check all ships within shooting range
-    game.shipPositions.forEach((shipPosition) => {
-      const ship = shipMap.get(shipPosition.shipId);
-      if (!ship) return;
-
-      // Filter targets based on weapon type
-      if (dragWeaponPlan.mode === "special") {
-        // Flak targets ALL ships in range (friendly and enemy) except itself
-        if (spec === 3) {
-          // Flak hits everything except the ship using flak
-          if (shipPosition.shipId === draggedShipId) return; // Don't target self
-        } else if (spec === 1) {
-          // EMP targets enemy ships
-          if (ship.owner === address) return; // Don't target friendly ships
-        } else {
-          // Other special abilities target friendly ships (allies)
-          if (ship.owner !== address) return;
-        }
-      } else {
-        // Weapons target enemy ships
-        if (ship.owner === address) return;
-      }
-
-      const targetRow = shipPosition.position.row;
-      const targetCol = shipPosition.position.col;
-      const distance =
-        Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
-
-      // Ships can always shoot enemies that are exactly 1 square away
-      // OR within their normal shooting range
-      const canShoot = distance === 1 || distance <= shootingRange;
-
-      if (canShoot && distance > 0) {
-        // Ships can always shoot adjacent enemies (distance === 1) regardless of nebula squares
-        // OR special abilities ignore nebula squares
-        // OR regular weapons need line of sight
-        const shouldCheckLineOfSight =
-          distance > 1 && // Not adjacent
-          (dragWeaponPlan.mode !== "special" ||
-            (spec !== 1 && spec !== 2 && spec !== 3)); // Not EMP, Repair, or Flak
-
-        if (
-          !shouldCheckLineOfSight ||
-          hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
-        ) {
-          targets.push({
-            shipId: shipPosition.shipId,
-            position: { row: targetRow, col: targetCol },
-          });
-        }
-      }
-    });
-
-    return targets;
-  }, [
-    draggedShipId,
-    dragOverCell,
-    gameShips,
-    shipMap,
-    address,
-    getShipAttributes,
-    dragWeaponPlan,
-    game.shipPositions,
-    blockedGrid,
-    hasLineOfSight,
-  ]);
-
-  // Calculate shooting range from drag position (when dragging a ship)
-  const dragShootingRange = React.useMemo(() => {
-    if (!draggedShipId || !dragOverCell || !gameShips) return [];
-
-    const ship = shipMap.get(draggedShipId);
-    if (!ship) return [];
-
-    const attributes = getShipAttributes(draggedShipId);
-    if (!attributes) return [];
-
-    const shootingRange =
-      dragWeaponPlan.mode === "special" &&
-      dragWeaponPlan.specialRange !== undefined
-        ? dragWeaponPlan.specialRange
-        : attributes.range || 1;
-
-    const startRow = dragOverCell.row;
-    const startCol = dragOverCell.col;
-    const spec = dragWeaponPlan.specialEquipmentType;
-
-    const validShootingPositions: { row: number; col: number }[] = [];
-
-    // First, add all positions that are exactly 1 square away
-    for (
-      let row = Math.max(0, startRow - 1);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + 1);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - 1);
-        col <= Math.min(GRID_WIDTH - 1, startCol + 1);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-        if (distance === 1) {
-          const isOccupied = game.shipPositions.some(
-            (pos) => pos.position.row === row && pos.position.col === col,
-          );
-          if (!isOccupied) {
-            validShootingPositions.push({ row, col });
-          }
-        }
-      }
-    }
-
-    // Then check all positions within shooting range
-    for (
-      let row = Math.max(0, startRow - shootingRange);
-      row <= Math.min(GRID_HEIGHT - 1, startRow + shootingRange);
-      row++
-    ) {
-      for (
-        let col = Math.max(0, startCol - shootingRange);
-        col <= Math.min(GRID_WIDTH - 1, startCol + shootingRange);
-        col++
-      ) {
-        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
-        if (distance <= shootingRange && distance > 1) {
-          const isOccupied = game.shipPositions.some(
-            (pos) => pos.position.row === row && pos.position.col === col,
-          );
-          if (!isOccupied) {
-            const shouldCheckLineOfSight =
-              distance > 1 &&
-              (dragWeaponPlan.mode !== "special" ||
-                (spec !== 1 && spec !== 2 && spec !== 3));
-
-            if (
-              !shouldCheckLineOfSight ||
-              hasLineOfSight(startRow, startCol, row, col, blockedGrid)
-            ) {
-              validShootingPositions.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-
-    return validShootingPositions;
-  }, [
-    draggedShipId,
-    dragOverCell,
-    gameShips,
-    shipMap,
-    getShipAttributes,
-    dragWeaponPlan,
-    game.shipPositions,
-    blockedGrid,
-    hasLineOfSight,
-  ]);
-
-  const hoverValidTargets = React.useMemo(
-    () =>
-      computeHoverValidTargets({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: !!gameShips,
-        shipPositions: game.shipPositions,
-        shipMap,
-        playerAddress: address ?? null,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        blockedGrid,
-      }),
-    [selectedShipId, hoverPreviewPosition, gameShips, shipMap, address,
-     getShipAttributes, selectedWeaponType, specialType, specialRange,
-     game.shipPositions, blockedGrid],
-  );
-
-  const hoverShootingRange = React.useMemo(
-    () =>
-      computeHoverShootingRange({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: !!gameShips,
-        shipPositions: game.shipPositions,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        blockedGrid,
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT,
-      }),
-    [selectedShipId, hoverPreviewPosition, gameShips, getShipAttributes,
-     selectedWeaponType, specialType, specialRange, game.shipPositions, blockedGrid],
-  );
-
-  // Auto-set Flak to target all ships when Flak is first selected
-  // Use a ref to track if we've already set it for this selection
-  const flakAutoSetRef = React.useRef<{
-    shipId: bigint | null;
-    weaponType: string;
-  }>({
-    shipId: null,
-    weaponType: "weapon",
-  });
-
-  React.useEffect(() => {
-    if (
-      selectedShipId &&
-      selectedWeaponType === "special" &&
-      specialType === 3
-    ) {
-      // Only auto-set if this is a new selection (ship changed or weapon type changed to special)
-      const isNewSelection =
-        flakAutoSetRef.current.shipId !== selectedShipId ||
-        (flakAutoSetRef.current.weaponType !== "special" &&
-          selectedWeaponType === "special");
-
-      if (isNewSelection && targetShipId !== null) {
-        // Automatically set target to 0n (all ships) for Flak
-        setTargetShipId(0n);
-        flakAutoSetRef.current = {
-          shipId: selectedShipId,
-          weaponType: selectedWeaponType,
-        };
-      }
-    } else {
-      // Reset the ref when not Flak
-      flakAutoSetRef.current = {
-        shipId: selectedShipId,
-        weaponType: selectedWeaponType,
-      };
-    }
-  }, [selectedShipId, selectedWeaponType, specialType, targetShipId]);
-
-  // Check if it's the current player's turn
-  const isMyTurn = game.turnState.currentTurn === address;
-  const [awaitingTurnSyncAfterSubmit, setAwaitingTurnSyncAfterSubmit] =
-    React.useState(false);
-  const isMyTurnEffective = isMyTurn && !awaitingTurnSyncAfterSubmit;
-  const canActInGame = !readOnly && isMyTurnEffective;
 
   // Track if we're currently displaying the last move (to avoid infinite loops)
   const isDisplayingLastMoveRef = React.useRef(false);
@@ -1374,6 +747,23 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     newRow: number;
     newCol: number;
   } | null>(null);
+
+  // Wrap the shared hook's handlers to also clear the last-move-display
+  // tracking refs above (web3-only concern, not known to the shared hook).
+  const handleCancelMove = React.useCallback(() => {
+    isDisplayingLastMoveRef.current = false;
+    lastDisplayedMoveRef.current = null;
+    interactionHandleCancelMove();
+  }, [interactionHandleCancelMove]);
+
+  const handleGridRightClickDeselect = React.useCallback(() => {
+    isDisplayingLastMoveRef.current = false;
+    lastDisplayedMoveRef.current = null;
+    interactionHandleGridRightClickDeselect();
+  }, [interactionHandleGridRightClickDeselect]);
+
+  /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
+  const shouldPulseSubmitMoveButton = React.useMemo(() => false, []);
 
   // Determine if we should show last move preview
   // Show to both players UNLESS:
@@ -1488,43 +878,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   );
 
   // Track if we're showing a proposed move (not last move)
-  const isShowingProposedMove = React.useMemo(() => {
-    // Show move submission UI whenever it's your turn and you have one of your
-    // ships selected that hasn't moved yet, OR a disabled (0 HP) ship selected
-    // that can only Retreat.
-    if (selectedShipId === null) {
-      return false;
-    }
-    if (!isShipOwnedByCurrentPlayer(selectedShipId)) return false;
-
-    const moveShipTxId = `move-ship-${selectedShipId}-${game.metadata.gameId}`;
-    const waitingOnMoveTx =
-      (transactionState.isPending &&
-        transactionState.activeTransactionId === moveShipTxId) ||
-      awaitingTurnSyncAfterSubmit;
-
-    if (movedShipIdsSet.has(selectedShipId)) {
-      const attrs = getShipAttributes(selectedShipId);
-      const isDisabled = attrs && attrs.hullPoints === 0;
-      if (!isDisabled) return false;
-    }
-
-    if (!canActInGame && !waitingOnMoveTx) {
-      return false;
-    }
-    return true;
-  }, [
-    selectedShipId,
-    canActInGame,
-    awaitingTurnSyncAfterSubmit,
-    transactionState.isPending,
-    transactionState.activeTransactionId,
-    game.metadata.gameId,
-    isShipOwnedByCurrentPlayer,
-    movedShipIdsSet,
-    getShipAttributes,
-  ]);
-
   React.useEffect(() => {
     if (!isLandscapeMobile) return;
     if (isShowingProposedMove && mobileActivePanel === "none") {
@@ -1550,41 +903,24 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return !!attrs && attrs.hullPoints === 0;
   }, [selectedShipId, getShipAttributes]);
 
-  // Disabled ships: always Retreat. Healthy ships: Retreat only if the player chose it for that ship.
+  // When showing last move, set up the preview state to display it (weapon
+  // icon / range highlight on GameGrid). This should NOT interfere with
+  // proposed moves. Web3-only nicety, deliberately not ported into the
+  // shared hook (ties into replay/localStorage machinery) — writes through
+  // to the hook's own setters/wrapper instead of local state.
   React.useEffect(() => {
-    if (selectedShipId === null) return;
-    const attrs = getShipAttributes(selectedShipId);
-    if (attrs && attrs.hullPoints === 0) {
-      setActionOverride(ActionType.Retreat);
-      setTargetShipId(null);
-      setPreviewPosition(null);
-      return;
-    }
-    setActionOverride(
-      retreatExplicitByShipId[selectedShipId.toString()]
-        ? ActionType.Retreat
-        : null,
-    );
-  }, [selectedShipId, getShipAttributes, retreatExplicitByShipId]);
-
-  // When showing last move, set up the preview state to display it
-  // This should NOT interfere with proposed moves
-  React.useEffect(() => {
-    // Don't show last move if user has selected a ship or is making a proposed move
     if (selectedShipId !== null || isShowingProposedMove) {
       if (isDisplayingLastMoveRef.current) {
         isDisplayingLastMoveRef.current = false;
         lastDisplayedMoveRef.current = null;
-        // Only clear preview if we're not showing a proposed move
         if (!isShowingProposedMove) {
-          setPreviewPosition(null);
+          interaction.setPreviewPosition(null);
           setTargetShipId(null);
         }
       }
       return;
     }
 
-    // Check if last move has changed
     const lastMoveChanged =
       !lastDisplayedMoveRef.current ||
       !displayedLastMove ||
@@ -1592,11 +928,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       lastDisplayedMoveRef.current.newRow !== displayedLastMove.newRow ||
       lastDisplayedMoveRef.current.newCol !== displayedLastMove.newCol;
 
-    // Only set up last move preview if conditions are met
     if (shouldShowLastMove && displayedLastMove && lastMoveChanged) {
       const lastMoveShip = shipMap.get(displayedLastMove.shipId);
       if (lastMoveShip) {
-        // Mark that we're displaying the last move
         isDisplayingLastMoveRef.current = true;
         lastDisplayedMoveRef.current = {
           shipId: displayedLastMove.shipId,
@@ -1604,85 +938,38 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           newCol: displayedLastMove.newCol,
         };
 
-        // Set preview position for last move
-        setPreviewPosition({
+        interaction.setPreviewPosition({
           row: displayedLastMove.newRow,
           col: displayedLastMove.newCol,
         });
-        // Set target if there is one
         if (displayedLastMove.targetShipId !== 0n) {
           setTargetShipId(displayedLastMove.targetShipId);
         } else {
           setTargetShipId(null);
         }
-        // Set weapon type based on action
         if (displayedLastMove.actionType === ActionType.Shoot) {
-          setSelectedWeaponType("weapon");
+          setWeaponTypeFromGrid("weapon");
         } else if (displayedLastMove.actionType === ActionType.Special) {
-          setSelectedWeaponType("special");
+          setWeaponTypeFromGrid("special");
         }
       }
     } else if (!shouldShowLastMove && isDisplayingLastMoveRef.current) {
-      // Clear preview when not showing last move
       isDisplayingLastMoveRef.current = false;
       lastDisplayedMoveRef.current = null;
-      setPreviewPosition(null);
+      interaction.setPreviewPosition(null);
       setTargetShipId(null);
     }
+    // interaction is a fresh object every render; depend on the stable setter only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     shouldShowLastMove,
     displayedLastMove,
     isShowingProposedMove,
     shipMap,
     selectedShipId,
-  ]);
-
-  const setWeaponTypeFromGrid = React.useCallback(
-    (type: "weapon" | "special" | "ram") => {
-      if (selectedShipId != null && type !== "ram") {
-        const idKey = selectedShipId.toString();
-        setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: type }));
-      }
-      setSelectedWeaponType(type);
-    },
-    [selectedShipId],
-  );
-
-  // Layout effect: apply per-ship weapon mode before paint so range highlights match the selected ship.
-  React.useLayoutEffect(() => {
-    if (selectedShipId === null) {
-      if (!shouldShowLastMove) {
-        setSelectedWeaponType("weapon");
-      }
-      return;
-    }
-
-    const idKey = selectedShipId.toString();
-    const ship = shipMap.get(selectedShipId);
-    const attrs = getShipAttributes(selectedShipId);
-    if (attrs && attrs.hullPoints === 0) {
-      setWeaponPreferenceByShipId((prev) => {
-        if (prev[idKey] === "weapon") return prev;
-        return { ...prev, [idKey]: "weapon" };
-      });
-      setSelectedWeaponType("weapon");
-      return;
-    }
-
-    const canSpecial = !!(ship && ship.equipment.special > 0);
-    const saved = weaponPreferenceByShipId[idKey] ?? "weapon";
-    if (saved === "special" && !canSpecial) {
-      setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: "weapon" }));
-      setSelectedWeaponType("weapon");
-      return;
-    }
-    setSelectedWeaponType(saved);
-  }, [
-    selectedShipId,
-    weaponPreferenceByShipId,
-    shipMap,
-    getShipAttributes,
-    shouldShowLastMove,
+    interaction.setPreviewPosition,
+    setTargetShipId,
+    setWeaponTypeFromGrid,
   ]);
 
   // Clear optimistic last move once the contract state catches up.
@@ -1705,10 +992,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       // The blockchain state has caught up to the submitted preview.
       // Clear local proposal UI now (not immediately on submit) so the
       // previewed board state remains visible during the sync gap.
-      setPreviewPosition(null);
-      setSelectedShipId(null);
-      setTargetShipId(null);
+      interaction.handleCancelMove();
     }
+    // interaction is a fresh object every render; depend on the stable handler only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     optimisticLastMove,
     game.lastMove,
@@ -1719,6 +1006,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     optimisticLastMove?.oldCol,
     optimisticLastMove?.newRow,
     optimisticLastMove?.newCol,
+    interaction.handleCancelMove,
   ]);
 
   // If chain state already says it is no longer our turn, allow local UI to
@@ -1728,11 +1016,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (!isMyTurn) {
       setAwaitingTurnSyncAfterSubmit(false);
       // Turn advanced onchain; clear any locally held proposal state.
-      setPreviewPosition(null);
-      setSelectedShipId(null);
-      setTargetShipId(null);
+      interaction.handleCancelMove();
     }
-  }, [awaitingTurnSyncAfterSubmit, isMyTurn]);
+    // interaction is a fresh object every render; depend on the stable handler only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingTurnSyncAfterSubmit, isMyTurn, interaction.handleCancelMove]);
 
   // For Retreat, newRow/newCol are -1 (fled); don't highlight a cell
   const highlightedMovePosition =
@@ -1829,21 +1117,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
-  const retreatPrepShipId =
-    selectedShipId != null &&
-    actionOverride === ActionType.Retreat &&
-    isShipOwnedByCurrentPlayer(selectedShipId)
-      ? selectedShipId
-      : null;
-
-  const retreatPrepIsCreator =
-    retreatPrepShipId != null
-      ? (() => {
-          const ship = shipMap.get(retreatPrepShipId);
-          return ship ? ship.owner === game.metadata.creator : null;
-        })()
-      : null;
-
   // Track previous turn state to detect turn changes
   const prevTurnRef = React.useRef<boolean | null>(null);
 
@@ -1878,15 +1151,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       if (prevTurnRef.current === false) {
         isDisplayingLastMoveRef.current = false;
         lastDisplayedMoveRef.current = null;
-        setPreviewPosition(null);
-        setSelectedShipId(null);
-        setTargetShipId(null);
+        interaction.handleCancelMove();
         // Keep selectedWeaponType so it only changes when player uses the dropdown
       }
     }
-  }, [isMyTurnEffective, address, clearAllTransactions, readOnly]);
-
-  // Handle move submission - now handled by TransactionButton
+    // interaction is a fresh object every render; depend on the stable handler only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMyTurnEffective, address, clearAllTransactions, readOnly, interaction.handleCancelMove]);
 
   // Clear last move display when user selects a ship or makes a proposed move
   React.useEffect(() => {
@@ -1896,115 +1167,29 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     }
   }, [selectedShipId, isShowingProposedMove]);
 
-  // Handle move cancellation
-  const handleCancelMove = () => {
-    isDisplayingLastMoveRef.current = false;
-    lastDisplayedMoveRef.current = null;
-    setPreviewPosition(null);
-    setSelectedShipId(null);
-    setTargetShipId(null);
-    // Keep selectedWeaponType so it only changes when player uses the dropdown
-  };
-
-  /** Right-click on the map clears selection in GameGrid; sync last-move replay + retreat override here. */
-  const handleGridRightClickDeselect = React.useCallback(() => {
-    isDisplayingLastMoveRef.current = false;
-    lastDisplayedMoveRef.current = null;
-    setActionOverride(null);
-  }, []);
-
-  /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
-  const shouldPulseSubmitMoveButton = React.useMemo(() => false, []);
-
-  const computedActionType = React.useMemo(() =>
-    actionOverride != null
-      ? actionOverride
-      : isRammingMovePreview
-        ? ActionType.Pass
-      : targetShipId !== null && targetShipId !== 0n
-        ? selectedWeaponType === "special" ? ActionType.Special : ActionType.Shoot
-        : targetShipId === 0n && selectedWeaponType === "special" && specialType === 3
-          ? ActionType.Special
-          : ActionType.Pass,
-  [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType]);
-
-  const computedMoveCoords = React.useMemo(() => {
-    if (previewPosition) return previewPosition;
-    const cur = game.shipPositions.find(p => p.shipId === selectedShipId);
-    return cur ? cur.position : { row: 0, col: 0 };
-  }, [previewPosition, selectedShipId, game.shipPositions]);
-
-  const showConfirmWidget = React.useMemo(() =>
-    !readOnly &&
-    isShowingProposedMove &&
-    actionOverride !== ActionType.Retreat &&
-    (previewPosition !== null || targetShipId !== null),
-  [readOnly, isShowingProposedMove, previewPosition, actionOverride, targetShipId]);
-
-  const confirmWidgetLabel = React.useMemo(() =>
-    computedActionType === ActionType.Pass ? "HOLD FIRE"
-      : computedActionType === ActionType.Ram ? "RAM"
-      : (selectedWeaponType === "special" && specialType === 2 && targetShipId != null) ? "REPAIR"
-      : (targetShipId != null && targetShipId !== 0n) ? "FIRE"
-      : "SUBMIT",
-  [computedActionType, selectedWeaponType, specialType, targetShipId]);
-
-  // ── GameGrid boundary adapter ───────────────────────────────────────────
+  // ── GameGrid display adapter ────────────────────────────────────────────
   // GameGrid and its subtree render on plain `number` ids (GridShip /
-  // GridShipPosition); this component stays bigint internally for contract
-  // calls. Convert only at this boundary — see app/types/gridDisplay.ts.
-  const gridForDisplay = React.useMemo(() => toGridShipPositionGrid(grid), [grid]);
-  const allShipPositionsForDisplay = React.useMemo(
-    () => toGridShipPositions(displayGame.shipPositions),
-    [displayGame.shipPositions],
-  );
+  // GridShipPosition) — `useGameplayInteraction` already outputs these
+  // number-native, so most props pass straight through; only the pieces
+  // still computed from this file's own bigint state need converting here.
+  const gridForDisplay = interaction.displayGrid;
+  const allShipPositionsForDisplay = allShipPositionsForInteraction;
   const shipMapForDisplay = React.useMemo(() => toGridShipMap(shipMap), [shipMap]);
   const selectedShipIdForDisplay = selectedShipId != null ? Number(selectedShipId) : null;
-  const targetShipIdForDisplay = targetShipId != null ? Number(targetShipId) : null;
+  const targetShipIdForDisplay = interaction.targetShipId;
   const draggedShipIdForDisplay = draggedShipId != null ? Number(draggedShipId) : null;
-  const hoveredCellForDisplay: GameGridTooltipHoveredCell | null = React.useMemo(
-    () =>
-      hoveredCell
-        ? {
-            shipId: Number(hoveredCell.shipId),
-            row: hoveredCell.row,
-            col: hoveredCell.col,
-            isCreator: hoveredCell.isCreator,
-            fromFleet: hoveredCell.fromFleet,
-          }
-        : null,
-    [hoveredCell],
-  );
-  const validTargetsForDisplay = React.useMemo(() => toGridTargets(validTargets), [validTargets]);
-  const labelTargetsForDisplay = React.useMemo(
-    () => (labelTargets ? toGridTargets(labelTargets) : undefined),
-    [labelTargets],
-  );
-  const assistableTargetsForDisplay = React.useMemo(
-    () => toGridTargets(assistableTargets),
-    [assistableTargets],
-  );
-  const assistableTargetsFromStartForDisplay = React.useMemo(
-    () => toGridTargets(assistableTargetsFromStart),
-    [assistableTargetsFromStart],
-  );
-  const dragValidTargetsForDisplay = React.useMemo(
-    () => toGridTargets(dragValidTargets),
-    [dragValidTargets],
-  );
-  const hoverValidTargetsForDisplay = React.useMemo(
-    () => toGridTargets(hoverValidTargets),
-    [hoverValidTargets],
-  );
-  const movedShipIdsSetForDisplay = React.useMemo(
-    () => toGridIdSet(movedShipIdsSet),
-    [movedShipIdsSet],
-  );
+  const hoveredCellForDisplay: GameGridTooltipHoveredCell | null = interaction.hoveredCell;
+  const validTargetsForDisplay = interaction.validTargets;
+  const labelTargetsForDisplay = interaction.labelTargets;
+  const assistableTargetsForDisplay = interaction.assistableTargets;
+  const assistableTargetsFromStartForDisplay = interaction.assistableTargetsFromStart;
+  const dragValidTargetsForDisplay = interaction.dragValidTargets;
+  const hoverValidTargetsForDisplay = interaction.hoverValidTargets;
+  const movedShipIdsSetForDisplay = movedShipIdsSetForInteraction;
   const lastMoveShipIdForDisplay = lastMoveShipId != null ? Number(lastMoveShipId) : null;
   const lastMoveTargetShipIdForDisplay =
     lastMoveTargetShipId != null ? Number(lastMoveTargetShipId) : null;
-  const retreatPrepShipIdForDisplay =
-    retreatPrepShipId != null ? Number(retreatPrepShipId) : null;
+  const retreatPrepShipIdForDisplay = interaction.retreatPrepShipId;
 
   const isShipOwnedByCurrentPlayerForDisplay = React.useCallback(
     (shipId: number) => isShipOwnedByCurrentPlayer(BigInt(shipId)),
@@ -2030,33 +1215,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [calculateDamageForShip],
   );
 
-  const setSelectedShipIdForDisplay = React.useCallback(
-    (shipId: number | null) => setSelectedShipId(displayIdToBigint(shipId)),
-    [setSelectedShipId],
-  );
-  const setTargetShipIdForDisplay = React.useCallback(
-    (shipId: number | null) => setTargetShipId(displayIdToBigint(shipId)),
-    [setTargetShipId],
-  );
-  const setHoveredCellForDisplay = React.useCallback(
-    (cell: GameGridTooltipHoveredCell | null) =>
-      setHoveredCell(
-        cell
-          ? {
-              shipId: BigInt(cell.shipId),
-              row: cell.row,
-              col: cell.col,
-              isCreator: cell.isCreator,
-              fromFleet: cell.fromFleet,
-            }
-          : null,
-      ),
-    [setHoveredCell],
-  );
-  const setDraggedShipIdForDisplay = React.useCallback(
-    (shipId: number | null) => setDraggedShipId(displayIdToBigint(shipId)),
-    [setDraggedShipId],
-  );
+  const setSelectedShipIdForDisplay = interaction.setSelectedShipId;
+  const setTargetShipIdForDisplay = interaction.setTargetShipId;
+  const setHoveredCellForDisplay = interaction.setHoveredCell;
+  const setDraggedShipIdForDisplay = interaction.setDraggedShipId;
 
   const renderShipCard = React.useCallback(
     (cell: GameGridTooltipHoveredCell): React.ReactNode | null => {
@@ -2182,22 +1344,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       : computedCol;
 
                     const submittedTargetShipId = targetShipId ?? 0n;
+                    const optimisticNewRow =
+                      computedActionType === ActionType.Retreat ? -1 : computedRow;
+                    const optimisticNewCol =
+                      computedActionType === ActionType.Retreat ? -1 : computedCol;
 
                     setOptimisticLastMove({
                       shipId: selectedShipId!,
                       oldRow,
                       oldCol,
-                      newRow:
-                        computedActionType === ActionType.Retreat
-                          ? -1
-                          : computedRow,
-                      newCol:
-                        computedActionType === ActionType.Retreat
-                          ? -1
-                          : computedCol,
+                      newRow: optimisticNewRow,
+                      newCol: optimisticNewCol,
                       actionType: computedActionType,
                       targetShipId: submittedTargetShipId,
                       timestamp: BigInt(Date.now()),
+                    });
+                    interaction.recordOptimisticMove({
+                      shipId: Number(selectedShipId),
+                      oldRow,
+                      oldCol,
+                      newRow: optimisticNewRow,
+                      newCol: optimisticNewCol,
+                      actionType: computedActionType,
+                      targetShipId: Number(submittedTargetShipId),
+                      timestamp: Date.now(),
                     });
 
                     toast.success("Move submitted successfully!");
@@ -2339,14 +1509,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        isDisplayingLastMoveRef.current = false;
-        lastDisplayedMoveRef.current = null;
-        setSelectedShipId(null);
-        setPreviewPosition(null);
-        setTargetShipId(null);
         // Keep selectedWeaponType so it only changes when player uses the dropdown
-        setDraggedShipId(null);
-        setDragOverCell(null);
+        handleCancelMove();
+        interaction.setDraggedShipId(null);
+        interaction.setDragOverCell(null);
       }
     };
 
@@ -2354,7 +1520,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+    // interaction is a fresh object every render; depend on the stable setters only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleCancelMove, interaction.setDraggedShipId, interaction.setDragOverCell]);
 
   if (requiresLandscapeMode) {
     return (
@@ -2723,37 +1891,28 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => {
-              if (selectedShipId != null) {
-                setRetreatExplicitByShipId((prev) => ({
-                  ...prev,
-                  [selectedShipId.toString()]: true,
-                }));
-              }
-              setTargetShipId(null);
-              setPreviewPosition(null);
-            }}
+            onClick={() => interaction.handleRetreatClick()}
             className="w-full shrink-0 px-3 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150"
             style={{
               ...STYLE_LABEL,
               borderColor:
-                actionOverride === ActionType.Retreat
+                computedActionType === ActionType.Retreat
                   ? "var(--color-warning-red)"
                   : "var(--color-gunmetal)",
               borderTopColor:
-                actionOverride === ActionType.Retreat
+                computedActionType === ActionType.Retreat
                   ? "var(--color-warning-red)"
                   : "var(--color-steel)",
               borderLeftColor:
-                actionOverride === ActionType.Retreat
+                computedActionType === ActionType.Retreat
                   ? "var(--color-warning-red)"
                   : "var(--color-steel)",
               color:
-                actionOverride === ActionType.Retreat
+                computedActionType === ActionType.Retreat
                   ? "var(--color-warning-red)"
                   : "var(--color-text-secondary)",
               backgroundColor:
-                actionOverride === ActionType.Retreat
+                computedActionType === ActionType.Retreat
                   ? "color-mix(in srgb, var(--color-warning-red) 15%, transparent)"
                   : "var(--color-slate)",
               borderWidth: "2px",
@@ -2761,7 +1920,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               borderRadius: 0,
             }}
             onMouseEnter={(e) => {
-              if (actionOverride !== ActionType.Retreat) {
+              if (computedActionType !== ActionType.Retreat) {
                 e.currentTarget.style.borderColor = "var(--color-warning-red)";
                 e.currentTarget.style.color = "var(--color-warning-red)";
                 e.currentTarget.style.backgroundColor =
@@ -2769,7 +1928,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               }
             }}
             onMouseLeave={(e) => {
-              if (actionOverride !== ActionType.Retreat) {
+              if (computedActionType !== ActionType.Retreat) {
                 e.currentTarget.style.borderColor = "var(--color-gunmetal)";
                 e.currentTarget.style.color = "var(--color-text-secondary)";
                 e.currentTarget.style.backgroundColor = "var(--color-slate)";
@@ -2783,15 +1942,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     </>
   );
 
-  const myScore =
-    game.metadata.creator === address
-      ? game.creatorScore?.toString() || "0"
-      : game.joinerScore?.toString() || "0";
-  const opponentScore =
-    game.metadata.creator === address
-      ? game.joinerScore?.toString() || "0"
-      : game.creatorScore?.toString() || "0";
-  const maxScore = game.maxScore?.toString() || "0";
+  const gameScoreData = toGameScoreData(game, address);
+  const { myScore, opponentScore, maxScore } = gameScoreData;
   const mobileTurnLabel =
     game.metadata.winner !== "0x0000000000000000000000000000000000000000"
       ? game.metadata.winner === address
@@ -3247,7 +2399,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       dragValidTargets={dragValidTargetsForDisplay}
                       hoverShootingRange={hoverShootingRange}
                       hoverValidTargets={hoverValidTargetsForDisplay}
-                      onMoveTileHover={setHoverPreviewPosition}
+                      onMoveTileHover={onMoveTileHover}
                       isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                       movedShipIdsSet={movedShipIdsSetForDisplay}
@@ -3276,12 +2428,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       tutorialDefaultLabel={tutorialDefaultLabel}
                       onGridRightClickDeselect={handleGridRightClickDeselect}
                       setSelectedShipId={setSelectedShipIdForDisplay}
-                      setPreviewPosition={setPreviewPosition}
+                      setPreviewPosition={interaction.setPreviewPosition}
                       setTargetShipId={setTargetShipIdForDisplay}
                       setSelectedWeaponType={setWeaponTypeFromGrid}
                       setHoveredCell={setHoveredCellForDisplay}
                       setDraggedShipId={setDraggedShipIdForDisplay}
-                      setDragOverCell={setDragOverCell}
+                      setDragOverCell={interaction.setDragOverCell}
                       renderShipCard={renderShipCard}
                     />
                   </div>
@@ -3557,8 +2709,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                {game.metadata.winner ===
-                  "0x0000000000000000000000000000000000000000" && (
+                {gameWinnerResult === null && (
                   <FleeSafetySwitch
                     gameId={game.metadata.gameId}
                     onFlee={() => {
@@ -3573,19 +2724,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div className="w-1/5 shrink-0" aria-hidden />
               <div className="w-4/5 min-w-0 text-right">
                 <div className="text-sm text-text-muted">
-                  {game.metadata.winner !==
-                    "0x0000000000000000000000000000000000000000" && (
+                  {gameWinnerResult !== null && (
                     <span
                       className="uppercase font-bold tracking-wider"
                       style={{
                         ...STYLE_LABEL,
                         color:
-                          game.metadata.winner === address
+                          gameWinnerResult === "me"
                             ? "var(--color-phosphor-green)"
                             : "var(--color-warning-red)",
                       }}
                     >
-                      {game.metadata.winner === address ? "VICTORY" : "DEFEAT"}
+                      {gameWinnerResult === "me" ? "VICTORY" : "DEFEAT"}
                     </span>
                   )}
                 </div>
@@ -3781,37 +2931,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
                 return (
                   <div className="flex flex-col gap-1.5">
-                    <div
-                      className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
-                      style={{
-                        ...STYLE_LABEL,
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: isMyTurnEffective
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                        }}
-                      >
-                        {isMyTurnEffective ? "YOUR TURN" : "OPPONENT'S TURN"}
-                      </span>
-                      <span style={{ color: "var(--color-text-muted)" }}>
-                        •
-                      </span>
-                      <span
-                        className="font-mono"
-                        style={{
-                          ...STYLE_MONO,
-                          color: isMyTurnEffective
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                        }}
-                      >
-                        {formatSeconds(turnSecondsLeft)}
-                      </span>
-                    </div>
+                    <GameTurnLabel isMyTurn={isMyTurnEffective} secondsLeft={turnSecondsLeft} />
                     <div className="flex items-center gap-2">
                       <div
                         className="flex-1 h-1.5 overflow-hidden"
@@ -3862,28 +2982,32 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               })()}
           </div>
           {/* Scores box aligned left, to the right of title */}
-          <div
-            className={useSideLayout ? "w-full shrink-0 border border-solid overflow-hidden" : "ml-6 w-48 border border-solid overflow-hidden"}
-            style={{
-              backgroundColor: "var(--color-slate)",
-              borderColor: "var(--color-gunmetal)",
-              borderTopColor: "var(--color-steel)",
-              borderLeftColor: "var(--color-steel)",
-              borderRadius: 0,
-            }}
-          >
-            <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
-              <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-cyan)" }}>[YOU]</span>
-                <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
-              </div>
-              <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
-              <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
-                <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-warning-red)" }}>[OPP]</span>
-                <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
+          {useSideLayout ? (
+            <GameScoreBox score={gameScoreData} />
+          ) : (
+            <div
+              className="ml-6 w-48 border border-solid overflow-hidden"
+              style={{
+                backgroundColor: "var(--color-slate)",
+                borderColor: "var(--color-gunmetal)",
+                borderTopColor: "var(--color-steel)",
+                borderLeftColor: "var(--color-steel)",
+                borderRadius: 0,
+              }}
+            >
+              <div className="flex items-stretch" style={{ ...STYLE_MONO, fontSize: "22px" }}>
+                <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                  <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-cyan)" }}>[YOU]</span>
+                  <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{myScore}/{maxScore}</span>
+                </div>
+                <div style={{ width: 1, backgroundColor: "var(--color-gunmetal)", flexShrink: 0 }} />
+                <div className="flex flex-1 items-center justify-center gap-2 px-3 py-2">
+                  <span style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-warning-red)" }}>[OPP]</span>
+                  <span title="Scores update at end of round." style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{opponentScore}/{maxScore}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           </div>
         </div>
 
@@ -3902,98 +3026,33 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
                 : 0;
               const shipPos = game.shipPositions.find((sp) => sp.shipId === shipId);
-              const isHoveredFromGrid = hoveredCell?.shipId === shipId;
-              const isSelectedInGrid = selectedShipId === shipId;
               return (
-                <div
+                <GameFleetCard
                   key={shipId.toString()}
-                  className="flex min-w-0 w-full flex-col gap-0.5 overflow-hidden cursor-pointer"
-                  style={{ opacity: hasMoved ? 0.45 : 1 }}
+                  card={{ shipId: Number(shipId), name: ship?.name ?? `#${shipId}`, hpPct, hasMoved, isSOS }}
+                  teamColor={teamColor}
+                  flip={flip}
+                  isSelected={selectedShipId === shipId}
+                  isHovered={hoveredCell?.shipId === shipId}
+                  shipImage={ship && <ShipImage ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
                   onClick={() => setSelectedShipId(shipId)}
-                  onMouseEnter={() => shipPos && setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })}
+                  onMouseEnter={() =>
+                    shipPos &&
+                    setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })
+                  }
                   onMouseLeave={() => setHoveredCell(null)}
-                >
-                  <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "var(--color-slate)", border: `1px solid ${teamColor}`, outline: isSelectedInGrid ? `2px solid ${teamColor}` : isHoveredFromGrid ? `1px solid ${teamColor}` : undefined, outlineOffset: "2px" }}>
-                    {ship && (
-                      <ShipImage
-                        ship={ship}
-                        className={`w-full h-full${flip ? " scale-x-[-1]" : ""}`}
-                        showLoadingState={false}
-                        hideRankStars
-                      />
-                    )}
-                    {isSOS && (
-                      <>
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100">
-                          <line x1="8" y1="8" x2="92" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
-                          <line x1="92" y1="8" x2="8" y2="92" stroke={teamColor} strokeWidth="2.5" opacity="0.75" />
-                        </svg>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0.5 z-20 flex items-center justify-center pointer-events-none" title="Disabled (0 HP)">
-                          <div className="px-1 py-0.5 flex items-center justify-center bg-warning-red/60 border border-warning-red">
-                            <span className="text-xs leading-none font-mono text-white">[SOS]</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {hasMoved && <div className="absolute inset-0 bg-steel/50 pointer-events-none" />}
-                  </div>
-                  <span className="truncate" style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-text-secondary)" }}>
-                    {ship?.name ?? `#${shipId}`}
-                  </span>
-                  <div className="overflow-hidden" style={{ height: 3, backgroundColor: "var(--color-gunmetal)" }}>
-                    <div style={{ width: `${hpPct}%`, height: "100%", backgroundColor: teamColor, transition: "width 0.3s ease" }} />
-                  </div>
-                </div>
+                />
               );
             };
 
             return (
-              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border border-solid p-2" style={{ borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 11, color: "var(--color-text-secondary)" }}>FLEET STATUS</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowFleetModal(true)}
-                      className="border border-solid px-1.5 py-0.5 uppercase tracking-wider transition-colors"
-                      style={{ ...STYLE_LABEL, fontSize: 9, color: "var(--color-text-secondary)", borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
-                    >
-                      [DETAILS]
-                    </button>
-                  </div>
-                  <span style={{ ...STYLE_MONO, fontSize: 10, color: "var(--color-text-muted)" }}>
-                    <span style={{ color: "var(--color-cyan)" }}>{myIds.length}</span>
-                    <span style={{ color: "var(--color-text-muted)" }}> vs </span>
-                    <span style={{ color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
-                  </span>
-                </div>
-
-                {/* My Fleet */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-cyan)" }}>MY FLEET</span>
-                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-cyan)", opacity: 0.25 }} />
-                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-cyan)" }}>{myIds.length}</span>
-                  </div>
-                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-                    {myIds.map((id) => renderCard(id, "var(--color-cyan)", isCreator))}
-                  </div>
-                </div>
-
-                <div style={{ height: 1, backgroundColor: "var(--color-gunmetal)" }} />
-
-                {/* Opponent Fleet */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 10, color: "var(--color-warning-red)" }}>OPPONENT</span>
-                    <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-warning-red)", opacity: 0.25 }} />
-                    <span style={{ ...STYLE_MONO, fontSize: 9, color: "var(--color-warning-red)" }}>{enemyIds.length}</span>
-                  </div>
-                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-                    {enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", !isCreator))}
-                  </div>
-                </div>
-              </div>
+              <GameFleetStatusPanel
+                myCount={myIds.length}
+                enemyCount={enemyIds.length}
+                onShowDetails={() => setShowFleetModal(true)}
+                myCards={myIds.map((id) => renderCard(id, "var(--color-cyan)", isCreator))}
+                enemyCards={enemyIds.map((id) => renderCard(id, "var(--color-warning-red)", !isCreator))}
+              />
             );
           })()}
 
@@ -4054,7 +3113,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           dragValidTargets={dragValidTargetsForDisplay}
           hoverShootingRange={hoverShootingRange}
           hoverValidTargets={hoverValidTargetsForDisplay}
-          onMoveTileHover={setHoverPreviewPosition}
+          onMoveTileHover={onMoveTileHover}
                 isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
           isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
           movedShipIdsSet={movedShipIdsSetForDisplay}
@@ -4083,12 +3142,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           tutorialDefaultLabel={tutorialDefaultLabel}
           onGridRightClickDeselect={handleGridRightClickDeselect}
           setSelectedShipId={setSelectedShipIdForDisplay}
-          setPreviewPosition={setPreviewPosition}
+          setPreviewPosition={interaction.setPreviewPosition}
           setTargetShipId={setTargetShipIdForDisplay}
           setSelectedWeaponType={setWeaponTypeFromGrid}
           setHoveredCell={setHoveredCellForDisplay}
           setDraggedShipId={setDraggedShipIdForDisplay}
-          setDragOverCell={setDragOverCell}
+          setDragOverCell={interaction.setDragOverCell}
           renderShipCard={renderShipCard}
           showConfirmWidget={showConfirmWidget}
           confirmWidgetLabel={confirmWidgetLabel}
@@ -4125,15 +3184,29 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 onSuccess={() => {
                   const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
                   const submittedTargetShipId = targetShipId ?? 0n;
+                  const oldRow = currentPosition?.position.row ?? computedRow;
+                  const oldCol = currentPosition?.position.col ?? computedCol;
+                  const optimisticNewRow = computedActionType === ActionType.Retreat ? -1 : computedRow;
+                  const optimisticNewCol = computedActionType === ActionType.Retreat ? -1 : computedCol;
                   setOptimisticLastMove({
                     shipId: selectedShipId!,
-                    oldRow: currentPosition?.position.row ?? computedRow,
-                    oldCol: currentPosition?.position.col ?? computedCol,
-                    newRow: computedActionType === ActionType.Retreat ? -1 : computedRow,
-                    newCol: computedActionType === ActionType.Retreat ? -1 : computedCol,
+                    oldRow,
+                    oldCol,
+                    newRow: optimisticNewRow,
+                    newCol: optimisticNewCol,
                     actionType: computedActionType,
                     targetShipId: submittedTargetShipId,
                     timestamp: BigInt(Date.now()),
+                  });
+                  interaction.recordOptimisticMove({
+                    shipId: Number(selectedShipId),
+                    oldRow,
+                    oldCol,
+                    newRow: optimisticNewRow,
+                    newCol: optimisticNewCol,
+                    actionType: computedActionType,
+                    targetShipId: Number(submittedTargetShipId),
+                    timestamp: Date.now(),
                   });
                   toast.success("Move submitted successfully!");
                   recordPlayerMove();

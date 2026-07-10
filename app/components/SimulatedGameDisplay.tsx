@@ -1212,6 +1212,39 @@ export function SimulatedGameDisplay({
     setTargetShipId(null);
   }, [isRammingMovePreview, targetShipId]);
 
+  // In-grid confirm widget label — mirrors GameDisplay.tsx's computedActionType/
+  // confirmWidgetLabel exactly (wide-layout parity; label only, does not
+  // affect handleSubmitMove's own per-step branching below).
+  const computedActionType = useMemo(
+    () =>
+      actionOverride != null
+        ? actionOverride
+        : isRammingMovePreview
+          ? ActionType.Pass
+          : targetShipId !== null && targetShipId !== 0n
+            ? selectedWeaponType === "special"
+              ? ActionType.Special
+              : ActionType.Shoot
+            : targetShipId === 0n && selectedWeaponType === "special" && specialType === 3
+              ? ActionType.Special
+              : ActionType.Pass,
+    [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType],
+  );
+
+  const confirmWidgetLabel = useMemo(
+    () =>
+      computedActionType === ActionType.Pass
+        ? "HOLD FIRE"
+        : computedActionType === ActionType.Ram
+          ? "RAM"
+          : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+            ? "REPAIR"
+            : targetShipId != null && targetShipId !== 0n
+              ? "FIRE"
+              : "SUBMIT",
+    [computedActionType, selectedWeaponType, specialType, targetShipId],
+  );
+
   // Last-move new position pulse on the grid when no ship is selected (in-game parity).
   const highlightedMovePosition = useMemo(() => {
     // When showing last move (no ship selected), highlight the new position (same as in-game)
@@ -1381,12 +1414,16 @@ export function SimulatedGameDisplay({
       if (selectedShipId.toString() !== "1001") {
         return undefined;
       }
-      // Weapons + Anvil targeted: dropdown highlight only (no grid pulse).
+      // Weapons + Anvil targeted: on the narrow/stacked layout the Proposed
+      // Move panel pulses its own weapon dropdown for this cue (no grid
+      // pulse needed here). The wide layout has no such panel (parity with
+      // GameDisplay.tsx's in-grid confirm widget) — pulse the ship's own
+      // cell instead, drawing the eye to the floating weapon selector above it.
       if (
         selectedWeaponType === "weapon" &&
         targetShipId?.toString() === "2002"
       ) {
-        return undefined;
+        return useSideLayout ? cellsForIds([selectedShipId]) : undefined;
       }
       // Weapons, not yet targeting Anvil: pulse Anvil so they open with the gun first.
       if (selectedWeaponType === "weapon") {
@@ -1500,6 +1537,7 @@ export function SimulatedGameDisplay({
     selectedWeaponType,
     gameState.shipPositions,
     scoringGrid,
+    useSideLayout,
   ]);
 
   // Last move UI props for GameGrid (same as in-game: ghost at old position, pulse at new)
@@ -4127,8 +4165,11 @@ export function SimulatedGameDisplay({
           </div>
 
           {/* Proposed Move panel: Submit/Cancel on top; below that, ship + targets.
-            Shown when an owned ship is selected and eligible to act this round. */}
-          {isShowingProposedMove && (
+            Shown when an owned ship is selected and eligible to act this round.
+            Wide layout uses GameGrid's in-grid confirm widget instead (parity
+            with GameDisplay.tsx, which does the same — see its useSideLayout
+            branch); this panel is for the narrow/stacked layout only. */}
+          {isShowingProposedMove && !useSideLayout && (
             <div
               className={
                 chromeOnSide
@@ -4689,6 +4730,48 @@ export function SimulatedGameDisplay({
                   setDraggedShipId={setDraggedShipIdForDisplay}
                   setDragOverCell={setDragOverCell}
                   renderShipCard={renderShipCard}
+                  showConfirmWidget={useSideLayout && isShowingProposedMove}
+                  confirmWidgetLabel={confirmWidgetLabel}
+                  onCancelMove={handleCancelMove}
+                  confirmButton={
+                    useSideLayout && isShowingProposedMove ? (
+                      <div className="relative flex-[2]">
+                        {shouldPulseSubmitMoveButton && (
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                            <div className="relative inline-block">
+                              <div
+                                className="absolute inset-0 bg-near-black"
+                                style={{ opacity: 1 }}
+                                aria-hidden
+                              />
+                              <div className="relative border border-amber bg-steel px-2 py-1 text-center font-mono text-xs text-white whitespace-nowrap">
+                                Click here
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSubmitMove}
+                          className={`w-full px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100 ${
+                            shouldPulseSubmitMoveButton
+                              ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
+                              : ""
+                          }`}
+                          style={{
+                            ...STYLE_LABEL,
+                            color: "var(--color-phosphor-green)",
+                            backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
+                            borderRight: "1px solid var(--color-gunmetal)",
+                            borderRadius: 0,
+                            letterSpacing: "0.14em",
+                          }}
+                        >
+                          {confirmWidgetLabel}
+                        </button>
+                      </div>
+                    ) : undefined
+                  }
                 />
               </div>
               {tutorialGridPanelConfig && (

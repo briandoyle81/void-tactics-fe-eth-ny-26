@@ -86,6 +86,7 @@ export async function createGameFromLobby(
       currentRound:   1,
     },
     gridDimensions: { gridWidth: 17, gridHeight: 11 },
+    mapId:       lobby.mapId ?? 0,
     maxScore:    lobby.maxScore,
     creatorScore: 0,
     joinerScore:  0,

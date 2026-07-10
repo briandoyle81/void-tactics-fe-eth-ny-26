@@ -1,11 +1,10 @@
-import { Attributes } from "./types";
+import { ActionType, Attributes } from "./types";
 
-// Minimal web2-mode game types — just enough to create a Game row from an
-// accepted lobby (see app/lib/createGameFromLobby.ts). This is NOT the full
-// games subsystem: no turn-submission/replay/display types live here yet.
-// Parallel to (never sharing a definition with) the web3 `GameDataView` and
-// friends in `./types.ts`, for the same reasons as `Web2Ship`/`Web2Lobby`.
-// `Attributes` has no bigint/address fields, so it's shared as-is.
+// Web2-mode game types — full turn-submission/replay/display support (see
+// app/lib/createGameFromLobby.ts, app/lib/gameEngineWeb2.ts). Parallel to
+// (never sharing a definition with) the web3 `GameDataView` and friends in
+// `./types.ts`, for the same reasons as `Web2Ship`/`Web2Lobby`. `Attributes`
+// and `ActionType` have no bigint/address fields, so they're shared as-is.
 
 export interface Web2GameMetadata {
   gameId: number;
@@ -39,10 +38,22 @@ export interface Web2ShipPosition {
   isPreview?: boolean;
 }
 
+export interface Web2LastMove {
+  shipId: number;
+  oldRow: number;
+  oldCol: number;
+  newRow: number;
+  newCol: number;
+  actionType: ActionType;
+  targetShipId: number;
+  timestamp: number;
+}
+
 export interface Web2GameDataView {
   metadata: Web2GameMetadata;
   turnState: Web2GameTurnState;
   gridDimensions: Web2GameGridDimensions;
+  mapId: number;
   maxScore: number;
   creatorScore: number;
   joinerScore: number;
@@ -53,4 +64,24 @@ export interface Web2GameDataView {
   joinerActiveShipIds: number[];
   creatorMovedShipIds: number[];
   joinerMovedShipIds: number[];
+  lastMove?: Web2LastMove;
 }
+
+/** Response shape of GET /api/games/[id]/replay — a `GameTurn` row projection. */
+export interface Web2GameReplayTurn {
+  id: number;
+  playerId: string;
+  round: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions: any;
+  snapshot: Web2GameDataView | null;
+  submittedAt: string;
+}
+
+export interface Web2GameReplay {
+  initialState: Web2GameDataView | null;
+  turns: Web2GameReplayTurn[];
+}
+
+/** Winner sentinel for a tied game (web2-native; see no-crossover rule — never a fake `0x...` address). */
+export const WEB2_TIE_SENTINEL = "__TIE__";

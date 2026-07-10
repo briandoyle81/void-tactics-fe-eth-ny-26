@@ -22,6 +22,14 @@ import {
   formatScoreShort,
 } from "../utils/lobbyFormattersWeb2";
 
+/** Same tab-navigation mechanism as `Lobbies.tsx`'s `navigateToGamesTab` — mode-agnostic, just switches the active tab. */
+function navigateToGamesTab() {
+  localStorage.setItem("void-tactics-active-tab", "Games");
+  localStorage.setItem("void-tactics-force-games-tab", "true");
+  window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games", { bubbles: true }));
+  document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games", { bubbles: true }));
+}
+
 // Web2-mode counterpart to `Lobbies.tsx`. First working slice for web2
 // lobbies: browse/create/join/leave open lobbies, submit a fleet (ship
 // multi-select only — no starting-position picker, the server assigns
@@ -88,7 +96,11 @@ const LobbiesWeb2: React.FC = () => {
 
   const handleCreate = () =>
     run("create lobby", async () => {
-      await createLobby({ costLimit, turnTimeSeconds, maxScore });
+      // Matches web3's Lobbies.tsx, which also has no real map picker (its
+      // "Map" field is a locked input hardcoded to map 1) — this keeps both
+      // modes on the same fixed map rather than leaving mapId unset (which
+      // left games with no blocked/scoring tiles).
+      await createLobby({ costLimit, turnTimeSeconds, maxScore, selectedMapId: 1 });
       toast.success("Lobby created");
     });
 
@@ -323,8 +335,15 @@ function LobbyPanel({
       </div>
 
       {isInGame && (
-        <div className="font-mono text-xs text-amber">
-          Game started — playing it out isn&apos;t available in web2 mode yet.
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-xs text-amber">Game started.</span>
+          <button
+            onClick={navigateToGamesTab}
+            className="px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid"
+            style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)", borderRadius: 0 }}
+          >
+            Go to Games
+          </button>
         </div>
       )}
 

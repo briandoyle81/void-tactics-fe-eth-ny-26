@@ -177,20 +177,32 @@ export const HeroShipShowcase: React.FC<{
     return () => clearInterval(interval);
   }, [intervalMs]);
 
-  // Generate current hero ship
-  const heroShip = useMemo(() => generateRandomShip(shipIndex), [shipIndex]);
+  // Generate current hero ship client-side only, after mount. `generateRandomShip`
+  // uses Math.random(), so computing it during render (e.g. via useMemo) would give
+  // the server and the client's initial hydration pass different values — a
+  // hydration mismatch. Server and first client render both show the loading
+  // placeholder below; the real ship appears once this effect runs.
+  const [heroShip, setHeroShip] = useState<Ship | null>(null);
+
+  useEffect(() => {
+    setHeroShip(generateRandomShip(shipIndex));
+  }, [shipIndex]);
 
   // Calculate attributes for the ship
-  const shipAttributes = useMemo<Attributes>(
-    () => calculateAttributesFromContracts(heroShip),
+  const shipAttributes = useMemo<Attributes | null>(
+    () => (heroShip ? calculateAttributesFromContracts(heroShip) : null),
     [heroShip],
   );
 
   // Calculate ship rank
-  const shipRank = useMemo(() => calculateShipRank(toShipVisual(heroShip)), [heroShip]);
+  const shipRank = useMemo(
+    () => (heroShip ? calculateShipRank(toShipVisual(heroShip)) : null),
+    [heroShip],
+  );
 
   // Render the hero ship
   const heroShipImage = useMemo(() => {
+    if (!heroShip) return null;
     try {
       return renderShip(toShipVisual(heroShip));
     } catch (error) {
@@ -248,7 +260,7 @@ export const HeroShipShowcase: React.FC<{
                 color: accent,
               }}
             >
-              {heroShip.name}
+              {heroShip?.name ?? " "}
             </h3>
           </div>
 
@@ -263,27 +275,31 @@ export const HeroShipShowcase: React.FC<{
               <div className="flex min-w-0 justify-between gap-2">
                 <span className="shrink-0 opacity-60">Weapon:</span>
                 <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {getMainWeaponName(heroShip.equipment.mainWeapon)}
+                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon) : " "}
                 </span>
               </div>
               <div className="flex min-w-0 justify-between gap-2">
                 <span className="shrink-0 opacity-60">
-                  {heroShip.equipment.shields > 0 ? "Shields:" : "Armor:"}
+                  {heroShip && heroShip.equipment.shields > 0 ? "Shields:" : "Armor:"}
                 </span>
                 <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {heroShip.equipment.armor > 0
-                    ? getArmorName(heroShip.equipment.armor)
-                    : heroShip.equipment.shields > 0
-                      ? getShieldName(heroShip.equipment.shields)
-                      : "None"}
+                  {!heroShip
+                    ? " "
+                    : heroShip.equipment.armor > 0
+                      ? getArmorName(heroShip.equipment.armor)
+                      : heroShip.equipment.shields > 0
+                        ? getShieldName(heroShip.equipment.shields)
+                        : "None"}
                 </span>
               </div>
               <div className="flex min-w-0 justify-between gap-2">
                 <span className="shrink-0 opacity-60">Special:</span>
                 <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {heroShip.equipment.special > 0
-                    ? getSpecialName(heroShip.equipment.special)
-                    : "None"}
+                  {!heroShip
+                    ? " "
+                    : heroShip.equipment.special > 0
+                      ? getSpecialName(heroShip.equipment.special)
+                      : "None"}
                 </span>
               </div>
             </div>
@@ -294,31 +310,33 @@ export const HeroShipShowcase: React.FC<{
             <div className="data-readout">
               <span className="data-readout-label">Range</span>
               <span className="font-bold text-phosphor-green font-mono text-xs">
-                {shipAttributes.range}
+                {shipAttributes?.range ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Damage</span>
               <span className="font-bold text-warning-red font-mono text-xs">
-                {shipAttributes.gunDamage}
+                {shipAttributes?.gunDamage ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Hull</span>
               <span className="font-bold text-amber font-mono text-xs">
-                {shipAttributes.hullPoints}/{shipAttributes.maxHullPoints}
+                {shipAttributes
+                  ? `${shipAttributes.hullPoints}/${shipAttributes.maxHullPoints}`
+                  : " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Move</span>
               <span className={`font-bold font-mono text-xs ${side === "enemy" ? "text-warning-red" : "text-cyan"}`}>
-                {shipAttributes.movement}
+                {shipAttributes?.movement ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Defense</span>
               <span className="font-bold text-amber font-mono text-xs">
-                {shipAttributes.damageReduction}%
+                {shipAttributes ? `${shipAttributes.damageReduction}%` : " "}
               </span>
             </div>
           </div>
@@ -329,7 +347,7 @@ export const HeroShipShowcase: React.FC<{
       <div
         className={`flex min-h-0 min-w-0 flex-col items-start justify-center ${flipLayout ? "order-1" : "order-2"}`}
       >
-        {heroShipImage ? (
+        {heroShipImage && heroShip && shipRank ? (
           <div
             className={`corner-bracket relative flex aspect-square w-full max-w-full items-center justify-center border-2 bg-black/40 p-1.5 sm:p-2 md:p-4 ${accentSoftBorderClass}`}
             style={{

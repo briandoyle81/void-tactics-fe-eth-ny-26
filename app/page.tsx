@@ -18,6 +18,7 @@ import ManageNavyWeb2 from "./components/ManageNavyWeb2";
 import Lobbies from "./components/Lobbies";
 import LobbiesWeb2 from "./components/LobbiesWeb2";
 import Games from "./components/Games";
+import GamesWeb2 from "./components/GamesWeb2";
 import Profile from "./components/Profile";
 import Info from "./components/Info";
 import Maps from "./components/Maps";
@@ -29,6 +30,8 @@ import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
 import { useOwnedShips } from "./hooks/useOwnedShips";
 import { usePlayerGames } from "./hooks/usePlayerGames";
+import { usePlayerGamesWeb2 } from "./hooks/usePlayerGamesWeb2";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import { TUTORIAL_STEP_STORAGE_KEY } from "./types/onboarding";
 import { MAP_ADMIN_ADDRESS } from "./config/alpha";
 import { useAppMode } from "./hooks/useAppMode";
@@ -54,6 +57,8 @@ export default function Home() {
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const { ships, isLoading: shipsLoading } = useOwnedShips();
   const { games: playerGames, isLoading: gamesLoading } = usePlayerGames();
+  const { games: playerGamesWeb2, isLoading: gamesLoadingWeb2 } = usePlayerGamesWeb2();
+  const { userId: currentUserId, isLoggedIn } = useCurrentUser();
   const appMode = useAppMode();
 
   // Initialize with default tab to prevent hydration mismatch
@@ -260,17 +265,28 @@ export default function Home() {
 
   // Keep tabs visible during loading to avoid flash-of-hidden-tabs for returning users.
   const hasShips = shipsLoading || ships.length > 0;
-  const hasGames = gamesLoading || playerGames.length > 0;
+  const hasGames =
+    appMode === "web2"
+      ? gamesLoadingWeb2 || playerGamesWeb2.length > 0
+      : gamesLoading || playerGames.length > 0;
   const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
   const hasYourTurn =
-    isConnected &&
-    playerGames.some(
-      (g) =>
-        g.metadata.winner === ZERO_ADDR &&
-        g.turnState.currentTurn === address,
-    );
+    appMode === "web2"
+      ? playerGamesWeb2.some(
+          (g) => g.metadata.winner === "" && g.turnState.currentTurn === currentUserId,
+        )
+      : isConnected &&
+        playerGames.some(
+          (g) =>
+            g.metadata.winner === ZERO_ADDR &&
+            g.turnState.currentTurn === address,
+        );
   const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
   const showCustomizeShip = hasShips || activeTab === "Customize Ship";
+  // Web2 mode signs in via NextAuth, never connects a wallet — `status`
+  // (wagmi) would stay "disconnected" forever for those users, so the tab
+  // bar needs a mode-aware "signed in" check instead.
+  const isSignedIn = appMode === "web2" ? isLoggedIn : status === "connected";
 
   /** Hide site header (0px row) during Info onboarding tutorial or Games detail; not tied to wallet state. */
   const hideGlobalChrome =
@@ -436,7 +452,7 @@ export default function Home() {
               : "max-w-7xl mx-auto"
           }`}
         >
-          {status === "connected" && !hideGlobalChrome && (
+          {isSignedIn && !hideGlobalChrome && (
             <div className="relative -mx-2 mb-4 px-2 pb-1 md:mx-0 md:mb-8 md:px-0 md:pb-0">
               <div
                 ref={tabScrollRef}
@@ -570,7 +586,7 @@ export default function Home() {
                     : "var(--color-steel)",
                 }}
               >
-                <Games />
+                {appMode === "web2" ? <GamesWeb2 /> : <Games />}
               </div>
             </div>
           ) : (
