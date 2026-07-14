@@ -7,36 +7,43 @@ import {
   ScoringPosition,
   GRID_DIMENSIONS,
 } from "../types/types";
-import {
-  useMapsContract,
-  useGetPresetMap,
-  useGetPresetScoringMap,
-} from "../hooks/useMapsContract";
-import { TransactionButton } from "./TransactionButton";
+
+// Data-source-agnostic — the initial map data and the save action are both
+// supplied by the caller (contract reads/writes for web3's Maps.tsx, REST
+// for web2's MapsWeb2.tsx) so this ~700-line grid editor (tile painting,
+// drag, symmetry, keyboard shortcuts) stays a single shared component
+// instead of being forked per mode.
+interface MapEditorRenderSaveButtonArgs {
+  blockedPositions: MapPosition[];
+  scoringPositions: ScoringPosition[];
+  /** Non-null blocks saving; render/disable your save control accordingly. */
+  validationError: string | null;
+  /** Call once your save action succeeds — clears the local draft and calls onSaveSuccess. */
+  onSuccess: () => void;
+}
 
 interface MapEditorProps {
   mapId?: number;
-  onSave?: () => void;
+  initialBlockedPositions?: MapPosition[];
+  initialScoringPositions?: ScoringPosition[];
+  onSaveSuccess?: () => void;
   onCancel?: () => void;
   canEdit?: boolean;
+  renderSaveButton: (args: MapEditorRenderSaveButtonArgs) => React.ReactNode;
 }
 
 export function MapEditor({
   mapId,
-  onSave,
+  initialBlockedPositions,
+  initialScoringPositions,
+  onSaveSuccess,
   onCancel,
   canEdit = true,
+  renderSaveButton,
 }: MapEditorProps) {
   const isEditing = mapId !== undefined;
-  const mapsContract = useMapsContract();
-
-  // Load map data when editing
-  const { data: blockedPositions } = useGetPresetMap(mapId || 0, {
-    chainSource: "picker",
-  });
-  const { data: scoringPositions } = useGetPresetScoringMap(mapId || 0, {
-    chainSource: "picker",
-  });
+  const blockedPositions = initialBlockedPositions;
+  const scoringPositions = initialScoringPositions;
 
   // Initialize editor state
   const [editorState, setEditorState] = useState<MapEditorState>(() => {
@@ -438,45 +445,19 @@ export function MapEditor({
     }
   }, []);
 
-  // Prepare data for transaction
-  const getTransactionData = useCallback(() => {
-    const blockedPositions = getBlockedPositions();
-    const scoringPositions = getScoringPositions();
+  // Validation shown/enforced by whatever save control the caller renders.
+  const validationError =
+    !isEditing &&
+    getBlockedPositions().length === 0 &&
+    getScoringPositions().length === 0
+      ? "Please add some blocked or scoring tiles before creating a map."
+      : null;
 
-    if (isEditing) {
-      return {
-        functionName: "updatePresetMap" as const,
-        args: [BigInt(mapId), blockedPositions, scoringPositions],
-      };
-    } else {
-      return {
-        functionName: "createPresetMap" as const,
-        args: [blockedPositions, scoringPositions],
-      };
-    }
-  }, [isEditing, mapId, getBlockedPositions, getScoringPositions]);
-
-  // Validate before transaction
-  const validateBeforeTransaction = useCallback(() => {
-    const blockedPositions = getBlockedPositions();
-    const scoringPositions = getScoringPositions();
-
-    if (
-      !isEditing &&
-      blockedPositions.length === 0 &&
-      scoringPositions.length === 0
-    ) {
-      return "Please add some blocked or scoring tiles before creating a map.";
-    }
-
-    return true;
-  }, [isEditing, getBlockedPositions, getScoringPositions]);
-
-  // Handle successful transaction
-  const handleTransactionSuccess = useCallback(() => {
+  // Handle a successful save (contract tx for web3, REST call for web2).
+  const handleSaveSuccess = useCallback(() => {
     clearSavedState();
-    onSave?.();
-  }, [clearSavedState, onSave]);
+    onSaveSuccess?.();
+  }, [clearSavedState, onSaveSuccess]);
 
   // Clear all tiles
   const clearAll = useCallback(() => {
@@ -1045,25 +1026,13 @@ export function MapEditor({
         >
           Clear All
         </button>
-        <TransactionButton
-          transactionId={`map-${isEditing ? "update" : "create"}-${
-            mapId || "new"
-          }`}
-          contractAddress={mapsContract.address}
-          abi={mapsContract.abi}
-          functionName={getTransactionData().functionName}
-          args={getTransactionData().args}
-          onSuccess={handleTransactionSuccess}
-          validateBeforeTransaction={validateBeforeTransaction}
-          disabled={!canEdit}
-          className={`px-4 py-2 rounded-none font-mono ${
-            !canEdit
-              ? "bg-steel text-text-muted cursor-not-allowed"
-              : "border border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-          }`}
-        >
-          {isEditing ? "Update Map" : "Create Map"}
-        </TransactionButton>
+        {canEdit &&
+          renderSaveButton({
+            blockedPositions: getBlockedPositions(),
+            scoringPositions: getScoringPositions(),
+            validationError,
+            onSuccess: handleSaveSuccess,
+          })}
         <button
           onClick={onCancel}
           className="px-4 py-2 bg-steel text-text-primary rounded-none font-mono hover:bg-gunmetal"

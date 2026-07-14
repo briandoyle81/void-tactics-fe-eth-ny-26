@@ -1,14 +1,33 @@
 "use client";
 
 import React from "react";
-import { ActionType, LastMove } from "../types/types";
+import { ActionType } from "../types/types";
 
-interface LastMoveDisplayProps {
-  lastMove: LastMove | undefined;
-  shipMap: Map<
-    bigint,
-    { name: string; owner?: string; equipment?: { special: number } }
-  >;
+// Shared between GameDisplay.tsx (web3) and GameDisplayWeb2.tsx (web2) —
+// the "Last Move" panel. Ship-id-native only via `string` (web3 converts
+// bigint ids with `.toString()` at the call site; web2's ids are already
+// numbers, converted the same way), matching the number-native-shared-
+// components rule — this was previously bigint-only and simply hadn't been
+// wired into web2 yet.
+export interface GameEventsLastMove {
+  shipId: string;
+  targetShipId: string;
+  oldRow: number;
+  oldCol: number;
+  newRow: number;
+  newCol: number;
+  actionType: ActionType;
+}
+
+export interface GameEventsShipInfo {
+  name: string;
+  owner?: string;
+  equipment?: { special: number };
+}
+
+interface GameEventsProps {
+  lastMove: GameEventsLastMove | undefined;
+  shipMap: Map<string, GameEventsShipInfo>;
   address?: string;
   appendDestroyedText?: boolean;
   debugSuffix?: string;
@@ -16,11 +35,8 @@ interface LastMoveDisplayProps {
 
 /** Format last move text. Uses only cached shipMap (no blockchain fetch) for names. */
 function formatLastMoveDescription(
-  lastMove: LastMove,
-  shipMap: Map<
-    bigint,
-    { name: string; owner?: string; equipment?: { special: number } }
-  >,
+  lastMove: GameEventsLastMove,
+  shipMap: Map<string, GameEventsShipInfo>,
   address?: string,
   appendDestroyedText?: boolean,
   debugSuffix?: string,
@@ -43,7 +59,7 @@ function formatLastMoveDescription(
   }
 
   if (lastMove.actionType === ActionType.Shoot) {
-    if (lastMove.targetShipId === 0n) {
+    if (lastMove.targetShipId === "0") {
       description += moved ? " and fired AOE" : `${shipName} fired AOE`;
     } else {
       const targetShip = shipMap.get(lastMove.targetShipId);
@@ -53,7 +69,7 @@ function formatLastMoveDescription(
         : `${shipName} fired on ${targetName}`;
     }
   } else if (lastMove.actionType === ActionType.Special) {
-    if (lastMove.targetShipId === 0n) {
+    if (lastMove.targetShipId === "0") {
       description += moved
         ? " and used special ability (AOE)"
         : `${shipName} used special ability (AOE)`;
@@ -92,8 +108,8 @@ export function GameEvents({
   address,
   appendDestroyedText = false,
   debugSuffix,
-}: LastMoveDisplayProps) {
-  if (!lastMove || lastMove.shipId === 0n) {
+}: GameEventsProps) {
+  if (!lastMove || lastMove.shipId === "0") {
     return (
       <div className="border border-purple bg-black/40 p-4">
         <h3 className="text-lg font-bold text-purple mb-2">

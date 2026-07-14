@@ -14,6 +14,9 @@ export async function GET() {
     },
     include: { lobby: { select: { mapId: true } } },
     orderBy: { createdAt: "desc" },
+    // Bounded — without this, a long-tenured player's entire game history
+    // (full state JSON per row) is re-fetched on every poll of this route.
+    take: 100,
   });
 
   const gameViews = games.map((g) => {

@@ -9,7 +9,7 @@ import { apiFetch } from "../lib/apiFetch";
 export function useMapNameWeb2(mapId: number) {
   const { data, isLoading } = useQuery({
     queryKey: ["mapNameWeb2", mapId],
-    queryFn: () => apiFetch<{ name: string }>(`/api/maps/${mapId}`),
+    queryFn: () => apiFetch<{ name: string }>(`/api/maps/${mapId}?fields=name`),
     enabled: mapId > 0,
     staleTime: Infinity, // maps never change
   });

@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { stringifyWithBigint } from "@/app/lib/bigintJson";
 import { Web2Lobby, Web2LobbyStatus } from "@/app/types/web2Lobby";
 import { getEconomyConfig } from "@/app/lib/economyConfig";
+import { InsufficientBalanceError } from "@/app/lib/InsufficientBalanceError";
 
 function dbLobbyToLobby(db: {
   id: number;
@@ -130,26 +131,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Insufficient UTC balance" }, { status: 402 });
   }
 
-  const [, lobby] = await prisma.$transaction([
-    prisma.user.update({
-      where: { id: userId! },
-      data: {
-        lobbiesCreatedCount: { increment: 1 },
-        ...(isFreeCreate ? {} : { creditBalance: { decrement: economy.lobbyCreationCostUtc } }),
-      },
-    }),
-    prisma.lobby.create({
-      data: {
-        creatorId: userId!,
-        costLimit: Number(costLimit),
-        turnTimeSeconds: Number(turnTimeSeconds),
-        creatorGoesFirst: Boolean(creatorGoesFirst),
-        mapId: selectedMapId ? Number(selectedMapId) : null,
-        maxScore: Number(maxScore),
-        status: "OPEN",
-      },
-    }),
-  ]);
+  let lobby;
+  try {
+    lobby = await prisma.$transaction(async (tx) => {
+      // Atomic conditional debit: the balance check and the decrement happen
+      // in one statement, so two concurrent requests can't both pass a stale
+      // pre-check and both spend (see InsufficientBalanceError).
+      const debited = await tx.user.updateMany({
+        where: {
+          id: userId!,
+          ...(isFreeCreate ? {} : { creditBalance: { gte: economy.lobbyCreationCostUtc } }),
+        },
+        data: {
+          lobbiesCreatedCount: { increment: 1 },
+          ...(isFreeCreate ? {} : { creditBalance: { decrement: economy.lobbyCreationCostUtc } }),
+        },
+      });
+      if (debited.count === 0) throw new InsufficientBalanceError();
+
+      return tx.lobby.create({
+        data: {
+          creatorId: userId!,
+          costLimit: Number(costLimit),
+          turnTimeSeconds: Number(turnTimeSeconds),
+          creatorGoesFirst: Boolean(creatorGoesFirst),
+          mapId: selectedMapId ? Number(selectedMapId) : null,
+          maxScore: Number(maxScore),
+          status: "OPEN",
+        },
+      });
+    });
+  } catch (e) {
+    if (e instanceof InsufficientBalanceError) {
+      return NextResponse.json({ error: "Insufficient UTC balance" }, { status: 402 });
+    }
+    throw e;
+  }
 
   return new NextResponse(stringifyWithBigint(dbLobbyToLobby(lobby)), {
     status: 201,

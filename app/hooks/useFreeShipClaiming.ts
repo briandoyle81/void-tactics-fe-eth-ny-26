@@ -31,7 +31,9 @@ type EligibilityCacheEntry = {
   claimCooldownPeriod?: string;
 };
 
-function formatTimeUntil(secondsRemaining: number): string {
+// Exported: shared with useClaimFreeEligibilityWeb2.ts / ClaimFreeShipsControls.tsx
+// (pure seconds->label math, no bigint/number distinction, no twin needed).
+export function formatTimeUntil(secondsRemaining: number): string {
   if (secondsRemaining <= 0) return "0m";
   const d = Math.floor(secondsRemaining / 86400);
   const h = Math.floor((secondsRemaining % 86400) / 3600);

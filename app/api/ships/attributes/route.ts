@@ -3,6 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { dbShipToShip } from "@/app/lib/dbToType";
 import { calculateAttributesFromContractsWeb2 as calculateAttributesFromContracts } from "@/app/utils/shipAttributesCalculatorWeb2";
+import { getShipAttributeTables } from "@/app/lib/getShipAttributeTables";
 import { stringifyWithBigint } from "@/app/lib/bigintJson";
 
 // GET /api/ships/attributes?ids=1,2,3
@@ -23,9 +24,10 @@ export async function GET(req: NextRequest) {
     where: { id: { in: ids }, ownerId: userId! },
   });
 
+  const tables = await getShipAttributeTables();
   const result: Record<string, ReturnType<typeof calculateAttributesFromContracts>> = {};
   for (const db of dbShips) {
-    result[db.id] = calculateAttributesFromContracts(dbShipToShip(db));
+    result[db.id] = calculateAttributesFromContracts(dbShipToShip(db), tables);
   }
   return new NextResponse(stringifyWithBigint(result), {
     headers: { "Content-Type": "application/json" },

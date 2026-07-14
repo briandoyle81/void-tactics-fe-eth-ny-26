@@ -2,14 +2,13 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import posthog from "posthog-js";
 import {
   ActionType,
   Attributes,
-  getMainWeaponName,
-  getSpecialName,
   GRID_DIMENSIONS,
 } from "../types/types";
-import type { Web2GameDataView } from "../types/web2Game";
+import type { Web2GameDataView, Web2LastMove } from "../types/web2Game";
 import { Web2Ship } from "../types/web2Ship";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useGetGame } from "../hooks/useGamesWeb2";
@@ -32,10 +31,18 @@ import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
+import ShipCard from "./ShipCard";
+import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { GameScoreBox } from "./GameScoreBox";
-import { GameTurnLabel } from "./GameTurnLabel";
+import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
 import { GameFleetCard } from "./GameFleetCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
+import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
+import {
+  GameEvents,
+  type GameEventsLastMove,
+  type GameEventsShipInfo,
+} from "./GameEvents";
 import { toGameScoreDataWeb2, toGameWinnerResultWeb2 } from "../utils/gameDisplayDataWeb2";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
@@ -75,6 +82,7 @@ export default function GameDisplayWeb2({
   const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReplay, setShowReplay] = useState(false);
+  const [showFleetModal, setShowFleetModal] = useState(false);
 
   const gameViewRootRef = React.useRef<HTMLDivElement | null>(null);
   const gridContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -94,6 +102,20 @@ export default function GameDisplayWeb2({
     gameShips.forEach((s) => map.set(s.id, s));
     return map;
   }, [gameShips]);
+
+  // GameEvents.tsx is number/string-native — build a string-keyed view of
+  // shipMap for it here rather than changing shipMap's own number keys.
+  const gameEventsShipMap = useMemo(() => {
+    const map = new Map<string, GameEventsShipInfo>();
+    shipMap.forEach((ship, id) => {
+      map.set(String(id), {
+        name: ship.name,
+        owner: ship.owner,
+        equipment: { special: ship.equipment.special },
+      });
+    });
+    return map;
+  }, [shipMap]);
 
   // Adapter for `useGameplayInteraction`'s ownership-aware ship shape (see
   // that hook's doc) — cheap here since web2's Web2Ship is already number-id.
@@ -135,6 +157,20 @@ export default function GameDisplayWeb2({
   const isCurrentPlayerTurn = !readOnly && game.turnState.currentTurn === userId;
   const gameWinnerResult = toGameWinnerResultWeb2(game.metadata.winner, userId);
   const isGameOver = gameWinnerResult !== null;
+
+  // Play alert sound when it becomes the player's turn (turn changes from
+  // opponent to player only).
+  const prevTurnRef = React.useRef<boolean | null>(null);
+  React.useEffect(() => {
+    if (!readOnly && isCurrentPlayerTurn && userId && prevTurnRef.current === false) {
+      const audio = new Audio("/sound/alert.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(() => {
+        // Silently fail - some browsers block autoplay
+      });
+    }
+    prevTurnRef.current = isCurrentPlayerTurn;
+  }, [isCurrentPlayerTurn, userId, readOnly]);
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
@@ -261,8 +297,14 @@ export default function GameDisplayWeb2({
         targetShipId: finalTargetShipId,
         specialType: payload.specialType,
       });
+      posthog.capture("game_move_submitted", {
+        game_id: String(gameId),
+        ship_id: String(payload.shipId),
+        move_type: ActionType[finalActionType] ?? String(finalActionType),
+        ...(finalTargetShipId ? { target_ship_id: String(finalTargetShipId) } : {}),
+      });
       const currentPosition = aliveShipPositions.find((p) => p.shipId === payload.shipId);
-      recordOptimisticMove({
+      const optimisticMove: Web2LastMove = {
         shipId: payload.shipId,
         oldRow: currentPosition?.position.row ?? payload.row,
         oldCol: currentPosition?.position.col ?? payload.col,
@@ -271,7 +313,9 @@ export default function GameDisplayWeb2({
         actionType: finalActionType,
         targetShipId: finalTargetShipId,
         timestamp: Date.now(),
-      });
+      };
+      recordOptimisticMove(optimisticMove);
+      setOptimisticLastMoveWeb2(optimisticMove);
       recordPlayerMoveRef.current?.();
       toast.success("Move submitted!");
       handleCancelMove();
@@ -294,13 +338,56 @@ export default function GameDisplayWeb2({
     refetch,
   ]);
 
-  const lastMove = game.lastMove;
+  // Optimistic last-move: mirrors GameDisplay.tsx's own local
+  // `optimisticLastMove` state (separate from useGameplayInteraction's
+  // `recordOptimisticMove`, which already covers the grid's ghost-preview
+  // position) — keeps the "Last Move" text panel + grid highlight showing
+  // the just-submitted move during the gap before the next poll/SSE tick
+  // updates `game.lastMove`.
+  const [optimisticLastMoveWeb2, setOptimisticLastMoveWeb2] = useState<Web2LastMove | null>(null);
+  React.useEffect(() => {
+    if (!optimisticLastMoveWeb2 || !game.lastMove) return;
+    const matches =
+      game.lastMove.shipId === optimisticLastMoveWeb2.shipId &&
+      game.lastMove.actionType === optimisticLastMoveWeb2.actionType &&
+      game.lastMove.targetShipId === optimisticLastMoveWeb2.targetShipId &&
+      game.lastMove.oldRow === optimisticLastMoveWeb2.oldRow &&
+      game.lastMove.oldCol === optimisticLastMoveWeb2.oldCol &&
+      game.lastMove.newRow === optimisticLastMoveWeb2.newRow &&
+      game.lastMove.newCol === optimisticLastMoveWeb2.newCol;
+    if (matches) setOptimisticLastMoveWeb2(null);
+  }, [optimisticLastMoveWeb2, game.lastMove]);
+
+  const lastMove = optimisticLastMoveWeb2 ?? game.lastMove;
   const lastMoveShipId = lastMove?.shipId ?? null;
   const lastMoveOldPosition = lastMove ? { row: lastMove.oldRow, col: lastMove.oldCol } : null;
   const lastMoveNewPosition = lastMove ? { row: lastMove.newRow, col: lastMove.newCol } : null;
   const lastMoveActionType = lastMove?.actionType ?? null;
   const lastMoveTargetShipId = lastMove?.targetShipId ?? null;
   const lastMoveIsCurrentPlayer = lastMove ? shipMap.get(lastMove.shipId)?.owner === userId : undefined;
+
+  const gameEventsLastMove: GameEventsLastMove | undefined = lastMove
+    ? {
+        shipId: String(lastMove.shipId),
+        targetShipId: String(lastMove.targetShipId),
+        oldRow: lastMove.oldRow,
+        oldCol: lastMove.oldCol,
+        newRow: lastMove.newRow,
+        newCol: lastMove.newCol,
+        actionType: lastMove.actionType,
+      }
+    : undefined;
+
+  const appendDestroyedTextToLastMove = useMemo(() => {
+    if (!lastMove) return false;
+    if (lastMove.targetShipId === 0) return false;
+    const isTargetingAction =
+      lastMove.actionType === ActionType.Shoot || lastMove.actionType === ActionType.Special;
+    if (!isTargetingAction) return false;
+    return !game.shipPositions.some((sp) => sp.shipId === lastMove.targetShipId);
+  }, [lastMove, game.shipPositions]);
+
+  const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] = useState(false);
 
   const gameScoreData = toGameScoreDataWeb2(game, userId);
 
@@ -315,7 +402,16 @@ export default function GameDisplayWeb2({
     return () => clearInterval(interval);
   }, [game.turnState.turnStartTime, game.turnState.turnTime]);
 
+  const turnPercentRemaining = useMemo(() => {
+    const turnTimeSec = game.turnState.turnTime;
+    if (!turnTimeSec || turnTimeSec <= 0) return 0;
+    const pct = (turnSecondsLeft / turnTimeSec) * 100;
+    return Math.max(0, Math.min(100, pct));
+  }, [turnSecondsLeft, game.turnState.turnTime]);
+
+  const [isClaimingTimeout, setIsClaimingTimeout] = useState(false);
   const handleClaimTimeout = useCallback(async () => {
+    setIsClaimingTimeout(true);
     try {
       await apiMutate(`/api/games/${gameId}/timeout`, "POST");
       toast.success("Claimed win by timeout!");
@@ -323,6 +419,8 @@ export default function GameDisplayWeb2({
       refetch?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Claim failed");
+    } finally {
+      setIsClaimingTimeout(false);
     }
   }, [gameId, refetchGame, refetch]);
 
@@ -332,31 +430,29 @@ export default function GameDisplayWeb2({
       if (!ship) return null;
       const attrs = getShipAttributes(cell.shipId);
       return (
-        <div
-          className="border-2 border-solid p-3 flex flex-col gap-2"
-          style={{ borderColor: "var(--color-cyan)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-16 h-16 shrink-0">
-              <ShipImageWeb2 ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="font-mono text-sm font-bold text-text-primary truncate">{ship.name || `Ship #${ship.id}`}</span>
-              {attrs && (
-                <span className="font-mono text-xs text-text-secondary">
-                  HP {attrs.hullPoints}/{attrs.maxHullPoints}
-                </span>
-              )}
-              <span className="font-mono text-xs text-text-muted">{getMainWeaponName(ship.equipment.mainWeapon)}</span>
-              {ship.equipment.special > 0 && (
-                <span className="font-mono text-xs text-text-muted">{getSpecialName(ship.equipment.special)}</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <ShipCard
+          ship={toShipCardDataWeb2(ship)}
+          shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
+          isStarred={false}
+          onToggleStar={() => {}}
+          isSelected={false}
+          onToggleSelection={() => {}}
+          onRecycleClick={() => {}}
+          showInGameProperties={true}
+          inGameAttributes={attrs || undefined}
+          attributesLoading={!attrs}
+          hideRecycle={true}
+          hideCheckbox={true}
+          tooltipMode={true}
+          isCurrentPlayerShip={isShipOwnedByCurrentPlayer(cell.shipId)}
+          flipShip={cell.isCreator}
+          hasMoved={movedShipIdsSet.has(cell.shipId)}
+          gameViewMode={true}
+          tooltipGridPosition={{ row: cell.row, col: cell.col }}
+        />
       );
     },
-    [shipMap, getShipAttributes],
+    [shipMap, getShipAttributes, isShipOwnedByCurrentPlayer, movedShipIdsSet],
   );
 
   const renderFleetCard = (shipId: number, teamColor: string, flip: boolean) => {
@@ -411,19 +507,31 @@ export default function GameDisplayWeb2({
               <span>Game {game.metadata.gameId}</span>
               <span className="text-text-muted text-base">Round {game.turnState.currentRound}</span>
             </h1>
-            <div className="flex flex-col gap-1.5">
-              <GameTurnLabel isMyTurn={isCurrentPlayerTurn} secondsLeft={turnSecondsLeft} />
-              {!isCurrentPlayerTurn && turnSecondsLeft === 0 && !isGameOver && (
-                <button
-                  type="button"
-                  onClick={handleClaimTimeout}
-                  className="px-3 py-1.5 text-xs uppercase font-bold tracking-wider border-2 border-solid"
-                  style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-                >
-                  Claim Win (Timeout)
-                </button>
-              )}
-            </div>
+            {!isGameOver && (() => {
+              const isParticipant = !readOnly && (isCreatorMe || game.metadata.joiner === userId);
+              const canSeizeTurn = !isCurrentPlayerTurn && isParticipant && turnSecondsLeft <= 0;
+              const hasExceededTime = isCurrentPlayerTurn && isParticipant && turnSecondsLeft <= 0;
+              return (
+                <GameTurnTimerPanel
+                  hasExceededTime={hasExceededTime}
+                  canSeizeTurn={canSeizeTurn}
+                  isMyTurn={isCurrentPlayerTurn}
+                  secondsLeft={turnSecondsLeft}
+                  turnPercentRemaining={turnPercentRemaining}
+                  onResync={() => refetchGame()}
+                  claimTimeoutButton={
+                    <button
+                      type="button"
+                      onClick={handleClaimTimeout}
+                      disabled={isClaimingTimeout}
+                      className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
+                    >
+                      {isClaimingTimeout ? "Claiming..." : "Claim win (timeout)"}
+                    </button>
+                  }
+                />
+              );
+            })()}
             <GameScoreBox score={gameScoreData} />
             {gameWinnerResult ? (
               <div
@@ -461,6 +569,7 @@ export default function GameDisplayWeb2({
           <GameFleetStatusPanel
             myCount={myIds.length}
             enemyCount={enemyIds.length}
+            onShowDetails={() => setShowFleetModal(true)}
             myCards={myIds.map((id) => renderFleetCard(id, "var(--color-cyan)", isCreatorMe))}
             enemyCards={enemyIds.map((id) => renderFleetCard(id, "var(--color-warning-red)", !isCreatorMe))}
             footer={
@@ -566,17 +675,143 @@ export default function GameDisplayWeb2({
               </div>
             </div>
           </GameBoardLayout>
+          <div className="absolute bottom-0 right-0 z-[220] pointer-events-none">
+            <div className="pointer-events-auto">
+              {isLastMovePanelMinimized ? (
+                <button
+                  type="button"
+                  onClick={() => setIsLastMovePanelMinimized(false)}
+                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-purple)",
+                    color: "var(--color-purple)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  Last Move
+                </button>
+              ) : (
+                <div className="w-[min(30rem,70vw)] max-w-full">
+                  <div className="mb-1 flex items-center justify-between border border-solid px-2 py-1 bg-black/80">
+                    <span
+                      className="text-xs uppercase tracking-wider"
+                      style={{ ...STYLE_LABEL, color: "var(--color-purple)" }}
+                    >
+                      Last Move
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLastMovePanelMinimized(true)}
+                      className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+                      style={{
+                        ...STYLE_LABEL,
+                        borderColor: "var(--color-purple)",
+                        color: "var(--color-purple)",
+                        backgroundColor: "var(--color-near-black)",
+                        borderRadius: 0,
+                      }}
+                    >
+                      Minimize
+                    </button>
+                  </div>
+                  <GameEvents
+                    lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
+                    shipMap={gameEventsShipMap}
+                    address={userId ?? undefined}
+                    appendDestroyedText={appendDestroyedTextToLastMove}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          {showReplay && (
+            <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
+              <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+                <GameReplayViewerWeb2 gameId={gameId} onClose={() => setShowReplay(false)} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {showReplay && <GameReplayViewerWeb2 gameId={gameId} onClose={() => setShowReplay(false)} />}
+      {showFleetModal && (() => {
+        const buildFleetDetailCards = (
+          shipIds: readonly number[],
+          isCurrentPlayerShip: boolean,
+          flipShip: boolean,
+        ) =>
+          shipIds.map((shipId) => {
+            const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
+            const attrs = getShipAttributes(shipId);
+            const ship = shipMap.get(shipId);
+            if (!shipPosition || !attrs || !ship) return null;
+            const reactorCriticalStatus =
+              attrs.reactorCriticalTimer > 0 && attrs.hullPoints === 0
+                ? "critical"
+                : attrs.reactorCriticalTimer > 0
+                  ? "warning"
+                  : "none";
+            return (
+              <ShipCard
+                key={shipId}
+                ship={toShipCardDataWeb2(ship)}
+                shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
+                isStarred={false}
+                onToggleStar={() => {}}
+                isSelected={false}
+                onToggleSelection={() => {}}
+                onRecycleClick={() => {}}
+                showInGameProperties={true}
+                inGameAttributes={attrs}
+                attributesLoading={false}
+                hideRecycle={true}
+                hideCheckbox={true}
+                isCurrentPlayerShip={isCurrentPlayerShip}
+                flipShip={flipShip}
+                reactorCriticalStatus={reactorCriticalStatus}
+                hasMoved={movedShipIdsSet.has(shipId)}
+                gameViewMode={true}
+              />
+            );
+          });
+
+        return (
+          <GameFleetDetailsModal
+            show={true}
+            onClose={() => setShowFleetModal(false)}
+            myFleetLabel={
+              isCreatorMe
+                ? readOnly ? "Creator Fleet" : "[MY FLEET]"
+                : readOnly ? "Joiner Fleet" : "[MY FLEET]"
+            }
+            enemyFleetLabel={
+              isCreatorMe
+                ? readOnly ? "Joiner Fleet" : "[HOSTILE FLEET]"
+                : readOnly ? "Creator Fleet" : "[HOSTILE FLEET]"
+            }
+            myFleetCards={buildFleetDetailCards(myIds, true, isCreatorMe)}
+            enemyFleetCards={buildFleetDetailCards(enemyIds, false, !isCreatorMe)}
+          />
+        );
+      })()}
     </div>
   );
 }
 
-/** Minimal replay viewer — fetches server-persisted turns and steps through snapshots. */
+/**
+ * Replay viewer — fetches server-persisted turns and steps through
+ * snapshots. Chrome (buttons/labels/auto-play) matches GameDisplay.tsx's
+ * in-grid replay controls; the data source is genuinely different (web3:
+ * client-only localStorage bigint snapshots; web2: server-authoritative
+ * Prisma GameTurn history via this API route) so this stays its own
+ * component rather than a shared one — see the Phase 6 plan's replay note.
+ */
 function GameReplayViewerWeb2({ gameId, onClose }: { gameId: number; onClose: () => void }) {
   const [step, setStep] = useState(-1);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const autoPlayRef = React.useRef(false);
   const [data, setData] = useState<{
     initialState: Web2GameDataView | null;
     turns: Array<{ id: number; round: number; snapshot: Web2GameDataView | null }>;
@@ -594,19 +829,67 @@ function GameReplayViewerWeb2({ gameId, onClose }: { gameId: number; onClose: ()
     };
   }, [gameId]);
 
+  React.useEffect(() => {
+    autoPlayRef.current = autoPlay;
+  }, [autoPlay]);
+
+  React.useEffect(() => {
+    if (!autoPlay || !data) return;
+    const timer = setInterval(() => {
+      if (!autoPlayRef.current) {
+        clearInterval(timer);
+        return;
+      }
+      setStep((s) => {
+        if (s >= data.turns.length - 1) {
+          autoPlayRef.current = false;
+          setAutoPlay(false);
+          return s;
+        }
+        return s + 1;
+      });
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [autoPlay, data]);
+
   if (!data) {
     return (
-      <div className="p-3 border border-solid" style={{ borderColor: "var(--color-gunmetal)" }}>
-        <span className="font-mono text-sm text-text-muted">Loading replay…</span>
+      <div
+        className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs"
+        style={{
+          ...STYLE_LABEL,
+          borderColor: "var(--color-steel)",
+          color: "var(--color-text-secondary)",
+          backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+          borderRadius: 0,
+        }}
+      >
+        Loading replay…
       </div>
     );
   }
 
   if (data.turns.length === 0) {
     return (
-      <div className="p-3 border border-solid flex items-center justify-between" style={{ borderColor: "var(--color-gunmetal)" }}>
-        <span className="font-mono text-sm text-text-muted">No moves recorded yet.</span>
-        <button type="button" onClick={onClose} className="text-xs uppercase text-text-secondary">Close</button>
+      <div
+        className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
+        style={{
+          ...STYLE_LABEL,
+          borderColor: "var(--color-warning-red)",
+          color: "var(--color-warning-red)",
+          backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+          borderRadius: 0,
+        }}
+      >
+        <span>No moves recorded yet.</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-1.5 py-0.5 border border-solid"
+          style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+        >
+          ✕
+        </button>
       </div>
     );
   }
@@ -614,35 +897,62 @@ function GameReplayViewerWeb2({ gameId, onClose }: { gameId: number; onClose: ()
   const currentSnapshot = step < 0 ? data.initialState : data.turns[step]?.snapshot;
 
   return (
-    <div className="p-3 border border-solid flex flex-col gap-2" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-slate)" }}>
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-sm text-text-primary">
-          Replay — {step < 0 ? "Initial state" : `Turn ${step + 1} / ${data.turns.length} (Round ${data.turns[step]?.round})`}
-        </span>
-        <button type="button" onClick={onClose} className="text-xs uppercase text-text-secondary">Close</button>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setStep((s) => Math.max(-1, s - 1))}
-          disabled={step <= -1}
-          className="px-3 py-1 text-xs uppercase border border-solid"
-          style={{ borderColor: "var(--color-gunmetal)", color: "var(--color-text-secondary)" }}
-        >
-          ← Prev
-        </button>
-        <button
-          type="button"
-          onClick={() => setStep((s) => Math.min(data.turns.length - 1, s + 1))}
-          disabled={step >= data.turns.length - 1}
-          className="px-3 py-1 text-xs uppercase border border-solid"
-          style={{ borderColor: "var(--color-gunmetal)", color: "var(--color-text-secondary)" }}
-        >
-          Next →
-        </button>
-      </div>
+    <div
+      className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
+      style={{
+        borderColor: "var(--color-steel)",
+        backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+        borderRadius: 0,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setStep((s) => Math.max(-1, s - 1))}
+        disabled={step <= -1}
+        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+        style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+      >
+        ◀ Prev
+      </button>
+      <span className="text-[11px] font-mono text-text-muted min-w-[8rem] text-center">
+        {step < 0
+          ? "Start"
+          : `Move ${step + 1}/${data.turns.length} · Rd ${data.turns[step]?.round ?? ""}`}
+      </span>
+      <button
+        type="button"
+        onClick={() => setStep((s) => Math.min(data.turns.length - 1, s + 1))}
+        disabled={step >= data.turns.length - 1}
+        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+        style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
+      >
+        Next ▶
+      </button>
+      <button
+        type="button"
+        onClick={() => setAutoPlay((p) => !p)}
+        disabled={step >= data.turns.length - 1}
+        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
+        style={{
+          ...STYLE_LABEL,
+          borderColor: autoPlay ? "var(--color-cyan)" : "var(--color-steel)",
+          color: autoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
+          backgroundColor: "transparent",
+          borderRadius: 0,
+        }}
+      >
+        {autoPlay ? "⏸ Pause" : "▶▶ Play"}
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
+        style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+      >
+        ✕ Exit
+      </button>
       {currentSnapshot && (
-        <div className="font-mono text-xs text-text-muted">
+        <div className="w-full font-mono text-xs text-text-muted">
           Score: {currentSnapshot.creatorScore} — {currentSnapshot.joinerScore} · Round {currentSnapshot.turnState.currentRound}
         </div>
       )}

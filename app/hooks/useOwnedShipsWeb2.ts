@@ -30,7 +30,11 @@ export function useOwnedShipsWeb2() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["ships", "owned", "web2"],
     queryFn: fetchAllShips,
-    refetchInterval: 5000,
+    // Every purchase/construct/recycle/claim-free action already calls
+    // `refetch()` on success (see ManageNavyWeb2.tsx) — this interval only
+    // needs to catch changes from elsewhere (another tab/device), not
+    // reflect your own actions, so it doesn't need to be this tight.
+    refetchInterval: 20000,
   });
 
   const ships = data ?? [];

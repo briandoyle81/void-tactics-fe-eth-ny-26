@@ -29,12 +29,12 @@ import { cacheShipsData } from "../hooks/useShipDataCache";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
 import { toShipCardData } from "../utils/toShipCardData";
-import {
-  getMainWeaponName,
-  getSpecialName,
-  getArmorName,
-  getShieldName,
-} from "../types/types";
+import { LobbyCard } from "./LobbyCard";
+import { FleetViewModal } from "./FleetViewModal";
+import { FleetFilterPanel } from "./FleetFilterPanel";
+import { LoadFleetMenu } from "./LoadFleetMenu";
+import { type FleetFilters, DEFAULT_FLEET_FILTERS, matchesFleetFilters } from "../utils/fleetFilters";
+import { LobbyCreateForm, LobbyTurnOrderNote } from "./LobbyCreateForm";
 import { LobbyCreateButton } from "./LobbyCreateButton";
 import { LobbyJoinButton } from "./LobbyJoinButton";
 import { LobbyLeaveButton } from "./LobbyLeaveButton";
@@ -42,9 +42,6 @@ import { LobbyAcceptButton } from "./LobbyAcceptButton";
 import { LobbyRejectButton } from "./LobbyRejectButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
-import { calculateShipRank, getRankColor } from "../utils/shipLevel";
-import { toShipVisual } from "../utils/toShipVisual";
-import { formatDestroyedDate } from "../utils/dateUtils";
 import { MapDisplay } from "./MapDisplay";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useLobby } from "../hooks/useLobbiesContract";
@@ -270,11 +267,6 @@ const Lobbies: React.FC = () => {
   const [isCreatingFleet, setIsCreatingFleet] = useState(false);
   const [showFleetView, setShowFleetView] = useState(false);
   const [showLoadFleetMenu, setShowLoadFleetMenu] = useState(false);
-  const [pendingLoadFleet, setPendingLoadFleet] = useState<{
-    fleet: FleetComposition;
-    availableShipIds: bigint[];
-    unavailableCount: number;
-  } | null>(null);
   const [viewingFleetId, setViewingFleetId] = useState<bigint | null>(null);
   const [viewingFleetOwner, setViewingFleetOwner] = useState<string | null>(
     null,
@@ -651,22 +643,7 @@ const Lobbies: React.FC = () => {
   );
 
   // Fleet selection filters
-  const [fleetFilters, setFleetFilters] = useState({
-    showShiny: true,
-    showCommon: true,
-    showUnavailable: false,
-    minCost: 0,
-    maxCost: 10000,
-    minAccuracy: 0,
-    maxAccuracy: 2,
-    minHull: 0,
-    maxHull: 2,
-    minSpeed: 0,
-    maxSpeed: 2,
-    weaponType: "all",
-    defenseType: "all",
-    specialType: "all",
-  });
+  const [fleetFilters, setFleetFilters] = useState<FleetFilters>(DEFAULT_FLEET_FILTERS);
 
   // In-game properties toggle
   const [showInGameProperties, setShowInGameProperties] = useState(true);
@@ -924,7 +901,6 @@ const Lobbies: React.FC = () => {
     setShipPositions([]);
     setSelectedShipId(null);
     setShowLoadFleetMenu(false);
-    setPendingLoadFleet(null);
     setFiltersExpanded(false);
     setShowFleetConfirmation(false);
     lastLoadedFleetIdRef.current = null;
@@ -957,7 +933,6 @@ const Lobbies: React.FC = () => {
       setViewingFleetOwner(null);
       setDraggedShipId(null);
       setDragOverPosition(null);
-      setPendingLoadFleet(null);
     };
     window.addEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, onChainChanged);
     return () => {
@@ -974,7 +949,6 @@ const Lobbies: React.FC = () => {
     setFiltersExpanded(false);
     setShowFleetConfirmation(false);
     setShowLoadFleetMenu(false);
-    setPendingLoadFleet(null);
   }, []);
 
   const clearFleetDraftSelection = useCallback(() => {
@@ -986,87 +960,80 @@ const Lobbies: React.FC = () => {
     setShipPositions([]);
     setSelectedShipId(null);
     setShowLoadFleetMenu(false);
-    setPendingLoadFleet(null);
   }, [selectedLobby, address, chainId]);
 
-  const applyLoadedFleetSelection = (shipIdsToLoad: bigint[]) => {
-    if (!selectedLobby) return;
-    const currentLobby = lobbyList.lobbies.find(
-      (lobby) => lobby.basic.id === selectedLobby,
-    );
-    if (!currentLobby) return;
-    const isCreator = currentLobby.basic.creator === address;
-
-    const placedShipIds: bigint[] = [];
-    const nextPositions: Array<{ shipId: bigint; row: number; col: number }> = [];
-    const existingPositions: Array<{ row: number; col: number }> = [];
-    for (const shipId of shipIdsToLoad) {
-      const position = findNextPosition(isCreator, existingPositions);
-      if (!position) break;
-      placedShipIds.push(shipId);
-      nextPositions.push({ shipId, row: position.row, col: position.col });
-      existingPositions.push(position);
-    }
-
-    setSelectedShips(placedShipIds);
-    setShipPositions(nextPositions);
-    setSelectedShipId(null);
-    setShowLoadFleetMenu(false);
-    setPendingLoadFleet(null);
-
-    if (placedShipIds.length === 0) {
-      toast.error("No ships could be loaded into deployment slots");
-    } else if (placedShipIds.length < shipIdsToLoad.length) {
-      toast.error(
-        `Loaded ${placedShipIds.length}/${shipIdsToLoad.length} ships due to deployment capacity.`,
+  const applyLoadedFleetSelection = useCallback(
+    (shipIdsToLoad: bigint[]) => {
+      if (!selectedLobby) return;
+      const currentLobby = lobbyList.lobbies.find(
+        (lobby) => lobby.basic.id === selectedLobby,
       );
-    } else {
-      toast.success(`Loaded ${placedShipIds.length} ships from saved fleet.`);
-    }
-  };
+      if (!currentLobby) return;
+      const isCreator = currentLobby.basic.creator === address;
 
-  const handleRequestLoadSavedFleet = (fleet: FleetComposition) => {
-    const availableShipIds: bigint[] = [];
-    let unavailableCount = 0;
+      const placedShipIds: bigint[] = [];
+      const nextPositions: Array<{ shipId: bigint; row: number; col: number }> = [];
+      const existingPositions: Array<{ row: number; col: number }> = [];
+      for (const shipId of shipIdsToLoad) {
+        const position = findNextPosition(isCreator, existingPositions);
+        if (!position) break;
+        placedShipIds.push(shipId);
+        nextPositions.push({ shipId, row: position.row, col: position.col });
+        existingPositions.push(position);
+      }
 
-    for (const shipIdString of fleet.shipIds) {
-      const ship = ships.find((s) => s.id.toString() === shipIdString);
-      if (!ship) {
-        unavailableCount++;
-        continue;
-      }
-      if (!ship.shipData.constructed) {
-        unavailableCount++;
-        continue;
-      }
-      if (ship.shipData.timestampDestroyed > 0n) {
-        unavailableCount++;
-        continue;
-      }
-      if (ship.shipData.inFleet) {
-        unavailableCount++;
-        continue;
-      }
-      availableShipIds.push(ship.id);
-    }
-
-    if (availableShipIds.length === 0) {
-      toast.error("No available ships from that saved fleet can be loaded.");
-      return;
-    }
-
-    if (unavailableCount > 0) {
+      setSelectedShips(placedShipIds);
+      setShipPositions(nextPositions);
+      setSelectedShipId(null);
       setShowLoadFleetMenu(false);
-      setPendingLoadFleet({
-        fleet,
-        availableShipIds,
-        unavailableCount,
-      });
-      return;
-    }
 
-    applyLoadedFleetSelection(availableShipIds);
-  };
+      if (placedShipIds.length === 0) {
+        toast.error("No ships could be loaded into deployment slots");
+      } else if (placedShipIds.length < shipIdsToLoad.length) {
+        toast.error(
+          `Loaded ${placedShipIds.length}/${shipIdsToLoad.length} ships due to deployment capacity.`,
+        );
+      } else {
+        toast.success(`Loaded ${placedShipIds.length} ships from saved fleet.`);
+      }
+    },
+    [selectedLobby, lobbyList.lobbies, address],
+  );
+
+  const getFleetLoadPlan = useCallback(
+    (fleet: FleetComposition) => {
+      const availableShipIds: bigint[] = [];
+      let unavailableCount = 0;
+
+      for (const shipIdString of fleet.shipIds) {
+        const ship = ships.find((s) => s.id.toString() === shipIdString);
+        if (!ship) {
+          unavailableCount++;
+          continue;
+        }
+        if (!ship.shipData.constructed) {
+          unavailableCount++;
+          continue;
+        }
+        if (ship.shipData.timestampDestroyed > 0n) {
+          unavailableCount++;
+          continue;
+        }
+        if (ship.shipData.inFleet) {
+          unavailableCount++;
+          continue;
+        }
+        availableShipIds.push(ship.id);
+      }
+
+      return {
+        availableCount: availableShipIds.length,
+        unavailableCount,
+        load: () => applyLoadedFleetSelection(availableShipIds),
+      };
+    },
+    [ships, applyLoadedFleetSelection],
+  );
 
   const getSavedFleetSummary = useCallback(
     (fleet: FleetComposition) => {
@@ -1125,104 +1092,6 @@ const Lobbies: React.FC = () => {
   const fleetSelectionAttributesLoading =
     attributesLoading || !attributesAlignedWithShipIds;
 
-  const [dragging, setDragging] = useState<{
-    type:
-      | "minAccuracy"
-      | "maxAccuracy"
-      | "minHull"
-      | "maxHull"
-      | "minSpeed"
-      | "maxSpeed"
-      | null;
-    startX: number;
-    startValue: number;
-    container: HTMLElement | null;
-  }>({ type: null, startX: 0, startValue: 0, container: null });
-
-  const handleThumbMouseDown = (
-    e: React.MouseEvent,
-    type:
-      | "minAccuracy"
-      | "maxAccuracy"
-      | "minHull"
-      | "maxHull"
-      | "minSpeed"
-      | "maxSpeed",
-  ) => {
-    e.preventDefault();
-    const container = (e.target as HTMLElement).closest(
-      ".range-slider-container",
-    ) as HTMLElement;
-    if (!container) return;
-
-    const currentValue = fleetFilters[type];
-    setDragging({
-      type,
-      startX: e.clientX,
-      startValue: currentValue,
-      container, // Store the specific container
-    });
-  };
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!dragging.type || !dragging.container) return;
-
-      const rect = dragging.container.getBoundingClientRect();
-      const containerWidth = rect.width - 20; // Account for 10px padding on each side
-      const halfThumbWidth = 9; // Account for half thumb width
-      const availableWidth = containerWidth - halfThumbWidth;
-      const relativeX = e.clientX - rect.left - 10; // Account for padding
-      const percentage = Math.max(0, Math.min(1, relativeX / availableWidth));
-      const newValue = Math.round(percentage * 2); // 0, 1, or 2
-
-      // Clamp the value to valid range (0, 1, 2)
-      const clampedValue = Math.max(0, Math.min(2, newValue));
-
-      if (dragging.type.includes("min")) {
-        const maxType = dragging.type.replace(
-          "min",
-          "max",
-        ) as keyof typeof fleetFilters;
-        const maxValue = fleetFilters[maxType] as number;
-        if (clampedValue <= maxValue) {
-          setFleetFilters((prev) => ({
-            ...prev,
-            [dragging.type!]: clampedValue,
-          }));
-        }
-      } else {
-        const minType = dragging.type.replace(
-          "max",
-          "min",
-        ) as keyof typeof fleetFilters;
-        const minValue = fleetFilters[minType] as number;
-        if (clampedValue >= minValue) {
-          setFleetFilters((prev) => ({
-            ...prev,
-            [dragging.type!]: clampedValue,
-          }));
-        }
-      }
-    },
-    [dragging.type, dragging.container, fleetFilters],
-  );
-
-  const handleMouseUp = () => {
-    setDragging({ type: null, startX: 0, startValue: 0, container: null });
-  };
-
-  useEffect(() => {
-    if (dragging.type) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [dragging, handleMouseMove]);
-
   // Filter panel state
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
@@ -1238,67 +1107,22 @@ const Lobbies: React.FC = () => {
 
     if (!costsVersionOk) return false;
 
-    // Filter out ships that are not available for fleet selection
-    // Ships must be constructed, not destroyed, and not already in a fleet
-    // Unless showUnavailable is enabled
-    if (!fleetFilters.showUnavailable) {
-      if (!ship.shipData.constructed) return false;
-      if (ship.shipData.timestampDestroyed > 0n) return false;
-      if (ship.shipData.inFleet) return false;
-    }
-
-    const cost = Number(ship.shipData.cost);
-    const isShiny = ship.shipData.shiny;
-    const accuracy = ship.traits.accuracy;
-    const hull = ship.traits.hull;
-    const speed = ship.traits.speed;
-
-    // Rarity filters
-    if (isShiny && !fleetFilters.showShiny) return false;
-    if (!isShiny && !fleetFilters.showCommon) return false;
-
-    // Cost filters
-    if (cost < fleetFilters.minCost || cost > fleetFilters.maxCost)
-      return false;
-
-    // Trait filters
-    if (
-      accuracy < fleetFilters.minAccuracy ||
-      accuracy > fleetFilters.maxAccuracy
-    )
-      return false;
-    if (hull < fleetFilters.minHull || hull > fleetFilters.maxHull)
-      return false;
-    if (speed < fleetFilters.minSpeed || speed > fleetFilters.maxSpeed)
-      return false;
-
-    // Equipment filters
-    if (fleetFilters.weaponType !== "all") {
-      const weaponName = getMainWeaponName(
-        ship.equipment.mainWeapon,
-      ).toLowerCase();
-      if (!weaponName.includes(fleetFilters.weaponType.toLowerCase()))
-        return false;
-    }
-
-    if (fleetFilters.defenseType !== "all") {
-      const hasShield = ship.equipment.shields > 0;
-      if (fleetFilters.defenseType === "shield" && !hasShield) return false;
-      if (fleetFilters.defenseType === "armor" && hasShield) return false;
-    }
-
-    if (fleetFilters.specialType !== "all") {
-      const specialName = getSpecialName(ship.equipment.special).toLowerCase();
-      if (fleetFilters.specialType === "none" && specialName !== "none")
-        return false;
-      if (
-        fleetFilters.specialType !== "none" &&
-        !specialName.includes(fleetFilters.specialType.toLowerCase())
-      )
-        return false;
-    }
-
-    return true;
+    return matchesFleetFilters(
+      {
+        cost: Number(ship.shipData.cost),
+        isShiny: ship.shipData.shiny,
+        accuracy: ship.traits.accuracy,
+        hull: ship.traits.hull,
+        speed: ship.traits.speed,
+        isConstructed: ship.shipData.constructed,
+        isDestroyed: ship.shipData.timestampDestroyed > 0n,
+        inFleet: ship.shipData.inFleet,
+        mainWeapon: ship.equipment.mainWeapon,
+        shields: ship.equipment.shields,
+        special: ship.equipment.special,
+      },
+      fleetFilters,
+    );
   });
 
   const selectedFleetHasStaleCostsVersion = useMemo(() => {
@@ -2095,343 +1919,90 @@ const Lobbies: React.FC = () => {
 
       {/* Create Lobby Form */}
       {showCreateForm && (
-        <div
-          className="mb-6 p-4 border border-purple-400 bg-black/40"
-          style={{
-            borderRadius: 0, // Square corners for industrial theme
-          }}
-        >
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h4 className="text-lg font-bold text-purple tracking-widest">[CREATE LOBBY]</h4>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(false)}
-              aria-label="Close create lobby form"
-              className="px-3 py-1 border border-warning-red text-warning-red hover:bg-warning-red/20"
-              style={{ borderRadius: 0 }}
-            >
-              X
-            </button>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <span className="block text-sm text-text-muted mb-2">
-                Fleet threat limit
-              </span>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                <label className="flex min-w-0 cursor-pointer items-start gap-3 rounded-none border border-gunmetal bg-black/40 p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.threatScale === "skirmish"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          threatScale: "skirmish",
-                        }));
-                      } else {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          threatScale: "battle",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Skirmish
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      1000 threat per fleet
-                    </span>
-                  </span>
+        <LobbyCreateForm
+          threatScale={createForm.threatScale}
+          onThreatScaleChange={(v) => setCreateForm((prev) => ({ ...prev, threatScale: v }))}
+          turnPace={createForm.turnPace}
+          onTurnPaceChange={(v) => setCreateForm((prev) => ({ ...prev, turnPace: v }))}
+          scoreLength={createForm.scoreLength}
+          onScoreLengthChange={(v) => setCreateForm((prev) => ({ ...prev, scoreLength: v }))}
+          mapIdLabel={createForm.selectedMapId}
+          onClose={() => setShowCreateForm(false)}
+          extraFields={
+            <>
+              <div>
+                <label className="block text-sm text-text-muted mb-1">
+                  Reserve for Player (Optional)
                 </label>
-                <label className="flex min-w-0 cursor-pointer items-start gap-3 rounded-none border border-gunmetal bg-black/40 p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.threatScale === "battle"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          threatScale: "battle",
-                        }));
-                      } else {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          threatScale: "skirmish",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Battle
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      2000 threat per fleet
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div>
-              <span className="block text-sm text-text-muted mb-2">
-                Turn timer
-              </span>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                <label className="flex min-w-0 cursor-pointer items-start gap-3 rounded-none border border-gunmetal bg-black/40 p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.turnPace === "immediate"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          turnPace: "immediate",
-                        }));
-                      } else {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          turnPace: "correspondence",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Immediate game
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      5 minutes per turn
-                    </span>
-                  </span>
-                </label>
-                <label className="flex min-w-0 cursor-pointer items-start gap-3 rounded-none border border-gunmetal bg-black/40 p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.turnPace === "correspondence"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          turnPace: "correspondence",
-                        }));
-                      } else {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          turnPace: "immediate",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{
-                      borderRadius: 0,
-                    }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Correspondence game
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      24 hours per turn
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Map</label>
-              <input
-                type="number"
-                value={createForm.selectedMapId}
-                disabled
-                readOnly
-                className="w-full cursor-not-allowed rounded-none border border-gunmetal bg-black/60 px-3 py-2 text-text-muted"
-                aria-readonly
-              />
-            </div>
-            <div>
-              <span className="block text-sm text-text-muted mb-2">
-                Max score (points to win)
-              </span>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-                <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-none border border-gunmetal bg-black/40 p-2.5 sm:gap-3 sm:p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.scoreLength === "short"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "short",
-                        }));
-                      } else if (createForm.scoreLength === "short") {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "medium",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{ borderRadius: 0 }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Short
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      50 points
-                    </span>
-                  </span>
-                </label>
-                <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-none border border-gunmetal bg-black/40 p-2.5 sm:gap-3 sm:p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.scoreLength === "medium"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "medium",
-                        }));
-                      } else if (createForm.scoreLength === "medium") {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "short",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{ borderRadius: 0 }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Medium
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      100 points
-                    </span>
-                  </span>
-                </label>
-                <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-none border border-gunmetal bg-black/40 p-2.5 sm:gap-3 sm:p-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan">
-                  <input
-                    type="checkbox"
-                    checked={createForm.scoreLength === "long"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "long",
-                        }));
-                      } else if (createForm.scoreLength === "long") {
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          scoreLength: "medium",
-                        }));
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-cyan"
-                    style={{ borderRadius: 0 }}
-                  />
-                  <span>
-                    <span className="block font-mono font-bold text-cyan">
-                      Long
-                    </span>
-                    <span className="mt-0.5 block text-xs text-text-muted">
-                      200 points
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">
-                Reserve for Player (Optional)
-              </label>
-              <input
-                type="text"
-                value={createForm.reservedJoiner}
-                onChange={(e) => {
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    reservedJoiner: e.target.value,
-                  }));
-                }}
-                className={`w-full px-3 py-2 bg-black/60 border rounded-none text-cyan ${
-                  createForm.reservedJoiner.trim() &&
-                  address &&
-                  createForm.reservedJoiner.trim().toLowerCase() ===
-                    address.toLowerCase()
-                    ? "border-warning-red"
-                    : "border-amber"
-                }`}
-                placeholder="0x0000... (leave empty for open lobby)"
-              />
-              {createForm.reservedJoiner.trim() &&
-              address &&
-              createForm.reservedJoiner.trim().toLowerCase() ===
-                address.toLowerCase() ? (
-                <p className="text-xs text-warning-red mt-1 font-bold">
-                  [ERR] Cannot reserve a lobby for yourself! Please enter a
-                  different player&apos;s address or leave empty for an open
-                  lobby.
-                </p>
-              ) : createForm.reservedJoiner ? (
-                <p className="text-xs text-amber mt-1">
-                  // Requires 1 UTC to reserve game for this player
-                </p>
-              ) : (
-                <p className="text-xs text-amber mt-1">
-                  Leave empty to create an open lobby
-                </p>
-              )}
-            </div>
-            <div className="p-3 bg-steel/50 rounded-none border border-gunmetal">
-              <p className="text-sm text-text-secondary">
-                <span className="text-amber">// Turn Order:</span> The
-                player who creates their fleet first will go first in the game.
-              </p>
-            </div>
-            {/* Cost summary — only shown when fees apply */}
-            {(needsPaymentForLobby && additionalLobbyFee) ||
-            (createForm.reservedJoiner.trim() &&
-              address &&
-              createForm.reservedJoiner.trim().toLowerCase() !==
-                address.toLowerCase()) ? (
-              <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
-                <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
-                {needsPaymentForLobby && additionalLobbyFee ? (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
-                    <span className="text-amber font-bold shrink-0">
-                      {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
-                    </span>
-                  </div>
-                ) : null}
+                <input
+                  type="text"
+                  value={createForm.reservedJoiner}
+                  onChange={(e) => {
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      reservedJoiner: e.target.value,
+                    }));
+                  }}
+                  className={`w-full px-3 py-2 bg-black/60 border rounded-none text-cyan ${
+                    createForm.reservedJoiner.trim() &&
+                    address &&
+                    createForm.reservedJoiner.trim().toLowerCase() ===
+                      address.toLowerCase()
+                      ? "border-warning-red"
+                      : "border-amber"
+                  }`}
+                  placeholder="0x0000... (leave empty for open lobby)"
+                />
                 {createForm.reservedJoiner.trim() &&
                 address &&
-                createForm.reservedJoiner.trim().toLowerCase() !==
+                createForm.reservedJoiner.trim().toLowerCase() ===
                   address.toLowerCase() ? (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-text-secondary">Reservation fee (private lobby)</span>
-                    <span className="text-amber font-bold shrink-0">1 UTC</span>
-                  </div>
-                ) : null}
+                  <p className="text-xs text-warning-red mt-1 font-bold">
+                    [ERR] Cannot reserve a lobby for yourself! Please enter a
+                    different player&apos;s address or leave empty for an open
+                    lobby.
+                  </p>
+                ) : createForm.reservedJoiner ? (
+                  <p className="text-xs text-amber mt-1">
+                    // Requires 1 UTC to reserve game for this player
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber mt-1">
+                    Leave empty to create an open lobby
+                  </p>
+                )}
               </div>
-            ) : null}
+              <LobbyTurnOrderNote />
+              {/* Cost summary — only shown when fees apply */}
+              {(needsPaymentForLobby && additionalLobbyFee) ||
+              (createForm.reservedJoiner.trim() &&
+                address &&
+                createForm.reservedJoiner.trim().toLowerCase() !==
+                  address.toLowerCase()) ? (
+                <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                  <p className="text-amber font-bold tracking-wider">// COST BREAKDOWN</p>
+                  {needsPaymentForLobby && additionalLobbyFee ? (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                      <span className="text-amber font-bold shrink-0">
+                        {formatEther(additionalLobbyFee as bigint)} {getNativeTokenSymbol(chainId)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {createForm.reservedJoiner.trim() &&
+                  address &&
+                  createForm.reservedJoiner.trim().toLowerCase() !==
+                    address.toLowerCase() ? (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-text-secondary">Reservation fee (private lobby)</span>
+                      <span className="text-amber font-bold shrink-0">1 UTC</span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          }
+          footer={
             <div className="flex flex-col gap-2 sm:flex-row">
               <LobbyCreateButton
                 costLimit={BigInt(createFormCostLimit)}
@@ -2480,8 +2051,8 @@ const Lobbies: React.FC = () => {
                 CANCEL
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
       )}
 
       {/* Lobby List */}
@@ -2515,236 +2086,98 @@ const Lobbies: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {lobbyList.lobbies.map((lobby) => (
-            <div
-              key={lobby.basic.id.toString()}
-              className={`overflow-hidden border ${
-                address &&
-                lobby.basic.creator.toLowerCase() === address.toLowerCase()
-                  ? "border-amber bg-amber/5"
-                  : "border-cyan bg-black/30"
-              }`}
-              style={{ borderRadius: 0 }}
-            >
-              {/* ── Header bar ── */}
-              <div
-                className={`flex items-center justify-between px-4 py-2 border-b ${
-                  address &&
-                  lobby.basic.creator.toLowerCase() === address.toLowerCase()
-                    ? "border-amber/20 bg-amber/5"
-                    : "border-cyan/15 bg-cyan/5"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <h5
-                    className={`text-base font-black tracking-wider ${
-                      address &&
-                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
-                        ? "text-amber"
-                        : "text-cyan"
-                    }`}
-                    style={{
-                      fontFamily:
-                        "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    }}
-                  >
-                    LOBBY #{lobby.basic.id.toString()}
-                  </h5>
-                  {address &&
-                    lobby.basic.creator.toLowerCase() ===
-                      address.toLowerCase() && (
-                      <span
-                        className="text-[10px] font-bold tracking-widest text-amber/60"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        }}
-                      >
-                        [YOURS]
-                      </span>
-                    )}
-                </div>
-                <span
-                  className={`text-[11px] font-bold tracking-widest ${getStatusColor(lobby.state.status)}`}
-                  style={{
-                    fontFamily:
-                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                  }}
-                >
-                  [{getStatusText(lobby.state.status)}]
-                </span>
-              </div>
+          {lobbyList.lobbies.map((lobby) => {
+            const isCreatorMe = Boolean(
+              address && lobby.basic.creator.toLowerCase() === address.toLowerCase(),
+            );
+            const isJoinerMe = Boolean(
+              address && lobby.players.joiner.toLowerCase() === address.toLowerCase(),
+            );
+            const hasJoiner =
+              lobby.players.joiner !== "0x0000000000000000000000000000000000000000";
+            const hasReservedJoiner =
+              lobby.players.reservedJoiner &&
+              typeof lobby.players.reservedJoiner === "string" &&
+              lobby.players.reservedJoiner !==
+                "0x0000000000000000000000000000000000000000";
 
-              {/* ── Body ── */}
-              <div className="px-4 pt-3 pb-2 space-y-2">
-                {/* Creator: address left, W/L right */}
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={`text-sm font-bold ${
-                      address &&
-                      lobby.basic.creator.toLowerCase() === address.toLowerCase()
-                        ? "text-amber"
-                        : "text-text-secondary"
-                    }`}
-                    style={{
-                      fontFamily:
-                        "var(--font-jetbrains-mono), 'Courier New', monospace",
-                    }}
-                  >
-                    {lobby.basic.creator.slice(0, 6)}…{lobby.basic.creator.slice(-4)}
-                  </span>
+            return (
+            <LobbyCard
+              key={lobby.basic.id.toString()}
+              lobbyIdLabel={lobby.basic.id.toString()}
+              isCreatorMe={isCreatorMe}
+              statusColorClass={getStatusColor(lobby.state.status)}
+              statusText={getStatusText(lobby.state.status)}
+              creatorLabel={`${lobby.basic.creator.slice(0, 6)}…${lobby.basic.creator.slice(-4)}`}
+              creatorStats={
+                <CreatorStats
+                  address={lobby.basic.creator as `0x${string}`}
+                  chainId={chainId}
+                />
+              }
+              joinerLabel={
+                hasJoiner
+                  ? `${lobby.players.joiner.slice(0, 6)}…${lobby.players.joiner.slice(-4)}`
+                  : null
+              }
+              isJoinerMe={isJoinerMe}
+              joinerStats={
+                hasJoiner ? (
                   <CreatorStats
-                    address={lobby.basic.creator as `0x${string}`}
+                    address={lobby.players.joiner as `0x${string}`}
                     chainId={chainId}
                   />
-                </div>
-
-                {/* Joiner row */}
-                {lobby.players.joiner !==
-                  "0x0000000000000000000000000000000000000000" && (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[10px] font-bold tracking-widest text-text-muted"
-                        style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
-                      >
-                        + JOINER
-                      </span>
-                      <span
-                        className={`text-sm font-bold ${
-                          address &&
-                          lobby.players.joiner.toLowerCase() ===
-                            address.toLowerCase()
-                            ? "text-cyan"
-                            : "text-text-secondary"
-                        }`}
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        }}
-                      >
-                        {lobby.players.joiner.slice(0, 6)}…{lobby.players.joiner.slice(-4)}
-                      </span>
-                    </div>
-                    <CreatorStats
-                      address={lobby.players.joiner as `0x${string}`}
-                      chainId={chainId}
-                    />
-                  </div>
-                )}
-
-                {/* Reservation status */}
-                {lobby.players.reservedJoiner &&
-                  lobby.players.reservedJoiner !==
-                    "0x0000000000000000000000000000000000000000" &&
-                  typeof lobby.players.reservedJoiner === "string" && (
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-8 shrink-0 text-[10px] font-bold tracking-widest text-amber/70"
-                        style={{
-                          fontFamily: "var(--font-rajdhani), sans-serif",
-                        }}
-                      >
-                        RESV
-                      </span>
-                      <span
-                        className="text-sm text-amber"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        }}
-                      >
-                        {lobby.players.reservedJoiner.slice(0, 6)}…{lobby.players.reservedJoiner.slice(-4)}
-                      </span>
-                      <span
-                        className="ml-1 text-[10px] font-bold tracking-widest text-amber/50"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        }}
-                      >
-                        [RESERVED]
-                      </span>
-                    </div>
-                  )}
-
-                {/* Stats: 2×2 stacked grid */}
-                <div className="grid grid-cols-2 gap-px border border-gunmetal/40 mt-1">
-                  {[
-                    { label: "THREAT", value: formatThreatShort(lobby.basic.costLimit) },
-                    { label: "TURN",   value: formatTurnShort(lobby.gameConfig.turnTime) },
-                    { label: "MAP",    value: `#${lobby.gameConfig.selectedMapId.toString()}` },
-                    { label: "SCORE",  value: formatScoreShort(lobby.gameConfig.maxScore) },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="flex flex-col gap-0.5 px-3 py-2 bg-black/20">
-                      <span
-                        className="text-[9px] font-bold tracking-widest text-text-muted"
-                        style={{ fontFamily: "var(--font-rajdhani), sans-serif" }}
-                      >
-                        {label}
-                      </span>
-                      <span
-                        className="text-xs font-bold text-cyan"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        }}
-                      >
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Fleet indicators */}
-                {(lobby.players.creatorFleetId > 0n ||
-                  lobby.players.joinerFleetId > 0n) && (
-                  <div className="flex flex-wrap gap-2 border-t border-gunmetal/40 pt-2">
-                    {lobby.players.creatorFleetId > 0n && (
-                      <button
-                        onClick={() => {
-                          setViewingFleetId(lobby.players.creatorFleetId);
-                          setViewingFleetOwner(lobby.basic.creator);
-                          setShowFleetView(true);
-                        }}
-                        className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-                          address &&
-                          lobby.basic.creator.toLowerCase() ===
-                            address.toLowerCase()
-                            ? "border-amber text-amber hover:bg-amber/10"
-                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-                        }`}
-                        style={{ borderRadius: 0 }}
-                      >
-                        CMDR FLEET #{lobby.players.creatorFleetId.toString()}
-                      </button>
-                    )}
-                    {lobby.players.joinerFleetId > 0n && (
-                      <button
-                        onClick={() => {
-                          setViewingFleetId(lobby.players.joinerFleetId);
-                          setViewingFleetOwner(lobby.players.joiner);
-                          setShowFleetView(true);
-                        }}
-                        className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-                          address &&
-                          lobby.players.joiner.toLowerCase() ===
-                            address.toLowerCase()
-                            ? "border-cyan text-cyan hover:bg-cyan/10"
-                            : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-                        }`}
-                        style={{ borderRadius: 0 }}
-                      >
-                        JOIN FLEET #{lobby.players.joinerFleetId.toString()}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ── Action section ── */}
-              <div className="border-t border-gunmetal/40 px-4 py-3">
-
+                ) : undefined
+              }
+              reservedLabel={
+                hasReservedJoiner
+                  ? `${lobby.players.reservedJoiner.slice(0, 6)}…${lobby.players.reservedJoiner.slice(-4)}`
+                  : null
+              }
+              threatLabel={formatThreatShort(lobby.basic.costLimit)}
+              turnLabel={formatTurnShort(lobby.gameConfig.turnTime)}
+              mapLabel={`#${lobby.gameConfig.selectedMapId.toString()}`}
+              scoreLabel={formatScoreShort(lobby.gameConfig.maxScore)}
+              creatorFleetButton={
+                lobby.players.creatorFleetId > 0n ? (
+                  <button
+                    onClick={() => {
+                      setViewingFleetId(lobby.players.creatorFleetId);
+                      setViewingFleetOwner(lobby.basic.creator);
+                      setShowFleetView(true);
+                    }}
+                    className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
+                      isCreatorMe
+                        ? "border-amber text-amber hover:bg-amber/10"
+                        : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+                    }`}
+                    style={{ borderRadius: 0 }}
+                  >
+                    CMDR FLEET #{lobby.players.creatorFleetId.toString()}
+                  </button>
+                ) : undefined
+              }
+              joinerFleetButton={
+                lobby.players.joinerFleetId > 0n ? (
+                  <button
+                    onClick={() => {
+                      setViewingFleetId(lobby.players.joinerFleetId);
+                      setViewingFleetOwner(lobby.players.joiner);
+                      setShowFleetView(true);
+                    }}
+                    className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
+                      isJoinerMe
+                        ? "border-cyan text-cyan hover:bg-cyan/10"
+                        : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+                    }`}
+                    style={{ borderRadius: 0 }}
+                  >
+                    JOIN FLEET #{lobby.players.joinerFleetId.toString()}
+                  </button>
+                ) : undefined
+              }
+              actions={
+              <>
               {lobby.state.status === LobbyStatus.Open &&
                 lobby.basic.creator !== address &&
                 lobby.players.joiner !== address && (
@@ -2991,9 +2424,11 @@ const Lobbies: React.FC = () => {
               {lobby.state.status === LobbyStatus.InGame && (
                 <div className="text-sm text-warning-red">Game in progress</div>
               )}
-              </div>{/* close action section */}
-            </div>
-          ))}
+              </>
+              }
+            />
+            );
+          })}
           </div>
         )}
       </div>
@@ -3042,8 +2477,8 @@ const Lobbies: React.FC = () => {
           const isOverLimit = totalCost > costLimit;
           const isUnder90Percent = totalCost < costLimit * 0.9;
 
-          // Check if all ships are not in the default column
-          // Creator default: column 0, Joiner default: column 24
+          // Check if all ships are not in the default (far) column
+          // Creator default: column 0 (left edge), Joiner default: last column (right edge)
           const hasMovedShip =
             shipPositions.length > 0 &&
             shipPositions.some((pos) => {
@@ -3051,8 +2486,8 @@ const Lobbies: React.FC = () => {
                 // Creator: at least one ship must not be in column 0
                 return pos.col !== 0;
               } else {
-                // Joiner: at least one ship must not be in column 24
-                return pos.col !== 24;
+                // Joiner: at least one ship must not be in the far-right column
+                return pos.col !== GRID_DIMENSIONS.WIDTH - 1;
               }
             });
 
@@ -3150,14 +2585,14 @@ const Lobbies: React.FC = () => {
                     </button>
                     {!participantHasFleet && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => setShowLoadFleetMenu((prev) => !prev)}
-                          disabled={savedFleetCompositions.length === 0}
-                          className="px-2 py-1 text-xs font-bold text-cyan border border-cyan rounded-none hover:text-cyan/80 hover:border-cyan/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          LOAD FLEET
-                        </button>
+                        <LoadFleetMenu
+                          fleets={savedFleetCompositions}
+                          isOpen={showLoadFleetMenu}
+                          onToggleOpen={() => setShowLoadFleetMenu((prev) => !prev)}
+                          onClose={() => setShowLoadFleetMenu(false)}
+                          getSummary={getSavedFleetSummary}
+                          getLoadPlan={getFleetLoadPlan}
+                        />
                         <button
                           type="button"
                           onClick={clearFleetDraftSelection}
@@ -3167,53 +2602,6 @@ const Lobbies: React.FC = () => {
                           CLEAR FLEET SELECTION
                         </button>
                       </>
-                    )}
-                    {!participantHasFleet && showLoadFleetMenu && (
-                      <div className="absolute right-0 top-full z-[450] mt-2 w-[28rem] max-w-[80vw] border border-cyan bg-near-black p-3">
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-xs font-bold tracking-wider text-cyan">
-                            LOAD SAVED FLEET
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowLoadFleetMenu(false)}
-                            className="px-2 py-0.5 text-[11px] border border-steel text-text-secondary hover:text-text-primary hover:border-steel"
-                          >
-                            CLOSE
-                          </button>
-                        </div>
-                        <div className="max-h-56 overflow-auto space-y-2 pr-1">
-                          {savedFleetCompositions.length === 0 ? (
-                            <div className="text-xs text-text-muted">
-                              No saved fleets found.
-                            </div>
-                          ) : (
-                            savedFleetCompositions.map((fleet) => {
-                              const summary = getSavedFleetSummary(fleet);
-                              return (
-                                <button
-                                  key={fleet.id}
-                                  type="button"
-                                  onClick={() => handleRequestLoadSavedFleet(fleet)}
-                                  className="w-full border border-cyan/40 bg-black/40 p-2 text-left hover:border-cyan hover:bg-cyan/5"
-                                >
-                                  <div className="text-sm font-bold text-cyan">
-                                    {fleet.name}
-                                  </div>
-                                  <div className="mt-1 text-xs text-text-secondary">
-                                    {summary.totalShips} ships | Threat{" "}
-                                    {summary.totalThreat} | Available{" "}
-                                    {summary.availableCount}
-                                    {summary.unavailableCount > 0
-                                      ? ` | Unavailable ${summary.unavailableCount}`
-                                      : ""}
-                                  </div>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
                     )}
                     {/* Total Points Display */}
                     <div
@@ -3254,45 +2642,6 @@ const Lobbies: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                {pendingLoadFleet && (
-                  <div className="mb-3 border border-amber/70 bg-amber/10 p-3">
-                    <div className="text-sm font-bold text-amber">
-                      Some ships from {pendingLoadFleet.fleet.name} are unavailable.
-                    </div>
-                    <div className="mt-1 text-xs text-amber/80">
-                      {pendingLoadFleet.unavailableCount} ship
-                      {pendingLoadFleet.unavailableCount === 1 ? "" : "s"} are
-                      unavailable (already in a fleet, dead, or not constructed).
-                      Load the remaining {pendingLoadFleet.availableShipIds.length}{" "}
-                      ship
-                      {pendingLoadFleet.availableShipIds.length === 1
-                        ? ""
-                        : "s"}
-                      ?
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          applyLoadedFleetSelection(
-                            pendingLoadFleet.availableShipIds,
-                          );
-                          setPendingLoadFleet(null);
-                        }}
-                        className="px-3 py-1 border border-amber text-amber/80 hover:bg-amber/20 text-xs font-bold"
-                      >
-                        LOAD AVAILABLE SHIPS
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingLoadFleet(null)}
-                        className="px-3 py-1 border border-steel text-text-secondary hover:border-steel hover:text-text-primary text-xs font-bold"
-                      >
-                        CANCEL
-                      </button>
-                    </div>
-                  </div>
-                )}
                 {!playerFleetId && (
                   <p className="text-sm text-amber mb-4">
                     // Creating your fleet first will make you go first in the
@@ -3302,358 +2651,29 @@ const Lobbies: React.FC = () => {
 
                 {/* Filter Overlay */}
                 {filtersExpanded && (
-                  <div
-                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[410]"
-                    onClick={() => setFiltersExpanded(false)}
-                  >
-                    <div
-                      className="bg-near-black border border-cyan rounded-none p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-cyan">
-                          FILTERS
-                        </h3>
-                        <button
-                          onClick={() => setFiltersExpanded(false)}
-                          className="text-text-muted hover:text-text-primary text-xl"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-                        {/* Rarity Filters */}
-                        <div>
-                          <label className="block text-text-muted mb-1">
-                            Rarity
-                          </label>
-                          <div className="space-y-1">
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={fleetFilters.showCommon}
-                                onChange={(e) =>
-                                  setFleetFilters((prev) => ({
-                                    ...prev,
-                                    showCommon: e.target.checked,
-                                  }))
-                                }
-                                className="mr-2"
-                              />
-                              <span className="text-text-muted">Common</span>
-                            </label>
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={fleetFilters.showShiny}
-                                onChange={(e) =>
-                                  setFleetFilters((prev) => ({
-                                    ...prev,
-                                    showShiny: e.target.checked,
-                                  }))
-                                }
-                                className="mr-2"
-                              />
-                              <span className="text-amber">Shiny ★</span>
-                            </label>
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={fleetFilters.showUnavailable}
-                                onChange={(e) =>
-                                  setFleetFilters((prev) => ({
-                                    ...prev,
-                                    showUnavailable: e.target.checked,
-                                  }))
-                                }
-                                className="mr-2"
-                              />
-                              <span className="text-amber">
-                                Show Unavailable
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Threat Range */}
-                        <div>
-                          <label className="block text-text-muted mb-1">
-                            Threat Range
-                          </label>
-                          <div className="space-y-1">
-                            <input
-                              type="number"
-                              placeholder="Min"
-                              value={fleetFilters.minCost}
-                              onChange={(e) =>
-                                setFleetFilters((prev) => ({
-                                  ...prev,
-                                  minCost: parseInt(e.target.value) || 0,
-                                }))
-                              }
-                              className="w-full px-2 py-1 bg-black border border-gunmetal rounded-none text-xs"
-                            />
-                            <input
-                              type="number"
-                              placeholder="Max"
-                              value={fleetFilters.maxCost}
-                              onChange={(e) =>
-                                setFleetFilters((prev) => ({
-                                  ...prev,
-                                  maxCost: parseInt(e.target.value) || 10000,
-                                }))
-                              }
-                              className="w-full px-2 py-1 bg-black border border-gunmetal rounded-none text-xs"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Equipment Filters */}
-                        <div>
-                          <label className="block text-text-muted mb-1">
-                            Equipment
-                          </label>
-                          <div className="space-y-1">
-                            <select
-                              value={fleetFilters.weaponType}
-                              onChange={(e) =>
-                                setFleetFilters((prev) => ({
-                                  ...prev,
-                                  weaponType: e.target.value,
-                                }))
-                              }
-                              className="w-full px-2 py-1 bg-black border border-gunmetal rounded-none text-xs"
-                            >
-                              <option value="all">All Weapons</option>
-                              <option value="laser">Laser</option>
-                              <option value="cannon">Cannon</option>
-                              <option value="plasma">Plasma</option>
-                              <option value="missile">Missile</option>
-                            </select>
-                            <select
-                              value={fleetFilters.defenseType}
-                              onChange={(e) =>
-                                setFleetFilters((prev) => ({
-                                  ...prev,
-                                  defenseType: e.target.value,
-                                }))
-                              }
-                              className="w-full px-2 py-1 bg-black border border-gunmetal rounded-none text-xs"
-                            >
-                              <option value="all">All Defense</option>
-                              <option value="shield">Shields</option>
-                              <option value="armor">Armor</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Trait Filters */}
-                        <div>
-                          <label className="block text-text-muted mb-2 font-medium">
-                            Accuracy: {fleetFilters.minAccuracy} -{" "}
-                            {fleetFilters.maxAccuracy}
-                          </label>
-                          <div className="range-slider-container">
-                            <div className="range-slider-track"></div>
-                            <div
-                              className="range-slider-fill"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minAccuracy / 2) * (100 - 4.5)
-                                }%)`,
-                                width: `calc(${
-                                  ((fleetFilters.maxAccuracy -
-                                    fleetFilters.minAccuracy) /
-                                    2) *
-                                  (100 - 4.5)
-                                }%)`,
-                              }}
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minAccuracy / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "minAccuracy")
-                              }
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.maxAccuracy / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "maxAccuracy")
-                              }
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-xs text-text-muted mt-2 px-2">
-                            <span className="font-medium">Poor (0)</span>
-                            <span className="font-medium">Average (1)</span>
-                            <span className="font-medium">Excellent (2)</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-text-muted mb-2 font-medium">
-                            Hull: {fleetFilters.minHull} -{" "}
-                            {fleetFilters.maxHull}
-                          </label>
-                          <div className="range-slider-container">
-                            <div className="range-slider-track"></div>
-                            <div
-                              className="range-slider-fill"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minHull / 2) * (100 - 4.5)
-                                }%)`,
-                                width: `calc(${
-                                  ((fleetFilters.maxHull -
-                                    fleetFilters.minHull) /
-                                    2) *
-                                  (100 - 4.5)
-                                }%)`,
-                              }}
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minHull / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "minHull")
-                              }
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.maxHull / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "maxHull")
-                              }
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-xs text-text-muted mt-2 px-2">
-                            <span className="font-medium">Weak (0)</span>
-                            <span className="font-medium">Standard (1)</span>
-                            <span className="font-medium">Reinforced (2)</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-text-muted mb-2 font-medium">
-                            Speed: {fleetFilters.minSpeed} -{" "}
-                            {fleetFilters.maxSpeed}
-                          </label>
-                          <div className="range-slider-container">
-                            <div className="range-slider-track"></div>
-                            <div
-                              className="range-slider-fill"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minSpeed / 2) * (100 - 4.5)
-                                }%)`,
-                                width: `calc(${
-                                  ((fleetFilters.maxSpeed -
-                                    fleetFilters.minSpeed) /
-                                    2) *
-                                  (100 - 4.5)
-                                }%)`,
-                              }}
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.minSpeed / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "minSpeed")
-                              }
-                            ></div>
-                            <div
-                              className="range-slider-thumb"
-                              style={{
-                                left: `calc(10px + ${
-                                  (fleetFilters.maxSpeed / 2) * (100 - 4.5)
-                                }%)`,
-                              }}
-                              onMouseDown={(e) =>
-                                handleThumbMouseDown(e, "maxSpeed")
-                              }
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-xs text-text-muted mt-2 px-2">
-                            <span className="font-medium">Slow (0)</span>
-                            <span className="font-medium">Normal (1)</span>
-                            <span className="font-medium">Fast (2)</span>
-                          </div>
-                        </div>
-
-                        {/* In-Game Properties Toggle */}
-                        <div className="col-span-2 md:col-span-3">
-                          <label className="flex items-center gap-2 text-sm text-cyan cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={showInGameProperties}
-                              onChange={(e) =>
-                                setShowInGameProperties(e.target.checked)
-                              }
-                              className="w-4 h-4 text-cyan bg-black/60 border-cyan rounded-none focus:ring-cyan focus:ring-2"
-                            />
-                            <span className="text-sm font-bold text-cyan">
-                              IN-GAME PROPERTIES
-                              {isFromCache && (
-                                <span className="text-xs text-phosphor-green ml-1">
-                                  (cached)
-                                </span>
-                              )}
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex justify-between items-center text-xs">
-                        <span className="text-text-muted">
-                          Showing {filteredShips.length} of {ships.length} ships
+                  <FleetFilterPanel
+                    filters={fleetFilters}
+                    onFiltersChange={setFleetFilters}
+                    onClose={() => setFiltersExpanded(false)}
+                    shownCount={filteredShips.length}
+                    totalCount={ships.length}
+                    extraToggle={
+                      <label className="flex items-center gap-2 text-sm text-cyan cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showInGameProperties}
+                          onChange={(e) => setShowInGameProperties(e.target.checked)}
+                          className="w-4 h-4 text-cyan bg-black/60 border-cyan rounded-none focus:ring-cyan focus:ring-2"
+                        />
+                        <span className="text-sm font-bold text-cyan">
+                          IN-GAME PROPERTIES
+                          {isFromCache && (
+                            <span className="text-xs text-phosphor-green ml-1">(cached)</span>
+                          )}
                         </span>
-                        <button
-                          onClick={() =>
-                            setFleetFilters({
-                              showShiny: true,
-                              showCommon: true,
-                              showUnavailable: false,
-                              minCost: 0,
-                              maxCost: 10000,
-                              minAccuracy: 0,
-                              maxAccuracy: 2,
-                              minHull: 0,
-                              maxHull: 2,
-                              minSpeed: 0,
-                              maxSpeed: 2,
-                              weaponType: "all",
-                              defenseType: "all",
-                              specialType: "all",
-                            })
-                          }
-                          className="text-cyan hover:text-cyan/80 underline"
-                        >
-                          Reset Filters
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                      </label>
+                    }
+                  />
                 )}
 
                 {shipsLoading ? (
@@ -4050,184 +3070,36 @@ const Lobbies: React.FC = () => {
 
       {/* Fleet View Modal */}
       {showFleetView && viewingFleetId && viewingFleetOwner && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[400]">
-          <div className="bg-near-black border border-cyan rounded-none p-6 max-w-4xl w-full mx-4 h-[80vh] flex flex-col">
-            <div className="flex justify-between items-start mb-4">
-              <h4 className="text-lg font-bold text-cyan">
-                FLEET #{viewingFleetId.toString()}
-              </h4>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowFleetView(false);
-                    setViewingFleetId(null);
-                    setViewingFleetOwner(null);
-                  }}
-                  className="px-4 py-2 border border-gunmetal text-text-muted rounded-none hover:bg-steel/20"
-                >
-                  CLOSE
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-4 p-3 bg-black/40 border border-gunmetal rounded-none">
-              <p className="text-sm text-text-secondary">
-                <span className="text-cyan">Owner:</span>{" "}
-                {viewingFleetOwner.slice(0, 6)}…{viewingFleetOwner.slice(-4)}
-                {address &&
-                  viewingFleetOwner.toLowerCase() === address.toLowerCase() && (
-                    <span className="ml-2 text-cyan font-bold">(You)</span>
-                  )}
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {fleetShipIdsLoading || fleetShipsLoading ? (
-                <div className="py-8 font-mono text-xs text-text-muted tracking-widest animate-pulse text-center">
-                  &gt;&gt; ACQUIRING FLEET DATA...
-                </div>
-              ) : fleetShips &&
-                Array.isArray(fleetShips) &&
-                fleetShips.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {fleetShips.map((ship: unknown, index: number) => {
-                    const shipData = ship as Ship;
-                    return (
-                      <div
-                        key={shipData.id?.toString() || index}
-                        className="border rounded-none p-4 bg-black/40 border-gunmetal"
-                      >
-                        {/* Ship Image */}
-                        <div className="relative mb-3 h-32 w-full min-h-0 [container-type:size]">
-                          <ShipImage
-                            key={`fleet-${shipData.id?.toString() || index}-${
-                              shipData.shipData?.constructed
-                                ? "constructed"
-                                : "unconstructed"
-                            }`}
-                            ship={shipData}
-                            className="h-full w-full rounded-none border border-gunmetal"
-                            showLoadingState={true}
-                          />
-                        </div>
-
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-2">
-                            <h5 className="font-bold text-sm">
-                              {shipData.name || `Ship #${shipData.id}`}
-                            </h5>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs px-2 py-1 rounded-none ${
-                                shipData.shipData?.shiny
-                                  ? "bg-amber/20 text-amber border border-amber/30"
-                                  : "bg-steel/20 text-text-muted border border-gunmetal/30"
-                              }`}
-                            >
-                              {shipData.shipData?.shiny ? "SHINY ★" : "COMMON"}
-                            </span>
-                            {/* Rank */}
-                            {shipData.shipData?.constructed && (
-                              <span
-                                className={`text-xs px-2 py-1 rounded-none border ${getRankColor(
-                                  calculateShipRank(toShipVisual(shipData)).rank,
-                                )}`}
-                              >
-                                R{calculateShipRank(toShipVisual(shipData)).rank}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Ship Stats */}
-                        {shipData.shipData?.constructed ? (
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Acc:</span>
-                              <span className="ml-2">
-                                {shipData.traits?.accuracy || 0}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Hull:</span>
-                              <span className="ml-2">
-                                {shipData.traits?.hull || 0}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Speed:</span>
-                              <span className="ml-2">
-                                {shipData.traits?.speed || 0}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Threat:</span>
-                              <span className="ml-2">
-                                {shipData.shipData?.cost || 0}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Wpn:</span>
-                              <span className="ml-2">
-                                {getMainWeaponName(
-                                  shipData.equipment?.mainWeapon || 0,
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">
-                                {shipData.equipment?.shields > 0
-                                  ? "Shd:"
-                                  : "Arm:"}
-                              </span>
-                              <span className="ml-2">
-                                {shipData.equipment?.shields > 0
-                                  ? getShieldName(shipData.equipment.shields)
-                                  : getArmorName(
-                                      shipData.equipment?.armor || 0,
-                                    )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="opacity-60">Spc:</span>
-                              <span className="ml-2">
-                                {getSpecialName(
-                                  shipData.equipment?.special || 0,
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between col-span-2">
-                              <span className="opacity-60">Status:</span>
-                              <span className="ml-2 text-phosphor-green">READY</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center text-amber text-sm">
-                            {shipData.shipData?.timestampDestroyed > 0n
-                              ? `DESTROYED ${formatDestroyedDate(Number(shipData.shipData.timestampDestroyed))}`
-                              : "UNDER CONSTRUCTION"}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center text-text-muted py-8">
-                  <p className="text-lg mb-2">No Ships Found</p>
-                  <p className="text-sm">
-                    This fleet appears to be empty or the data could not be
-                    loaded.
-                  </p>
-                  <p className="text-xs mt-2 text-text-muted">
-                    Fleet ID: {viewingFleetId?.toString()}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <FleetViewModal
+          fleetIdLabel={viewingFleetId.toString()}
+          ownerLabel={`${viewingFleetOwner.slice(0, 6)}…${viewingFleetOwner.slice(-4)}`}
+          isOwnerMe={!!address && viewingFleetOwner.toLowerCase() === address.toLowerCase()}
+          onClose={() => {
+            setShowFleetView(false);
+            setViewingFleetId(null);
+            setViewingFleetOwner(null);
+          }}
+          isLoading={fleetShipIdsLoading || fleetShipsLoading}
+          shipCards={
+            fleetShips && Array.isArray(fleetShips)
+              ? (fleetShips as Ship[]).map((ship, index) => (
+                  <ShipCard
+                    key={ship.id?.toString() || index}
+                    ship={toShipCardData(ship)}
+                    shipImage={<ShipImage ship={ship} className="h-full w-full" />}
+                    isStarred={false}
+                    onToggleStar={() => {}}
+                    isSelected={false}
+                    onToggleSelection={() => {}}
+                    onRecycleClick={() => {}}
+                    showInGameProperties={false}
+                    hideRecycle
+                    hideCheckbox
+                  />
+                ))
+              : []
+          }
+        />
       )}
     </div>
   );

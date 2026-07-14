@@ -7,6 +7,7 @@ import { useLobbyListWeb2 } from "./useLobbyListWeb2";
 import { toast } from "react-hot-toast";
 import type { Web2Lobby } from "../types/web2Lobby";
 import { useCurrentUser } from "./useCurrentUser";
+import { USER_BALANCE_QUERY_KEY } from "./useUserBalanceWeb2";
 
 // Web2-mode counterpart to `useLobbies.ts`. Deliberately excludes:
 // - `createAiLobby` — AI opponent was eliminated, never ported (see
@@ -70,7 +71,10 @@ export function useLobbiesWeb2() {
       maxScore:         params.maxScore ?? 3,
     });
     await invalidateLobbies();
-  }, [invalidateLobbies]);
+    // Lobby creation may cost UTC (see lobbyCreationCostUtc / isFreeCreate
+    // in /api/lobbies/route.ts) — refresh the header balance either way.
+    queryClient.invalidateQueries({ queryKey: USER_BALANCE_QUERY_KEY });
+  }, [invalidateLobbies, queryClient]);
 
   const joinLobby = useCallback(async (lobbyId: number) => {
     await apiMutate(`/api/lobbies/${lobbyId}/join`, "POST");

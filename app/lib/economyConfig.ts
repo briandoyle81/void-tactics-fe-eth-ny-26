@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { createTtlCache } from "./ttlCache";
 
 export type EconomyConfig = {
   recycleRewardUtc: number;
@@ -16,9 +17,11 @@ export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   freeGamesPerAddress: 1,
 };
 
-export async function getEconomyConfig(): Promise<EconomyConfig> {
+const cache = createTtlCache<EconomyConfig>(async () => {
   const row = await prisma.config.findUnique({ where: { key: "economy_config" } });
   if (!row) return DEFAULT_ECONOMY_CONFIG;
   const stored = row.value as Partial<EconomyConfig>;
   return { ...DEFAULT_ECONOMY_CONFIG, ...stored };
-}
+}, 30_000);
+
+export const getEconomyConfig = cache.get;

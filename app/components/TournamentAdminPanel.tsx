@@ -58,8 +58,8 @@ function MatchAdminRow({ match, tournamentId, config, onAction }: MatchRowProps)
     <div className="border border-gunmetal/40 p-3 text-xs font-mono">
       <div className="text-text-muted mb-1">
         R{match.round + 1} · M{String(match.matchId)} ·{" "}
-        <span className="text-secondary">{shortAddr(match.player1)}</span> vs{" "}
-        <span className="text-secondary">{shortAddr(match.player2)}</span>
+        <span className="text-text-secondary">{shortAddr(match.player1)}</span> vs{" "}
+        <span className="text-text-secondary">{shortAddr(match.player2)}</span>
       </div>
 
       {needsLobby && (

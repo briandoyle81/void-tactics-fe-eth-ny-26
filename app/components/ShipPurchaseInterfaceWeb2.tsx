@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { PURCHASE_TIERS, getKillsForRank } from "../lib/purchaseTiers";
+import { getKillsForRank } from "../lib/purchaseTiers";
+import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
 import { Web2Ship } from "../types/web2Ship";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import { ShipPurchaseTierCard } from "./ShipPurchaseTierCard";
@@ -73,6 +74,7 @@ export function ShipPurchaseInterfaceWeb2({
   busy,
 }: ShipPurchaseInterfaceWeb2Props) {
   const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
+  const { tiers } = usePurchaseTiersWeb2();
 
   const getPreviewShipsForTier = (tier: number, shipCount: number): Web2Ship[] => {
     const base = previewSeed + tier * 20 + 1;
@@ -80,11 +82,11 @@ export function ShipPurchaseInterfaceWeb2({
     return ranksToShow.map((rank, idx) => createPreviewShip(base + idx, getKillsForRank(rank)));
   };
 
-  const tierCards = PURCHASE_TIERS.map((t) => {
+  const tierCards = tiers.map((t) => {
     const colors = getTierColors(t.tier);
     const guaranteedRanksDisplay = getGuaranteedRanksDisplay(t.tier, t.shipCount);
     const tierCallout = getTierCallout(t.tier);
-    const badge = getTierBadge(t.tier, PURCHASE_TIERS.length);
+    const badge = getTierBadge(t.tier, tiers.length);
     const previewShips = getPreviewShipsForTier(t.tier, t.shipCount);
     const priceLabel =
       paymentMethod === "usd"

@@ -1,3 +1,7 @@
+// Pure/client-safe defaults — no prisma import, since ShipPurchaseInterfaceWeb2.tsx
+// (client component) uses this as placeholder data. The DB-backed live tier
+// list (admin-editable) lives in getPurchaseTiers.ts.
+
 export interface PurchaseTier {
   tier: number;
   shipCount: number;

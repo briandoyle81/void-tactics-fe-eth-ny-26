@@ -141,3 +141,34 @@ export function buildMapGridsFromContractMap(
 
   return { blockedGrid, scoringGrid, onlyOnceGrid };
 }
+
+/**
+ * Find the next free deployment slot for a fleet-selection ship placement,
+ * scanning in a fixed order per side. Ported verbatim from Lobbies.tsx's
+ * `findNextPosition` — mode-agnostic (plain numbers), shared by web3 and
+ * web2's fleet-selection flows so default placement lines up identically.
+ * Creator: upper-left (cols 0-3), joiner: lower-right (cols 13-16).
+ */
+export function findNextDeploymentPosition(
+  isCreator: boolean,
+  existingPositions: Array<{ row: number; col: number }>,
+): { row: number; col: number } | null {
+  if (isCreator) {
+    for (let col = 0; col < 4; col++) {
+      for (let row = 0; row < 11; row++) {
+        if (!existingPositions.some((pos) => pos.row === row && pos.col === col)) {
+          return { row, col };
+        }
+      }
+    }
+  } else {
+    for (let col = 16; col >= 13; col--) {
+      for (let row = 10; row >= 0; row--) {
+        if (!existingPositions.some((pos) => pos.row === row && pos.col === col)) {
+          return { row, col };
+        }
+      }
+    }
+  }
+  return null;
+}

@@ -22,14 +22,18 @@ model User {
   tutorialPath         String?  // "win" | "loss" — which branch the player finished
   createdAt            DateTime @default(now())
 
-  ships           Ship[]
-  lobbiesCreated  Lobby[]       @relation("LobbyCreator")
-  lobbiesJoined   Lobby[]       @relation("LobbyJoiner")
-  lobbiesReserved Lobby[]       @relation("LobbyReservedJoiner")
-  gamesAsPlayer1  Game[]        @relation("GamePlayer1")
-  gamesAsPlayer2  Game[]        @relation("GamePlayer2")
-  fleets          Fleet[]
-  stats           PlayerStats?
+  ships                   Ship[]
+  lobbiesCreated          Lobby[]                 @relation("LobbyCreator")
+  lobbiesJoined           Lobby[]                 @relation("LobbyJoiner")
+  lobbiesReserved         Lobby[]                 @relation("LobbyReservedJoiner")
+  gamesAsPlayer1          Game[]                  @relation("GamePlayer1")
+  gamesAsPlayer2          Game[]                  @relation("GamePlayer2")
+  fleets                  Fleet[]
+  stats                   PlayerStats?
+  tournamentsCreated      Tournament[]            @relation("TournamentCreator")
+  tournamentRegistrations TournamentRegistrant[]
+  tournamentMatchesAsP1   TournamentMatch[]       @relation("TournamentMatchPlayer1")
+  tournamentMatchesAsP2   TournamentMatch[]       @relation("TournamentMatchPlayer2")
 }
 
 // ── Ships ──────────────────────────────────────────────────────────────────────
@@ -57,6 +61,7 @@ model Ship {
 
   @@index([ownerId])
   @@index([ownerId, destroyed])
+  @@index([ownerId, createdAt])
 }
 
 // ── Fleets ─────────────────────────────────────────────────────────────────────
@@ -105,10 +110,12 @@ model Lobby {
 
   fleets            Fleet[]
   game              Game?
+  tournamentMatch   TournamentMatch?
 
   @@index([creatorId])
   @@index([joinerId])
   @@index([status])
+  @@index([reservedJoinerId])
 }
 
 enum LobbyStatus {
@@ -203,4 +210,79 @@ model PlayerStats {
   totalGames Int    @default(0)
 
   @@index([wins])
+}
+
+// ── Tournaments ────────────────────────────────────────────────────────────────
+// Web2 counterpart to the on-chain Tournament contract. Single-elimination
+// bracket; sybil resistance is "one registration per Google account" (the
+// @@unique on TournamentRegistrant) instead of a World ID proof; entry
+// fee/prize pool use the existing in-app credit balance (User.creditBalance)
+// instead of on-chain ETH escrow, paid out directly on finalize instead of
+// via a pull-based claim step. Each match is played through a completely
+// normal Lobby/Fleet/Game row (see TournamentMatch.lobbyId) — no separate
+// game logic for tournament play.
+
+model Tournament {
+  id              Int              @id @default(autoincrement())
+  creatorId       String
+  creator         User             @relation("TournamentCreator", fields: [creatorId], references: [id])
+  state           TournamentState  @default(REGISTRATION)
+  entryFee        Int              @default(0) // credits
+  minPlayers      Int
+  maxPlayers      Int // 2 / 4 / 8 / 16
+  registerBy      DateTime // registration deadline
+  costLimit       Int
+  turnTimeSeconds Int
+  selectedMapId   Int
+  maxScore        Int
+  prizePool       Int              @default(0) // entryFee * registrants + sponsor top-up
+  totalRounds     Int? // set at start()
+  championId      String?
+  runnerUpId      String?
+  createdAt       DateTime         @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  registrants     TournamentRegistrant[]
+  matches         TournamentMatch[]
+
+  @@index([state])
+}
+
+enum TournamentState {
+  REGISTRATION
+  ACTIVE
+  COMPLETE
+  CANCELLED
+}
+
+model TournamentRegistrant {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  registeredAt DateTime   @default(now())
+
+  @@unique([tournamentId, userId]) // one Google account = one registration
+}
+
+model TournamentMatch {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  round        Int // 0-indexed
+  matchIndex   Int // position within round
+  player1Id    String?
+  player1      User?      @relation("TournamentMatchPlayer1", fields: [player1Id], references: [id])
+  player2Id    String?
+  player2      User?      @relation("TournamentMatchPlayer2", fields: [player2Id], references: [id])
+  winnerId     String?
+  isBye        Boolean    @default(false)
+  resolved     Boolean    @default(false)
+  lobbyId      Int?       @unique
+  lobby        Lobby?     @relation(fields: [lobbyId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@index([tournamentId, round])
 }

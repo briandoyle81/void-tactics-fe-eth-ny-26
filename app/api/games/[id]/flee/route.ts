@@ -3,6 +3,7 @@ import { prisma } from "../../../../lib/prisma";
 import { requireAuth } from "../../../../lib/auth";
 import { GamePhase } from "../../../../generated/prisma";
 import type { Web2GameDataView } from "../../../../types/web2Game";
+import { resolveTournamentMatchIfApplicable } from "../../../../lib/resolveTournamentMatchIfApplicable";
 
 export async function POST(
   _req: NextRequest,
@@ -58,6 +59,8 @@ export async function POST(
       await tx.ship.updateMany({ where: { id: { in: allFleetShipIds } }, data: { inFleet: false } });
     }
   });
+
+  await resolveTournamentMatchIfApplicable(game.lobbyId, winnerId);
 
   return NextResponse.json(newState);
 }

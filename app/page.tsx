@@ -20,12 +20,17 @@ import LobbiesWeb2 from "./components/LobbiesWeb2";
 import Games from "./components/Games";
 import GamesWeb2 from "./components/GamesWeb2";
 import Profile from "./components/Profile";
+import ProfileWeb2 from "./components/ProfileWeb2";
 import Info from "./components/Info";
 import Maps from "./components/Maps";
+import MapsWeb2 from "./components/MapsWeb2";
 import ShipAttributes from "./components/ShipAttributes";
+import ShipAttributesWeb2 from "./components/ShipAttributesWeb2";
 import ShipConstructor from "./components/ShipConstructor";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
+import ShipPurchasePricesWeb2 from "./components/ShipPurchasePricesWeb2";
 import { Tournaments } from "./components/Tournaments";
+import { TournamentsWeb2 } from "./components/TournamentsWeb2";
 import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
 import { useOwnedShips } from "./hooks/useOwnedShips";
@@ -35,6 +40,7 @@ import { useCurrentUser } from "./hooks/useCurrentUser";
 import { TUTORIAL_STEP_STORAGE_KEY } from "./types/onboarding";
 import { MAP_ADMIN_ADDRESS } from "./config/alpha";
 import { useAppMode } from "./hooks/useAppMode";
+import { useWeb2Admin } from "./hooks/useWeb2Admin";
 import posthog from "posthog-js";
 
 /** Tabs we may persist; includes owner-only names so refresh works before contract reads resolve. */
@@ -60,6 +66,7 @@ export default function Home() {
   const { games: playerGamesWeb2, isLoading: gamesLoadingWeb2 } = usePlayerGamesWeb2();
   const { userId: currentUserId, isLoggedIn } = useCurrentUser();
   const appMode = useAppMode();
+  const isWeb2Admin = useWeb2Admin();
 
   // Initialize with default tab to prevent hydration mismatch
   const [activeTab, setActiveTab] = useState("Info");
@@ -265,6 +272,9 @@ export default function Home() {
 
   // Keep tabs visible during loading to avoid flash-of-hidden-tabs for returning users.
   const hasShips = shipsLoading || ships.length > 0;
+  // Ship customization has no web2 counterpart yet — never surface the tab
+  // in web2 mode rather than showing a wallet-gated, non-functional view.
+  const canShowCustomizeShip = appMode !== "web2";
   const hasGames =
     appMode === "web2"
       ? gamesLoadingWeb2 || playerGamesWeb2.length > 0
@@ -282,7 +292,8 @@ export default function Home() {
             g.turnState.currentTurn === address,
         );
   const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
-  const showCustomizeShip = hasShips || activeTab === "Customize Ship";
+  const showCustomizeShip =
+    canShowCustomizeShip && (hasShips || activeTab === "Customize Ship");
   // Web2 mode signs in via NextAuth, never connects a wallet — `status`
   // (wagmi) would stay "disconnected" forever for those users, so the tab
   // bar needs a mode-aware "signed in" check instead.
@@ -471,15 +482,20 @@ export default function Home() {
                 const tabs = ["Info", "Manage Navy", "Lobbies", "Tournaments"];
                 if (showGames) tabs.push("Games");
                 if (showGames) tabs.push("Profile");
-                if (address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() || activeTab === "Maps") {
+                if (
+                  address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() ||
+                  isWeb2Admin ||
+                  activeTab === "Maps"
+                ) {
                   tabs.push("Maps");
                 }
                 if (showCustomizeShip) tabs.push("Customize Ship");
-                if (isOwner || activeTab === "Ship Attributes") {
+                if (isOwner || isWeb2Admin || activeTab === "Ship Attributes") {
                   tabs.push("Ship Attributes");
                 }
                 if (
                   canAdminShipPurchasePrices ||
+                  isWeb2Admin ||
                   activeTab === "Purchase Prices"
                 ) {
                   tabs.push("Purchase Prices");
@@ -558,7 +574,7 @@ export default function Home() {
                   borderLeftColor: "var(--color-steel)",
                 }}
               >
-                <Maps />
+                {appMode === "web2" ? <MapsWeb2 /> : <Maps />}
               </div>
             </div>
           ) : activeTab === "Games" ? (
@@ -612,12 +628,22 @@ export default function Home() {
                 (appMode === "web2" ? <ManageNavyWeb2 /> : <ManageNavy />)}
               {activeTab === "Lobbies" &&
                 (appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />)}
-              {activeTab === "Profile" && <Profile />}
+              {activeTab === "Profile" &&
+                (appMode === "web2" ? <ProfileWeb2 /> : <Profile />)}
               {activeTab === "Info" && <Info />}
-              {activeTab === "Ship Attributes" && <ShipAttributes />}
-              {activeTab === "Purchase Prices" && <ShipPurchasePrices />}
-              {activeTab === "Customize Ship" && <ShipConstructor />}
-              {activeTab === "Tournaments" && <Tournaments />}
+              {activeTab === "Ship Attributes" &&
+                (appMode === "web2" ? <ShipAttributesWeb2 /> : <ShipAttributes />)}
+              {activeTab === "Purchase Prices" &&
+                (appMode === "web2" ? (
+                  <ShipPurchasePricesWeb2 />
+                ) : (
+                  <ShipPurchasePrices />
+                ))}
+              {activeTab === "Customize Ship" && canShowCustomizeShip && (
+                <ShipConstructor />
+              )}
+              {activeTab === "Tournaments" &&
+                (appMode === "web2" ? <TournamentsWeb2 /> : <Tournaments />)}
             </div>
           )}
         </div>

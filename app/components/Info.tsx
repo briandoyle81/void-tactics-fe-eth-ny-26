@@ -12,18 +12,52 @@ import { HeroShipShowcase } from "./HeroShipShowcase";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { FreeShipClaimButton } from "./FreeShipClaimButton";
+import { useAppMode } from "../hooks/useAppMode";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useOwnedShipsWeb2 } from "../hooks/useOwnedShipsWeb2";
+import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
+import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
+
+// Matches `CLAIM_COOLDOWN_MS` in app/api/ships/claim-free/route.ts (web2's
+// cooldown is a fixed server-side constant, not exposed by the eligibility
+// endpoint — unlike web3's `claimCooldownPeriod` contract read).
+const WEB2_CLAIM_COOLDOWN_SECONDS = 28 * 24 * 60 * 60;
 
 const Info: React.FC = () => {
+  const appMode = useAppMode();
   const { isConnected, address } = useAccount();
-  const { refetch } = useOwnedShips();
+  const { isLoggedIn } = useCurrentUser();
+  const { refetch: refetchShips } = useOwnedShips();
+  const { refetch: refetchShipsWeb2 } = useOwnedShipsWeb2();
   const {
-    isEligible,
-    isLoadingClaimStatus,
+    isEligible: isEligibleWeb3,
+    isLoadingClaimStatus: isLoadingClaimStatusWeb3,
     claimStatusError,
-    nextClaimInFormatted,
+    nextClaimInFormatted: nextClaimInFormattedWeb3,
     cooldownSeconds,
     error: freeShipError,
   } = useFreeShipClaiming();
+  const {
+    isEligible: isEligibleWeb2,
+    isLoadingClaimStatus: isLoadingClaimStatusWeb2,
+    claimStatusError: claimStatusErrorWeb2,
+    nextClaimInFormatted: nextClaimInFormattedWeb2,
+  } = useClaimFreeEligibilityWeb2();
+
+  const isSignedIn = appMode === "web2" ? isLoggedIn : isConnected;
+  const isEligible = appMode === "web2" ? isEligibleWeb2 : isEligibleWeb3;
+  const isLoadingClaimStatus =
+    appMode === "web2" ? isLoadingClaimStatusWeb2 : isLoadingClaimStatusWeb3;
+  const nextClaimInFormatted =
+    appMode === "web2" ? nextClaimInFormattedWeb2 : nextClaimInFormattedWeb3;
+  const refetch = appMode === "web2" ? refetchShipsWeb2 : refetchShips;
+  // Web2 has no wallet-tx failure mode (`freeShipError`) — the claim POST's
+  // own errors are toasted inside `ClaimFreeButtonWeb2`, not surfaced here.
+  const hasFreeShipError = appMode === "web2" ? false : Boolean(freeShipError);
+  const hasClaimStatusError =
+    appMode === "web2" ? Boolean(claimStatusErrorWeb2) : Boolean(claimStatusError);
+  const claimCooldownSeconds =
+    appMode === "web2" ? WEB2_CLAIM_COOLDOWN_SECONDS : cooldownSeconds;
   // Check if there's a saved tutorial step on mount. Must start `false` to
   // match the server-rendered markup (no `window` there) — reading
   // localStorage here instead of in an effect caused a hydration mismatch,
@@ -188,7 +222,7 @@ const Info: React.FC = () => {
                   {tutorialCompleted ? "[REPLAY TUTORIAL]" : "[PLAY NOW]"}
                 </button>
                 {/* Fix 6: replace disabled button with prompt copy */}
-                {!isConnected && (
+                {!isSignedIn && (
                   <p
                     className="flex items-center w-full md:w-auto text-xs text-phosphor-green/70 py-1"
                     style={{
@@ -196,14 +230,20 @@ const Info: React.FC = () => {
                         "var(--font-jetbrains-mono), 'Courier New', monospace",
                     }}
                   >
-                    &gt; Connect wallet to claim free ships
+                    &gt;{" "}
+                    {appMode === "web2"
+                      ? "Sign in to claim free ships"
+                      : "Connect wallet to claim free ships"}
                   </p>
                 )}
-                {isConnected &&
+                {isSignedIn &&
                   !isLoadingClaimStatus &&
-                  !freeShipError &&
-                  !claimStatusError &&
-                  isEligible && (
+                  !hasFreeShipError &&
+                  !hasClaimStatusError &&
+                  isEligible &&
+                  (appMode === "web2" ? (
+                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} />
+                  ) : (
                     <FreeShipClaimButton
                       isEligible={isEligible}
                       analyticsSurface="info"
@@ -212,11 +252,11 @@ const Info: React.FC = () => {
                     >
                       [CLAIM FREE SHIPS]
                     </FreeShipClaimButton>
-                  )}
-                {isConnected &&
+                  ))}
+                {isSignedIn &&
                   !isLoadingClaimStatus &&
-                  !freeShipError &&
-                  !claimStatusError &&
+                  !hasFreeShipError &&
+                  !hasClaimStatusError &&
                   !isEligible && (
                     <>
                       <button
@@ -245,10 +285,10 @@ const Info: React.FC = () => {
                   )}
               </div>
               {/* Fix 7: cooldown hint before first claim */}
-              {isConnected &&
+              {isSignedIn &&
                 !isLoadingClaimStatus &&
-                !freeShipError &&
-                !claimStatusError &&
+                !hasFreeShipError &&
+                !hasClaimStatusError &&
                 isEligible && (
                   <p
                     className="text-xs text-phosphor-green/60 leading-snug"
@@ -259,11 +299,11 @@ const Info: React.FC = () => {
                   >
                     &gt; First batch is free and instant. New batches available
                     every{" "}
-                    {cooldownSeconds >= 86400
-                      ? `${Math.round(cooldownSeconds / 86400)} days`
-                      : cooldownSeconds >= 3600
-                        ? `${Math.round(cooldownSeconds / 3600)} hours`
-                        : `${Math.round(cooldownSeconds / 60)} minutes`}
+                    {claimCooldownSeconds >= 86400
+                      ? `${Math.round(claimCooldownSeconds / 86400)} days`
+                      : claimCooldownSeconds >= 3600
+                        ? `${Math.round(claimCooldownSeconds / 3600)} hours`
+                        : `${Math.round(claimCooldownSeconds / 60)} minutes`}
                     .
                   </p>
                 )}
@@ -527,8 +567,11 @@ const Info: React.FC = () => {
             {
               n: "01",
               color: "var(--color-cyan)",
-              cmd: "CONNECT_WALLET",
-              desc: "Authenticate via Web3 wallet to access fleet command",
+              cmd: appMode === "web2" ? "SIGN_IN" : "CONNECT_WALLET",
+              desc:
+                appMode === "web2"
+                  ? "Sign in with Google to access fleet command"
+                  : "Authenticate via Web3 wallet to access fleet command",
             },
             {
               n: "02",

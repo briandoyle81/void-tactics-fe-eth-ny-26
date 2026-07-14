@@ -73,6 +73,12 @@ import { FleetCompositionControls } from "./FleetCompositionControls";
 import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeModal";
 import { FleetCompositionCardControls } from "./FleetCompositionCardControls";
 import { RecycleConfirmModal } from "./RecycleConfirmModal";
+import { RecycleLockedNotice } from "./RecycleLockedNotice";
+import {
+  ManageNavyActionButton,
+  manageNavyActionButtonClassName,
+} from "./ManageNavyActionButton";
+import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
 
 
@@ -717,28 +723,17 @@ const ManageNavy: React.FC = () => {
       : ("[CONSTRUCT ALL SHIPS]" as const);
 
   const claimFreeShipControls = (
-    <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4">
-      {isLoadingClaimStatus && (
-        <button
-          disabled
-          className="w-full justify-center px-6 py-3 rounded-none border-2 border-gunmetal text-text-muted font-mono font-bold tracking-wider opacity-50 cursor-not-allowed md:w-auto"
-        >
-          [CHECKING ELIGIBILITY...]
-        </button>
-      )}
-      {!isLoadingClaimStatus && freeShipError && (
-        <button
-          disabled
-          className="w-full justify-center px-6 py-3 rounded-none border-2 border-warning-red text-warning-red font-mono font-bold tracking-wider opacity-50 cursor-not-allowed md:w-auto"
-        >
-          [ERROR CLAIMING]
-        </button>
-      )}
-      {!isLoadingClaimStatus && !freeShipError && claimStatusError && (
+    <ClaimFreeShipsControls
+      isLoadingClaimStatus={isLoadingClaimStatus}
+      error={freeShipError}
+      claimStatusError={claimStatusError}
+      isEligible={isEligible}
+      nextClaimInFormatted={nextClaimInFormatted}
+      tryClaimButton={
         <FreeShipClaimButton
           isEligible={true}
           analyticsSurface="manage_navy"
-          className="w-full justify-center px-6 py-3 rounded-none border-2 border-amber text-amber hover:bg-amber/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
+          className={manageNavyActionButtonClassName("amber")}
           onPress={markFreeShipClaimClickedForTutorial}
           onSuccess={() => {
             refetch();
@@ -746,36 +741,21 @@ const ManageNavy: React.FC = () => {
         >
           [TRY CLAIM FREE SHIPS]
         </FreeShipClaimButton>
-      )}
-      {!isLoadingClaimStatus &&
-        !freeShipError &&
-        !claimStatusError &&
-        isEligible && (
-          <FreeShipClaimButton
-            isEligible={isEligible}
-            analyticsSurface="manage_navy"
-            className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
-            onPress={markFreeShipClaimClickedForTutorial}
-            onSuccess={() => {
-              refetch();
-            }}
-          >
-            [CLAIM FREE SHIPS]
-          </FreeShipClaimButton>
-        )}
-      {!isLoadingClaimStatus &&
-        !freeShipError &&
-        !claimStatusError &&
-        !isEligible &&
-        nextClaimInFormatted != null && (
-          <div
-            className="w-full px-3 py-3 text-center text-xs font-mono font-bold tracking-wider text-amber sm:px-6 sm:text-sm md:w-auto rounded-none border-2 border-amber/80 bg-amber/5"
-            title="Time until you can claim free ships again"
-          >
-            NEXT CLAIM IN: {nextClaimInFormatted}
-          </div>
-        )}
-    </div>
+      }
+      claimButton={
+        <FreeShipClaimButton
+          isEligible={isEligible}
+          analyticsSurface="manage_navy"
+          className={manageNavyActionButtonClassName("green")}
+          onPress={markFreeShipClaimClickedForTutorial}
+          onSuccess={() => {
+            refetch();
+          }}
+        >
+          [CLAIM FREE SHIPS]
+        </FreeShipClaimButton>
+      }
+    />
   );
 
   const staleCostBulkButton =
@@ -1059,7 +1039,7 @@ const ManageNavy: React.FC = () => {
                   shipIds={shipsByStatus.unconstructed
                     .slice(0, STALE_COST_SYNC_BATCH_CAP)
                     .map((ship: Ship) => ship.id)}
-                  className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
+                  className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
                     toast.success("150 ships construction started!");
@@ -1071,7 +1051,7 @@ const ManageNavy: React.FC = () => {
               ) : (
                 <ShipActionButton
                   action="constructAll"
-                  className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
+                  className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
                     toast.success("Ships constructed successfully!");
@@ -1083,17 +1063,13 @@ const ManageNavy: React.FC = () => {
               )}
               {staleCostBulkButton}
 
-              <button
-                type="button"
+              <ManageNavyActionButton
+                variant="cyan"
                 onClick={handleBuyNewShipsClick}
                 disabled={transactionState.isPending}
-                className="w-full justify-center px-6 py-3 border-2 border-cyan text-cyan hover:border-cyan/80 hover:text-cyan/80 hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
-                style={{
-                  borderRadius: 0,
-                }}
               >
                 [BUY NEW SHIPS]
-              </button>
+              </ManageNavyActionButton>
 
               {showDroneFactoryTutorial && (
                 <div
@@ -1190,7 +1166,7 @@ const ManageNavy: React.FC = () => {
               <ShipActionButton
                 action="recycle"
                 shipIds={recyclableShips.map((id) => BigInt(id))}
-                className="w-full justify-center px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-200 disabled:cursor-not-allowed md:w-auto"
+                className={manageNavyActionButtonClassName("red")}
                 onSuccess={() => {
                   // Show success toast
                   toast.success("Ships recycled successfully!");
@@ -1209,26 +1185,10 @@ const ManageNavy: React.FC = () => {
           })()}
 
         {!canRecycle && isConnected && (
-          <div className="flex flex-col gap-1">
-            <div
-              className="w-full cursor-not-allowed px-6 py-3 text-center text-sm font-mono font-bold tracking-wider md:w-auto rounded-none border-2"
-              style={{
-                color: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
-                borderColor: "color-mix(in srgb, var(--color-warning-red) 30%, transparent)",
-              }}
-            >
-              [RECYCLE — LOCKED]
-            </div>
-            <p
-              className="text-[10px] tracking-wider text-center md:text-left"
-              style={{
-                fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-                color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
-              }}
-            >
-              Unlocks after 10 ship purchases ({amountPurchased ? Number(amountPurchased) : 0}/10)
-            </p>
-          </div>
+          <RecycleLockedNotice
+            purchasedCount={amountPurchased ? Number(amountPurchased) : 0}
+            threshold={10}
+          />
         )}
       </div>
 

@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { dbShipToShip } from "@/app/lib/dbToType";
 import { calcShipCost } from "@/app/lib/shipCosts";
 import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+import { InsufficientBalanceError } from "@/app/lib/InsufficientBalanceError";
 import {
   countNewModifications,
   calculateCustomizeCost,
@@ -126,22 +127,33 @@ export async function POST(req: NextRequest, { params }: Params) {
     speed: traits.speed,
   };
 
-  const [updatedShip] = await prisma.$transaction([
-    prisma.ship.update({
-      where: { id: shipId },
-      data: {
-        equipment: equipment as never,
-        traits: newTraits as never,
-        shiny: proposed.shiny,
-        modifiedCount: { increment: newMods },
-        cost: newCost,
-      },
-    }),
-    prisma.user.update({
-      where: { id: userId! },
-      data: { creditBalance: { decrement: cost } },
-    }),
-  ]);
+  let updatedShip;
+  try {
+    updatedShip = await prisma.$transaction(async (tx) => {
+      // Atomic conditional debit — see InsufficientBalanceError.
+      const debited = await tx.user.updateMany({
+        where: { id: userId!, creditBalance: { gte: cost } },
+        data: { creditBalance: { decrement: cost } },
+      });
+      if (debited.count === 0) throw new InsufficientBalanceError();
+
+      return tx.ship.update({
+        where: { id: shipId },
+        data: {
+          equipment: equipment as never,
+          traits: newTraits as never,
+          shiny: proposed.shiny,
+          modifiedCount: { increment: newMods },
+          cost: newCost,
+        },
+      });
+    });
+  } catch (e) {
+    if (e instanceof InsufficientBalanceError) {
+      return NextResponse.json({ error: "Insufficient UTC balance", required: cost }, { status: 402 });
+    }
+    throw e;
+  }
 
   return NextResponse.json(dbShipToShip(updatedShip));
 }

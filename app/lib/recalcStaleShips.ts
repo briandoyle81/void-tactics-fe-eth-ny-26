@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { Prisma } from "../generated/prisma";
 import { calcShipCost, type CostsConfig } from "./shipCosts";
 
 type ShipForRecalc = {
@@ -26,11 +27,24 @@ export async function recalcStaleShips(
     ),
   }));
 
-  await prisma.$transaction(
-    recalculated.map(({ id, cost }) =>
-      prisma.ship.update({ where: { id }, data: { cost, costsVersion: costs.version } }),
-    ),
+  // A single batched UPDATE...FROM(VALUES...) instead of one UPDATE per
+  // ship — this runs on every hit to hot, frequently-polled paths (the
+  // ships list, lobby fleet submission), and after any admin cost-version
+  // bump every affected user's ship count of round trips would otherwise
+  // scale 1:1 with their stale ship count.
+  // Explicit ::int casts matter here — without them Postgres infers the
+  // driver-bound parameters as `text`, and `s.id = v.id` then fails with
+  // "operator does not exist: integer = text" (caught by a live smoke test).
+  const values = Prisma.join(
+    recalculated.map(({ id, cost }) => Prisma.sql`(${id}::int, ${cost}::int)`),
+    ", ",
   );
+  await prisma.$executeRaw`
+    UPDATE "Ship" AS s
+    SET cost = v.cost, "costsVersion" = ${costs.version}
+    FROM (VALUES ${values}) AS v(id, cost)
+    WHERE s.id = v.id
+  `;
 
   return new Map(recalculated.map(({ id, cost }) => [id, cost]));
 }

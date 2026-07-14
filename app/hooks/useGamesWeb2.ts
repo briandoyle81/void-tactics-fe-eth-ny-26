@@ -21,8 +21,12 @@ export function useGetGame(gameId: number) {
     queryKey: ["gamesWeb2", gameId],
     queryFn: () => apiFetch<Web2GameDataView>(`/api/games/${gameId}`),
     enabled: gameId > 0 && status === "authenticated",
-    // SSE (useGameStreamWeb2) handles real-time push; this is a fallback safety-net poll
-    refetchInterval: 15000,
+    // No interval here — every caller of this hook (GameDisplayWeb2.tsx)
+    // always also uses useGameStreamWeb2 (SSE push + query invalidation)
+    // and useGamePollingWeb2 (adaptive 30s/5min/1hr fallback scheduler that
+    // calls this query's `refetch`), so a third independent flat-interval
+    // poller on the exact same query was pure redundant DB load, not extra
+    // coverage.
     staleTime: 2000,
   });
   return { data, isLoading, error, refetch };
@@ -34,7 +38,13 @@ export function useGetGamesForPlayer() {
     queryKey: ["gamesWeb2", "player"],
     queryFn: () => apiFetch<Web2GameDataView[]>("/api/games"),
     enabled: status === "authenticated",
-    refetchInterval: 5000,
+    // SSE (useGameStreamWeb2) also invalidates this query whenever a game
+    // the player has open updates, but only while a specific game's detail
+    // view is mounted — this interval is what keeps the list itself fresh
+    // (e.g. an opponent's move in a game you're not currently viewing).
+    // 20s (was 5s) is still prompt for a list that only changes on
+    // discrete events (a move, a game starting/ending).
+    refetchInterval: 20000,
   });
   return { data, isLoading, error, refetch };
 }

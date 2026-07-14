@@ -88,12 +88,12 @@ function TournamentDetail({
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={onBack}
-          className="text-xs text-text-muted hover:text-secondary transition-colors"
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors"
         >
           ← Back
         </button>
         <div className="flex-1 flex items-center gap-3">
-          <span className="text-sm font-bold text-secondary">
+          <span className="text-sm font-bold text-text-secondary">
             Tournament #{String(tournamentId)}
           </span>
           <span className={`border px-2 py-0.5 text-[10px] font-bold tracking-wider ${stateColor}`}>
@@ -112,19 +112,19 @@ function TournamentDetail({
         )}
         <div>
           <span className="text-text-muted">Players </span>
-          <span className="text-secondary">
+          <span className="text-text-secondary">
             {String(summary.registrantCount)}/{config.maxPlayers}
           </span>
         </div>
         {config.entryFee > 0n && (
           <div>
             <span className="text-text-muted">Entry </span>
-            <span className="text-secondary">{formatEther(config.entryFee)} ETH</span>
+            <span className="text-text-secondary">{formatEther(config.entryFee)} ETH</span>
           </div>
         )}
         <div>
           <span className="text-text-muted">Creator </span>
-          <span className="text-secondary">
+          <span className="text-text-secondary">
             {summary.creator.slice(0, 6)}…{summary.creator.slice(-4)}
           </span>
         </div>
@@ -147,7 +147,7 @@ function TournamentDetail({
           <button
             disabled={actionPending}
             onClick={() => void run(() => actions.start(tournamentId))}
-            className="border border-gunmetal/60 px-4 py-2 text-xs text-text-muted hover:border-steel hover:text-secondary transition-colors disabled:opacity-50"
+            className="border border-gunmetal/60 px-4 py-2 text-xs text-text-muted hover:border-steel hover:text-text-secondary transition-colors disabled:opacity-50"
           >
             {actionPending ? "Starting…" : "Start Tournament"}
           </button>
@@ -199,7 +199,7 @@ function TournamentDetail({
           <button
             disabled={actionPending}
             onClick={() => void run(() => actions.claimRefund(tournamentId))}
-            className="border border-gunmetal/60 py-2 px-4 text-xs text-secondary hover:border-steel transition-colors disabled:opacity-50"
+            className="border border-gunmetal/60 py-2 px-4 text-xs text-text-secondary hover:border-steel transition-colors disabled:opacity-50"
           >
             {actionPending ? "Claiming…" : "Claim Refund"}
           </button>
@@ -265,7 +265,7 @@ function OptionCard({
         className="mt-0.5 h-4 w-4 shrink-0 accent-cyan"
       />
       <span>
-        <span className={`block font-mono font-bold ${checked ? "text-cyan" : "text-secondary"}`}>
+        <span className={`block font-mono font-bold ${checked ? "text-cyan" : "text-text-secondary"}`}>
           {title}
         </span>
         <span className="mt-0.5 block text-xs text-text-muted">{sub}</span>
@@ -350,18 +350,18 @@ function CreateTournament({ onBack, onCreated, onSuccess }: { onBack: () => void
 
   const sl = "text-[10px] uppercase tracking-widest text-text-muted mb-1.5 block";
   const inputClass =
-    "w-full bg-black/40 border border-gunmetal px-3 py-2 text-sm text-secondary font-mono focus:border-cyan focus:outline-none placeholder:text-gunmetal";
+    "w-full bg-black/40 border border-gunmetal px-3 py-2 text-sm text-text-secondary font-mono focus:border-cyan focus:outline-none placeholder:text-gunmetal";
 
   return (
     <div className="font-mono">
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={onBack}
-          className="text-xs text-text-muted hover:text-secondary transition-colors"
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors"
         >
           ← Back
         </button>
-        <span className="text-sm font-bold text-secondary">Create Tournament</span>
+        <span className="text-sm font-bold text-text-secondary">Create Tournament</span>
       </div>
 
       {/* Two columns, full width, all above fold */}
@@ -440,7 +440,7 @@ function CreateTournament({ onBack, onCreated, onSuccess }: { onBack: () => void
                   className={`px-4 py-2 text-xs font-bold tracking-wider border transition-colors ${
                     form.hoursUntilDeadline === hours
                       ? "border-cyan bg-cyan/10 text-cyan"
-                      : "border-gunmetal bg-black/40 text-text-muted hover:border-steel hover:text-secondary"
+                      : "border-gunmetal bg-black/40 text-text-muted hover:border-steel hover:text-text-secondary"
                   }`}
                 >
                   {label}

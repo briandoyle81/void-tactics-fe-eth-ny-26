@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
-import { PURCHASE_TIERS, getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
+import { getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
+import { getPurchaseTiers } from "@/app/lib/getPurchaseTiers";
 import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +11,8 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const { tier } = await req.json() as { tier: number };
-  const tierConfig = PURCHASE_TIERS.find((t) => t.tier === tier);
+  const purchaseTiers = await getPurchaseTiers();
+  const tierConfig = purchaseTiers.find((t) => t.tier === tier);
   if (!tierConfig) {
     return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
   }

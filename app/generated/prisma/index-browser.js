@@ -231,6 +231,48 @@ exports.Prisma.PlayerStatsScalarFieldEnum = {
   totalGames: 'totalGames'
 };
 
+exports.Prisma.TournamentScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  state: 'state',
+  entryFee: 'entryFee',
+  minPlayers: 'minPlayers',
+  maxPlayers: 'maxPlayers',
+  registerBy: 'registerBy',
+  costLimit: 'costLimit',
+  turnTimeSeconds: 'turnTimeSeconds',
+  selectedMapId: 'selectedMapId',
+  maxScore: 'maxScore',
+  prizePool: 'prizePool',
+  totalRounds: 'totalRounds',
+  championId: 'championId',
+  runnerUpId: 'runnerUpId',
+  createdAt: 'createdAt',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.TournamentRegistrantScalarFieldEnum = {
+  id: 'id',
+  tournamentId: 'tournamentId',
+  userId: 'userId',
+  registeredAt: 'registeredAt'
+};
+
+exports.Prisma.TournamentMatchScalarFieldEnum = {
+  id: 'id',
+  tournamentId: 'tournamentId',
+  round: 'round',
+  matchIndex: 'matchIndex',
+  player1Id: 'player1Id',
+  player2Id: 'player2Id',
+  winnerId: 'winnerId',
+  isBye: 'isBye',
+  resolved: 'resolved',
+  lobbyId: 'lobbyId',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -275,6 +317,13 @@ exports.GamePhase = exports.$Enums.GamePhase = {
   ABANDONED: 'ABANDONED'
 };
 
+exports.TournamentState = exports.$Enums.TournamentState = {
+  REGISTRATION: 'REGISTRATION',
+  ACTIVE: 'ACTIVE',
+  COMPLETE: 'COMPLETE',
+  CANCELLED: 'CANCELLED'
+};
+
 exports.Prisma.ModelName = {
   User: 'User',
   Ship: 'Ship',
@@ -284,7 +333,10 @@ exports.Prisma.ModelName = {
   GameTurn: 'GameTurn',
   Map: 'Map',
   Config: 'Config',
-  PlayerStats: 'PlayerStats'
+  PlayerStats: 'PlayerStats',
+  Tournament: 'Tournament',
+  TournamentRegistrant: 'TournamentRegistrant',
+  TournamentMatch: 'TournamentMatch'
 };
 
 /**

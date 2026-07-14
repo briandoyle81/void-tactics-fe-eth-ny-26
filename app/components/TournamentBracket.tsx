@@ -42,7 +42,7 @@ function MatchCard({
         className={`py-0.5 px-1 mb-0.5 ${
           match.resolved && match.winner === match.player1
             ? "text-phosphor-green font-bold"
-            : "text-secondary"
+            : "text-text-secondary"
         } ${noPlayer1 ? "text-text-muted" : ""}`}
       >
         {noPlayer1 ? "TBD" : shortAddr(match.player1)}
@@ -54,7 +54,7 @@ function MatchCard({
         className={`py-0.5 px-1 ${
           match.resolved && match.winner === match.player2
             ? "text-phosphor-green font-bold"
-            : "text-secondary"
+            : "text-text-secondary"
         } ${noPlayer2 || isBye ? "text-text-muted" : ""}`}
       >
         {isBye ? "BYE" : noPlayer2 ? "TBD" : shortAddr(match.player2)}

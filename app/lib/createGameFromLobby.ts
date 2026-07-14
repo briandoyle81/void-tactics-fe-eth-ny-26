@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { dbShipToShip } from "./dbToType";
 import { calculateAttributesFromContractsWeb2 } from "../utils/shipAttributesCalculatorWeb2";
+import { getShipAttributeTables } from "./getShipAttributeTables";
 import type { Web2GameDataView, Web2ShipPosition } from "../types/web2Game";
 
 type FleetWithShips = {
@@ -33,7 +34,10 @@ export async function createGameFromLobby(
   const creatorShips = creatorFleet.shipIds.map((id) => dbShipToShip(shipMap.get(id)!));
   const joinerShips = joinerFleet.shipIds.map((id) => dbShipToShip(shipMap.get(id)!));
   const allShips = [...creatorShips, ...joinerShips];
-  const allAttributes = allShips.map(calculateAttributesFromContractsWeb2);
+  const attributeTables = await getShipAttributeTables();
+  const allAttributes = allShips.map((ship) =>
+    calculateAttributesFromContractsWeb2(ship, attributeTables),
+  );
 
   const defaultPositions = (isCreator: boolean, count: number): Array<{ row: number; col: number }> => {
     const col = isCreator ? 0 : 16;

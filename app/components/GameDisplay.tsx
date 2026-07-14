@@ -16,6 +16,8 @@ import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
+import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
+import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
 import { useGetGameMapState } from "../hooks/useMapsContract";
 import { useGameContract, useGetGame } from "../hooks/useGameContract";
 import {
@@ -36,11 +38,14 @@ import {
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb3 } from "./FleeConfirmButtonWeb3";
 import { GameScoreBox } from "./GameScoreBox";
-import { GameTurnLabel } from "./GameTurnLabel";
 import { GameFleetCard } from "./GameFleetCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { toGameScoreData, toGameWinnerResult } from "../utils/toGameDisplayData";
-import { GameEvents } from "./GameEvents";
+import {
+  GameEvents,
+  type GameEventsLastMove,
+  type GameEventsShipInfo,
+} from "./GameEvents";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -521,6 +526,37 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     });
     return map;
   }, [gameShips]);
+
+  // GameEvents.tsx is number/string-native (shared with web2) — build a
+  // string-keyed view of shipMap for it here rather than changing the
+  // bigint-keyed shipMap used everywhere else.
+  const gameEventsShipMap = React.useMemo(() => {
+    const map = new Map<string, GameEventsShipInfo>();
+    shipMap.forEach((ship, id) => {
+      map.set(id.toString(), {
+        name: ship.name,
+        owner: ship.owner,
+        equipment: { special: ship.equipment.special },
+      });
+    });
+    return map;
+  }, [shipMap]);
+
+  const toGameEventsLastMove = React.useCallback(
+    (lm: LastMove | undefined): GameEventsLastMove | undefined =>
+      lm
+        ? {
+            shipId: lm.shipId.toString(),
+            targetShipId: lm.targetShipId.toString(),
+            oldRow: lm.oldRow,
+            oldCol: lm.oldCol,
+            newRow: lm.newRow,
+            newCol: lm.newCol,
+            actionType: lm.actionType,
+          }
+        : undefined,
+    [],
+  );
 
   // Get special range data for the selected ship
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
@@ -2209,8 +2245,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               ) : null}
               {mobileLeftPanelTab === "events" ? (
                 <GameEvents
-                  lastMove={selectedShipId !== null ? undefined : displayedLastMove}
-                  shipMap={shipMap}
+                  lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+                  shipMap={gameEventsShipMap}
                   address={address}
                   appendDestroyedText={appendDestroyedTextToLastMove}
                   debugSuffix={lastMoveTargetPositionDebugSuffix}
@@ -2787,212 +2823,36 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   isParticipant &&
                   turnSecondsLeft <= 0;
 
-                if (hasExceededTime) {
-                  return (
-                    <div className="flex flex-col gap-1.5">
-                      <div
-                        className="flex items-center justify-between gap-2"
-                        style={STYLE_LABEL}
-                      >
-                        <span
-                          className="text-sm font-bold uppercase tracking-wider"
-                          style={{ color: "var(--color-cyan)" }}
-                        >
-                          YOUR TURN
-                        </span>
-                        <span
-                          className="font-mono text-sm animate-timeout-soft"
-                          style={{
-                            ...STYLE_MONO,
-                            color: "var(--color-warning-red)",
-                          }}
-                        >
-                          00:00
-                        </span>
-                      </div>
-                      <div
-                        className="text-sm font-bold uppercase tracking-wider animate-victory-flash"
-                        style={{ color: "var(--color-warning-red)", ...STYLE_LABEL }}
-                      >
-                        Opponent can now claim victory
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex-1 h-1.5 overflow-hidden"
-                          style={{
-                            backgroundColor: "var(--color-gunmetal)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <div
-                            className="h-full animate-victory-flash"
-                            style={{
-                              width: `100%`,
-                              backgroundColor: "var(--color-warning-red)",
-                              borderRadius: 0,
-                            }}
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            refetchGame();
-                          }}
-                          className="p-1 text-text-muted hover:text-cyan transition-colors"
-                          title="Resync game state"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (canSeizeTurn) {
-                  return (
-                    <div className="flex flex-col gap-1.5">
-                      <p className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-amber)", ...STYLE_LABEL }}>
-                        Opponent&apos;s timer expired
-                      </p>
-                      <div className="text-sm">
-                        <div
-                          className="inline-block"
-                          style={{
-                            ...STYLE_LABEL,
-                            borderColor: "var(--color-amber)",
-                            color: "var(--color-amber)",
-                            backgroundColor: "var(--color-steel)",
-                            borderWidth: "2px",
-                            borderStyle: "solid",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <TransactionButton
-                            transactionId={`timeout-${game.metadata.gameId.toString()}`}
-                            contractAddress={gameContract.address}
-                            abi={gameContract.abi}
-                            functionName="endGameOnTimeout"
-                            args={[game.metadata.gameId]}
-                            className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
-                            loadingText="Claiming..."
-                            errorText="Failed"
-                            onSuccess={() => {
-                              toast.success(
-                                "Game ended. Opponent forfeited by timeout.",
-                              );
-                              refetchGame();
-                              refetch?.();
-                            }}
-                          >
-                            Claim win (timeout)
-                          </TransactionButton>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex-1 h-1.5 overflow-hidden"
-                          style={{
-                            backgroundColor: "var(--color-gunmetal)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          <div
-                            className="h-full animate-timeout-bar"
-                            style={{
-                              width: `100%`,
-                              backgroundColor: "var(--color-warning-red)",
-                              borderRadius: 0,
-                            }}
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            refetchGame();
-                          }}
-                          className="p-1 text-text-muted hover:text-cyan transition-colors"
-                          title="Resync game state"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }
-
                 return (
-                  <div className="flex flex-col gap-1.5">
-                    <GameTurnLabel isMyTurn={isMyTurnEffective} secondsLeft={turnSecondsLeft} />
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="flex-1 h-1.5 overflow-hidden"
-                        style={{
-                          backgroundColor: "var(--color-gunmetal)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        <div
-                          className="h-full transition-all duration-1000 ease-linear"
-                          style={{
-                            width: `${turnPercentRemaining}%`,
-                            backgroundColor: "var(--color-warning-red)",
-                            borderRadius: 0,
-                          }}
-                        />
-                      </div>
-                      <button
-                        onClick={() => {
+                  <GameTurnTimerPanel
+                    hasExceededTime={hasExceededTime}
+                    canSeizeTurn={canSeizeTurn}
+                    isMyTurn={isMyTurnEffective}
+                    secondsLeft={turnSecondsLeft}
+                    turnPercentRemaining={turnPercentRemaining}
+                    onResync={() => refetchGame()}
+                    claimTimeoutButton={
+                      <TransactionButton
+                        transactionId={`timeout-${game.metadata.gameId.toString()}`}
+                        contractAddress={gameContract.address}
+                        abi={gameContract.abi}
+                        functionName="endGameOnTimeout"
+                        args={[game.metadata.gameId]}
+                        className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
+                        loadingText="Claiming..."
+                        errorText="Failed"
+                        onSuccess={() => {
+                          toast.success(
+                            "Game ended. Opponent forfeited by timeout.",
+                          );
                           refetchGame();
+                          refetch?.();
                         }}
-                        className="p-1 text-text-muted hover:text-cyan transition-colors"
-                        title="Refresh game state"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)", fontFamily: "var(--font-rajdhani), sans-serif" }}>
-                      {isMyTurnEffective
-                        ? "Opponent may claim victory if timer expires"
-                        : "You may claim victory if their timer expires"}
-                    </p>
-                  </div>
+                        Claim win (timeout)
+                      </TransactionButton>
+                    }
+                  />
                 );
               })()}
           </div>
@@ -3547,9 +3407,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     </div>
       <GameEvents
                       lastMove={
-                        selectedShipId !== null ? undefined : displayedLastMove
+                        toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)
                       }
-        shipMap={shipMap}
+        shipMap={gameEventsShipMap}
         address={address}
                       appendDestroyedText={appendDestroyedTextToLastMove}
                       debugSuffix={lastMoveTargetPositionDebugSuffix}
@@ -3624,8 +3484,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           ) : null}
           {mobileActivePanel === "events" ? (
             <GameEvents
-              lastMove={selectedShipId !== null ? undefined : displayedLastMove}
-              shipMap={shipMap}
+              lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+              shipMap={gameEventsShipMap}
               address={address}
               appendDestroyedText={appendDestroyedTextToLastMove}
               debugSuffix={lastMoveTargetPositionDebugSuffix}
@@ -3697,128 +3557,84 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         </div>
       )}
       {/* Fleet Details Modal */}
-      {showFleetModal && (
-        <div
-          className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto p-4"
-          style={{ backgroundColor: "rgba(12, 17, 23, 0.85)" }}
-          onClick={() => setShowFleetModal(false)}
-        >
-          <div
-            className="relative w-[90%] my-4 border border-solid p-4"
-            style={{ backgroundColor: "var(--color-slate)", borderColor: "var(--color-gunmetal)", borderTopColor: "var(--color-steel)", borderLeftColor: "var(--color-steel)", borderRadius: 0 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setShowFleetModal(false)}
-              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center border border-solid"
-              style={{ color: "var(--color-warning-red)", borderColor: "var(--color-warning-red)", backgroundColor: "var(--color-near-black)", borderRadius: 0, fontSize: 14, lineHeight: 1 }}
-              aria-label="Close fleet details"
-            >
-              ✕
-            </button>
-            <div className="mb-4">
-              <span className="uppercase tracking-wider font-bold" style={{ ...STYLE_LABEL, fontSize: 14, color: "var(--color-text-secondary)" }}>FLEET DETAILS</span>
-            </div>
-            <div
-              ref={gameShipGridsContainerRef}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-            >
-              {game.metadata.creator === address ? (
-                <>
-                  <div>
-                    <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-cyan)", fontSize: "18px" }}>
-                      {readOnly ? "Creator Fleet" : "[MY FLEET]"}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {game.creatorActiveShipIds.map((shipId, index) => {
-                        const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
-                        const attributes = getShipAttributes(shipId);
-                        const ship = shipMap.get(shipId);
-                        if (!shipPosition || !attributes || !ship) return null;
-                        const reactorCriticalStatus =
-                          attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
-                          : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
-                        return (
-                          <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-warning-red)", fontSize: "18px" }}>
-                      {readOnly ? "Joiner Fleet" : "[HOSTILE FLEET]"}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {game.joinerActiveShipIds.map((shipId, index) => {
-                        const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
-                        const attributes = getShipAttributes(shipId);
-                        const ship = shipMap.get(shipId);
-                        if (!shipPosition || !attributes || !ship) return null;
-                        const reactorCriticalStatus =
-                          attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
-                          : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
-                        return (
-                          <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-warning-red)", fontSize: "18px" }}>
-                      {readOnly ? "Creator Fleet" : "[HOSTILE FLEET]"}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {game.creatorActiveShipIds.map((shipId, index) => {
-                        const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
-                        const attributes = getShipAttributes(shipId);
-                        const ship = shipMap.get(shipId);
-                        if (!shipPosition || !attributes || !ship) return null;
-                        const reactorCriticalStatus =
-                          attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
-                          : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
-                        return (
-                          <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={false} flipShip={true} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="mb-3 uppercase font-bold tracking-wider" style={{ ...STYLE_LABEL, color: "var(--color-cyan)", fontSize: "18px" }}>
-                      {readOnly ? "Joiner Fleet" : "[MY FLEET]"}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {game.joinerActiveShipIds.map((shipId, index) => {
-                        const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
-                        const attributes = getShipAttributes(shipId);
-                        const ship = shipMap.get(shipId);
-                        if (!shipPosition || !attributes || !ship) return null;
-                        const reactorCriticalStatus =
-                          attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0 ? "critical"
-                          : attributes.reactorCriticalTimer > 0 ? "warning" : "none";
-                        return (
-                          <div key={shipId.toString()} data-game-fleet-ship-cell="" data-ship-id={shipId.toString()} data-row-index={gameViewShipRowIndex(index)}>
-                            <ShipCard ship={toShipCardData(ship)} shipImage={<ShipImage ship={ship} className="h-full w-full" />} isStarred={false} onToggleStar={() => {}} isSelected={false} onToggleSelection={() => {}} onRecycleClick={() => {}} showInGameProperties={true} inGameAttributes={attributes} attributesLoading={false} hideRecycle={true} hideCheckbox={true} isCurrentPlayerShip={true} flipShip={false} reactorCriticalStatus={reactorCriticalStatus} hasMoved={movedShipIdsSet.has(shipId)} gameViewMode={true} layoutShipId={shipId.toString()} nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {showFleetModal && (() => {
+        const buildFleetDetailCards = (
+          shipIds: readonly bigint[],
+          isCurrentPlayerShip: boolean,
+          flipShip: boolean,
+        ) =>
+          shipIds.map((shipId, index) => {
+            const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
+            const attributes = getShipAttributes(shipId);
+            const ship = shipMap.get(shipId);
+            if (!shipPosition || !attributes || !ship) return null;
+            const reactorCriticalStatus =
+              attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0
+                ? "critical"
+                : attributes.reactorCriticalTimer > 0
+                  ? "warning"
+                  : "none";
+            return (
+              <div
+                key={shipId.toString()}
+                data-game-fleet-ship-cell=""
+                data-ship-id={shipId.toString()}
+                data-row-index={gameViewShipRowIndex(index)}
+              >
+                <ShipCard
+                  ship={toShipCardData(ship)}
+                  shipImage={<ShipImage ship={ship} className="h-full w-full" />}
+                  isStarred={false}
+                  onToggleStar={() => {}}
+                  isSelected={false}
+                  onToggleSelection={() => {}}
+                  onRecycleClick={() => {}}
+                  showInGameProperties={true}
+                  inGameAttributes={attributes}
+                  attributesLoading={false}
+                  hideRecycle={true}
+                  hideCheckbox={true}
+                  isCurrentPlayerShip={isCurrentPlayerShip}
+                  flipShip={flipShip}
+                  reactorCriticalStatus={reactorCriticalStatus}
+                  hasMoved={movedShipIdsSet.has(shipId)}
+                  gameViewMode={true}
+                  layoutShipId={shipId.toString()}
+                  nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]}
+                />
+              </div>
+            );
+          });
+
+        const isCreatorView = game.metadata.creator === address;
+        return (
+          <GameFleetDetailsModal
+            show={true}
+            onClose={() => setShowFleetModal(false)}
+            containerRef={gameShipGridsContainerRef}
+            myFleetLabel={
+              isCreatorView
+                ? readOnly ? "Creator Fleet" : "[MY FLEET]"
+                : readOnly ? "Joiner Fleet" : "[MY FLEET]"
+            }
+            enemyFleetLabel={
+              isCreatorView
+                ? readOnly ? "Joiner Fleet" : "[HOSTILE FLEET]"
+                : readOnly ? "Creator Fleet" : "[HOSTILE FLEET]"
+            }
+            myFleetCards={
+              isCreatorView
+                ? buildFleetDetailCards(game.creatorActiveShipIds, true, true)
+                : buildFleetDetailCards(game.joinerActiveShipIds, true, false)
+            }
+            enemyFleetCards={
+              isCreatorView
+                ? buildFleetDetailCards(game.joinerActiveShipIds, false, false)
+                : buildFleetDetailCards(game.creatorActiveShipIds, false, true)
+            }
+          />
+        );
+      })()}
     </div>
   );
 };

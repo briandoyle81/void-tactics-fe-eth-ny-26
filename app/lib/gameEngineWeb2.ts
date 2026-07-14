@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getEconomyConfig } from "./economyConfig";
+import { getMapTiles } from "./getMapTiles";
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { hasLineOfSight } from "../utils/gameGridRanges";
 import { computeMovementRange } from "../utils/gameGridRangesWeb2";
@@ -8,6 +9,7 @@ import type { Web2GameDataView, Web2LastMove } from "../types/web2Game";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import { GamePhase } from "../generated/prisma";
 import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
+import { resolveTournamentMatchIfApplicable } from "./resolveTournamentMatchIfApplicable";
 
 // Server-side turn-processing engine — ported from `explore-traditional`'s
 // `app/api/games/[id]/action/route.ts` (human-vs-human logic only; the
@@ -104,14 +106,20 @@ function checkWinConditions(state: Web2GameDataView): { winner: string | null; r
 }
 
 /**
- * New (not in the source branch): reject a move destination that isn't
- * actually reachable, and a shot whose target is out of weapon range or
- * lacks line of sight. Scoped to movement + the Shoot action — the source
- * branch's Special/Assist/Ram handlers only ever validated
- * ownership/team constraints, never range, and this port preserves that
- * for those actions to avoid guessing at semantics it doesn't already
- * define. Uses the same shared `gameGridRangesWeb2.ts`/`hasLineOfSight`
- * module the client uses for range highlighting — no duplicated logic.
+ * Reject a move destination that isn't actually reachable, a shot whose
+ * target is out of weapon range or lacks line of sight, a ram whose
+ * destination isn't the target's own tile, and an EMP/Repair special whose
+ * target is out of the special's range. (Flak needs no separate target-range
+ * check — its blast radius is self-contained, computed server-side from the
+ * ship's own destination tile; see the Special/specialType===3 case in
+ * applyGameAction.) Ram/EMP/Repair range enforcement was intentionally
+ * deferred when this engine was first ported (the source branch's handlers
+ * only ever validated ownership/team constraints, never range) — closing
+ * that gap here since it let a ship ram/EMP/repair a target anywhere on the
+ * board regardless of position. Uses the same shared
+ * `gameGridRangesWeb2.ts`/`hasLineOfSight` module the client uses for range
+ * highlighting, and the same `SPECIAL_CONFIG` range table the client reads
+ * for EMP/Repair — no duplicated/diverging logic.
  */
 function validateDestinationAndTarget(params: {
   state: Web2GameDataView;
@@ -120,9 +128,10 @@ function validateDestinationAndTarget(params: {
   col: number;
   actionType: number;
   targetShipId: number;
+  specialType: number;
   blockedGrid: boolean[][];
 }) {
-  const { state, shipId, row, col, actionType, targetShipId, blockedGrid } = params;
+  const { state, shipId, row, col, actionType, targetShipId, specialType, blockedGrid } = params;
 
   if (actionType === ActionType.Retreat) return; // no destination to validate
 
@@ -134,6 +143,11 @@ function validateDestinationAndTarget(params: {
   if (!isStayingPut) {
     const shipMap = new Map<number, true>(state.shipIds.map((id) => [id, true]));
     const attrsByShip = new Map(state.shipIds.map((id, i) => [id, state.shipAttributes[i]]));
+    // Mirrors the client's canEnterOccupiedCell (useGameplayInteraction.ts)
+    // exactly: a Ram may move onto a tile occupied by a disabled enemy ship.
+    const opponentActiveIds = shipPos.isCreator
+      ? state.joinerActiveShipIds
+      : state.creatorActiveShipIds;
     const reachable = computeMovementRange({
       gridWidth: state.gridDimensions.gridWidth,
       gridHeight: state.gridDimensions.gridHeight,
@@ -143,6 +157,11 @@ function validateDestinationAndTarget(params: {
       getShipAttributes: (id) => attrsByShip.get(id) ?? null,
       shipPositions: state.shipPositions,
       previewPosition: null,
+      canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
+        actionType === ActionType.Ram &&
+        occupyingShipId !== shipId &&
+        opponentActiveIds.includes(occupyingShipId) &&
+        attrsByShip.get(occupyingShipId)?.hullPoints === 0,
     });
     if (!reachable.some((p) => p.row === row && p.col === col)) {
       throw new GameActionError(400, "Destination out of movement range");
@@ -163,6 +182,24 @@ function validateDestinationAndTarget(params: {
       throw new GameActionError(400, "No line of sight to target");
     }
   }
+
+  if (actionType === ActionType.Ram) {
+    const targetPos = state.shipPositions.find((p) => p.shipId === targetShipId);
+    if (!targetPos) throw new GameActionError(400, "Invalid ram target");
+    if (targetPos.position.row !== row || targetPos.position.col !== col) {
+      throw new GameActionError(400, "Ram destination must be the target ship's tile");
+    }
+  }
+
+  if (actionType === ActionType.Special && (specialType === 1 || specialType === 2)) {
+    const targetPos = state.shipPositions.find((p) => p.shipId === targetShipId);
+    if (!targetPos) throw new GameActionError(400, "Invalid special target");
+    const distance = Math.abs(targetPos.position.row - row) + Math.abs(targetPos.position.col - col);
+    const range = SPECIAL_CONFIG[specialType]!.range;
+    if (distance > range) {
+      throw new GameActionError(400, "Target out of special range");
+    }
+  }
 }
 
 export async function applyGameAction(
@@ -176,7 +213,7 @@ export async function applyGameAction(
   const [game, economy] = await Promise.all([
     prisma.game.findFirst({
       where: { id: gameId, OR: [{ player1Id: userId }, { player2Id: userId }] },
-      include: { lobby: { include: { map: true } } },
+      include: { lobby: true },
     }),
     getEconomyConfig(),
   ]);
@@ -213,8 +250,10 @@ export async function applyGameAction(
     throw new GameActionError(400, "Ship not active or not yours");
   }
 
-  // Build map grids for scoring at round end + server-side range/LOS validation
-  const mapData = game.lobby.map;
+  // Build map grids for scoring at round end + server-side range/LOS
+  // validation. Cached by mapId — see getMapTiles.ts — since map tiles are
+  // static after creation but this runs on every single action submission.
+  const mapData = game.lobby.mapId ? await getMapTiles(game.lobby.mapId) : null;
   const rawScoringTiles = mapData
     ? (mapData.scoringTiles as unknown as ScoringPosition[])
     : [];
@@ -225,7 +264,7 @@ export async function applyGameAction(
     state.gridDimensions.gridHeight,
   );
 
-  validateDestinationAndTarget({ state, shipId, row, col, actionType, targetShipId, blockedGrid });
+  validateDestinationAndTarget({ state, shipId, row, col, actionType, targetShipId, specialType, blockedGrid });
 
   const now = Date.now();
   let newState: Web2GameDataView = {
@@ -358,6 +397,13 @@ export async function applyGameAction(
 
     case ActionType.Ram: {
       if (!targetShipId) throw new GameActionError(400, "Target required for ram");
+      // Must be an enemy ship, not one of the ramming player's own —
+      // ramming your own disabled ship has no legitimate use (it can only
+      // deny yourself a future reactor-tick kill credit).
+      const opponentActiveIdsForRam = isCreator ? state.joinerActiveShipIds : state.creatorActiveShipIds;
+      if (!opponentActiveIdsForRam.some((id) => id === targetShipId)) {
+        throw new GameActionError(400, "Can only ram enemy ships");
+      }
       const ramTargetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
       if (ramTargetIdx === -1) throw new GameActionError(400, "Target ship not found");
       const ramTargetAttrs = newState.shipAttributes[ramTargetIdx];
@@ -555,8 +601,16 @@ export async function applyGameAction(
   const finalWinnerId = winnerId;
 
   await prisma.$transaction(async (tx) => {
-    await tx.game.update({
-      where: { id: gameId },
+    // Optimistic concurrency check: the entire new state was computed in JS
+    // from the `game` row read at the top of this function. If another
+    // request (e.g. the same player double-submitting, or a network retry)
+    // committed a change to this game between that read and now, `updatedAt`
+    // will have moved and this conditional update matches zero rows —
+    // meaning our computed state is stale and must not be applied. Using
+    // `updateMany` (not `update`) so the row-count check is possible; the
+    // row is uniquely identified by `id` regardless.
+    const committed = await tx.game.updateMany({
+      where: { id: gameId, updatedAt: game.updatedAt },
       data: {
         state: finalState as unknown as object,
         currentTurn: finalState.turnState.currentTurn,
@@ -565,6 +619,9 @@ export async function applyGameAction(
         winnerId: finalWinnerId,
       },
     });
+    if (committed.count === 0) {
+      throw new GameActionError(409, "Game state changed — please retry");
+    }
 
     await tx.gameTurn.create({
       data: {
@@ -627,6 +684,14 @@ export async function applyGameAction(
       }
     }
   });
+
+  // A tie leaves no clear winner to advance a tournament bracket with — leave
+  // the match unresolved for the tournament creator to resolve manually
+  // (mirrors web3's admin "resolve as draw" action), matching the
+  // stats-skip above.
+  if (finalPhase === GamePhase.COMPLETED && finalWinnerId && finalWinnerId !== game.winnerId && finalWinnerId !== WEB2_TIE_SENTINEL) {
+    await resolveTournamentMatchIfApplicable(game.lobbyId, finalWinnerId);
+  }
 
   return finalState;
 }

@@ -33,6 +33,7 @@ import { switchWalletToAppChain } from "../utils/switchWalletChain";
 import { readRpcErrorCode } from "../utils/ensureUiChainsInWallet";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import { setAppMode } from "../config/appMode";
 import AuthSignIn from "./AuthSignIn";
 
@@ -550,6 +551,7 @@ const Header: React.FC = () => {
 
   const isConnected = account.isConnected;
   const { isLoggedIn: isWeb2LoggedIn } = useCurrentUser();
+  const { creditBalance } = useUserBalanceWeb2();
 
   // The hamburger/expanded panel is always reachable once hydrated so a
   // logged-out player can still find the web2 sign-in option on mobile.
@@ -704,7 +706,28 @@ const Header: React.FC = () => {
               )}
 
               {!isConnected && !isConnecting && isWeb2LoggedIn && (
-                <div className="flex items-center md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+                <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid"
+                    style={{
+                      backgroundColor: "var(--color-near-black)",
+                      borderColor: "var(--color-amber)",
+                      borderTopColor: "var(--color-steel)",
+                      borderLeftColor: "var(--color-steel)",
+                    }}
+                    title="UTC balance"
+                  >
+                    <span
+                      className="text-xs font-bold tracking-wider uppercase"
+                      style={{
+                        fontFamily:
+                          "var(--font-jetbrains-mono), 'Courier New', monospace",
+                        color: "var(--color-amber)",
+                      }}
+                    >
+                      {creditBalance} UTC
+                    </span>
+                  </div>
                   <AuthSignIn />
                 </div>
               )}

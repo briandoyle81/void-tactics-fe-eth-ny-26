@@ -168,7 +168,7 @@ export function TournamentCard({ tournamentId, onClick }: Props) {
               {label}
             </span>
             <span
-              className="text-xs font-bold text-secondary"
+              className="text-xs font-bold text-text-secondary"
               style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
             >
               {value}

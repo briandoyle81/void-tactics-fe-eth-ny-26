@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { requireAuth } from "../../../../lib/auth";
 import { GamePhase } from "../../../../generated/prisma";
+import { resolveTournamentMatchIfApplicable } from "../../../../lib/resolveTournamentMatchIfApplicable";
 
 export async function POST(
   _req: NextRequest,
@@ -60,6 +61,8 @@ export async function POST(
       ? [prisma.ship.updateMany({ where: { id: { in: allFleetShipIds } }, data: { inFleet: false } })]
       : []),
   ]);
+
+  await resolveTournamentMatchIfApplicable(game.lobbyId, winnerId);
 
   return NextResponse.json({ winnerId });
 }

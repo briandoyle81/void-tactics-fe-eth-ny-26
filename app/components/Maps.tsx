@@ -2,8 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
-import { useGetAllPresetMaps, useMapCount } from "../hooks/useMapsContract";
+import {
+  useGetAllPresetMaps,
+  useMapCount,
+  useMapsContract,
+} from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
+import { TransactionButton } from "./TransactionButton";
 import { PresetMap, GRID_DIMENSIONS } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 import { MAP_ADMIN_ADDRESS } from "../config/alpha";
@@ -12,6 +17,7 @@ export default function Maps() {
   const { address } = useAccount();
   const { data: allMapsData } = useGetAllPresetMaps();
   const { data: mapCount } = useMapCount();
+  const mapsContract = useMapsContract();
   const [showEditor, setShowEditor] = useState(false);
   const [editingMapId, setEditingMapId] = useState<number | undefined>(
     undefined
@@ -31,6 +37,11 @@ export default function Maps() {
 
   const canCreateMaps =
     address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
+
+  const editingMap = useMemo(
+    () => maps.find((m) => m.id === editingMapId),
+    [maps, editingMapId],
+  );
 
   useEffect(() => {
     const onChainChanged = () => {
@@ -88,9 +99,36 @@ export default function Maps() {
         </div>
         <MapEditor
           mapId={editingMapId}
-          onSave={handleEditorSave}
+          initialBlockedPositions={editingMap?.blockedPositions}
+          initialScoringPositions={editingMap?.scoringPositions}
+          onSaveSuccess={handleEditorSave}
           onCancel={handleEditorCancel}
           canEdit={canCreateMaps}
+          renderSaveButton={({
+            blockedPositions,
+            scoringPositions,
+            validationError,
+            onSuccess,
+          }) => (
+            <TransactionButton
+              transactionId={`map-${editingMapId ? "update" : "create"}-${
+                editingMapId ?? "new"
+              }`}
+              contractAddress={mapsContract.address}
+              abi={mapsContract.abi}
+              functionName={editingMapId ? "updatePresetMap" : "createPresetMap"}
+              args={
+                editingMapId
+                  ? [BigInt(editingMapId), blockedPositions, scoringPositions]
+                  : [blockedPositions, scoringPositions]
+              }
+              onSuccess={onSuccess}
+              validateBeforeTransaction={() => validationError ?? true}
+              className="px-4 py-2 rounded-none font-mono border border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+            >
+              {editingMapId ? "Update Map" : "Create Map"}
+            </TransactionButton>
+          )}
         />
       </div>
     );

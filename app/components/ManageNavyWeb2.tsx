@@ -24,7 +24,13 @@ import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeM
 import { FleetCompositionCardControls } from "./FleetCompositionCardControls";
 import { RecycleConfirmModal } from "./RecycleConfirmModal";
 import { RecycleConfirmButtonWeb2 } from "./RecycleConfirmButtonWeb2";
+import { RecycleLockedNotice } from "./RecycleLockedNotice";
 import { useRecycleEligibilityWeb2 } from "../hooks/useRecycleEligibilityWeb2";
+import { ManageNavyActionButton } from "./ManageNavyActionButton";
+import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
+import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
+import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
+import { useInvalidateUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 
 // Web2's fleet-composition export/import compatibility tag — there's no
 // "chain" concept in web2, so this is a fixed constant (any web2 export can
@@ -56,6 +62,8 @@ const ManageNavyWeb2: React.FC = () => {
   const [shipToRecycle, setShipToRecycle] = useState<Web2Ship | null>(null);
   const filterState = useNavyFilterState(SHIPS_PER_PAGE);
   const { starredShips, toggleStar } = useStarredShips(userId ?? "");
+  const claimFreeEligibility = useClaimFreeEligibilityWeb2();
+  const invalidateBalance = useInvalidateUserBalanceWeb2();
   const recycleEligibility = useRecycleEligibilityWeb2();
 
   const getSecondaryOptions = useCallback(
@@ -175,15 +183,7 @@ const ManageNavyWeb2: React.FC = () => {
         `Recycled ${result.recycled} ship(s)${result.creditEarned ? ` (+${result.creditEarned} UTC)` : ""}`,
       );
       setSelected(new Set());
-    });
-
-  const handleClaimFree = () =>
-    runAction("claim free ships", async () => {
-      const result = await apiMutate<{ ships: { id: number; name: string }[] }>(
-        "/api/ships/claim-free",
-        "POST",
-      );
-      toast.success(`Claimed ${result.ships.length} free ship(s)`);
+      if (result.creditEarned) invalidateBalance();
     });
 
   const handlePurchase = (tier: number, currency: "usd" | "utc") =>
@@ -195,6 +195,7 @@ const ManageNavyWeb2: React.FC = () => {
       );
       toast.success(`Purchased ${result.ships.length} ship(s)`);
       setShowShipPurchase(false);
+      if (currency === "utc") invalidateBalance();
     });
 
   const recyclableSelectedCount = Array.from(selected).filter((id) => {
@@ -215,51 +216,53 @@ const ManageNavyWeb2: React.FC = () => {
             : filteredAndSortedShips.length}{" "}
           of {ships.length} ships
         </h2>
-        <div className="flex flex-wrap gap-2">
-          <button
+      </div>
+
+      <div className="relative isolate mb-2 flex w-full flex-col items-stretch justify-center gap-4 overflow-visible md:flex-row md:flex-wrap md:items-center">
+        <div className="relative z-10 flex w-full shrink-0 flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:gap-3 md:w-auto">
+          <ManageNavyActionButton variant="green" onClick={handleConstructAll} disabled={busy}>
+            [CONSTRUCT ALL SHIPS]
+          </ManageNavyActionButton>
+
+          <ManageNavyActionButton
+            variant="cyan"
             onClick={() => setShowShipPurchase((v) => !v)}
             disabled={busy}
-            className="px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-solid disabled:opacity-40"
-            style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)", borderRadius: 0 }}
           >
-            Buy New Ships
-          </button>
-          <button
-            onClick={handleClaimFree}
-            disabled={busy}
-            className="px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-solid disabled:opacity-40"
-            style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)", borderRadius: 0 }}
-          >
-            Claim Free Ships
-          </button>
-          <button
-            onClick={handleConstructAll}
-            disabled={busy}
-            className="px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-solid disabled:opacity-40"
-            style={{ borderColor: "var(--color-phosphor-green)", color: "var(--color-phosphor-green)", borderRadius: 0 }}
-          >
-            Construct All
-          </button>
-          {selected.size > 0 && recycleEligibility.canRecycle && (
-            <button
-              onClick={handleRecycleSelected}
-              disabled={busy || recyclableSelectedCount === 0}
-              className="px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-solid disabled:opacity-40"
-              style={{ borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", borderRadius: 0 }}
-            >
-              Recycle {recyclableSelectedCount} Selected
-            </button>
-          )}
-          {selected.size > 0 && !recycleEligibility.canRecycle && (
-            <span
-              className="px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-solid opacity-50"
-              style={{ borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", borderRadius: 0 }}
-              title={`Unlocks after ${recycleEligibility.threshold} ship purchases`}
-            >
-              Recycle — Locked ({recycleEligibility.purchasedShipCount}/{recycleEligibility.threshold})
-            </span>
-          )}
+            [BUY NEW SHIPS]
+          </ManageNavyActionButton>
+
+          <ClaimFreeShipsControls
+            isLoadingClaimStatus={claimFreeEligibility.isLoadingClaimStatus}
+            error={claimFreeEligibility.claimStatusError}
+            isEligible={claimFreeEligibility.isEligible}
+            nextClaimInFormatted={claimFreeEligibility.nextClaimInFormatted}
+            claimButton={
+              <ClaimFreeButtonWeb2
+                onSuccess={() => {
+                  refetch();
+                  claimFreeEligibility.refetch();
+                }}
+              />
+            }
+          />
         </div>
+
+        {selected.size > 0 && recycleEligibility.canRecycle && (
+          <ManageNavyActionButton
+            variant="red"
+            onClick={handleRecycleSelected}
+            disabled={busy || recyclableSelectedCount === 0}
+          >
+            {`[RECYCLE ${recyclableSelectedCount} SHIPS]`}
+          </ManageNavyActionButton>
+        )}
+        {selected.size > 0 && !recycleEligibility.canRecycle && (
+          <RecycleLockedNotice
+            purchasedCount={recycleEligibility.purchasedShipCount}
+            threshold={recycleEligibility.threshold}
+          />
+        )}
       </div>
 
       <ShipPurchasePanel
@@ -375,6 +378,7 @@ const ManageNavyWeb2: React.FC = () => {
                 setShipToRecycle(null);
                 refetch();
                 recycleEligibility.refetch();
+                invalidateBalance();
               }}
             />
           )

@@ -45,7 +45,11 @@ import {
 } from "../utils/toGridDisplay";
 import { TutorialGridTaskPanel } from "./TutorialGridTaskPanel";
 import { GameBoardLayout } from "./GameBoardLayout";
-import { GameEvents } from "./GameEvents";
+import {
+  GameEvents,
+  type GameEventsLastMove,
+  type GameEventsShipInfo,
+} from "./GameEvents";
 import { getScriptedStateForTutorialStepId } from "../data/tutorialScriptedStates";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import ShipCard from "./ShipCard";
@@ -623,6 +627,37 @@ export function SimulatedGameDisplay({
     );
   }, [tutorialShipsFingerprint]);
   /* eslint-enable react-hooks/exhaustive-deps */
+
+  // GameEvents.tsx is number/string-native (shared with web2) — build a
+  // string-keyed view of shipMap for it here rather than changing the
+  // bigint-keyed shipMap used everywhere else.
+  const gameEventsShipMap = useMemo(() => {
+    const map = new Map<string, GameEventsShipInfo>();
+    shipMap.forEach((ship, id) => {
+      map.set(id.toString(), {
+        name: ship.name,
+        owner: ship.owner,
+        equipment: { special: ship.equipment.special },
+      });
+    });
+    return map;
+  }, [shipMap]);
+
+  const toGameEventsLastMove = useCallback(
+    (lm: LastMove | undefined): GameEventsLastMove | undefined =>
+      lm
+        ? {
+            shipId: lm.shipId.toString(),
+            targetShipId: lm.targetShipId.toString(),
+            oldRow: lm.oldRow,
+            oldCol: lm.oldCol,
+            newRow: lm.newRow,
+            newCol: lm.newCol,
+            actionType: lm.actionType,
+          }
+        : undefined,
+    [],
+  );
 
   // Create grids from default map (same format as real game map grids)
   const { blockedGrid, scoringGrid, onlyOnceGrid } = useMemo(
@@ -3501,8 +3536,8 @@ export function SimulatedGameDisplay({
                 ) : null}
                 {mobileLeftPanelTab === "events" ? (
                   <GameEvents
-                    lastMove={selectedShipId !== null ? undefined : lastMoveForEvents}
-                    shipMap={shipMap}
+                    lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : lastMoveForEvents)}
+                    shipMap={gameEventsShipMap}
                     address={TUTORIAL_PLAYER_ADDRESS}
                     appendDestroyedText={
                       currentStep?.id === "ship-destruction" ||
@@ -4868,8 +4903,8 @@ export function SimulatedGameDisplay({
                         </button>
                       </div>
                       <GameEvents
-                        lastMove={lastMoveForEvents}
-                        shipMap={shipMap}
+                        lastMove={toGameEventsLastMove(lastMoveForEvents)}
+                        shipMap={gameEventsShipMap}
                         address={TUTORIAL_PLAYER_ADDRESS}
                         appendDestroyedText={
                           currentStep?.id === "ship-destruction" ||
