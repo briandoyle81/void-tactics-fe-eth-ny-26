@@ -30,7 +30,9 @@ import { ManageNavyActionButton } from "./ManageNavyActionButton";
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
 import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
-import { useInvalidateUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
+import { useInvalidateUserBalanceWeb2, useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
+import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
+import { MockPurchaseConfirmModal } from "./MockPurchaseConfirmModal";
 
 // Web2's fleet-composition export/import compatibility tag — there's no
 // "chain" concept in web2, so this is a fixed constant (any web2 export can
@@ -64,7 +66,13 @@ const ManageNavyWeb2: React.FC = () => {
   const { starredShips, toggleStar } = useStarredShips(userId ?? "");
   const claimFreeEligibility = useClaimFreeEligibilityWeb2();
   const invalidateBalance = useInvalidateUserBalanceWeb2();
+  const { creditBalance } = useUserBalanceWeb2();
+  const { tiers: purchaseTiers } = usePurchaseTiersWeb2();
   const recycleEligibility = useRecycleEligibilityWeb2();
+  const [pendingShipPurchase, setPendingShipPurchase] = useState<{
+    tier: number;
+    currency: "usd" | "utc";
+  } | null>(null);
 
   const getSecondaryOptions = useCallback(
     (category: Parameters<typeof navyFilterSecondaryOptionsWeb2>[0]) =>
@@ -186,7 +194,13 @@ const ManageNavyWeb2: React.FC = () => {
       if (result.creditEarned) invalidateBalance();
     });
 
-  const handlePurchase = (tier: number, currency: "usd" | "utc") =>
+  // Ship purchases have no real payment gate (see the doc comment at the top
+  // of this file) and previously executed immediately on tier click with no
+  // confirmation step — MockPurchaseConfirmModal inserts one so the flow
+  // feels like a real checkout. `handleRequestShipPurchase` (passed as
+  // ShipPurchaseInterfaceWeb2's onPurchase) just opens the confirmation;
+  // `executeShipPurchase` is the real purchase call, only run after confirm.
+  const executeShipPurchase = (tier: number, currency: "usd" | "utc") =>
     runAction("purchase ships", async () => {
       const result = await apiMutate<{ ships: { id: number; name: string }[] }>(
         `/api/ships/purchase/${currency}`,
@@ -198,10 +212,27 @@ const ManageNavyWeb2: React.FC = () => {
       if (currency === "utc") invalidateBalance();
     });
 
+  const handleRequestShipPurchase = (tier: number, currency: "usd" | "utc") => {
+    setPendingShipPurchase({ tier, currency });
+  };
+
+  const handleConfirmShipPurchase = async () => {
+    if (!pendingShipPurchase) return;
+    await executeShipPurchase(pendingShipPurchase.tier, pendingShipPurchase.currency);
+    setPendingShipPurchase(null);
+  };
+
+  const pendingTierConfig = pendingShipPurchase
+    ? purchaseTiers.find((t) => t.tier === pendingShipPurchase.tier)
+    : undefined;
+
   const recyclableSelectedCount = Array.from(selected).filter((id) => {
     const ship = ships.find((s) => s.id === id);
     return ship && !ship.shipData.inFleet && !ship.shipData.isFree;
   }).length;
+
+  // Matches web3 ManageNavy.tsx's `fleetStats.unconstructedShips === 0` gate.
+  const hasUnconstructedShips = ships.some((s) => !s.shipData.constructed);
 
   return (
     <div className="flex flex-col gap-6">
@@ -220,7 +251,11 @@ const ManageNavyWeb2: React.FC = () => {
 
       <div className="relative isolate mb-2 flex w-full flex-col items-stretch justify-center gap-4 overflow-visible md:flex-row md:flex-wrap md:items-center">
         <div className="relative z-10 flex w-full shrink-0 flex-col gap-3 md:flex-row md:flex-nowrap md:items-center md:gap-3 md:w-auto">
-          <ManageNavyActionButton variant="green" onClick={handleConstructAll} disabled={busy}>
+          <ManageNavyActionButton
+            variant="green"
+            onClick={handleConstructAll}
+            disabled={busy || !hasUnconstructedShips}
+          >
             [CONSTRUCT ALL SHIPS]
           </ManageNavyActionButton>
 
@@ -277,10 +312,36 @@ const ManageNavyWeb2: React.FC = () => {
       >
         <ShipPurchaseInterfaceWeb2
           paymentMethod={paymentMethod}
-          onPurchase={handlePurchase}
+          onPurchase={handleRequestShipPurchase}
           busy={busy}
         />
       </ShipPurchasePanel>
+
+      <MockPurchaseConfirmModal
+        show={pendingShipPurchase !== null}
+        title="CONFIRM SHIP PURCHASE"
+        lineItems={
+          pendingTierConfig
+            ? [
+                { label: "Ships", value: String(pendingTierConfig.shipCount) },
+                { label: "Tier", value: `#${pendingTierConfig.tier}` },
+              ]
+            : []
+        }
+        totalLabel={
+          pendingTierConfig
+            ? pendingShipPurchase?.currency === "utc"
+              ? `${pendingTierConfig.priceUtc} UTC`
+              : `$${(pendingTierConfig.priceUsdCents / 100).toFixed(2)}`
+            : ""
+        }
+        paymentMethod={pendingShipPurchase?.currency ?? "usd"}
+        utcBalance={creditBalance}
+        utcBalanceAfter={creditBalance - (pendingTierConfig?.priceUtc ?? 0)}
+        isProcessing={busy}
+        onCancel={() => setPendingShipPurchase(null)}
+        onConfirm={() => void handleConfirmShipPurchase()}
+      />
 
       {isLoading && <div className="font-mono text-sm text-text-muted">Loading ships…</div>}
       {error && <div className="font-mono text-sm text-warning-red">{error}</div>}

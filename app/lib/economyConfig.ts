@@ -5,6 +5,7 @@ export type EconomyConfig = {
   recycleRewardUtc: number;
   killRewardUtc: number;
   lobbyCreationCostUtc: number;
+  reservationFeeUtc: number; // extra UTC charged when reserving a lobby for a specific player — matches web3's fixed 1 UTC reservation fee
   purchaseThresholdForRewards: number;
   freeGamesPerAddress: number; // how many lobby creations are free per user
 };
@@ -13,6 +14,7 @@ export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   recycleRewardUtc: 1,
   killRewardUtc: 1,
   lobbyCreationCostUtc: 1,
+  reservationFeeUtc: 1,
   purchaseThresholdForRewards: 10,
   freeGamesPerAddress: 1,
 };

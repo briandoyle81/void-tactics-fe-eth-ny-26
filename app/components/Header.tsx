@@ -18,6 +18,7 @@ import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import UTCPurchaseModal from "./UTCPurchaseModal";
+import UTCPurchaseModalWeb2 from "./UTCPurchaseModalWeb2";
 import {
   DEFAULT_CHAIN_ID,
   getSelectedChainId,
@@ -260,6 +261,7 @@ function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
 const Header: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
+  const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -707,15 +709,23 @@ const Header: React.FC = () => {
 
               {!isConnected && !isConnecting && isWeb2LoggedIn && (
                 <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
-                  <div
-                    className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid"
+                  <button
+                    type="button"
+                    onClick={() => setShowUTCPurchaseModalWeb2(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
                     style={{
                       backgroundColor: "var(--color-near-black)",
                       borderColor: "var(--color-amber)",
                       borderTopColor: "var(--color-steel)",
                       borderLeftColor: "var(--color-steel)",
                     }}
-                    title="UTC balance"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "var(--color-slate)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "var(--color-near-black)";
+                    }}
+                    title="UTC balance — click to buy more"
                   >
                     <span
                       className="text-xs font-bold tracking-wider uppercase"
@@ -727,7 +737,7 @@ const Header: React.FC = () => {
                     >
                       {creditBalance} UTC
                     </span>
-                  </div>
+                  </button>
                   <AuthSignIn />
                 </div>
               )}
@@ -1024,6 +1034,9 @@ const Header: React.FC = () => {
       {/* UTC Purchase Modal */}
       {showUTCPurchaseModal && (
         <UTCPurchaseModal onClose={() => setShowUTCPurchaseModal(false)} />
+      )}
+      {showUTCPurchaseModalWeb2 && (
+        <UTCPurchaseModalWeb2 onClose={() => setShowUTCPurchaseModalWeb2(false)} />
       )}
     </header>
   );

@@ -3,6 +3,10 @@
 import React, { useMemo } from "react";
 import { useAccount } from "wagmi";
 import { usePlayerGames } from "../hooks/usePlayerGames";
+import { PlayerStatsPanel } from "./PlayerStatsPanel";
+import { GameHistoryList, type GameHistoryRowData } from "./GameHistoryList";
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const Profile: React.FC = () => {
   const { address, isConnected } = useAccount();
@@ -11,13 +15,11 @@ const Profile: React.FC = () => {
   // Calculate statistics from finished games
   const stats = useMemo(() => {
     if (!address || !games.length) {
-      return { wins: 0, losses: 0, inProgress: 0, winRate: 0 };
+      return { wins: 0, losses: 0, inProgress: 0, winRate: 0, total: 0 };
     }
 
     const finishedGames = games.filter(
-      (game) =>
-        game.metadata.winner !==
-        "0x0000000000000000000000000000000000000000"
+      (game) => game.metadata.winner !== ZERO_ADDRESS
     );
 
     const wins = finishedGames.filter(
@@ -31,16 +33,14 @@ const Profile: React.FC = () => {
         ? Math.round((wins / finishedGames.length) * 100)
         : 0;
 
-    return { wins, losses, inProgress, winRate };
+    return { wins, losses, inProgress, winRate, total: games.length };
   }, [games, address]);
 
   // Sort games: finished first (by startedAt desc), then in progress
   const sortedGames = useMemo(() => {
     return [...games].sort((a, b) => {
-      const aFinished =
-        a.metadata.winner !== "0x0000000000000000000000000000000000000000";
-      const bFinished =
-        b.metadata.winner !== "0x0000000000000000000000000000000000000000";
+      const aFinished = a.metadata.winner !== ZERO_ADDRESS;
+      const bFinished = b.metadata.winner !== ZERO_ADDRESS;
 
       if (aFinished && !bFinished) return -1;
       if (!aFinished && bFinished) return 1;
@@ -50,39 +50,6 @@ const Profile: React.FC = () => {
     });
   }, [games]);
 
-  const getGameOutcome = (game: typeof games[0]) => {
-    if (
-      game.metadata.winner === "0x0000000000000000000000000000000000000000"
-    ) {
-      return { text: "IN PROGRESS", color: "text-amber" };
-    }
-    if (address && game.metadata.winner.toLowerCase() === address.toLowerCase()) {
-      return { text: "VICTORY", color: "text-phosphor-green" };
-    }
-    return { text: "DEFEAT", color: "text-warning-red" };
-  };
-
-  const getPlayerScore = (game: typeof games[0]) => {
-    if (!address) return null;
-    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
-    return isCreator ? game.creatorScore : game.joinerScore;
-  };
-
-  const getOpponentAddress = (game: typeof games[0]) => {
-    if (!address) return null;
-    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
-    const opponent = isCreator ? game.metadata.joiner : game.metadata.creator;
-    return `${opponent.slice(0, 6)}…${opponent.slice(-4)}`;
-  };
-
-  const getActiveShips = (game: typeof games[0]) => {
-    if (!address) return null;
-    const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
-    return isCreator
-      ? game.creatorActiveShipIds.length
-      : game.joinerActiveShipIds.length;
-  };
-
   const formatDate = (timestamp: bigint) => {
     const date = new Date(Number(timestamp) * 1000);
     return date.toLocaleDateString("en-US", {
@@ -91,6 +58,35 @@ const Profile: React.FC = () => {
       year: "numeric",
     });
   };
+
+  const historyRows: GameHistoryRowData[] = useMemo(() => {
+    if (!address) return [];
+    return sortedGames.map((game) => {
+      const isCreator = game.metadata.creator.toLowerCase() === address.toLowerCase();
+      const inProgress = game.metadata.winner === ZERO_ADDRESS;
+      const outcome = inProgress
+        ? { text: "IN PROGRESS", color: "text-amber" }
+        : game.metadata.winner.toLowerCase() === address.toLowerCase()
+        ? { text: "VICTORY", color: "text-phosphor-green" }
+        : { text: "DEFEAT", color: "text-warning-red" };
+      const opponent = isCreator ? game.metadata.joiner : game.metadata.creator;
+
+      return {
+        id: game.metadata.gameId.toString(),
+        outcomeText: outcome.text,
+        outcomeColor: outcome.color,
+        dateLabel: formatDate(game.metadata.startedAt),
+        opponentLabel: `${opponent.slice(0, 6)}…${opponent.slice(-4)}`,
+        playerScore: Number(isCreator ? game.creatorScore : game.joinerScore),
+        maxScore: Number(game.maxScore),
+        round: Number(game.turnState.currentRound),
+        activeShips: isCreator
+          ? game.creatorActiveShipIds.length
+          : game.joinerActiveShipIds.length,
+        inProgress,
+      };
+    });
+  }, [sortedGames, address]);
 
   const navigateToGame = (gameId: string) => {
     if (!address) return;
@@ -104,137 +100,17 @@ const Profile: React.FC = () => {
       <h3 className="text-2xl font-bold mb-6 tracking-wider text-center">
         [PROFILE]
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div
-          className="corner-bracket border bg-black/40 p-4"
-          style={{ borderColor: "var(--color-cyan)", borderRadius: 0 }}
-        >
-          <h4 className="text-lg font-bold text-cyan mb-2 tracking-widest">
-            [STATISTICS]
-          </h4>
-          {isConnected ? (
-            <div className="space-y-0 mt-2">
-              <div className="data-readout">
-                <span className="data-readout-label">Wins</span>
-                <span className="font-bold text-phosphor-green font-mono text-xs">{stats.wins}</span>
-              </div>
-              <div className="data-readout">
-                <span className="data-readout-label">Losses</span>
-                <span className="font-bold text-warning-red font-mono text-xs">{stats.losses}</span>
-              </div>
-              <div className="data-readout">
-                <span className="data-readout-label">Win Rate</span>
-                <span className="font-bold font-mono text-xs">{stats.winRate}%</span>
-              </div>
-              {stats.inProgress > 0 && (
-                <div className="data-readout">
-                  <span className="data-readout-label">In Progress</span>
-                  <span className="font-bold text-amber font-mono text-xs">{stats.inProgress}</span>
-                </div>
-              )}
-              <div className="data-readout">
-                <span className="data-readout-label">Total</span>
-                <span className="font-mono text-xs opacity-60">{games.length}</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm font-mono opacity-80 tracking-wider">
-              // Connect wallet to view statistics
-            </p>
-          )}
-        </div>
-        <div
-          className="corner-bracket corner-bracket-purple border border-purple bg-black/40 p-4"
-          style={{ borderRadius: 0 }}
-        >
-          <h4 className="text-lg font-bold text-purple mb-2 tracking-widest">
-            [ACHIEVEMENTS]
-          </h4>
-          <p className="text-sm font-mono opacity-50 tracking-wider">Operational tracking coming in a future update.</p>
-        </div>
-      </div>
-
-      {/* Game History */}
-      {isConnected && (
-        <div
-          className="corner-bracket border bg-black/40 p-4"
-          style={{ borderColor: "var(--color-cyan)", borderRadius: 0 }}
-        >
-          <h4 className="text-lg font-bold text-cyan mb-4 tracking-widest">
-            [ENGAGEMENT HISTORY]
-          </h4>
-          {isLoading ? (
-            <p className="text-sm font-mono text-text-muted animate-pulse tracking-widest">&gt;&gt; RETRIEVING RECORDS...</p>
-          ) : sortedGames.length === 0 ? (
-            <p className="text-sm font-mono text-text-muted">[NO RECORDS FOUND]</p>
-          ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {sortedGames.map((game) => {
-                const outcome = getGameOutcome(game);
-                const playerScore = getPlayerScore(game);
-                const opponent = getOpponentAddress(game);
-                const activeShips = getActiveShips(game);
-                const round = Number(game.turnState.currentRound);
-                const inProgress = game.metadata.winner === "0x0000000000000000000000000000000000000000";
-                return (
-                  <div
-                    key={game.metadata.gameId.toString()}
-                    className="border border-gunmetal bg-black/20 px-3 py-2 text-xs cursor-pointer transition-colors duration-100 hover:border-cyan hover:bg-black/40"
-                    style={{ borderRadius: 0 }}
-                    onClick={() => navigateToGame(game.metadata.gameId.toString())}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigateToGame(game.metadata.gameId.toString()); }}
-                  >
-                    {/* Row 1: ID, outcome, date */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono font-bold shrink-0">
-                          Game #{game.metadata.gameId.toString()}
-                        </span>
-                        <span className={`font-bold shrink-0 ${outcome.color}`}>
-                          [{outcome.text}]
-                        </span>
-                      </div>
-                      <span className="opacity-50 shrink-0">
-                        {formatDate(game.metadata.startedAt)}
-                      </span>
-                    </div>
-                    {/* Row 1b: opponent (own line so it never crowds the ID/outcome) */}
-                    {opponent && (
-                      <div className="mt-0.5 opacity-50 font-mono">
-                        vs {opponent}
-                      </div>
-                    )}
-                    {/* Row 2: score, round, ships */}
-                    <div className="flex items-center gap-4 mt-1 opacity-70">
-                      {playerScore !== null && (
-                        <span className="font-mono">
-                          <span className="opacity-60">score </span>
-                          <span className="font-bold">{playerScore.toString()}</span>
-                          <span className="opacity-60"> / {game.maxScore.toString()}</span>
-                        </span>
-                      )}
-                      {round > 0 && (
-                        <span className="font-mono">
-                          <span className="opacity-60">rnd </span>
-                          <span className="font-bold">{round}</span>
-                        </span>
-                      )}
-                      {activeShips !== null && inProgress && (
-                        <span className="font-mono">
-                          <span className="opacity-60">ships </span>
-                          <span className="font-bold">{activeShips}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      <PlayerStatsPanel
+        isSignedIn={isConnected}
+        signInPrompt="// Connect wallet to view statistics"
+        stats={stats}
+      />
+      <GameHistoryList
+        isSignedIn={isConnected}
+        isLoading={isLoading}
+        rows={historyRows}
+        onRowClick={navigateToGame}
+      />
     </div>
   );
 };

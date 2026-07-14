@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { stringifyWithBigint } from "@/app/lib/bigintJson";
 import { Web2Lobby, Web2LobbyStatus } from "@/app/types/web2Lobby";
 import { getEconomyConfig } from "@/app/lib/economyConfig";
+import { getLobbySettings } from "@/app/lib/lobbySettings";
 import { InsufficientBalanceError } from "@/app/lib/InsufficientBalanceError";
 
 function dbLobbyToLobby(db: {
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
     creatorGoesFirst = true,
     selectedMapId = null,
     maxScore = 3,
+    reservedJoinerEmail = null,
   } = body;
 
   if (!Number.isInteger(turnTimeSeconds) || turnTimeSeconds < 60 || turnTimeSeconds > 86400) {
@@ -111,12 +113,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "costLimit must be between 500 and 3000" }, { status: 400 });
   }
 
-  const [economy, user] = await Promise.all([
+  const [economy, lobbySettings, user] = await Promise.all([
     getEconomyConfig(),
+    getLobbySettings(),
     prisma.user.findUnique({ where: { id: userId! } }),
   ]);
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Admin kill-switch — mirrors web3's LobbyManager `paused` revert.
+  if (lobbySettings.paused) {
+    return NextResponse.json({ error: "Lobby creation is currently paused" }, { status: 403 });
+  }
 
   // Enforce kick timeout
   if (user.kickTimeoutUntil && user.kickTimeoutUntil > new Date()) {
@@ -126,8 +134,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let reservedJoinerId: string | null = null;
+  if (typeof reservedJoinerEmail === "string" && reservedJoinerEmail.trim()) {
+    const reservedUser = await prisma.user.findUnique({
+      where: { email: reservedJoinerEmail.trim() },
+      select: { id: true },
+    });
+    if (!reservedUser) {
+      return NextResponse.json({ error: "No player found with that email" }, { status: 404 });
+    }
+    if (reservedUser.id === userId) {
+      return NextResponse.json({ error: "Cannot reserve a lobby for yourself" }, { status: 400 });
+    }
+    reservedJoinerId = reservedUser.id;
+  }
+
   const isFreeCreate = user.lobbiesCreatedCount < economy.freeGamesPerAddress;
-  if (!isFreeCreate && user.creditBalance < economy.lobbyCreationCostUtc) {
+  const creationCost = (isFreeCreate ? 0 : economy.lobbyCreationCostUtc) + (reservedJoinerId ? economy.reservationFeeUtc : 0);
+  if (creationCost > 0 && user.creditBalance < creationCost) {
     return NextResponse.json({ error: "Insufficient UTC balance" }, { status: 402 });
   }
 
@@ -140,11 +164,11 @@ export async function POST(req: NextRequest) {
       const debited = await tx.user.updateMany({
         where: {
           id: userId!,
-          ...(isFreeCreate ? {} : { creditBalance: { gte: economy.lobbyCreationCostUtc } }),
+          ...(creationCost > 0 ? { creditBalance: { gte: creationCost } } : {}),
         },
         data: {
           lobbiesCreatedCount: { increment: 1 },
-          ...(isFreeCreate ? {} : { creditBalance: { decrement: economy.lobbyCreationCostUtc } }),
+          ...(creationCost > 0 ? { creditBalance: { decrement: creationCost } } : {}),
         },
       });
       if (debited.count === 0) throw new InsufficientBalanceError();
@@ -157,6 +181,7 @@ export async function POST(req: NextRequest) {
           creatorGoesFirst: Boolean(creatorGoesFirst),
           mapId: selectedMapId ? Number(selectedMapId) : null,
           maxScore: Number(maxScore),
+          reservedJoinerId,
           status: "OPEN",
         },
       });

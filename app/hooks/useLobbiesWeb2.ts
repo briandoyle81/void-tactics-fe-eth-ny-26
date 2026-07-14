@@ -21,6 +21,7 @@ export interface CreateLobbyParams {
   creatorGoesFirst?: boolean;
   selectedMapId?: number | null;
   maxScore?: number;
+  reservedJoinerEmail?: string;
 }
 
 export interface LobbyListStateWeb2 {
@@ -35,6 +36,8 @@ interface PlayerLobbyStateWeb2 {
   lobbiesCreatedCount: number;
   freeGamesPerAddress: number;
   lobbyCreationCostUtc: number;
+  reservationFeeUtc: number;
+  paused: boolean;
 }
 
 async function fetchPlayerState(): Promise<PlayerLobbyStateWeb2> {
@@ -64,11 +67,12 @@ export function useLobbiesWeb2() {
 
   const createLobby = useCallback(async (params: CreateLobbyParams) => {
     await apiMutate("/api/lobbies", "POST", {
-      costLimit:        params.costLimit ?? 0,
-      turnTimeSeconds:  params.turnTimeSeconds ?? 120,
-      creatorGoesFirst: params.creatorGoesFirst ?? true,
-      selectedMapId:    params.selectedMapId ?? null,
-      maxScore:         params.maxScore ?? 3,
+      costLimit:           params.costLimit ?? 0,
+      turnTimeSeconds:     params.turnTimeSeconds ?? 120,
+      creatorGoesFirst:    params.creatorGoesFirst ?? true,
+      selectedMapId:       params.selectedMapId ?? null,
+      maxScore:            params.maxScore ?? 3,
+      reservedJoinerEmail: params.reservedJoinerEmail?.trim() || null,
     });
     await invalidateLobbies();
     // Lobby creation may cost UTC (see lobbyCreationCostUtc / isFreeCreate
@@ -136,6 +140,8 @@ export function useLobbiesWeb2() {
 
   const freeGamesPerAddress = playerStateData?.freeGamesPerAddress ?? 1;
   const lobbyCreationCostUtc = playerStateData?.lobbyCreationCostUtc ?? 0;
+  const reservationFeeUtc = playerStateData?.reservationFeeUtc ?? 0;
+  const paused = playerStateData?.paused ?? false;
   const kickTimeoutUntilMs = playerStateData?.kickTimeoutUntil
     ? new Date(playerStateData.kickTimeoutUntil).getTime()
     : 0;
@@ -161,5 +167,7 @@ export function useLobbiesWeb2() {
     lobbyCount: lobbies.length,
     freeGamesPerAddress,
     lobbyCreationCostUtc,
+    reservationFeeUtc,
+    paused,
   };
 }

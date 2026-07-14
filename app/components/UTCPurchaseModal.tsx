@@ -3,6 +3,7 @@
 import React from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { UTCPurchaseButton } from "./UTCPurchaseButton";
+import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
@@ -92,54 +93,27 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-near-black border-2 p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto rounded-none" style={{ borderColor: "var(--color-cyan)" }}>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-cyan font-mono tracking-wider">
-            [PURCHASE UTC]
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-cyan hover:text-cyan/80 transition-all duration-200 text-2xl font-bold"
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="mb-5 p-4 bg-cyan/10 border border-cyan/40 rounded-none">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-cyan/80 text-sm font-mono">Current UTC balance</p>
-            <p className="text-cyan text-sm font-mono font-bold">
-              {utcBalance
-                ? `${formatEther(utcBalance as bigint)} UTC`
-                : "0.00 UTC"}
-            </p>
-          </div>
-          <p className="text-cyan/85 text-xs font-mono leading-relaxed">
-            Universal Credits (UTC) are the in-game balance token. Buy UTC with
-            TOKENS at a 1:1 rate, then spend UTC when you reserve games or
-            check out ship packs elsewhere. This purchase only adds UTC to your
-            wallet.
-          </p>
-        </div>
-
-        <header className="mb-5 border-b border-cyan/25 pb-4">
-          <h3
-            className="text-lg font-black uppercase tracking-[0.1em] text-cyan sm:text-xl"
-            style={{
-              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-            }}
-          >
-            Choose an amount
-          </h3>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-text-secondary font-mono">
-            Each option is a fixed {nativeTokenSymbol} payment. You receive the
-            same amount in UTC. Larger options are for convenience only, not a
-            different product.
-          </p>
-        </header>
-
+    <UTCPurchaseModalShell
+      onClose={onClose}
+      balanceValueLabel={
+        utcBalance ? `${formatEther(utcBalance as bigint)} UTC` : "0.00 UTC"
+      }
+      balanceDescription={
+        <>
+          Universal Credits (UTC) are the in-game balance token. Buy UTC with
+          TOKENS at a 1:1 rate, then spend UTC when you reserve games or
+          check out ship packs elsewhere. This purchase only adds UTC to your
+          wallet.
+        </>
+      }
+      chooseAmountDescription={
+        <>
+          Each option is a fixed {nativeTokenSymbol} payment. You receive the
+          same amount in UTC. Larger options are for convenience only, not a
+          different product.
+        </>
+      }
+    >
         {!purchaserDeployed ? (
           <p className="text-center text-warning-red font-mono py-6">
             ShipPurchaser is not deployed on this network.
@@ -199,8 +173,7 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
           })}
         </div>
         )}
-      </div>
-    </div>
+    </UTCPurchaseModalShell>
   );
 };
 

@@ -8,6 +8,7 @@ import type { Abi } from "viem";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { getNativeTokenSymbol } from "../config/networks";
 import { TransactionButton } from "./TransactionButton";
+import { PurchaseTierTable, type PurchaseTierRowData } from "./PurchaseTierTable";
 import { useShipPurchasePricesAccess } from "../hooks/useShipPurchasePricesAccess";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
@@ -352,65 +353,31 @@ const ShipPurchasePrices: React.FC = () => {
         {config.belowSubtitle ? (
           <div className="mb-4">{config.belowSubtitle}</div>
         ) : null}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm font-mono text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gunmetal text-text-muted">
-                <th className="py-2 pr-4">Tier</th>
-                <th className="py-2 pr-4">Ships / pack</th>
-                <th className="py-2">Price ({config.priceLabel})</th>
-              </tr>
-            </thead>
-            <tbody>
-              {config.tierIndices.map((tier, i) => (
-                <tr key={tier} className="border-b border-gunmetal/80">
-                  <td className="py-2 pr-4 text-cyan">{tier}</td>
-                  <td className="py-2 pr-4">
-                    {config.canEdit ? (
-                      <input
-                        type="number"
-                        min={0}
-                        max={255}
-                        value={config.ships[i] ?? 0}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          config.setShips((prev) => {
-                            const next = [...prev];
-                            next[i] = v === "" ? 0 : Number(v);
-                            return next;
-                          });
-                        }}
-                        className="w-24 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none"
-                      />
-                    ) : (
-                      <span className="text-text-primary">{config.ships[i]}</span>
-                    )}
-                  </td>
-                  <td className="py-2">
-                    {config.canEdit ? (
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={config.prices[i] ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          config.setPrices((prev) => {
-                            const next = [...prev];
-                            next[i] = v;
-                            return next;
-                          });
-                        }}
-                        className="w-full max-w-[14rem] px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none"
-                      />
-                    ) : (
-                      <span className="text-text-primary">{config.prices[i]}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PurchaseTierTable
+          editable={config.canEdit}
+          rows={config.tierIndices.map((tier, i): PurchaseTierRowData => ({
+            tierLabel: String(tier),
+            shipCount: config.ships[i] ?? 0,
+            onShipCountChange: (value) =>
+              config.setShips((prev) => {
+                const next = [...prev];
+                next[i] = value;
+                return next;
+              }),
+            prices: [
+              {
+                currencyLabel: config.priceLabel,
+                value: config.prices[i] ?? "",
+                onChange: (value) =>
+                  config.setPrices((prev) => {
+                    const next = [...prev];
+                    next[i] = value;
+                    return next;
+                  }),
+              },
+            ],
+          }))}
+        />
         {config.canEdit ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <TransactionButton

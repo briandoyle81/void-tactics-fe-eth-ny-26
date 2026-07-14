@@ -8,7 +8,7 @@ import {
   getArmorName,
   getShieldName,
 } from "../types/types";
-import { getRankColor } from "../utils/shipLevel";
+import { getRankColor, getRankColorVar } from "../utils/shipLevel";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { Attributes } from "../types/types";
 import type { ShipCardData } from "../types/shipCardData";
@@ -96,84 +96,6 @@ const ShipCard: React.FC<ShipCardProps> = ({
       ? "var(--color-cyan)"
       : "var(--color-warning-red)"
     : "var(--color-gunmetal)";
-  // Determine border class based on selection mode and ship state
-  const getBorderClass = () => {
-    const isInGameView = tooltipMode || gameViewMode;
-    const isDisabledInGame =
-      showInGameProperties &&
-      inGameAttributes &&
-      !data.isDestroyed &&
-      inGameAttributes.hullPoints === 0;
-
-    if (isInGameView && isDisabledInGame) {
-      return tooltipMode
-        ? "border-steel bg-near-black"
-        : "border-steel bg-near-black";
-    }
-
-    // Reactor critical status takes priority (for game view)
-    if (reactorCriticalStatus === "critical") {
-      return "border-warning-red bg-near-black";
-    }
-    if (reactorCriticalStatus === "warning") {
-      return "border-amber bg-near-black";
-    }
-
-    // Game view (tooltip or Ship Details): blue for current player, red for opponent
-    if (isInGameView && data.isConstructed && !data.isDestroyed) {
-      if (!isCurrentPlayerShip && hasMoved) {
-        return tooltipMode
-          ? "border-steel bg-near-black"
-          : "border-steel bg-near-black";
-      }
-      return tooltipMode
-        ? isCurrentPlayerShip
-          ? "border-cyan bg-near-black"
-          : "border-warning-red bg-near-black"
-        : isCurrentPlayerShip
-        ? "border-cyan bg-cyan/20"
-        : "border-warning-red bg-warning-red/20";
-    }
-
-    if (selectionMode && isSelected) {
-      return tooltipMode
-        ? "border-phosphor-green bg-near-black"
-        : "border-phosphor-green bg-phosphor-green/20";
-    }
-    if (data.isDestroyed) {
-      return tooltipMode
-        ? "border-warning-red bg-near-black"
-        : "border-warning-red bg-black/60";
-    }
-    if (data.inFleet) {
-      return tooltipMode
-        ? "border-amber bg-near-black"
-        : "border-amber bg-amber/20";
-    }
-    if (costsVersionStale && data.isConstructed && !data.isDestroyed && !data.inFleet) {
-      return tooltipMode
-        ? "border-amber bg-near-black"
-        : "border-amber bg-amber/20";
-    }
-    if (data.isConstructed) {
-      if (selectionMode) {
-        return tooltipMode
-          ? canSelect
-            ? "border-steel bg-near-black"
-            : "border-steel bg-near-black opacity-50 cursor-not-allowed"
-          : canSelect
-          ? "border-steel bg-black/40 hover:border-cyan hover:bg-cyan/10"
-          : "border-steel bg-black/40 opacity-50 cursor-not-allowed";
-      }
-      return tooltipMode
-        ? "border-phosphor-green bg-near-black"
-        : "border-phosphor-green bg-black/40";
-    }
-    return tooltipMode
-      ? "border-steel bg-near-black"
-      : "border-steel bg-black/60";
-  };
-
   const handleCardClick = () => {
     if (selectionMode && onCardClick && canSelect) {
       onCardClick();
@@ -247,14 +169,6 @@ const ShipCard: React.FC<ShipCardProps> = ({
         backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
       };
     }
-    if (data.inFleet) {
-      return {
-        borderColor: "var(--color-amber)",
-        borderTopColor: "var(--color-amber)",
-        borderLeftColor: "var(--color-amber)",
-        backgroundColor: tooltipMode ? "var(--color-slate)" : "var(--color-near-black)",
-      };
-    }
     if (costsVersionStale && data.isConstructed && !data.isDestroyed && !data.inFleet) {
       return {
         borderColor: "var(--color-amber)",
@@ -273,11 +187,19 @@ const ShipCard: React.FC<ShipCardProps> = ({
           opacity: canSelect ? 1 : 0.5,
         };
       }
+      // Rank-colored border (matches the R{rank} badge and purchase-tier
+      // colors — see getRankColorVar). In-fleet ships keep this same color
+      // rather than switching to amber; the card is dimmed instead so
+      // "in fleet" reads as a card-level state, not a rank-colored one.
+      // The amber "IN FLEET" status text elsewhere on the card is unrelated
+      // and unchanged.
+      const rankColor = getRankColorVar(data.rank);
       return {
-        borderColor: "var(--color-phosphor-green)",
-        borderTopColor: "var(--color-phosphor-green)",
-        borderLeftColor: "var(--color-phosphor-green)",
+        borderColor: rankColor,
+        borderTopColor: rankColor,
+        borderLeftColor: rankColor,
         backgroundColor: "var(--color-near-black)",
+        opacity: data.inFleet ? 0.5 : 1,
       };
     }
     return {

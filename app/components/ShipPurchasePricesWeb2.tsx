@@ -6,6 +6,7 @@ import { apiMutate } from "../lib/apiMutate";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
 import type { PurchaseTier } from "../lib/purchaseTiers";
+import { PurchaseTierTable, type PurchaseTierRowData } from "./PurchaseTierTable";
 
 // Web2-mode counterpart to `ShipPurchasePrices.tsx` — same tier-table
 // editing UX, but for the DB-backed `purchase_tiers` Config row (via
@@ -98,68 +99,30 @@ const ShipPurchasePricesWeb2: React.FC = () => {
         {isLoading && draft.length === 0 ? (
           <p className="text-text-muted text-sm font-mono">Loading…</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm font-mono text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gunmetal text-text-muted">
-                  <th className="py-2 pr-4">Tier</th>
-                  <th className="py-2 pr-4">Ships / pack</th>
-                  <th className="py-2 pr-4">Price (USD)</th>
-                  <th className="py-2">Price (UTC)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.map((t, i) => (
-                  <tr key={t.tier} className="border-b border-gunmetal/80">
-                    <td className="py-2 pr-4 text-cyan">{t.tier}</td>
-                    <td className="py-2 pr-4">
-                      <input
-                        type="number"
-                        min={0}
-                        max={255}
-                        value={t.shipCount}
-                        onChange={(e) =>
-                          updateRow(i, {
-                            shipCount: Number(e.target.value) || 0,
-                          })
-                        }
-                        className="w-24 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none"
-                      />
-                    </td>
-                    <td className="py-2 pr-4">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={(t.priceUsdCents / 100).toFixed(2)}
-                        onChange={(e) =>
-                          updateRow(i, {
-                            priceUsdCents: Math.round(
-                              (Number(e.target.value) || 0) * 100,
-                            ),
-                          })
-                        }
-                        className="w-28 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none"
-                      />
-                    </td>
-                    <td className="py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        value={t.priceUtc}
-                        onChange={(e) =>
-                          updateRow(i, {
-                            priceUtc: Number(e.target.value) || 0,
-                          })
-                        }
-                        className="w-28 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PurchaseTierTable
+            editable
+            rows={draft.map((t, i): PurchaseTierRowData => ({
+              tierLabel: String(t.tier),
+              shipCount: t.shipCount,
+              onShipCountChange: (value) => updateRow(i, { shipCount: value }),
+              prices: [
+                {
+                  currencyLabel: "USD",
+                  value: (t.priceUsdCents / 100).toFixed(2),
+                  onChange: (value) =>
+                    updateRow(i, {
+                      priceUsdCents: Math.round((Number(value) || 0) * 100),
+                    }),
+                },
+                {
+                  currencyLabel: "UTC",
+                  value: String(t.priceUtc),
+                  onChange: (value) =>
+                    updateRow(i, { priceUtc: Number(value) || 0 }),
+                },
+              ],
+            }))}
+          />
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button

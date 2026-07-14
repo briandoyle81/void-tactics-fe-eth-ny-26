@@ -7,7 +7,8 @@ import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { MapEditor } from "./MapEditor";
-import { MapPosition, ScoringPosition, GRID_DIMENSIONS } from "../types/types";
+import { MapPreviewCard } from "./MapPreviewCard";
+import { MapPosition, ScoringPosition } from "../types/types";
 
 interface Web2Map {
   id: number;
@@ -217,85 +218,16 @@ export default function MapsWeb2() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {maps.map((map) => (
-            <div
+            <MapPreviewCard
               key={map.id}
-              className="bg-steel rounded-none p-4 border border-gunmetal"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-mono text-white">
-                  Map #{map.id} — {map.name}
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditMap(map)}
-                    className="px-3 py-1 border border-cyan text-cyan rounded-none text-sm font-mono hover:bg-cyan/10"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm text-text-secondary">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple border border-gunmetal"></div>
-                  <span>Blocked tiles: {map.blockedTiles.length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-phosphor-green border border-gunmetal"></div>
-                  <span>Scoring tiles: {map.scoringTiles.length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-amber border border-gunmetal"></div>
-                  <span>
-                    Once-only tiles:{" "}
-                    {map.scoringTiles.filter((p) => p.onlyOnce).length}
-                  </span>
-                </div>
-              </div>
-
-              {/* Mini preview */}
-              <div className="mt-3 p-2 bg-near-black rounded-none">
-                <div className="text-xs text-text-muted mb-1">
-                  Preview ({GRID_DIMENSIONS.WIDTH}x{GRID_DIMENSIONS.HEIGHT}):
-                </div>
-                <div
-                  className="grid gap-px w-full"
-                  style={{
-                    gridTemplateColumns: `repeat(${GRID_DIMENSIONS.WIDTH}, 1fr)`,
-                  }}
-                >
-                  {Array.from({ length: GRID_DIMENSIONS.HEIGHT }, (_, row) =>
-                    Array.from({ length: GRID_DIMENSIONS.WIDTH }, (_, col) => {
-                      const isBlocked = map.blockedTiles.some(
-                        (p) => p.row === row && p.col === col,
-                      );
-                      const scoringPos = map.scoringTiles.find(
-                        (p) => p.row === row && p.col === col,
-                      );
-                      const isScoring = scoringPos !== undefined;
-                      const isOnlyOnce = scoringPos?.onlyOnce || false;
-
-                      let className = "aspect-square border border-gunmetal";
-                      if (isBlocked && isScoring) {
-                        className += " bg-warning-red";
-                      } else if (isBlocked) {
-                        className += " bg-purple";
-                      } else if (isScoring) {
-                        className += isOnlyOnce
-                          ? " bg-amber"
-                          : " bg-phosphor-green";
-                      } else {
-                        className += " bg-near-black";
-                      }
-
-                      return (
-                        <div key={`${row}-${col}`} className={className} />
-                      );
-                    }),
-                  )}
-                </div>
-              </div>
-            </div>
+              map={{
+                id: map.id,
+                titleLabel: `Map #${map.id} — ${map.name}`,
+                blockedPositions: map.blockedTiles,
+                scoringPositions: map.scoringTiles,
+              }}
+              onEdit={() => handleEditMap(map)}
+            />
           ))}
         </div>
       )}

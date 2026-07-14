@@ -13,12 +13,17 @@ import { findNextDeploymentPosition } from "../utils/mapGridUtils";
 import { GRID_DIMENSIONS } from "../types/types";
 import { useFleetViewWeb2 } from "../hooks/useFleetViewWeb2";
 import { FleetViewModal } from "./FleetViewModal";
-import { FleetFilterPanel } from "./FleetFilterPanel";
+import { FleetSelectionModal } from "./FleetSelectionModal";
+import { LobbyCreateSection } from "./LobbyCreateSection";
 import { type FleetFilters, DEFAULT_FLEET_FILTERS, matchesFleetFilters } from "../utils/fleetFilters";
 import { LoadFleetMenu, type FleetLoadPlan } from "./LoadFleetMenu";
 import { readFleetCompositionPersisted, type FleetComposition } from "../utils/fleetCompositionStorage";
-import { Web2Lobby, Web2LobbyStatus } from "../types/web2Lobby";
+import { Web2LobbyStatus } from "../types/web2Lobby";
 import { LobbyCard } from "./LobbyCard";
+import { usePlayerStatsWeb2 } from "../hooks/usePlayerStatsWeb2";
+import { useShipAttributesByIdsWeb2 } from "../hooks/useShipAttributesByIdsWeb2";
+import { useWeb2Admin } from "../hooks/useWeb2Admin";
+import { useLobbyPauseAdminWeb2 } from "../hooks/useLobbyPauseAdminWeb2";
 import {
   LobbyCreateForm,
   LobbyTurnOrderNote,
@@ -83,6 +88,28 @@ function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
 }
 
+/** Web2-mode counterpart to `Lobbies.tsx`'s inline `CreatorStats` — same
+ * W/L badge, backed by usePlayerStatsWeb2 instead of an on-chain read. */
+function CreatorStatsWeb2({ userId }: { userId: string }) {
+  const stats = usePlayerStatsWeb2(userId);
+  if (!stats) return null;
+  return (
+    <div
+      className="flex items-center gap-2 text-base font-bold tabular-nums"
+      style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
+    >
+      <span className="text-phosphor-green">{stats.wins}W</span>
+      <span
+        className="text-[10px] font-normal"
+        style={{ color: "color-mix(in srgb, var(--color-text-muted) 40%, transparent)" }}
+      >
+        /
+      </span>
+      <span className="text-warning-red">{stats.losses}L</span>
+    </div>
+  );
+}
+
 // Web2-mode counterpart to `Lobbies.tsx`. Lobby browse/create/join/leave,
 // fleet selection with ship+starting-position picking (via the shared
 // MapDisplayView, same click/drag/tap-to-place mechanics as web3), reject a
@@ -92,7 +119,7 @@ function truncateId(id: string): string {
 // but there is no web2 GameDisplay yet to actually play it.
 
 const LobbiesWeb2: React.FC = () => {
-  const { userId } = useCurrentUser();
+  const { userId, email: currentUserEmail } = useCurrentUser();
   const {
     lobbyList,
     loadLobbies,
@@ -104,12 +131,34 @@ const LobbiesWeb2: React.FC = () => {
     rejectGame,
     timeoutJoiner,
     quitWithPenalty,
+    playerState,
+    freeGamesPerAddress,
+    lobbyCreationCostUtc,
+    reservationFeeUtc,
+    paused,
   } = useLobbiesWeb2();
-  const { ships } = useOwnedShipsWeb2();
+  const { ships, isLoading: shipsLoading } = useOwnedShipsWeb2();
+  const isAdmin = useWeb2Admin();
+  const { setPaused } = useLobbyPauseAdminWeb2();
+  const [pauseToggleBusy, setPauseToggleBusy] = useState(false);
+  const handleTogglePaused = async () => {
+    setPauseToggleBusy(true);
+    try {
+      await setPaused(!paused);
+      toast.success(paused ? "Lobby creation resumed" : "Lobby creation paused");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update pause state");
+    } finally {
+      setPauseToggleBusy(false);
+    }
+  };
 
+  const [reservedJoinerEmail, setReservedJoinerEmail] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [costLimit, setCostLimit] = useState(SKIRMISH_THREAT_LIMIT);
   const [turnTimeSeconds, setTurnTimeSeconds] = useState(IMMEDIATE_GAME_TURN_SECONDS);
-  const [maxScore, setMaxScore] = useState(SHORT_MAX_SCORE);
+  // Matches web3 Lobbies.tsx's create-form default (scoreLength: "medium").
+  const [maxScore, setMaxScore] = useState(MEDIUM_MAX_SCORE);
   const [busy, setBusy] = useState(false);
   const [selectedLobbyId, setSelectedLobbyId] = useState<number | null>(null);
   const [viewingFleet, setViewingFleet] = useState<{ lobbyId: number; fleetId: number } | null>(null);
@@ -128,6 +177,8 @@ const LobbiesWeb2: React.FC = () => {
   const [fleetFilters, setFleetFilters] = useState<FleetFilters>(DEFAULT_FLEET_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [showLoadFleetMenu, setShowLoadFleetMenu] = useState(false);
+  const [showFleetConfirmation, setShowFleetConfirmation] = useState(false);
+  const [showInGameProperties, setShowInGameProperties] = useState(true);
 
   const savedFleetCompositions = useMemo(
     () => (userId ? readFleetCompositionPersisted(userId).fleets : []),
@@ -142,26 +193,74 @@ const LobbiesWeb2: React.FC = () => {
     [shipPositions],
   );
 
+  // Selected ships bypass filters (so you don't lose sight of ships you've
+  // already picked while adjusting filter criteria), matching Lobbies.tsx's
+  // filteredShips. Lifted to component scope (rather than computed inline in
+  // the fleet-selection modal's render) so its ship ids can feed the
+  // in-game-attributes hook below, which — being a hook — can't live inside
+  // the modal's render-time IIFE.
+  const filteredShips = useMemo(
+    () =>
+      ships.filter((s) => {
+        if (selectedShipIds.has(s.id)) return true;
+        return matchesFleetFilters(
+          {
+            cost: s.shipData.cost,
+            isShiny: s.shipData.shiny,
+            accuracy: s.traits.accuracy,
+            hull: s.traits.hull,
+            speed: s.traits.speed,
+            isConstructed: s.shipData.constructed,
+            isDestroyed: s.shipData.timestampDestroyed > 0,
+            inFleet: s.shipData.inFleet,
+            mainWeapon: s.equipment.mainWeapon,
+            shields: s.equipment.shields,
+            special: s.equipment.special,
+          },
+          fleetFilters,
+        );
+      }),
+    [ships, selectedShipIds, fleetFilters],
+  );
+
+  const filteredShipIds = useMemo(
+    () => (selectedLobbyId ? filteredShips.map((s) => s.id) : []),
+    [selectedLobbyId, filteredShips],
+  );
+  const {
+    attributesByShipId,
+    isLoading: attributesLoading,
+    isFromCache,
+  } = useShipAttributesByIdsWeb2(filteredShipIds);
+
   const constructedShipCount = ships.filter(
     (s) => s.shipData.constructed && s.shipData.timestampDestroyed === 0,
   ).length;
-  const canUseLobbies = constructedShipCount >= MIN_SHIPS_FOR_LOBBIES;
+
+  // Same three-state gating as Lobbies.tsx: loading vs "own too few ships"
+  // vs "own enough but haven't constructed enough".
+  const needsShipsForLobbyUi =
+    !!userId && !shipsLoading && ships.length < MIN_SHIPS_FOR_LOBBIES;
+  const needsConstructForLobbyUi =
+    !!userId &&
+    !shipsLoading &&
+    ships.length >= MIN_SHIPS_FOR_LOBBIES &&
+    constructedShipCount < MIN_SHIPS_FOR_LOBBIES;
+  const lobbyUiLoadingShips = !!userId && shipsLoading;
+
+  const navigateToManageNavyForShips = () => {
+    window.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-manage-navy", { bubbles: true }),
+    );
+    document.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-manage-navy", { bubbles: true }),
+    );
+  };
 
   const myLobby = useMemo(
     () =>
       lobbyList.lobbies.find(
         (l) => l.basic.creator === userId || l.players.joiner === userId,
-      ),
-    [lobbyList.lobbies, userId],
-  );
-
-  const openLobbies = useMemo(
-    () =>
-      lobbyList.lobbies.filter(
-        (l) =>
-          l.state.status === Web2LobbyStatus.Open &&
-          l.basic.creator !== userId &&
-          (!l.players.reservedJoiner || l.players.reservedJoiner === userId),
       ),
     [lobbyList.lobbies, userId],
   );
@@ -183,7 +282,15 @@ const LobbiesWeb2: React.FC = () => {
       // "Map" field is a locked input hardcoded to map 1) — this keeps both
       // modes on the same fixed map rather than leaving mapId unset (which
       // left games with no blocked/scoring tiles).
-      await createLobby({ costLimit, turnTimeSeconds, maxScore, selectedMapId: 1 });
+      await createLobby({
+        costLimit,
+        turnTimeSeconds,
+        maxScore,
+        selectedMapId: 1,
+        reservedJoinerEmail: reservedJoinerEmail.trim() || undefined,
+      });
+      setReservedJoinerEmail("");
+      setShowCreateForm(false);
       toast.success("Lobby created");
     });
 
@@ -339,6 +446,7 @@ const LobbiesWeb2: React.FC = () => {
     setDragOverPosition(null);
     setFiltersExpanded(false);
     setShowLoadFleetMenu(false);
+    setShowFleetConfirmation(false);
   };
 
   const clearFleetDraftSelection = () => {
@@ -433,138 +541,410 @@ const LobbiesWeb2: React.FC = () => {
       );
       return;
     }
+
+    const lobby = lobbyList.lobbies.find((l) => l.basic.id === lobbyId);
+    const lobbyCostLimit = lobby ? lobby.basic.costLimit : 1000;
+    const isOverLimit = lobbyCostLimit > 0 && selectedCost > lobbyCostLimit;
+    const isUnder90Percent = lobbyCostLimit > 0 && selectedCost < lobbyCostLimit * 0.9;
+
+    if (isOverLimit) {
+      toast.error(
+        `Fleet threat (${selectedCost}) exceeds this lobby limit (${lobbyCostLimit}). Remove ships or pick a different lobby.`,
+      );
+      return;
+    }
+
+    if (isUnder90Percent) {
+      setShowFleetConfirmation(true);
+      return;
+    }
+
     handleSubmitFleet(lobbyId);
   };
 
-  if (!canUseLobbies) {
-    return (
-      <div className="font-mono text-sm text-text-muted">
-        You need at least {MIN_SHIPS_FOR_LOBBIES} constructed ships to use lobbies
-        ({constructedShipCount}/{MIN_SHIPS_FOR_LOBBIES}).
-      </div>
-    );
-  }
+  const createFleetWithConfirmation = (lobbyId: number) => {
+    setShowFleetConfirmation(false);
+    handleSubmitFleet(lobbyId);
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      {myLobby && (
-        <LobbyPanel
-          lobby={myLobby}
-          userId={userId}
-          onLeave={() => handleLeave(myLobby.basic.id)}
-          onReject={() => handleReject(myLobby.basic.id)}
-          onTimeoutJoiner={() => handleTimeoutJoiner(myLobby.basic.id)}
-          onQuitWithPenalty={() => handleQuitWithPenalty(myLobby.basic.id)}
-          onOpenFleetSelect={() => setSelectedLobbyId(myLobby.basic.id)}
-          onViewFleet={(fleetId) => setViewingFleet({ lobbyId: myLobby.basic.id, fleetId })}
-          busy={busy}
-        />
+      {isAdmin && (
+        <div
+          className="mb-6 flex items-center justify-between gap-3 border border-warning-red/60 bg-black/40 p-3 font-mono text-sm"
+          style={{ borderRadius: 0 }}
+        >
+          <span className="text-warning-red">
+            [ADMIN] Lobby creation is currently {paused ? "PAUSED" : "OPEN"}
+          </span>
+          <button
+            type="button"
+            onClick={() => void handleTogglePaused()}
+            disabled={pauseToggleBusy}
+            className="border border-warning-red px-3 py-1 text-xs font-bold text-warning-red hover:bg-warning-red/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ borderRadius: 0 }}
+          >
+            {pauseToggleBusy ? "UPDATING…" : paused ? "RESUME LOBBIES" : "PAUSE LOBBIES"}
+          </button>
+        </div>
       )}
 
-      {!myLobby && (
-        <LobbyCreateForm
-          title="[CREATE LOBBY]"
-          threatScale={threatScale}
-          onThreatScaleChange={(v) => setCostLimit(v === "battle" ? BATTLE_THREAT_LIMIT : SKIRMISH_THREAT_LIMIT)}
-          turnPace={turnPace}
-          onTurnPaceChange={(v) =>
-            setTurnTimeSeconds(v === "correspondence" ? CORRESPONDENCE_GAME_TURN_SECONDS : IMMEDIATE_GAME_TURN_SECONDS)
-          }
-          scoreLength={scoreLength}
-          onScoreLengthChange={(v) =>
-            setMaxScore(v === "long" ? LONG_MAX_SCORE : v === "medium" ? MEDIUM_MAX_SCORE : SHORT_MAX_SCORE)
-          }
-          mapIdLabel="1"
-          extraFields={<LobbyTurnOrderNote />}
-          footer={
-            <button
-              onClick={handleCreate}
-              disabled={busy}
-              className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
-            >
-              CREATE
-            </button>
-          }
-        />
-      )}
+      <LobbyCreateSection
+        isSignedIn={!!userId}
+        shipsLoading={lobbyUiLoadingShips}
+        needsShips={needsShipsForLobbyUi}
+        needsConstruct={needsConstructForLobbyUi}
+        constructedReadyCount={constructedShipCount}
+        onNavigateToManageNavy={navigateToManageNavyForShips}
+        activeLobbiesCount={myLobby ? 1 : 0}
+        kickCount={playerState.kickCount}
+        hasActiveLobby={!!myLobby}
+        freeGames={freeGamesPerAddress}
+        canCreateLobby={!!userId && !paused}
+        disabledLabel={paused ? "LOBBIES PAUSED" : null}
+        showCreateForm={showCreateForm}
+        onToggleCreateForm={() => setShowCreateForm(true)}
+        createFormElement={
+          <LobbyCreateForm
+            threatScale={threatScale}
+            onThreatScaleChange={(v) => setCostLimit(v === "battle" ? BATTLE_THREAT_LIMIT : SKIRMISH_THREAT_LIMIT)}
+            turnPace={turnPace}
+            onTurnPaceChange={(v) =>
+              setTurnTimeSeconds(v === "correspondence" ? CORRESPONDENCE_GAME_TURN_SECONDS : IMMEDIATE_GAME_TURN_SECONDS)
+            }
+            scoreLength={scoreLength}
+            onScoreLengthChange={(v) =>
+              setMaxScore(v === "long" ? LONG_MAX_SCORE : v === "medium" ? MEDIUM_MAX_SCORE : SHORT_MAX_SCORE)
+            }
+            mapIdLabel="1"
+            onClose={() => setShowCreateForm(false)}
+            extraFields={
+              <>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">
+                    Reserve for Player (Optional — enter their email)
+                  </label>
+                  <input
+                    type="text"
+                    value={reservedJoinerEmail}
+                    onChange={(e) => setReservedJoinerEmail(e.target.value)}
+                    className={`w-full px-3 py-2 bg-black/60 border rounded-none text-cyan ${
+                      reservedJoinerEmail.trim() &&
+                      currentUserEmail &&
+                      reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
+                        ? "border-warning-red"
+                        : "border-amber"
+                    }`}
+                    placeholder="player@example.com (leave empty for open lobby)"
+                  />
+                  {reservedJoinerEmail.trim() &&
+                  currentUserEmail &&
+                  reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase() ? (
+                    <p className="text-xs text-warning-red mt-1 font-bold">
+                      [ERR] Cannot reserve a lobby for yourself! Please enter a
+                      different player&apos;s email or leave empty for an open
+                      lobby.
+                    </p>
+                  ) : reservedJoinerEmail.trim() ? (
+                    <p className="text-xs text-amber mt-1">
+                      {`// Requires ${reservationFeeUtc} UTC to reserve game for this player`}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber mt-1">
+                      Leave empty to create an open lobby
+                    </p>
+                  )}
+                </div>
+                <LobbyTurnOrderNote />
+                {/* Cost summary — only shown when fees apply */}
+                {(playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0) ||
+                (reservedJoinerEmail.trim() &&
+                  currentUserEmail &&
+                  reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase()) ? (
+                  <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                    <p className="text-amber font-bold tracking-wider">{"// COST BREAKDOWN"}</p>
+                    {playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0 ? (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                        <span className="text-amber font-bold shrink-0">{lobbyCreationCostUtc} UTC</span>
+                      </div>
+                    ) : null}
+                    {reservedJoinerEmail.trim() &&
+                    currentUserEmail &&
+                    reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase() ? (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-text-secondary">Reservation fee (private lobby)</span>
+                        <span className="text-amber font-bold shrink-0">{reservationFeeUtc} UTC</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            }
+            footer={
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  onClick={handleCreate}
+                  disabled={
+                    busy ||
+                    !!(
+                      reservedJoinerEmail.trim() &&
+                      currentUserEmail &&
+                      reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
+                    )
+                  }
+                  className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
+                >
+                  CREATE
+                </button>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="w-full px-4 py-2 border border-warning-red text-warning-red hover:bg-warning-red/20 sm:w-auto"
+                  style={{ borderRadius: 0 }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            }
+          />
+        }
+      />
 
-      <div className="flex flex-col gap-3">
-        <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-text-primary">
-          [OPEN LOBBIES] — {openLobbies.length}
-        </h3>
-        {lobbyList.isLoading && <div className="font-mono text-sm text-text-muted">Loading…</div>}
-        {openLobbies.length === 0 && !lobbyList.isLoading && (
-          <div className="font-mono text-sm text-text-muted">No open lobbies right now.</div>
-        )}
+      {!lobbyUiLoadingShips && !needsShipsForLobbyUi && !needsConstructForLobbyUi && (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h4 className="text-lg font-bold text-cyan">AVAILABLE LOBBIES</h4>
+          <button
+            onClick={() => loadLobbies()}
+            className="w-full px-3 py-2 text-xs border border-cyan text-cyan hover:bg-cyan/10 sm:w-auto sm:py-1"
+            style={{ borderRadius: 0 }}
+          >
+            REFRESH
+          </button>
+        </div>
+        {lobbyList.isLoading ? (
+          <div className="text-center text-text-muted">ACQUIRING DATA...</div>
+        ) : lobbyList.error ? (
+          <div className="text-center text-warning-red">[ERR]: {lobbyList.error}</div>
+        ) : lobbyList.lobbies.length === 0 ? (
+          <div className="text-center text-text-muted">[NO OPEN ENGAGEMENTS]</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {openLobbies.map((lobby) => {
+          {lobbyList.lobbies.map((lobby) => {
+            const isCreatorMe = lobby.basic.creator === userId;
+            const isJoinerMe = lobby.players.joiner === userId;
             const isReservedForMe = lobby.players.reservedJoiner === userId;
+            const hasReservedJoiner = lobby.players.reservedJoiner !== "";
+            const isFleetSelection = lobby.state.status === Web2LobbyStatus.FleetSelection;
+            const isInGame = lobby.state.status === Web2LobbyStatus.InGame;
+            const myFleetId = isCreatorMe ? lobby.players.creatorFleetId : lobby.players.joinerFleetId;
+            const opponentFleetId = isCreatorMe ? lobby.players.joinerFleetId : lobby.players.creatorFleetId;
             return (
               <LobbyCard
                 key={lobby.basic.id}
                 lobbyIdLabel={String(lobby.basic.id)}
-                isCreatorMe={false}
+                isCreatorMe={isCreatorMe}
                 statusColorClass={getStatusColor(lobby.state.status)}
                 statusText={getStatusText(lobby.state.status)}
                 creatorLabel={truncateId(lobby.basic.creator)}
+                creatorStats={<CreatorStatsWeb2 userId={lobby.basic.creator} />}
+                joinerLabel={lobby.players.joiner ? truncateId(lobby.players.joiner) : null}
+                isJoinerMe={isJoinerMe}
+                joinerStats={
+                  lobby.players.joiner ? <CreatorStatsWeb2 userId={lobby.players.joiner} /> : undefined
+                }
+                reservedLabel={hasReservedJoiner ? truncateId(lobby.players.reservedJoiner) : null}
                 threatLabel={formatThreatShort(lobby.basic.costLimit)}
                 turnLabel={formatTurnShort(lobby.gameConfig.turnTime)}
                 mapLabel={`#${lobby.gameConfig.selectedMapId}`}
                 scoreLabel={formatScoreShort(lobby.gameConfig.maxScore)}
+                creatorFleetButton={
+                  lobby.players.creatorFleetId > 0 ? (
+                    <button
+                      onClick={() => setViewingFleet({ lobbyId: lobby.basic.id, fleetId: lobby.players.creatorFleetId })}
+                      className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
+                        isCreatorMe
+                          ? "border-amber text-amber hover:bg-amber/10"
+                          : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+                      }`}
+                      style={{ borderRadius: 0 }}
+                    >
+                      CMDR FLEET #{lobby.players.creatorFleetId}
+                    </button>
+                  ) : undefined
+                }
+                joinerFleetButton={
+                  lobby.players.joinerFleetId > 0 ? (
+                    <button
+                      onClick={() => setViewingFleet({ lobbyId: lobby.basic.id, fleetId: lobby.players.joinerFleetId })}
+                      className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
+                        isJoinerMe
+                          ? "border-cyan text-cyan hover:bg-cyan/10"
+                          : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+                      }`}
+                      style={{ borderRadius: 0 }}
+                    >
+                      JOIN FLEET #{lobby.players.joinerFleetId}
+                    </button>
+                  ) : undefined
+                }
                 actions={
-                  isReservedForMe ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-amber text-center font-mono">
-                        [GAME RESERVED FOR YOU]
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAccept(lobby.basic.id)}
-                          disabled={busy || !!myLobby}
-                          className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          ACCEPT
-                        </button>
-                        <button
-                          onClick={() => handleReject(lobby.basic.id)}
-                          disabled={busy}
-                          className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          REJECT
-                        </button>
+                  <>
+                    {/* Someone else's open lobby: join, or reserved (accept/reject if reserved for me, informational otherwise) */}
+                    {lobby.state.status === Web2LobbyStatus.Open && !isCreatorMe && !isJoinerMe && (
+                      <div className="space-y-2">
+                        {hasReservedJoiner ? (
+                          isReservedForMe ? (
+                            <div className="space-y-2">
+                              <p className="text-sm text-amber text-center font-mono">
+                                [GAME RESERVED FOR YOU]
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleAccept(lobby.basic.id)}
+                                  disabled={busy || !!myLobby}
+                                  className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  ACCEPT
+                                </button>
+                                <button
+                                  onClick={() => handleReject(lobby.basic.id)}
+                                  disabled={busy}
+                                  className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  REJECT
+                                </button>
+                              </div>
+                              {!!myLobby && (
+                                <p className="text-xs text-amber text-center">
+                                  You already have an active lobby. Complete it before
+                                  accepting another.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <p className="text-sm text-amber font-mono mb-2">
+                                [RESERVED] This game is reserved for another player
+                              </p>
+                              <p className="text-xs text-text-muted">
+                                Reserved for: {truncateId(lobby.players.reservedJoiner)}
+                              </p>
+                            </div>
+                          )
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleJoin(lobby.basic.id)}
+                              disabled={busy || !!myLobby}
+                              className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              JOIN LOBBY
+                            </button>
+                            {!!myLobby && (
+                              <p className="text-xs text-amber text-center">
+                                You already have an active lobby. Complete it before
+                                joining another.
+                              </p>
+                            )}
+                          </>
+                        )}
                       </div>
-                      {!!myLobby && (
-                        <p className="text-xs text-amber text-center">
-                          You already have an active lobby. Complete it before
-                          accepting another.
-                        </p>
+                    )}
+
+                    {/* My own lobby, as creator or joiner */}
+                    {(isCreatorMe || isJoinerMe) && (
+                      <div className="flex flex-col gap-2">
+                        {myFleetId > 0 && opponentFleetId > 0 && (
+                          <button
+                            type="button"
+                            onClick={navigateToGamesTab}
+                            className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                            style={{ borderRadius: 0 }}
+                          >
+                            GO TO GAMES
+                          </button>
+                        )}
+                        {myFleetId === 0 && lobby.players.joiner && (
+                          <button
+                            onClick={() => setSelectedLobbyId(lobby.basic.id)}
+                            className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                            style={{ borderRadius: 0 }}
+                          >
+                            SELECT FLEET
+                          </button>
+                        )}
+                        {myFleetId > 0 && opponentFleetId === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLobbyId(lobby.basic.id)}
+                            className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                            style={{ borderRadius: 0 }}
+                          >
+                            VIEW FLEET SELECTION
+                          </button>
+                        )}
+                        {!isInGame && (
+                          <button
+                            onClick={() => handleLeave(lobby.basic.id)}
+                            disabled={busy}
+                            className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            LEAVE LOBBY
+                          </button>
+                        )}
+                        {isCreatorMe && isFleetSelection && (
+                          <button
+                            onClick={() => handleTimeoutJoiner(lobby.basic.id)}
+                            disabled={busy}
+                            className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            TIMEOUT JOINER
+                          </button>
+                        )}
+                        {isJoinerMe && isFleetSelection && (
+                          <button
+                            onClick={() => handleQuitWithPenalty(lobby.basic.id)}
+                            disabled={busy}
+                            className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            QUIT (PENALIZE CREATOR)
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Fleet selection phase waiting note (shown to anyone viewing the lobby) */}
+                    {isFleetSelection &&
+                      !!lobby.players.joiner &&
+                      (lobby.players.creatorFleetId === 0 || lobby.players.joinerFleetId === 0) && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-amber">
+                            Fleet selection phase - waiting for both players to select
+                            fleets
+                          </p>
+                        </div>
                       )}
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleJoin(lobby.basic.id)}
-                        disabled={busy || !!myLobby}
-                        className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        JOIN LOBBY
-                      </button>
-                      {!!myLobby && (
-                        <p className="text-xs text-amber text-center">
-                          You already have an active lobby. Complete it before
-                          joining another.
-                        </p>
-                      )}
-                    </>
-                  )
+
+                    {isInGame && (
+                      <div className="text-sm text-warning-red">Game in progress</div>
+                    )}
+                  </>
                 }
               />
             );
           })}
         </div>
+        )}
       </div>
+      )}
 
-      {/* Fleet Selection Modal — matches web3's SELECT FLEET/VIEW FLEET modal chrome, including the ship-list + MapDisplayWeb2 starting-position picker. */}
+      {/* Fleet Selection Modal — shares FleetSelectionModal.tsx's chrome with
+          Lobbies.tsx (web3's layout is canonical). One deliberate gap: web3's
+          "stale costs version" gate has no web2 equivalent by design — GET
+          /api/ships already recalculates any stale ship costs server-side
+          (recalcStaleShips.ts) before returning them, so a web2 fleet can
+          never contain a ship with an out-of-date cost to gate against. */}
       {selectedLobby &&
         (() => {
           const lobby = selectedLobby;
@@ -573,11 +953,9 @@ const LobbiesWeb2: React.FC = () => {
           const opponentFleetId = isCreator ? lobby.players.joinerFleetId : lobby.players.creatorFleetId;
           const participantHasFleet = myFleetId > 0;
           const opponentHasFleet = opponentFleetId > 0;
-          const bothHaveFleets = participantHasFleet && opponentHasFleet;
           const lobbyCostLimit = lobby.basic.costLimit;
           const isOverLimit = lobbyCostLimit > 0 && selectedCost > lobbyCostLimit;
           const isUnder90Percent = lobbyCostLimit > 0 && selectedCost < lobbyCostLimit * 0.9;
-          const fleetExceedsMaxSize = selectedShipIds.size > MAX_SHIPS_PER_FLEET;
 
           // Same as Lobbies.tsx's hasMovedShip: require at least one ship off the
           // default deployment column (creator: col 0, joiner: far-right column)
@@ -588,288 +966,162 @@ const LobbiesWeb2: React.FC = () => {
               isCreator ? pos.col !== 0 : pos.col !== GRID_DIMENSIONS.WIDTH - 1,
             );
 
-          // Selected ships bypass filters (so you don't lose sight of ships
-          // you've already picked while adjusting filter criteria), matching
-          // Lobbies.tsx's filteredShips.
-          const filteredShips = ships.filter((s) => {
-            if (selectedShipIds.has(s.id)) return true;
-            return matchesFleetFilters(
-              {
-                cost: s.shipData.cost,
-                isShiny: s.shipData.shiny,
-                accuracy: s.traits.accuracy,
-                hull: s.traits.hull,
-                speed: s.traits.speed,
-                isConstructed: s.shipData.constructed,
-                isDestroyed: s.shipData.timestampDestroyed > 0,
-                inFleet: s.shipData.inFleet,
-                mainWeapon: s.equipment.mainWeapon,
-                shields: s.equipment.shields,
-                special: s.equipment.special,
-              },
-              fleetFilters,
-            );
+          const shipListItems = filteredShips.map((s) => {
+            const canSelect = s.shipData.timestampDestroyed === 0 && s.shipData.constructed && !s.shipData.inFleet;
+            return {
+              key: String(s.id),
+              canSelect,
+              isPending: tapPendingShipId === s.id,
+              isTouchDevice,
+              onDragStart: () => handleDragStart(s.id),
+              onDragEnd: handleDragEnd,
+              card: (
+                <ShipCard
+                  ship={toShipCardDataWeb2(s)}
+                  shipImage={<ShipImageWeb2 ship={s} className="h-full w-full" />}
+                  isStarred={false}
+                  onToggleStar={() => {}}
+                  isSelected={selectedShipIds.has(s.id)}
+                  onToggleSelection={() => handleListShipTap(s.id, canSelect, isCreator)}
+                  onRecycleClick={() => {}}
+                  showInGameProperties={showInGameProperties}
+                  inGameAttributes={attributesByShipId.get(s.id)}
+                  attributesLoading={attributesLoading}
+                  selectionMode
+                  hideRecycle
+                  hideCheckbox
+                  onCardClick={() => handleListShipTap(s.id, canSelect, isCreator)}
+                  canSelect={canSelect}
+                  flipShip={isCreator}
+                />
+              ),
+            };
           });
 
+          const mapDisplay = (
+            <MapDisplayWeb2
+              mapId={lobby.gameConfig.selectedMapId}
+              className="w-full h-full"
+              showPlayerOverlay
+              showDeployZoneLabel
+              pendingPlacementShipId={tapPendingShipId}
+              isCreator={isCreator}
+              isCreatorViewer={isCreator}
+              shipPositions={shipPositions}
+              ships={ships.filter((s) => selectedShipIds.has(s.id))}
+              selectedShipId={selectedShipId}
+              onShipSelect={handleShipSelect}
+              onShipMove={(shipId, row, col) => handleShipMove(shipId, row, col, isCreator)}
+              allowSelection
+              selectableShipIds={Array.from(selectedShipIds)}
+              onDragOver={handleDragOver}
+              onDrop={(row, col, e) => handleDrop(row, col, e, isCreator)}
+              dragOverPosition={dragOverPosition}
+            />
+          );
+
           return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[400]">
-              <div className="bg-near-black border border-cyan rounded-none p-6 w-full max-w-4xl max-h-[90vh] flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-lg font-bold text-cyan whitespace-nowrap">
-                      {participantHasFleet ? "VIEW FLEET" : "SELECT FLEET"}
-                    </h4>
-                    {participantHasFleet && (
-                      <span className="px-3 py-1 text-xs font-bold text-phosphor-green bg-phosphor-green/20 border border-phosphor-green rounded-none whitespace-nowrap">
-                        FLEET SELECTED
-                      </span>
-                    )}
-                    {participantHasFleet && !opponentHasFleet && (
-                      <span className="px-3 py-1 text-xs font-bold text-amber bg-amber/10 border border-amber/40 rounded-none whitespace-nowrap">
-                        WAITING FOR OPPOSING ADMIRAL
-                      </span>
-                    )}
-                  </div>
-
-                  {!participantHasFleet ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCreateFleetModal(lobby.basic.id)}
-                        disabled={
-                          busy ||
-                          selectedShipIds.size === 0 ||
-                          fleetExceedsMaxSize ||
-                          isOverLimit ||
-                          isUnder90Percent ||
-                          !hasMovedShip
-                        }
-                        className="px-4 py-2 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {busy
-                          ? "CREATING FLEET..."
-                          : fleetExceedsMaxSize
-                            ? `MAX ${MAX_SHIPS_PER_FLEET} SHIPS (${selectedShipIds.size} SELECTED)`
-                            : isOverLimit
-                              ? `OVER ${lobbyCostLimit} THREAT LIMIT`
-                              : isUnder90Percent
-                                ? `NEED ${Math.round(lobbyCostLimit * 0.9)} POINTS`
-                                : !hasMovedShip
-                                  ? "MOVE AT LEAST ONE SHIP FORWARD"
-                                  : `CREATE FLEET (${selectedShipIds.size})`}
-                      </button>
-                      <button
-                        onClick={resetFleetSelectionModalState}
-                        disabled={busy}
-                        className="px-4 py-2 border border-warning-red text-warning-red rounded-none hover:bg-warning-red/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        CANCEL
-                      </button>
-                    </div>
-                  ) : bothHaveFleets ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetFleetSelectionModalState();
-                        navigateToGamesTab();
-                      }}
-                      className="px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                    >
-                      GO TO GAMES
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={resetFleetSelectionModalState}
-                      className="px-4 py-2 border border-gunmetal text-text-muted rounded-none font-mono font-bold text-sm tracking-wider"
-                    >
-                      CLOSE
-                    </button>
-                  )}
-                </div>
-
-                {!participantHasFleet ? (
-                  <>
-                    <div className="relative flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono text-xs text-text-secondary">
-                        Cost {selectedCost}
-                        {lobbyCostLimit > 0 ? ` / ${lobbyCostLimit}` : ""}
-                      </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => setFiltersExpanded(!filtersExpanded)}
-                          className="px-2 py-1 text-xs font-bold text-cyan border border-cyan rounded-none hover:text-cyan/80 hover:border-cyan/80 transition-colors"
-                        >
-                          FILTERS ▼
-                        </button>
-                        <LoadFleetMenu
-                          fleets={savedFleetCompositions}
-                          isOpen={showLoadFleetMenu}
-                          onToggleOpen={() => setShowLoadFleetMenu((prev) => !prev)}
-                          onClose={() => setShowLoadFleetMenu(false)}
-                          getSummary={getFleetSummary}
-                          getLoadPlan={(fleet) => getFleetLoadPlan(fleet, isCreator)}
-                        />
-                        <button
-                          type="button"
-                          onClick={clearFleetDraftSelection}
-                          className="px-2 py-1 text-xs font-bold text-text-muted border border-steel rounded-none hover:text-text-secondary hover:border-steel transition-colors"
-                        >
-                          CLEAR FLEET SELECTION
-                        </button>
-                      </div>
-                    </div>
-                    {filtersExpanded && (
-                      <FleetFilterPanel
-                        filters={fleetFilters}
-                        onFiltersChange={setFleetFilters}
-                        onClose={() => setFiltersExpanded(false)}
-                        shownCount={filteredShips.length}
-                        totalCount={ships.length}
-                      />
-                    )}
-                    <div className="flex gap-4 flex-1 min-h-0">
-                      {isCreator ? (
-                        <>
-                          <div className="w-1/3 h-full overflow-y-auto">
-                            <div className="grid grid-cols-1 gap-3 content-start">
-                              {filteredShips
-                                .map((s) => {
-                                  const canSelect = s.shipData.timestampDestroyed === 0 && s.shipData.constructed && !s.shipData.inFleet;
-                                  const isPending = tapPendingShipId === s.id;
-                                  return (
-                                    <div
-                                      key={s.id}
-                                      draggable={canSelect && !isTouchDevice}
-                                      onDragStart={(e) => {
-                                        if (canSelect) {
-                                          handleDragStart(s.id);
-                                          e.dataTransfer.effectAllowed = "move";
-                                        }
-                                      }}
-                                      onDragEnd={handleDragEnd}
-                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
-                                    >
-                                      <ShipCard
-                                        ship={toShipCardDataWeb2(s)}
-                                        shipImage={<ShipImageWeb2 ship={s} className="h-full w-full" />}
-                                        isStarred={false}
-                                        onToggleStar={() => {}}
-                                        isSelected={selectedShipIds.has(s.id)}
-                                        onToggleSelection={() => handleListShipTap(s.id, canSelect, isCreator)}
-                                        onRecycleClick={() => {}}
-                                        showInGameProperties={false}
-                                        selectionMode
-                                        hideRecycle
-                                        hideCheckbox
-                                        onCardClick={() => handleListShipTap(s.id, canSelect, isCreator)}
-                                        canSelect={canSelect}
-                                        flipShip={isCreator}
-                                      />
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                          <div className="w-2/3 h-full flex items-center justify-center">
-                            <MapDisplayWeb2
-                              mapId={lobby.gameConfig.selectedMapId}
-                              className="w-full h-full"
-                              showPlayerOverlay
-                              showDeployZoneLabel
-                              pendingPlacementShipId={tapPendingShipId}
-                              isCreator={isCreator}
-                              isCreatorViewer={isCreator}
-                              shipPositions={shipPositions}
-                              ships={ships.filter((s) => selectedShipIds.has(s.id))}
-                              selectedShipId={selectedShipId}
-                              onShipSelect={handleShipSelect}
-                              onShipMove={(shipId, row, col) => handleShipMove(shipId, row, col, isCreator)}
-                              allowSelection
-                              selectableShipIds={Array.from(selectedShipIds)}
-                              onDragOver={handleDragOver}
-                              onDrop={(row, col, e) => handleDrop(row, col, e, isCreator)}
-                              dragOverPosition={dragOverPosition}
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-2/3 h-full flex items-center justify-center">
-                            <MapDisplayWeb2
-                              mapId={lobby.gameConfig.selectedMapId}
-                              className="w-full h-full"
-                              showPlayerOverlay
-                              showDeployZoneLabel
-                              pendingPlacementShipId={tapPendingShipId}
-                              isCreator={isCreator}
-                              isCreatorViewer={isCreator}
-                              shipPositions={shipPositions}
-                              ships={ships.filter((s) => selectedShipIds.has(s.id))}
-                              selectedShipId={selectedShipId}
-                              onShipSelect={handleShipSelect}
-                              onShipMove={(shipId, row, col) => handleShipMove(shipId, row, col, isCreator)}
-                              allowSelection
-                              selectableShipIds={Array.from(selectedShipIds)}
-                              onDragOver={handleDragOver}
-                              onDrop={(row, col, e) => handleDrop(row, col, e, isCreator)}
-                              dragOverPosition={dragOverPosition}
-                            />
-                          </div>
-                          <div className="w-1/3 h-full overflow-y-auto">
-                            <div className="grid grid-cols-1 gap-3 content-start">
-                              {filteredShips
-                                .map((s) => {
-                                  const canSelect = s.shipData.timestampDestroyed === 0 && s.shipData.constructed && !s.shipData.inFleet;
-                                  const isPending = tapPendingShipId === s.id;
-                                  return (
-                                    <div
-                                      key={s.id}
-                                      draggable={canSelect && !isTouchDevice}
-                                      onDragStart={(e) => {
-                                        if (canSelect) {
-                                          handleDragStart(s.id);
-                                          e.dataTransfer.effectAllowed = "move";
-                                        }
-                                      }}
-                                      onDragEnd={handleDragEnd}
-                                      className={`${canSelect && !isTouchDevice ? "cursor-move" : ""} ${isPending ? "outline outline-2 outline-amber" : ""}`}
-                                    >
-                                      <ShipCard
-                                        ship={toShipCardDataWeb2(s)}
-                                        shipImage={<ShipImageWeb2 ship={s} className="h-full w-full" />}
-                                        isStarred={false}
-                                        onToggleStar={() => {}}
-                                        isSelected={selectedShipIds.has(s.id)}
-                                        onToggleSelection={() => handleListShipTap(s.id, canSelect, isCreator)}
-                                        onRecycleClick={() => {}}
-                                        showInGameProperties={false}
-                                        selectionMode
-                                        hideRecycle
-                                        hideCheckbox
-                                        onCardClick={() => handleListShipTap(s.id, canSelect, isCreator)}
-                                        canSelect={canSelect}
-                                        flipShip={isCreator}
-                                      />
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <p className="font-mono text-sm text-text-secondary">
-                    {opponentHasFleet
-                      ? "Both fleets submitted."
-                      : "Fleet submitted — waiting on opponent."}
-                  </p>
-                )}
-              </div>
-            </div>
+            <FleetSelectionModal
+              participantHasFleet={participantHasFleet}
+              opponentHasFleet={opponentHasFleet}
+              onGoToGames={() => {
+                resetFleetSelectionModalState();
+                navigateToGamesTab();
+              }}
+              createButtonState={{
+                isBusy: busy,
+                busyLabel: "CREATING FLEET...",
+                selectedCount: selectedShipIds.size,
+                maxShips: MAX_SHIPS_PER_FLEET,
+                isOverLimit,
+                costLimit: lobbyCostLimit,
+                isUnder90Percent,
+                hasMovedShip,
+                hasStaleCosts: false,
+              }}
+              onCreateFleet={() => handleCreateFleetModal(lobby.basic.id)}
+              onCancel={resetFleetSelectionModalState}
+              filtersExpanded={filtersExpanded}
+              onToggleFilters={() => setFiltersExpanded(!filtersExpanded)}
+              loadFleetMenu={
+                <LoadFleetMenu
+                  fleets={savedFleetCompositions}
+                  isOpen={showLoadFleetMenu}
+                  onToggleOpen={() => setShowLoadFleetMenu((prev) => !prev)}
+                  onClose={() => setShowLoadFleetMenu(false)}
+                  getSummary={getFleetSummary}
+                  getLoadPlan={(fleet) => getFleetLoadPlan(fleet, isCreator)}
+                />
+              }
+              onClearFleetSelection={clearFleetDraftSelection}
+              isBusy={busy}
+              totalCost={selectedCost}
+              costLimit={lobbyCostLimit}
+              isOverLimit={isOverLimit}
+              isUnder90Percent={isUnder90Percent}
+              leaveButton={
+                <button
+                  type="button"
+                  onClick={() => handleLeave(lobby.basic.id)}
+                  disabled={busy}
+                  className="px-3 py-1 text-sm font-bold text-warning-red border border-warning-red rounded-none hover:text-warning-red/80 hover:border-warning-red/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  LEAVE LOBBY
+                </button>
+              }
+              onClose={resetFleetSelectionModalState}
+              showFirstFleetHint={!participantHasFleet}
+              fleetFilters={fleetFilters}
+              onFleetFiltersChange={setFleetFilters}
+              shownCount={filteredShips.length}
+              totalCount={ships.length}
+              showInGameProperties={showInGameProperties}
+              onToggleInGameProperties={setShowInGameProperties}
+              isAttributesFromCache={isFromCache}
+              shipsLoading={shipsLoading}
+              isCreator={isCreator}
+              shipListItems={shipListItems}
+              mapDisplay={mapDisplay}
+            />
           );
         })()}
+
+      {/* Fleet Threat Confirmation Dialog */}
+      {showFleetConfirmation && selectedLobby && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[420]">
+          <div className="bg-near-black border border-amber rounded-none p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="text-amber text-2xl font-mono font-bold mb-4 tracking-widest">[!]</div>
+              <h3 className="text-xl font-bold text-amber mb-4">FLEET THREAT WARNING</h3>
+              <p className="text-text-secondary mb-6">
+                Your fleet threat ({selectedCost}) is less than 90% of the maximum (
+                {selectedLobby.basic.costLimit}). You&apos;re only using{" "}
+                {Math.round((selectedCost / selectedLobby.basic.costLimit) * 100)}% of your available
+                budget.
+              </p>
+              <p className="text-sm text-text-muted mb-6">
+                Consider adding more ships to maximize your fleet&apos;s potential, or proceed with your
+                current selection.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFleetConfirmation(false)}
+                  className="flex-1 px-4 py-2 border border-gunmetal text-text-muted rounded-none hover:bg-steel/20"
+                >
+                  GO BACK
+                </button>
+                <button
+                  onClick={() => createFleetWithConfirmation(selectedLobby.basic.id)}
+                  disabled={busy || selectedShipIds.size > MAX_SHIPS_PER_FLEET}
+                  className="flex-1 px-4 py-2 border border-amber text-amber rounded-none hover:bg-amber/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {busy ? "CREATING..." : "CONFIRM FLEET"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fleet View Modal */}
       {viewingFleet && (
@@ -899,173 +1151,5 @@ const LobbiesWeb2: React.FC = () => {
     </div>
   );
 };
-
-function LobbyPanel({
-  lobby,
-  userId,
-  onLeave,
-  onReject,
-  onTimeoutJoiner,
-  onQuitWithPenalty,
-  onOpenFleetSelect,
-  onViewFleet,
-  busy,
-}: {
-  lobby: Web2Lobby;
-  userId: string | null;
-  onLeave: () => void;
-  onReject: () => void;
-  onTimeoutJoiner: () => void;
-  onQuitWithPenalty: () => void;
-  onOpenFleetSelect: () => void;
-  onViewFleet: (fleetId: number) => void;
-  busy: boolean;
-}) {
-  const isCreator = lobby.basic.creator === userId;
-  const isJoiner = lobby.players.joiner === userId;
-  const isReservedInvite =
-    lobby.state.status === Web2LobbyStatus.Open &&
-    lobby.players.reservedJoiner === userId;
-  const isFleetSelection = lobby.state.status === Web2LobbyStatus.FleetSelection;
-  const isInGame = lobby.state.status === Web2LobbyStatus.InGame;
-
-  const myFleetId = isCreator ? lobby.players.creatorFleetId : lobby.players.joinerFleetId;
-  const opponentFleetId = isCreator ? lobby.players.joinerFleetId : lobby.players.creatorFleetId;
-
-  return (
-    <LobbyCard
-      lobbyIdLabel={String(lobby.basic.id)}
-      isCreatorMe={isCreator}
-      statusColorClass={getStatusColor(lobby.state.status)}
-      statusText={getStatusText(lobby.state.status)}
-      creatorLabel={truncateId(lobby.basic.creator)}
-      joinerLabel={lobby.players.joiner ? truncateId(lobby.players.joiner) : null}
-      isJoinerMe={isJoiner}
-      reservedLabel={
-        isReservedInvite && !isJoiner ? truncateId(lobby.players.reservedJoiner) : null
-      }
-      threatLabel={formatThreatShort(lobby.basic.costLimit)}
-      turnLabel={formatTurnShort(lobby.gameConfig.turnTime)}
-      mapLabel={`#${lobby.gameConfig.selectedMapId}`}
-      scoreLabel={formatScoreShort(lobby.gameConfig.maxScore)}
-      creatorFleetButton={
-        lobby.players.creatorFleetId > 0 ? (
-          <button
-            onClick={() => onViewFleet(lobby.players.creatorFleetId)}
-            className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-              isCreator ? "border-amber text-amber hover:bg-amber/10" : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-            }`}
-            style={{ borderRadius: 0 }}
-          >
-            CMDR FLEET #{lobby.players.creatorFleetId}
-          </button>
-        ) : undefined
-      }
-      joinerFleetButton={
-        lobby.players.joinerFleetId > 0 ? (
-          <button
-            onClick={() => onViewFleet(lobby.players.joinerFleetId)}
-            className={`px-2.5 py-0.5 text-xs border font-mono tracking-wider transition-colors ${
-              isJoiner ? "border-cyan text-cyan hover:bg-cyan/10" : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-            }`}
-            style={{ borderRadius: 0 }}
-          >
-            JOIN FLEET #{lobby.players.joinerFleetId}
-          </button>
-        ) : undefined
-      }
-      actions={
-        <div className="flex flex-col gap-2">
-          {isInGame && (
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-amber">Game started.</span>
-              <button
-                onClick={navigateToGamesTab}
-                className="px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid"
-                style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)", borderRadius: 0 }}
-              >
-                Go to Games
-              </button>
-            </div>
-          )}
-
-          {isReservedInvite && !isJoiner && (
-            <button
-              onClick={onReject}
-              disabled={busy}
-              className="self-start px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid disabled:opacity-40"
-              style={{ borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", borderRadius: 0 }}
-            >
-              Decline Invite
-            </button>
-          )}
-
-          {isFleetSelection &&
-            (myFleetId === 0 ? (
-              <button
-                type="button"
-                onClick={onOpenFleetSelect}
-                className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                style={{ borderRadius: 0 }}
-              >
-                SELECT FLEET
-              </button>
-            ) : opponentFleetId === 0 ? (
-              <button
-                type="button"
-                onClick={onOpenFleetSelect}
-                className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                style={{ borderRadius: 0 }}
-              >
-                VIEW FLEET SELECTION
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={navigateToGamesTab}
-                className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                style={{ borderRadius: 0 }}
-              >
-                GO TO GAMES
-              </button>
-            ))}
-
-          <div className="flex flex-wrap gap-2">
-            {!isInGame && (
-              <button
-                onClick={onLeave}
-                disabled={busy}
-                className="px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid disabled:opacity-40"
-                style={{ borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", borderRadius: 0 }}
-              >
-                Leave Lobby
-              </button>
-            )}
-            {isCreator && isFleetSelection && (
-              <button
-                onClick={onTimeoutJoiner}
-                disabled={busy}
-                className="px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid disabled:opacity-40"
-                style={{ borderColor: "var(--color-amber)", color: "var(--color-amber)", borderRadius: 0 }}
-              >
-                Timeout Joiner
-              </button>
-            )}
-            {isJoiner && isFleetSelection && (
-              <button
-                onClick={onQuitWithPenalty}
-                disabled={busy}
-                className="px-2 py-1 text-[11px] font-mono font-bold uppercase border border-solid disabled:opacity-40"
-                style={{ borderColor: "var(--color-amber)", color: "var(--color-amber)", borderRadius: 0 }}
-              >
-                Quit (Penalize Creator)
-              </button>
-            )}
-          </div>
-        </div>
-      }
-    />
-  );
-}
 
 export default LobbiesWeb2;

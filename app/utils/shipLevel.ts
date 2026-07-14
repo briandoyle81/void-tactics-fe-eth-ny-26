@@ -121,6 +121,31 @@ export function getRankColor(rank: number): string {
 }
 
 /**
+ * CSS custom-property accent color for a ship's rank — same low-to-high
+ * color scheme as `getRankColor` above (and as purchase-tier colors in
+ * `shipPurchaseTierDisplay.ts`'s TIER_COLOR_SCHEMES: rank N uses the same
+ * hue as tier N-1), returned as a single `var(--color-...)` string for
+ * inline-style consumers (ShipCard.tsx's card border) instead of a Tailwind
+ * class bundle.
+ */
+export function getRankColorVar(rank: number): string {
+  switch (rank) {
+    case 1:
+      return "var(--color-text-muted)";
+    case 2:
+      return "var(--color-phosphor-green)";
+    case 3:
+      return "var(--color-cyan)";
+    case 4:
+      return "var(--color-purple)";
+    case 5:
+      return "var(--color-amber)";
+    default:
+      return "var(--color-warning-red)";
+  }
+}
+
+/**
  * Get tier color for styling
  */
 export function getTierColor(tier: string): string {
