@@ -17,6 +17,9 @@ import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
+import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
+import { GameTooltipShipCard } from "./GameTooltipShipCard";
+import { gameFleetPanelLabel } from "../utils/gameFleetPanelLabel";
 import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
 import { useGetGameMapState } from "../hooks/useMapsContract";
 import { useGameContract, useGetGame } from "../hooks/useGameContract";
@@ -38,7 +41,7 @@ import {
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb3 } from "./FleeConfirmButtonWeb3";
 import { GameScoreBox } from "./GameScoreBox";
-import { GameFleetCard } from "./GameFleetCard";
+import { GameFleetStatusCard } from "./GameFleetStatusCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { toGameScoreData, toGameWinnerResult } from "../utils/toGameDisplayData";
 import {
@@ -46,6 +49,7 @@ import {
   type GameEventsLastMove,
   type GameEventsShipInfo,
 } from "./GameEvents";
+import { GameLastMovePanel } from "./GameLastMovePanel";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -60,6 +64,8 @@ import {
 import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
+import { useTurnChangeAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { type GameRecord, type TurnRecord } from "../types/types";
@@ -434,38 +440,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, [replayAutoPlay, isReplaying, replayTurns.length]);
 
   // Countdown for remaining turn time (in seconds)
-  const [turnSecondsLeft, setTurnSecondsLeft] = React.useState<number>(0);
   const turnTimeSec = React.useMemo(
     () => Number(game.turnState.turnTime || 0n),
     [game.turnState.turnTime],
   );
-  const turnPercentRemaining = React.useMemo(() => {
-    if (!turnTimeSec || turnTimeSec <= 0) return 0;
-    const pct = (turnSecondsLeft / turnTimeSec) * 100;
-    return Math.max(0, Math.min(100, pct));
-  }, [turnSecondsLeft, turnTimeSec]);
-
-  React.useEffect(() => {
-    // Helper to compute remaining seconds
-    const computeRemaining = (): number => {
-      const turnTimeSec = Number(game.turnState.turnTime || 0n);
-      const turnStartSec = Number(game.turnState.turnStartTime || 0n);
-      if (!turnTimeSec || !turnStartSec) return 0;
-      const nowSec = Math.floor(Date.now() / 1000);
-      const elapsed = Math.max(0, nowSec - turnStartSec);
-      return Math.max(0, turnTimeSec - elapsed);
-    };
-
-    // Initialize immediately
-    setTurnSecondsLeft(computeRemaining());
-
-    // Update every second
-    const interval = setInterval(() => {
-      setTurnSecondsLeft(computeRemaining());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [game.turnState.turnTime, game.turnState.turnStartTime]);
+  const turnStartTimeMs = React.useMemo(
+    () => Number(game.turnState.turnStartTime || 0n) * 1000,
+    [game.turnState.turnStartTime],
+  );
+  const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
+    turnTimeSec,
+    turnStartTimeMs,
+  );
 
   const formatSeconds = (total: number): string => {
     const m = Math.floor(total / 60)
@@ -1155,27 +1141,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
-  // Track previous turn state to detect turn changes
+  // Track previous turn state — shared with the pending-transaction-clearing
+  // effect below, which relies on this hook's effect running first and
+  // updating the ref before it reads it (see useTurnChangeAlertSound's doc).
   const prevTurnRef = React.useRef<boolean | null>(null);
 
   // Play alert sound when it becomes the player's turn
-  React.useEffect(() => {
-    if (
-      !readOnly &&
-      isMyTurnEffective &&
-      address &&
-      prevTurnRef.current === false
-    ) {
-      // Only play sound when turn changes from opponent to player
-      const audio = new Audio("/sound/alert.mp3");
-      audio.volume = 0.5; // Set volume to 50%
-      audio.play().catch(() => {
-        // Silently fail - some browsers block autoplay
-      });
-    }
-    // Update the previous turn state
-    prevTurnRef.current = isMyTurnEffective;
-  }, [isMyTurnEffective, address, readOnly]);
+  useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
 
   // Clear any pending transaction state when turn changes
   React.useEffect(() => {
@@ -1260,29 +1232,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const renderShipCard = React.useCallback(
     (cell: GameGridTooltipHoveredCell): React.ReactNode | null => {
-      const ship = shipMap.get(BigInt(cell.shipId));
+      const shipId = BigInt(cell.shipId);
+      const ship = shipMap.get(shipId);
       if (!ship) return null;
-      const attributes = getShipAttributes(BigInt(cell.shipId));
+      const attributes = getShipAttributes(shipId);
       return (
-        <ShipCard
+        <GameTooltipShipCard
           ship={toShipCardData(ship)}
           shipImage={<ShipImage ship={ship} className="h-full w-full" />}
-          isStarred={false}
-          onToggleStar={() => {}}
-          isSelected={false}
-          onToggleSelection={() => {}}
-          onRecycleClick={() => {}}
-          showInGameProperties={true}
-          inGameAttributes={attributes || undefined}
-          attributesLoading={!attributes}
-          hideRecycle={true}
-          hideCheckbox={true}
-          tooltipMode={true}
-          isCurrentPlayerShip={isShipOwnedByCurrentPlayer(BigInt(cell.shipId))}
+          attributes={attributes || undefined}
+          isCurrentPlayerShip={isShipOwnedByCurrentPlayer(shipId)}
           flipShip={cell.isCreator}
-          hasMoved={movedShipIdsSet.has(BigInt(cell.shipId))}
-          gameViewMode={true}
-          tooltipGridPosition={{ row: cell.row, col: cell.col }}
+          hasMoved={movedShipIdsSet.has(shipId)}
+          gridPosition={{ row: cell.row, col: cell.col }}
         />
       );
     },
@@ -2895,16 +2857,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             const renderCard = (shipId: bigint, teamColor: string, flip: boolean) => {
               const ship = shipMap.get(shipId);
               const attrs = getShipAttributes(shipId);
-              const hasMoved = movedShipIdsSet.has(shipId);
-              const isSOS = !!attrs && attrs.hullPoints === 0;
-              const hpPct = attrs && attrs.maxHullPoints > 0
-                ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100)
-                : 0;
               const shipPos = game.shipPositions.find((sp) => sp.shipId === shipId);
               return (
-                <GameFleetCard
+                <GameFleetStatusCard
                   key={shipId.toString()}
-                  card={{ shipId: Number(shipId), name: ship?.name ?? `#${shipId}`, hpPct, hasMoved, isSOS }}
+                  shipId={Number(shipId)}
+                  shipName={ship?.name ?? `#${shipId}`}
+                  attributes={attrs}
+                  hasMoved={movedShipIdsSet.has(shipId)}
                   teamColor={teamColor}
                   flip={flip}
                   isSelected={selectedShipId === shipId}
@@ -3361,63 +3321,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         </div>
       </div>
             )}
-            <div className="absolute bottom-0 right-0 z-[220] pointer-events-none">
-              <div className="pointer-events-auto">
-                {isLastMovePanelMinimized ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsLastMovePanelMinimized(false)}
-                    className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
-                    style={{
-                      ...STYLE_LABEL,
-                      borderColor: "var(--color-purple)",
-                      color: "var(--color-purple)",
-                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                      borderRadius: 0,
-                    }}
-                  >
-                    Last Move
-                  </button>
-                ) : (
-                  <div className="w-[min(30rem,70vw)] max-w-full">
-                    <div className="mb-1 flex items-center justify-between border border-solid px-2 py-1 bg-black/80">
-                      <span
-                        className="text-xs uppercase tracking-wider"
-                        style={{
-                          ...STYLE_LABEL,
-                          color: "var(--color-purple)",
-                        }}
-                      >
-                        Last Move
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsLastMovePanelMinimized(true)}
-                        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-                        style={{
-                          ...STYLE_LABEL,
-                          borderColor: "var(--color-purple)",
-                          color: "var(--color-purple)",
-                          backgroundColor: "var(--color-near-black)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        Minimize
-                      </button>
-                    </div>
-      <GameEvents
-                      lastMove={
-                        toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)
-                      }
-        shipMap={gameEventsShipMap}
-        address={address}
-                      appendDestroyedText={appendDestroyedTextToLastMove}
-                      debugSuffix={lastMoveTargetPositionDebugSuffix}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+            <GameLastMovePanel
+              isMinimized={isLastMovePanelMinimized}
+              onExpand={() => setIsLastMovePanelMinimized(false)}
+              onMinimize={() => setIsLastMovePanelMinimized(true)}
+              lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+              shipMap={gameEventsShipMap}
+              address={address}
+              appendDestroyedText={appendDestroyedTextToLastMove}
+              debugSuffix={lastMoveTargetPositionDebugSuffix}
+            />
           </div>
         </GameBoardLayout>
       </div>
@@ -3568,41 +3481,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             const attributes = getShipAttributes(shipId);
             const ship = shipMap.get(shipId);
             if (!shipPosition || !attributes || !ship) return null;
-            const reactorCriticalStatus =
-              attributes.reactorCriticalTimer > 0 && attributes.hullPoints === 0
-                ? "critical"
-                : attributes.reactorCriticalTimer > 0
-                  ? "warning"
-                  : "none";
             return (
-              <div
+              <GameFleetDetailShipCard
                 key={shipId.toString()}
-                data-game-fleet-ship-cell=""
-                data-ship-id={shipId.toString()}
-                data-row-index={gameViewShipRowIndex(index)}
-              >
-                <ShipCard
-                  ship={toShipCardData(ship)}
-                  shipImage={<ShipImage ship={ship} className="h-full w-full" />}
-                  isStarred={false}
-                  onToggleStar={() => {}}
-                  isSelected={false}
-                  onToggleSelection={() => {}}
-                  onRecycleClick={() => {}}
-                  showInGameProperties={true}
-                  inGameAttributes={attributes}
-                  attributesLoading={false}
-                  hideRecycle={true}
-                  hideCheckbox={true}
-                  isCurrentPlayerShip={isCurrentPlayerShip}
-                  flipShip={flipShip}
-                  reactorCriticalStatus={reactorCriticalStatus}
-                  hasMoved={movedShipIdsSet.has(shipId)}
-                  gameViewMode={true}
-                  layoutShipId={shipId.toString()}
-                  nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]}
-                />
-              </div>
+                shipId={shipId.toString()}
+                ship={toShipCardData(ship)}
+                shipImage={<ShipImage ship={ship} className="h-full w-full" />}
+                attributes={attributes}
+                isCurrentPlayerShip={isCurrentPlayerShip}
+                flipShip={flipShip}
+                hasMoved={movedShipIdsSet.has(shipId)}
+                layoutShipId={shipId.toString()}
+                nameBlockMinHeightPx={gameViewNameBlockMinHeights[shipId.toString()]}
+                rowIndex={gameViewShipRowIndex(index)}
+              />
             );
           });
 
@@ -3612,16 +3504,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             show={true}
             onClose={() => setShowFleetModal(false)}
             containerRef={gameShipGridsContainerRef}
-            myFleetLabel={
-              isCreatorView
-                ? readOnly ? "Creator Fleet" : "[MY FLEET]"
-                : readOnly ? "Joiner Fleet" : "[MY FLEET]"
-            }
-            enemyFleetLabel={
-              isCreatorView
-                ? readOnly ? "Joiner Fleet" : "[HOSTILE FLEET]"
-                : readOnly ? "Creator Fleet" : "[HOSTILE FLEET]"
-            }
+            myFleetLabel={gameFleetPanelLabel({
+              isMine: true,
+              sideIsCreator: isCreatorView,
+              readOnly,
+            })}
+            enemyFleetLabel={gameFleetPanelLabel({
+              isMine: false,
+              sideIsCreator: !isCreatorView,
+              readOnly,
+            })}
             myFleetCards={
               isCreatorView
                 ? buildFleetDetailCards(game.creatorActiveShipIds, true, true)

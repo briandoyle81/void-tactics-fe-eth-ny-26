@@ -7,6 +7,8 @@ import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
 import type { PurchaseTier } from "../lib/purchaseTiers";
 import { PurchaseTierTable, type PurchaseTierRowData } from "./PurchaseTierTable";
+import { ShipPurchasePricesHeaderCard } from "./ShipPurchasePricesHeaderCard";
+import { ShipPurchaseTierSectionCard } from "./ShipPurchaseTierSectionCard";
 
 // Web2-mode counterpart to `ShipPurchasePrices.tsx` — same tier-table
 // editing UX, but for the DB-backed `purchase_tiers` Config row (via
@@ -66,85 +68,74 @@ const ShipPurchasePricesWeb2: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-near-black rounded-none p-4 border border-gunmetal">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-mono text-text-primary mb-2">
-              Ship pack purchase prices
-            </h2>
-            <p className="text-sm text-text-muted">
-              Web2-mode tiers, stored in the app database (Config key{" "}
-              <span className="text-text-secondary">purchase_tiers</span>).
-              USD purchases use{" "}
-              <span className="text-text-secondary">/api/ships/purchase/usd</span>
-              , UTC purchases use{" "}
-              <span className="text-text-secondary">/api/ships/purchase/utc</span>.
-            </p>
-            {isDirty && (
-              <p className="text-amber text-xs font-mono mt-2">
-                Unsaved changes.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      <ShipPurchasePricesHeaderCard
+        description={
+          <>
+            Web2-mode tiers, stored in the app database (Config key{" "}
+            <span className="text-text-secondary">purchase_tiers</span>).
+            USD purchases use{" "}
+            <span className="text-text-secondary">/api/ships/purchase/usd</span>
+            , UTC purchases use{" "}
+            <span className="text-text-secondary">/api/ships/purchase/utc</span>.
+          </>
+        }
+        hasUnsavedChanges={isDirty}
+        unsavedChangesLabel="Unsaved changes."
+      />
 
-      <div className="bg-steel rounded-none p-4 border border-gunmetal">
-        <h3 className="text-lg font-mono text-text-primary mb-1">
-          Purchase tiers
-        </h3>
-        <p className="text-sm text-text-muted mb-4">
-          Each row is one purchasable ship pack.
-        </p>
-        {isLoading && draft.length === 0 ? (
-          <p className="text-text-muted text-sm font-mono">Loading…</p>
-        ) : (
-          <PurchaseTierTable
-            editable
-            rows={draft.map((t, i): PurchaseTierRowData => ({
-              tierLabel: String(t.tier),
-              shipCount: t.shipCount,
-              onShipCountChange: (value) => updateRow(i, { shipCount: value }),
-              prices: [
-                {
-                  currencyLabel: "USD",
-                  value: (t.priceUsdCents / 100).toFixed(2),
-                  onChange: (value) =>
-                    updateRow(i, {
-                      priceUsdCents: Math.round((Number(value) || 0) * 100),
-                    }),
-                },
-                {
-                  currencyLabel: "UTC",
-                  value: String(t.priceUtc),
-                  onChange: (value) =>
-                    updateRow(i, { priceUtc: Number(value) || 0 }),
-                },
-              ],
-            }))}
-          />
-        )}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving || !isDirty}
-            className="px-4 py-2 rounded-none border-2 text-cyan font-mono font-bold text-sm tracking-wider transition-colors hover:bg-cyan/10 disabled:opacity-50"
-            style={{ borderColor: "var(--color-cyan)" }}
-          >
-            {isSaving ? "[SAVING…]" : "[SAVE TIERS]"}
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={!isDirty}
-            className="px-4 py-2 rounded-none border-2 text-warning-red font-mono text-xs font-bold uppercase tracking-wider transition-colors hover:bg-warning-red/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ borderColor: "var(--color-warning-red)" }}
-          >
-            [RESET]
-          </button>
-        </div>
-      </div>
+      <ShipPurchaseTierSectionCard
+        title="Purchase tiers"
+        subtitle="Each row is one purchasable ship pack."
+        isLoading={isLoading}
+        isEmpty={draft.length === 0}
+        footer={
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving || !isDirty}
+              className="px-4 py-2 rounded-none border-2 text-cyan font-mono font-bold text-sm tracking-wider transition-colors hover:bg-cyan/10 disabled:opacity-50"
+              style={{ borderColor: "var(--color-cyan)" }}
+            >
+              {isSaving ? "[SAVING…]" : "[SAVE TIERS]"}
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={!isDirty}
+              className="px-4 py-2 rounded-none border-2 text-warning-red font-mono text-xs font-bold uppercase tracking-wider transition-colors hover:bg-warning-red/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: "var(--color-warning-red)" }}
+            >
+              [RESET]
+            </button>
+          </div>
+        }
+      >
+        <PurchaseTierTable
+          editable
+          rows={draft.map((t, i): PurchaseTierRowData => ({
+            tierLabel: String(t.tier),
+            shipCount: t.shipCount,
+            onShipCountChange: (value) => updateRow(i, { shipCount: value }),
+            prices: [
+              {
+                currencyLabel: "USD",
+                value: (t.priceUsdCents / 100).toFixed(2),
+                onChange: (value) =>
+                  updateRow(i, {
+                    priceUsdCents: Math.round((Number(value) || 0) * 100),
+                  }),
+              },
+              {
+                currencyLabel: "UTC",
+                value: String(t.priceUtc),
+                onChange: (value) =>
+                  updateRow(i, { priceUtc: Number(value) || 0 }),
+              },
+            ],
+          }))}
+        />
+      </ShipPurchaseTierSectionCard>
     </div>
   );
 };

@@ -12,8 +12,12 @@ import {
   getTierCallout,
   getTierBadge,
   getGuaranteedRanksDisplay,
-  getPreviewDisplayRanks,
 } from "../utils/shipPurchaseTierDisplay";
+import {
+  getPreviewShipSpecsForTier,
+  PREVIEW_SHIP_ID_OFFSET,
+  type ShipPreviewSpec,
+} from "../utils/shipPreviewSpec";
 
 // Web2-mode counterpart to ShipPurchaseInterface.tsx — same tier-card
 // layout/copy (via the shared ShipPurchaseTierCard/shipPurchaseTierDisplay
@@ -28,36 +32,24 @@ interface ShipPurchaseInterfaceWeb2Props {
   busy: boolean;
 }
 
-function createPreviewShip(seed: number, shipsDestroyed: number): Web2Ship {
+function toPreviewShip(spec: ShipPreviewSpec): Web2Ship {
   return {
-    name: `Preview ${seed}`,
-    id: 900000 + seed,
-    equipment: {
-      mainWeapon: seed % 4,
-      armor: (seed % 3) + 1,
-      shields: 0,
-      special: (seed + 1) % 4,
-    },
+    name: `Preview ${spec.seed}`,
+    id: PREVIEW_SHIP_ID_OFFSET + spec.seed,
+    equipment: spec.equipment,
     traits: {
-      serialNumber: 900000 + seed,
-      colors: {
-        h1: (seed * 47) % 360,
-        s1: 70,
-        l1: 52,
-        h2: (seed * 47 + 68) % 360,
-        s2: 62,
-        l2: 46,
-      },
-      variant: 1,
-      accuracy: seed % 3,
-      hull: (seed + 1) % 3,
-      speed: (seed + 2) % 3,
+      serialNumber: PREVIEW_SHIP_ID_OFFSET + spec.seed,
+      colors: spec.colors,
+      variant: spec.variant,
+      accuracy: spec.accuracy,
+      hull: spec.hull,
+      speed: spec.speed,
     },
     shipData: {
-      shipsDestroyed,
+      shipsDestroyed: spec.shipsDestroyed,
       costsVersion: 0,
       cost: 0,
-      shiny: seed % 7 === 0,
+      shiny: spec.shiny,
       constructed: true,
       inFleet: false,
       timestampDestroyed: 0,
@@ -76,11 +68,8 @@ export function ShipPurchaseInterfaceWeb2({
   const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
   const { tiers } = usePurchaseTiersWeb2();
 
-  const getPreviewShipsForTier = (tier: number, shipCount: number): Web2Ship[] => {
-    const base = previewSeed + tier * 20 + 1;
-    const ranksToShow = getPreviewDisplayRanks(tier, shipCount);
-    return ranksToShow.map((rank, idx) => createPreviewShip(base + idx, getKillsForRank(rank)));
-  };
+  const getPreviewShipsForTier = (tier: number, shipCount: number): Web2Ship[] =>
+    getPreviewShipSpecsForTier(previewSeed, tier, shipCount, getKillsForRank).map(toPreviewShip);
 
   const tierCards = tiers.map((t) => {
     const colors = getTierColors(t.tier);

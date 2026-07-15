@@ -71,7 +71,6 @@ import { useFleetComposition } from "../hooks/useFleetComposition";
 import { FleetCompositionSelect } from "./FleetCompositionSelect";
 import { FleetCompositionControls } from "./FleetCompositionControls";
 import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeModal";
-import { FleetCompositionCardControls } from "./FleetCompositionCardControls";
 import { RecycleConfirmModal } from "./RecycleConfirmModal";
 import { RecycleLockedNotice } from "./RecycleLockedNotice";
 import {
@@ -80,6 +79,8 @@ import {
 } from "./ManageNavyActionButton";
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
+import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
+import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetCompositionCardSlot";
 
 
 const ManageNavy: React.FC = () => {
@@ -1297,22 +1298,12 @@ const ManageNavy: React.FC = () => {
         >
           <div className="flex flex-col gap-3 mb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <h4
-                className="min-w-0 text-base font-bold sm:text-xl"
-                style={{
-                  fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                [YOUR SHIPS] - Showing{" "}
-                {filteredAndSortedShips.length > SHIPS_PER_PAGE
-                  ? `${filterState.page * SHIPS_PER_PAGE + 1}–${Math.min(
-                      (filterState.page + 1) * SHIPS_PER_PAGE,
-                      filteredAndSortedShips.length,
-                    )} of ${filteredAndSortedShips.length}`
-                  : filteredAndSortedShips.length}{" "}
-                of {ships.length} ships
-              </h4>
+              <ManageNavyShipsCountHeading
+                shownCount={filteredAndSortedShips.length}
+                totalCount={ships.length}
+                perPage={SHIPS_PER_PAGE}
+                page={filterState.page}
+              />
               <div className="flex flex-wrap items-center gap-2">
                 {shipsForGridDisplay.length > SHIPS_PER_PAGE && (
                   <NavyPagination
@@ -1452,25 +1443,14 @@ const ManageNavy: React.FC = () => {
                       </TransactionButton>
                     ) : undefined
                   }
-                  fleetCompositionControls={(() => {
-                    if (!fleetComposition.selectedId || !fleetComposition.activeFleet) {
-                      return undefined;
-                    }
-                    const sid = ship.id.toString();
-                    const destroyed = ship.shipData.timestampDestroyed > 0n;
-                    const inComp = fleetComposition.activeFleet.shipIds.includes(sid);
-                    if (!ship.shipData.constructed) return undefined;
-                    if (destroyed && !inComp) return undefined;
-
-                    return (
-                      <FleetCompositionCardControls
-                        destroyedAndInComposition={destroyed && inComp}
-                        inComposition={inComp}
-                        onAdd={() => fleetComposition.addShip(sid)}
-                        onRemove={() => fleetComposition.removeShip(sid)}
-                      />
-                    );
-                  })()}
+                  fleetCompositionControls={
+                    <ManageNavyFleetCompositionCardSlot
+                      fleetComposition={fleetComposition}
+                      shipId={ship.id.toString()}
+                      constructed={ship.shipData.constructed}
+                      destroyed={ship.shipData.timestampDestroyed > 0n}
+                    />
+                  }
                 />
               );
             })}

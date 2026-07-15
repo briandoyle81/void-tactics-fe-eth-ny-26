@@ -15,8 +15,12 @@ import {
   getTierCallout,
   getTierBadge,
   getGuaranteedRanksDisplay,
-  getPreviewDisplayRanks,
 } from "../utils/shipPurchaseTierDisplay";
+import {
+  getPreviewShipSpecsForTier,
+  PREVIEW_SHIP_ID_OFFSET,
+  type ShipPreviewSpec,
+} from "../utils/shipPreviewSpec";
 import type { Ship } from "../types/types";
 import { formatEther } from "viem";
 import { getSelectedChainId } from "../config/networks";
@@ -63,35 +67,23 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     tierCount,
   } = pack;
 
-  const createPreviewShip = (seed: number, shipsDestroyed: number): Ship => ({
-    name: `Preview ${seed}`,
-    id: BigInt(900000 + seed),
-    equipment: {
-      mainWeapon: seed % 4,
-      armor: (seed % 3) + 1,
-      shields: 0,
-      special: (seed + 1) % 4,
-    },
+  const toPreviewShip = (spec: ShipPreviewSpec): Ship => ({
+    name: `Preview ${spec.seed}`,
+    id: BigInt(PREVIEW_SHIP_ID_OFFSET + spec.seed),
+    equipment: spec.equipment,
     traits: {
-      serialNumber: BigInt(900000 + seed),
-      colors: {
-        h1: (seed * 47) % 360,
-        s1: 70,
-        l1: 52,
-        h2: (seed * 47 + 68) % 360,
-        s2: 62,
-        l2: 46,
-      },
-      variant: 1,
-      accuracy: seed % 3,
-      hull: (seed + 1) % 3,
-      speed: (seed + 2) % 3,
+      serialNumber: BigInt(PREVIEW_SHIP_ID_OFFSET + spec.seed),
+      colors: spec.colors,
+      variant: spec.variant,
+      accuracy: spec.accuracy,
+      hull: spec.hull,
+      speed: spec.speed,
     },
     shipData: {
-      shipsDestroyed,
+      shipsDestroyed: spec.shipsDestroyed,
       costsVersion: 0,
       cost: 0,
-      shiny: seed % 7 === 0,
+      shiny: spec.shiny,
       constructed: true,
       inFleet: false,
       timestampDestroyed: 0n,
@@ -100,7 +92,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   });
 
   const shipsDestroyedForRank = (rank: number): number => {
-    switch (rank) {
+    switch (Math.min(5, rank)) {
       case 5:
         return 350;
       case 4:
@@ -114,16 +106,10 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     }
   };
 
-  const getPreviewShipsForTier = (tier: number): Ship[] => {
-    const base = previewSeed + tier * 20 + 1;
-    const ranksToShow = getPreviewDisplayRanks(tier, maxPerTier[tier] ?? 1);
-    return ranksToShow.map((rank, idx) =>
-      createPreviewShip(
-        base + idx,
-        shipsDestroyedForRank(Math.min(5, rank)),
-      ),
+  const getPreviewShipsForTier = (tier: number): Ship[] =>
+    getPreviewShipSpecsForTier(previewSeed, tier, maxPerTier[tier] ?? 1, shipsDestroyedForRank).map(
+      toPreviewShip,
     );
-  };
 
   if (isLoading && tierCount === 0) {
     return (

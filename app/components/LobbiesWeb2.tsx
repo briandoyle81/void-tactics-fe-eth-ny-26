@@ -47,6 +47,9 @@ import {
   formatTurnShort,
   formatScoreShort,
 } from "../utils/lobbyFormattersWeb2";
+import { WinLossBadge } from "./WinLossBadge";
+import { LobbyCardActions } from "./LobbyCardActions";
+import { lobbyStatusColor, lobbyStatusLabel } from "../utils/lobbyStatusDisplay";
 
 /** Same tab-navigation mechanism as `Lobbies.tsx`'s `navigateToGamesTab` — mode-agnostic, just switches the active tab. */
 function navigateToGamesTab() {
@@ -54,33 +57,6 @@ function navigateToGamesTab() {
   localStorage.setItem("void-tactics-force-games-tab", "true");
   window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games", { bubbles: true }));
   document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games", { bubbles: true }));
-}
-
-/** Same status color/text mapping as `Lobbies.tsx`'s inline `getStatusColor`/`getStatusText` — the numeric status values line up 1:1 with web3's `LobbyStatus`. */
-function getStatusColor(status: Web2LobbyStatus) {
-  switch (status) {
-    case Web2LobbyStatus.Open:
-      return "text-phosphor-green";
-    case Web2LobbyStatus.FleetSelection:
-      return "text-amber";
-    case Web2LobbyStatus.InGame:
-      return "text-warning-red";
-    default:
-      return "text-text-muted";
-  }
-}
-
-function getStatusText(status: Web2LobbyStatus) {
-  switch (status) {
-    case Web2LobbyStatus.Open:
-      return "OPEN";
-    case Web2LobbyStatus.FleetSelection:
-      return "FLEET SELECTION";
-    case Web2LobbyStatus.InGame:
-      return "IN GAME";
-    default:
-      return "UNKNOWN";
-  }
 }
 
 /** Web2 user ids (NextAuth subs / cuids) aren't addresses, but truncating them the same way keeps the card's identity row visually consistent with web3's. */
@@ -93,21 +69,7 @@ function truncateId(id: string): string {
 function CreatorStatsWeb2({ userId }: { userId: string }) {
   const stats = usePlayerStatsWeb2(userId);
   if (!stats) return null;
-  return (
-    <div
-      className="flex items-center gap-2 text-base font-bold tabular-nums"
-      style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
-    >
-      <span className="text-phosphor-green">{stats.wins}W</span>
-      <span
-        className="text-[10px] font-normal"
-        style={{ color: "color-mix(in srgb, var(--color-text-muted) 40%, transparent)" }}
-      >
-        /
-      </span>
-      <span className="text-warning-red">{stats.losses}L</span>
-    </div>
-  );
+  return <WinLossBadge wins={stats.wins} losses={stats.losses} />;
 }
 
 // Web2-mode counterpart to `Lobbies.tsx`. Lobby browse/create/join/leave,
@@ -736,7 +698,6 @@ const LobbiesWeb2: React.FC = () => {
             const isReservedForMe = lobby.players.reservedJoiner === userId;
             const hasReservedJoiner = lobby.players.reservedJoiner !== "";
             const isFleetSelection = lobby.state.status === Web2LobbyStatus.FleetSelection;
-            const isInGame = lobby.state.status === Web2LobbyStatus.InGame;
             const myFleetId = isCreatorMe ? lobby.players.creatorFleetId : lobby.players.joinerFleetId;
             const opponentFleetId = isCreatorMe ? lobby.players.joinerFleetId : lobby.players.creatorFleetId;
             return (
@@ -744,8 +705,8 @@ const LobbiesWeb2: React.FC = () => {
                 key={lobby.basic.id}
                 lobbyIdLabel={String(lobby.basic.id)}
                 isCreatorMe={isCreatorMe}
-                statusColorClass={getStatusColor(lobby.state.status)}
-                statusText={getStatusText(lobby.state.status)}
+                statusColorClass={lobbyStatusColor(lobby.state.status)}
+                statusText={lobbyStatusLabel(lobby.state.status)}
                 creatorLabel={truncateId(lobby.basic.creator)}
                 creatorStats={<CreatorStatsWeb2 userId={lobby.basic.creator} />}
                 joinerLabel={lobby.players.joiner ? truncateId(lobby.players.joiner) : null}
@@ -789,147 +750,78 @@ const LobbiesWeb2: React.FC = () => {
                   ) : undefined
                 }
                 actions={
-                  <>
-                    {/* Someone else's open lobby: join, or reserved (accept/reject if reserved for me, informational otherwise) */}
-                    {lobby.state.status === Web2LobbyStatus.Open && !isCreatorMe && !isJoinerMe && (
-                      <div className="space-y-2">
-                        {hasReservedJoiner ? (
-                          isReservedForMe ? (
-                            <div className="space-y-2">
-                              <p className="text-sm text-amber text-center font-mono">
-                                [GAME RESERVED FOR YOU]
-                              </p>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleAccept(lobby.basic.id)}
-                                  disabled={busy || !!myLobby}
-                                  className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  ACCEPT
-                                </button>
-                                <button
-                                  onClick={() => handleReject(lobby.basic.id)}
-                                  disabled={busy}
-                                  className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  REJECT
-                                </button>
-                              </div>
-                              {!!myLobby && (
-                                <p className="text-xs text-amber text-center">
-                                  You already have an active lobby. Complete it before
-                                  accepting another.
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-center">
-                              <p className="text-sm text-amber font-mono mb-2">
-                                [RESERVED] This game is reserved for another player
-                              </p>
-                              <p className="text-xs text-text-muted">
-                                Reserved for: {truncateId(lobby.players.reservedJoiner)}
-                              </p>
-                            </div>
-                          )
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleJoin(lobby.basic.id)}
-                              disabled={busy || !!myLobby}
-                              className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              JOIN LOBBY
-                            </button>
-                            {!!myLobby && (
-                              <p className="text-xs text-amber text-center">
-                                You already have an active lobby. Complete it before
-                                joining another.
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* My own lobby, as creator or joiner */}
-                    {(isCreatorMe || isJoinerMe) && (
-                      <div className="flex flex-col gap-2">
-                        {myFleetId > 0 && opponentFleetId > 0 && (
-                          <button
-                            type="button"
-                            onClick={navigateToGamesTab}
-                            className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                            style={{ borderRadius: 0 }}
-                          >
-                            GO TO GAMES
-                          </button>
-                        )}
-                        {myFleetId === 0 && lobby.players.joiner && (
-                          <button
-                            onClick={() => setSelectedLobbyId(lobby.basic.id)}
-                            className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                            style={{ borderRadius: 0 }}
-                          >
-                            SELECT FLEET
-                          </button>
-                        )}
-                        {myFleetId > 0 && opponentFleetId === 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedLobbyId(lobby.basic.id)}
-                            className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                            style={{ borderRadius: 0 }}
-                          >
-                            VIEW FLEET SELECTION
-                          </button>
-                        )}
-                        {!isInGame && (
-                          <button
-                            onClick={() => handleLeave(lobby.basic.id)}
-                            disabled={busy}
-                            className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            LEAVE LOBBY
-                          </button>
-                        )}
-                        {isCreatorMe && isFleetSelection && (
-                          <button
-                            onClick={() => handleTimeoutJoiner(lobby.basic.id)}
-                            disabled={busy}
-                            className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            TIMEOUT JOINER
-                          </button>
-                        )}
-                        {isJoinerMe && isFleetSelection && (
-                          <button
-                            onClick={() => handleQuitWithPenalty(lobby.basic.id)}
-                            disabled={busy}
-                            className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            QUIT (PENALIZE CREATOR)
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Fleet selection phase waiting note (shown to anyone viewing the lobby) */}
-                    {isFleetSelection &&
-                      !!lobby.players.joiner &&
-                      (lobby.players.creatorFleetId === 0 || lobby.players.joinerFleetId === 0) && (
-                        <div className="space-y-2">
-                          <p className="text-sm text-amber">
-                            Fleet selection phase - waiting for both players to select
-                            fleets
-                          </p>
-                        </div>
-                      )}
-
-                    {isInGame && (
-                      <div className="text-sm text-warning-red">Game in progress</div>
-                    )}
-                  </>
+                  <LobbyCardActions
+                    status={lobby.state.status}
+                    isCreatorMe={isCreatorMe}
+                    isJoinerMe={isJoinerMe}
+                    hasJoiner={!!lobby.players.joiner}
+                    hasReservedJoiner={hasReservedJoiner}
+                    isReservedForMe={isReservedForMe}
+                    reservedLabel={truncateId(lobby.players.reservedJoiner)}
+                    hasActiveLobby={!!myLobby}
+                    myFleetId={myFleetId}
+                    opponentFleetId={opponentFleetId}
+                    onGoToGames={navigateToGamesTab}
+                    onSelectFleet={() => setSelectedLobbyId(lobby.basic.id)}
+                    joinButton={
+                      <button
+                        onClick={() => handleJoin(lobby.basic.id)}
+                        disabled={busy || !!myLobby}
+                        className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        JOIN LOBBY
+                      </button>
+                    }
+                    acceptButton={
+                      <button
+                        onClick={() => handleAccept(lobby.basic.id)}
+                        disabled={busy || !!myLobby}
+                        className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ACCEPT
+                      </button>
+                    }
+                    rejectButton={
+                      <button
+                        onClick={() => handleReject(lobby.basic.id)}
+                        disabled={busy}
+                        className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        REJECT
+                      </button>
+                    }
+                    leaveButton={
+                      <button
+                        onClick={() => handleLeave(lobby.basic.id)}
+                        disabled={busy}
+                        className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        LEAVE LOBBY
+                      </button>
+                    }
+                    creatorExtraControls={
+                      isFleetSelection ? (
+                        <button
+                          onClick={() => handleTimeoutJoiner(lobby.basic.id)}
+                          disabled={busy}
+                          className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          TIMEOUT JOINER
+                        </button>
+                      ) : undefined
+                    }
+                    joinerExtraControls={
+                      isFleetSelection ? (
+                        <button
+                          onClick={() => handleQuitWithPenalty(lobby.basic.id)}
+                          disabled={busy}
+                          className="w-full px-4 py-2.5 border border-amber/60 text-amber/80 hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          QUIT (PENALIZE CREATOR)
+                        </button>
+                      ) : undefined
+                    }
+                  />
                 }
               />
             );

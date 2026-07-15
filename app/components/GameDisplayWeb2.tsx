@@ -17,6 +17,8 @@ import { useGameStreamWeb2 } from "../hooks/useGameStreamWeb2";
 import { useGamePollingWeb2 } from "../hooks/useGamePollingWeb2";
 import { useMapWeb2 } from "../hooks/useMapWeb2";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
+import { useTurnChangeAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import {
   useGameViewChromeLayout,
   GAME_VIEW_SIDE_ROOT_CLASS,
@@ -31,18 +33,20 @@ import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
-import ShipCard from "./ShipCard";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { GameScoreBox } from "./GameScoreBox";
 import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
-import { GameFleetCard } from "./GameFleetCard";
+import { GameFleetStatusCard } from "./GameFleetStatusCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
+import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
+import { GameTooltipShipCard } from "./GameTooltipShipCard";
+import { gameFleetPanelLabel } from "../utils/gameFleetPanelLabel";
 import {
-  GameEvents,
   type GameEventsLastMove,
   type GameEventsShipInfo,
 } from "./GameEvents";
+import { GameLastMovePanel } from "./GameLastMovePanel";
 import { toGameScoreDataWeb2, toGameWinnerResultWeb2 } from "../utils/gameDisplayDataWeb2";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
@@ -160,17 +164,7 @@ export default function GameDisplayWeb2({
 
   // Play alert sound when it becomes the player's turn (turn changes from
   // opponent to player only).
-  const prevTurnRef = React.useRef<boolean | null>(null);
-  React.useEffect(() => {
-    if (!readOnly && isCurrentPlayerTurn && userId && prevTurnRef.current === false) {
-      const audio = new Audio("/sound/alert.mp3");
-      audio.volume = 0.5;
-      audio.play().catch(() => {
-        // Silently fail - some browsers block autoplay
-      });
-    }
-    prevTurnRef.current = isCurrentPlayerTurn;
-  }, [isCurrentPlayerTurn, userId, readOnly]);
+  useTurnChangeAlertSound(isCurrentPlayerTurn, userId, readOnly);
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
@@ -391,23 +385,10 @@ export default function GameDisplayWeb2({
 
   const gameScoreData = toGameScoreDataWeb2(game, userId);
 
-  const [turnSecondsLeft, setTurnSecondsLeft] = useState(0);
-  React.useEffect(() => {
-    const tick = () => {
-      const elapsed = Math.floor((Date.now() - game.turnState.turnStartTime) / 1000);
-      setTurnSecondsLeft(Math.max(0, game.turnState.turnTime - elapsed));
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [game.turnState.turnStartTime, game.turnState.turnTime]);
-
-  const turnPercentRemaining = useMemo(() => {
-    const turnTimeSec = game.turnState.turnTime;
-    if (!turnTimeSec || turnTimeSec <= 0) return 0;
-    const pct = (turnSecondsLeft / turnTimeSec) * 100;
-    return Math.max(0, Math.min(100, pct));
-  }, [turnSecondsLeft, game.turnState.turnTime]);
+  const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
+    game.turnState.turnTime,
+    game.turnState.turnStartTime,
+  );
 
   const [isClaimingTimeout, setIsClaimingTimeout] = useState(false);
   const handleClaimTimeout = useCallback(async () => {
@@ -430,25 +411,14 @@ export default function GameDisplayWeb2({
       if (!ship) return null;
       const attrs = getShipAttributes(cell.shipId);
       return (
-        <ShipCard
+        <GameTooltipShipCard
           ship={toShipCardDataWeb2(ship)}
           shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
-          isStarred={false}
-          onToggleStar={() => {}}
-          isSelected={false}
-          onToggleSelection={() => {}}
-          onRecycleClick={() => {}}
-          showInGameProperties={true}
-          inGameAttributes={attrs || undefined}
-          attributesLoading={!attrs}
-          hideRecycle={true}
-          hideCheckbox={true}
-          tooltipMode={true}
+          attributes={attrs || undefined}
           isCurrentPlayerShip={isShipOwnedByCurrentPlayer(cell.shipId)}
           flipShip={cell.isCreator}
           hasMoved={movedShipIdsSet.has(cell.shipId)}
-          gameViewMode={true}
-          tooltipGridPosition={{ row: cell.row, col: cell.col }}
+          gridPosition={{ row: cell.row, col: cell.col }}
         />
       );
     },
@@ -458,14 +428,14 @@ export default function GameDisplayWeb2({
   const renderFleetCard = (shipId: number, teamColor: string, flip: boolean) => {
     const ship = shipMap.get(shipId);
     const attrs = getShipAttributes(shipId);
-    const hasMoved = movedShipIdsSet.has(shipId);
-    const isSOS = !!attrs && attrs.hullPoints === 0;
-    const hpPct = attrs && attrs.maxHullPoints > 0 ? Math.max(0, (attrs.hullPoints / attrs.maxHullPoints) * 100) : 0;
     const shipPos = game.shipPositions.find((sp) => sp.shipId === shipId);
     return (
-      <GameFleetCard
+      <GameFleetStatusCard
         key={shipId}
-        card={{ shipId, name: ship?.name ?? `#${shipId}`, hpPct, hasMoved, isSOS }}
+        shipId={shipId}
+        shipName={ship?.name ?? `#${shipId}`}
+        attributes={attrs}
+        hasMoved={movedShipIdsSet.has(shipId)}
         teamColor={teamColor}
         flip={flip}
         isSelected={selectedShipId === shipId}
@@ -675,57 +645,15 @@ export default function GameDisplayWeb2({
               </div>
             </div>
           </GameBoardLayout>
-          <div className="absolute bottom-0 right-0 z-[220] pointer-events-none">
-            <div className="pointer-events-auto">
-              {isLastMovePanelMinimized ? (
-                <button
-                  type="button"
-                  onClick={() => setIsLastMovePanelMinimized(false)}
-                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
-                  style={{
-                    ...STYLE_LABEL,
-                    borderColor: "var(--color-purple)",
-                    color: "var(--color-purple)",
-                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                    borderRadius: 0,
-                  }}
-                >
-                  Last Move
-                </button>
-              ) : (
-                <div className="w-[min(30rem,70vw)] max-w-full">
-                  <div className="mb-1 flex items-center justify-between border border-solid px-2 py-1 bg-black/80">
-                    <span
-                      className="text-xs uppercase tracking-wider"
-                      style={{ ...STYLE_LABEL, color: "var(--color-purple)" }}
-                    >
-                      Last Move
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsLastMovePanelMinimized(true)}
-                      className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-                      style={{
-                        ...STYLE_LABEL,
-                        borderColor: "var(--color-purple)",
-                        color: "var(--color-purple)",
-                        backgroundColor: "var(--color-near-black)",
-                        borderRadius: 0,
-                      }}
-                    >
-                      Minimize
-                    </button>
-                  </div>
-                  <GameEvents
-                    lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
-                    shipMap={gameEventsShipMap}
-                    address={userId ?? undefined}
-                    appendDestroyedText={appendDestroyedTextToLastMove}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+          <GameLastMovePanel
+            isMinimized={isLastMovePanelMinimized}
+            onExpand={() => setIsLastMovePanelMinimized(false)}
+            onMinimize={() => setIsLastMovePanelMinimized(true)}
+            lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
+            shipMap={gameEventsShipMap}
+            address={userId ?? undefined}
+            appendDestroyedText={appendDestroyedTextToLastMove}
+          />
           {showReplay && (
             <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
               <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
@@ -747,32 +675,16 @@ export default function GameDisplayWeb2({
             const attrs = getShipAttributes(shipId);
             const ship = shipMap.get(shipId);
             if (!shipPosition || !attrs || !ship) return null;
-            const reactorCriticalStatus =
-              attrs.reactorCriticalTimer > 0 && attrs.hullPoints === 0
-                ? "critical"
-                : attrs.reactorCriticalTimer > 0
-                  ? "warning"
-                  : "none";
             return (
-              <ShipCard
+              <GameFleetDetailShipCard
                 key={shipId}
+                shipId={String(shipId)}
                 ship={toShipCardDataWeb2(ship)}
                 shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
-                isStarred={false}
-                onToggleStar={() => {}}
-                isSelected={false}
-                onToggleSelection={() => {}}
-                onRecycleClick={() => {}}
-                showInGameProperties={true}
-                inGameAttributes={attrs}
-                attributesLoading={false}
-                hideRecycle={true}
-                hideCheckbox={true}
+                attributes={attrs}
                 isCurrentPlayerShip={isCurrentPlayerShip}
                 flipShip={flipShip}
-                reactorCriticalStatus={reactorCriticalStatus}
                 hasMoved={movedShipIdsSet.has(shipId)}
-                gameViewMode={true}
               />
             );
           });
@@ -781,16 +693,16 @@ export default function GameDisplayWeb2({
           <GameFleetDetailsModal
             show={true}
             onClose={() => setShowFleetModal(false)}
-            myFleetLabel={
-              isCreatorMe
-                ? readOnly ? "Creator Fleet" : "[MY FLEET]"
-                : readOnly ? "Joiner Fleet" : "[MY FLEET]"
-            }
-            enemyFleetLabel={
-              isCreatorMe
-                ? readOnly ? "Joiner Fleet" : "[HOSTILE FLEET]"
-                : readOnly ? "Creator Fleet" : "[HOSTILE FLEET]"
-            }
+            myFleetLabel={gameFleetPanelLabel({
+              isMine: true,
+              sideIsCreator: isCreatorMe,
+              readOnly,
+            })}
+            enemyFleetLabel={gameFleetPanelLabel({
+              isMine: false,
+              sideIsCreator: !isCreatorMe,
+              readOnly,
+            })}
             myFleetCards={buildFleetDetailCards(myIds, true, isCreatorMe)}
             enemyFleetCards={buildFleetDetailCards(enemyIds, false, !isCreatorMe)}
           />

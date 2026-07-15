@@ -21,12 +21,13 @@ import { NavyPagination } from "./NavyPagination";
 import { FleetCompositionSelect } from "./FleetCompositionSelect";
 import { FleetCompositionControls } from "./FleetCompositionControls";
 import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeModal";
-import { FleetCompositionCardControls } from "./FleetCompositionCardControls";
 import { RecycleConfirmModal } from "./RecycleConfirmModal";
 import { RecycleConfirmButtonWeb2 } from "./RecycleConfirmButtonWeb2";
 import { RecycleLockedNotice } from "./RecycleLockedNotice";
 import { useRecycleEligibilityWeb2 } from "../hooks/useRecycleEligibilityWeb2";
 import { ManageNavyActionButton } from "./ManageNavyActionButton";
+import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
+import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetCompositionCardSlot";
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
 import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
@@ -237,16 +238,12 @@ const ManageNavyWeb2: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-mono text-lg font-bold uppercase tracking-wider text-text-primary">
-          [YOUR SHIPS] — Showing{" "}
-          {filteredAndSortedShips.length > SHIPS_PER_PAGE
-            ? `${filterState.page * SHIPS_PER_PAGE + 1}–${Math.min(
-                (filterState.page + 1) * SHIPS_PER_PAGE,
-                filteredAndSortedShips.length,
-              )} of ${filteredAndSortedShips.length}`
-            : filteredAndSortedShips.length}{" "}
-          of {ships.length} ships
-        </h2>
+        <ManageNavyShipsCountHeading
+          shownCount={filteredAndSortedShips.length}
+          totalCount={ships.length}
+          perPage={SHIPS_PER_PAGE}
+          page={filterState.page}
+        />
       </div>
 
       <div className="relative isolate mb-2 flex w-full flex-col items-stretch justify-center gap-4 overflow-visible md:flex-row md:flex-wrap md:items-center">
@@ -469,25 +466,14 @@ const ManageNavyWeb2: React.FC = () => {
             onToggleSelection={() => toggleSelect(ship.id)}
             onRecycleClick={() => handleRecycleClick(ship)}
             showInGameProperties={false}
-            fleetCompositionControls={(() => {
-              if (!fleetComposition.selectedId || !fleetComposition.activeFleet) {
-                return undefined;
-              }
-              const sid = String(ship.id);
-              const destroyed = ship.shipData.timestampDestroyed > 0;
-              const inComp = fleetComposition.activeFleet.shipIds.includes(sid);
-              if (!ship.shipData.constructed) return undefined;
-              if (destroyed && !inComp) return undefined;
-
-              return (
-                <FleetCompositionCardControls
-                  destroyedAndInComposition={destroyed && inComp}
-                  inComposition={inComp}
-                  onAdd={() => fleetComposition.addShip(sid)}
-                  onRemove={() => fleetComposition.removeShip(sid)}
-                />
-              );
-            })()}
+            fleetCompositionControls={
+              <ManageNavyFleetCompositionCardSlot
+                fleetComposition={fleetComposition}
+                shipId={String(ship.id)}
+                constructed={ship.shipData.constructed}
+                destroyed={ship.shipData.timestampDestroyed > 0}
+              />
+            }
           />
         ))}
       </div>

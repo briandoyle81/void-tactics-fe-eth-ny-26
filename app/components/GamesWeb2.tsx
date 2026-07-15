@@ -8,6 +8,7 @@ import type { Web2GameDataView } from "../types/web2Game";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import GameDisplayWeb2 from "./GameDisplayWeb2";
 import { GameLogCard } from "./GameLogCard";
+import { GamesListShell } from "./GamesListShell";
 
 // Web2-mode counterpart to `Games.tsx` — same list/detail navigation pattern
 // and card layout, backed by `usePlayerGamesWeb2`/session user id instead of
@@ -125,61 +126,24 @@ const GamesWeb2: React.FC = () => {
     );
   }
 
-  if (!isLoggedIn) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">Games</h1>
-        <p className="text-text-muted">Please sign in to view your games.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-        <div className="font-mono text-xs text-text-muted tracking-widest animate-pulse">&gt;&gt; ACQUIRING ENGAGEMENT DATA...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-        <p className="text-warning-red font-mono text-sm">[ERR] Data acquisition failure: {error}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 w-full">
-      <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-
-      {sortedGames.length === 0 ? (
-        <div className="py-8 text-text-muted font-mono text-sm">
-          <span className="tracking-widest">[NO ENGAGEMENTS ON RECORD] — Deploy a fleet and enter the fray.</span>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="font-mono text-xs text-text-muted tracking-widest">
-            {"// "}{sortedGames.length} ENGAGEMENT{sortedGames.length !== 1 ? "S" : ""} ON RECORD
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedGames.map((game) => (
-              <GameCardWeb2
-                key={game.metadata.gameId}
-                game={game}
-                userId={userId}
-                remaining={game.metadata.winner === "" ? calculateTimeRemaining(game) : 0}
-                onSelect={() => setSelectedGame(game)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <GamesListShell
+      isAuthenticated={isLoggedIn}
+      authRequiredMessage="Please sign in to view your games."
+      isLoading={isLoading}
+      error={error}
+      count={sortedGames.length}
+    >
+      {sortedGames.map((game) => (
+        <GameCardWeb2
+          key={game.metadata.gameId}
+          game={game}
+          userId={userId}
+          remaining={game.metadata.winner === "" ? calculateTimeRemaining(game) : 0}
+          onSelect={() => setSelectedGame(game)}
+        />
+      ))}
+    </GamesListShell>
   );
 };
 

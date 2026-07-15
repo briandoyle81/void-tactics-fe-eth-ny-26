@@ -6,6 +6,7 @@ import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useContractEvents } from "../hooks/useContractEvents";
 import GameDisplay from "./GameDisplay";
 import { GameLogCard } from "./GameLogCard";
+import { GamesListShell } from "./GamesListShell";
 import { GameDataView } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 
@@ -242,93 +243,54 @@ const Games: React.FC = () => {
     );
   }
 
-  if (!isConnected) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">Games</h1>
-        <p className="text-text-muted">
-          Please connect your wallet to view your games.
-        </p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-        <div className="font-mono text-xs text-text-muted tracking-widest animate-pulse">&gt;&gt; ACQUIRING ENGAGEMENT DATA...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-        <p className="text-warning-red font-mono text-sm">[ERR] Data acquisition failure: {error}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 w-full">
-      <h1 className="text-2xl font-mono text-white">[ENGAGEMENT LOG]</h1>
-
-      {sortedGames.length === 0 ? (
-        <div className="py-8 text-text-muted font-mono text-sm">
-          <span className="tracking-widest">[NO ENGAGEMENTS ON RECORD] — Deploy a fleet and enter the fray.</span>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="font-mono text-xs text-text-muted tracking-widest">
-            {"// "}{sortedGames.length} ENGAGEMENT{sortedGames.length !== 1 ? "S" : ""} ON RECORD
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sortedGames.map((game) => {
-              const isFinished = game.metadata.winner !== ZERO_ADDRESS;
-              const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
-              const isVictory = isFinished && !isDraw && game.metadata.winner === address;
-              const remaining = isFinished ? 0 : calculateTimeRemaining(game);
-              return (
-                <GameLogCard
-                  key={game.metadata.gameId.toString()}
-                  gameIdLabel={game.metadata.gameId.toString()}
-                  isFinished={isFinished}
-                  isDraw={isDraw}
-                  isVictory={isVictory}
-                  lobbyIdLabel={game.metadata.lobbyId.toString()}
-                  identityRows={
-                    <>
-                      <div className="data-readout">
-                        <span className="data-readout-label">Creator</span>
-                        <span className="font-mono text-xs">
-                          {game.metadata.creator.slice(0, 6)}…{game.metadata.creator.slice(-4)}
-                        </span>
-                      </div>
-                      <div className="data-readout">
-                        <span className="data-readout-label">Joiner</span>
-                        <span className="font-mono text-xs">
-                          {game.metadata.joiner.slice(0, 6)}…{game.metadata.joiner.slice(-4)}
-                        </span>
-                      </div>
-                    </>
-                  }
-                  dateLabel={new Date(Number(game.metadata.startedAt) * 1000).toLocaleDateString()}
-                  creatorScore={Number(game.creatorScore)}
-                  joinerScore={Number(game.joinerScore)}
-                  maxScore={Number(game.maxScore)}
-                  isMyTurn={game.turnState.currentTurn === address}
-                  turnSecondsRemaining={remaining}
-                  onSelect={() => setSelectedGame(game)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+    <GamesListShell
+      isAuthenticated={isConnected}
+      authRequiredMessage="Please connect your wallet to view your games."
+      isLoading={isLoading}
+      error={error}
+      count={sortedGames.length}
+    >
+      {sortedGames.map((game) => {
+        const isFinished = game.metadata.winner !== ZERO_ADDRESS;
+        const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
+        const isVictory = isFinished && !isDraw && game.metadata.winner === address;
+        const remaining = isFinished ? 0 : calculateTimeRemaining(game);
+        return (
+          <GameLogCard
+            key={game.metadata.gameId.toString()}
+            gameIdLabel={game.metadata.gameId.toString()}
+            isFinished={isFinished}
+            isDraw={isDraw}
+            isVictory={isVictory}
+            lobbyIdLabel={game.metadata.lobbyId.toString()}
+            identityRows={
+              <>
+                <div className="data-readout">
+                  <span className="data-readout-label">Creator</span>
+                  <span className="font-mono text-xs">
+                    {game.metadata.creator.slice(0, 6)}…{game.metadata.creator.slice(-4)}
+                  </span>
+                </div>
+                <div className="data-readout">
+                  <span className="data-readout-label">Joiner</span>
+                  <span className="font-mono text-xs">
+                    {game.metadata.joiner.slice(0, 6)}…{game.metadata.joiner.slice(-4)}
+                  </span>
+                </div>
+              </>
+            }
+            dateLabel={new Date(Number(game.metadata.startedAt) * 1000).toLocaleDateString()}
+            creatorScore={Number(game.creatorScore)}
+            joinerScore={Number(game.joinerScore)}
+            maxScore={Number(game.maxScore)}
+            isMyTurn={game.turnState.currentTurn === address}
+            turnSecondsRemaining={remaining}
+            onSelect={() => setSelectedGame(game)}
+          />
+        );
+      })}
+    </GamesListShell>
   );
 };
 

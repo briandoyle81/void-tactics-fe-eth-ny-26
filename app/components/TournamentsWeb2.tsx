@@ -9,6 +9,10 @@ import { TournamentCardWeb2 } from "./TournamentCardWeb2";
 import { TournamentRegisterWeb2 } from "./TournamentRegisterWeb2";
 import { TournamentBracketWeb2 } from "./TournamentBracketWeb2";
 import { TournamentAdminPanelWeb2 } from "./TournamentAdminPanelWeb2";
+import { TournamentDetailHeader } from "./TournamentDetailHeader";
+import { TournamentDetailStatsRow } from "./TournamentDetailStatsRow";
+import { TournamentCreateForm } from "./TournamentCreateForm";
+import { TournamentListShell } from "./TournamentListShell";
 import { Web2TournamentState, type Web2Tournament } from "../types/web2Tournament";
 import {
   IMMEDIATE_GAME_TURN_SECONDS,
@@ -19,6 +23,12 @@ import {
   MEDIUM_MAX_SCORE,
   LONG_MAX_SCORE,
 } from "../utils/lobbyFormatters";
+import type {
+  MaxPlayersOption,
+  ThreatScaleOption,
+  TurnPaceOption,
+  GameLengthOption,
+} from "../utils/tournamentCreateFormOptions";
 
 // Web2-mode counterpart to `Tournaments.tsx`. Same single-elimination
 // lifecycle (create → register → start/bracket-generate → play each match
@@ -32,19 +42,6 @@ import {
 function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
 }
-
-const STATE_LABELS: Record<Web2TournamentState, string> = {
-  [Web2TournamentState.Registration]: "REGISTRATION",
-  [Web2TournamentState.Active]: "ACTIVE",
-  [Web2TournamentState.Complete]: "COMPLETE",
-  [Web2TournamentState.Cancelled]: "CANCELLED",
-};
-const STATE_COLORS: Record<Web2TournamentState, string> = {
-  [Web2TournamentState.Registration]: "text-cyan border-cyan",
-  [Web2TournamentState.Active]: "text-phosphor-green border-phosphor-green",
-  [Web2TournamentState.Complete]: "text-text-muted border-gunmetal",
-  [Web2TournamentState.Cancelled]: "text-warning-red border-warning-red",
-};
 
 // ─── Detail view ─────────────────────────────────────────────────────────────
 
@@ -81,45 +78,21 @@ function TournamentDetail({ tournamentId, onBack }: { tournamentId: number; onBa
   }
 
   const { config, summary, bracket, registrants, isRegistered } = tournament;
-  const stateLabel = STATE_LABELS[summary.state] ?? "UNKNOWN";
-  const stateColor = STATE_COLORS[summary.state] ?? "text-text-muted border-gunmetal";
 
   return (
     <div className="font-mono">
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="text-xs text-text-muted hover:text-text-secondary transition-colors">
-          ← Back
-        </button>
-        <div className="flex-1 flex items-center gap-3">
-          <span className="text-sm font-bold text-text-secondary">Tournament #{tournamentId}</span>
-          <span className={`border px-2 py-0.5 text-[10px] font-bold tracking-wider ${stateColor}`}>{stateLabel}</span>
-        </div>
-      </div>
+      <TournamentDetailHeader
+        idLabel={`Tournament #${tournamentId}`}
+        state={summary.state}
+        onBack={onBack}
+      />
 
-      <div className="flex flex-wrap gap-4 text-xs mb-5 pb-4 border-b border-gunmetal/40">
-        {summary.prizePool > 0 && (
-          <div>
-            <span className="text-text-muted">Prize </span>
-            <span className="text-phosphor-green font-bold">{summary.prizePool} credits</span>
-          </div>
-        )}
-        <div>
-          <span className="text-text-muted">Players </span>
-          <span className="text-text-secondary">
-            {summary.registrantCount}/{config.maxPlayers}
-          </span>
-        </div>
-        {config.entryFee > 0 && (
-          <div>
-            <span className="text-text-muted">Entry </span>
-            <span className="text-text-secondary">{config.entryFee} credits</span>
-          </div>
-        )}
-        <div>
-          <span className="text-text-muted">Creator </span>
-          <span className="text-text-secondary">{truncateId(summary.creator)}</span>
-        </div>
-      </div>
+      <TournamentDetailStatsRow
+        prizeLabel={summary.prizePool > 0 ? `${summary.prizePool} credits` : null}
+        playersLabel={`${summary.registrantCount}/${config.maxPlayers}`}
+        entryFeeLabel={config.entryFee > 0 ? `${config.entryFee} credits` : null}
+        creatorLabel={truncateId(summary.creator)}
+      />
 
       <div className="mb-5">
         <TournamentRegisterWeb2
@@ -196,38 +169,16 @@ function TournamentDetail({ tournamentId, onBack }: { tournamentId: number; onBa
 
 interface CreateForm {
   entryFee: string;
-  maxPlayers: "2" | "4" | "8" | "16";
+  maxPlayers: MaxPlayersOption;
   hoursUntilDeadline: number;
-  threatScale: "skirmish" | "battle";
-  turnPace: "immediate" | "correspondence";
-  gameLength: "short" | "medium" | "long";
+  threatScale: ThreatScaleOption;
+  turnPace: TurnPaceOption;
+  gameLength: GameLengthOption;
 }
 
-function OptionCard({ checked, onSelect, title, sub }: { checked: boolean; onSelect: () => void; title: string; sub: string }) {
-  return (
-    <label
-      className={`flex min-w-0 cursor-pointer items-start gap-3 border p-3 transition-colors has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan ${
-        checked ? "border-cyan bg-cyan/5" : "border-gunmetal bg-black/40 hover:border-steel"
-      }`}
-    >
-      <input type="checkbox" checked={checked} onChange={onSelect} className="mt-0.5 h-4 w-4 shrink-0 accent-cyan" />
-      <span>
-        <span className={`block font-mono font-bold ${checked ? "text-cyan" : "text-text-secondary"}`}>{title}</span>
-        <span className="mt-0.5 block text-xs text-text-muted">{sub}</span>
-      </span>
-    </label>
-  );
-}
-
-const DEADLINE_PRESETS = [
-  { label: "1h", hours: 1 },
-  { label: "4h", hours: 4 },
-  { label: "24h", hours: 24 },
-  { label: "48h", hours: 48 },
-  { label: "7d", hours: 168 },
-] as const;
-
-const MAX_PLAYER_OPTIONS = ["2", "4", "8", "16"] as const;
+const INPUT_CLASS =
+  "w-full bg-black/40 border border-gunmetal px-3 py-2 text-sm text-text-secondary font-mono focus:border-cyan focus:outline-none placeholder:text-gunmetal";
+const FIELD_LABEL_CLASS = "text-[10px] uppercase tracking-widest text-text-muted mb-1.5 block";
 
 function CreateTournament({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => Promise<unknown> }) {
   const actions = useTournamentActionsWeb2();
@@ -277,108 +228,36 @@ function CreateTournament({ onBack, onSuccess }: { onBack: () => void; onSuccess
     }
   };
 
-  const sl = "text-[10px] uppercase tracking-widest text-text-muted mb-1.5 block";
-  const inputClass =
-    "w-full bg-black/40 border border-gunmetal px-3 py-2 text-sm text-text-secondary font-mono focus:border-cyan focus:outline-none placeholder:text-gunmetal";
-
   return (
-    <div className="font-mono">
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="text-xs text-text-muted hover:text-text-secondary transition-colors">
-          ← Back
-        </button>
-        <span className="text-sm font-bold text-text-secondary">Create Tournament</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-        <div className="flex flex-col gap-3">
-          <div>
-            <span className={sl}>Max players</span>
-            <div className="grid grid-cols-4 gap-1.5">
-              {MAX_PLAYER_OPTIONS.map((n) => (
-                <OptionCard
-                  key={n}
-                  checked={form.maxPlayers === n}
-                  onSelect={() => patch("maxPlayers", n)}
-                  title={n}
-                  sub={n === "2" ? "1v1" : `${parseInt(n) / 2} R1`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className={sl}>Fleet threat limit</span>
-            <div className="grid grid-cols-2 gap-1.5">
-              <OptionCard checked={form.threatScale === "skirmish"} onSelect={() => patch("threatScale", "skirmish")} title="Skirmish" sub="1,000 threat" />
-              <OptionCard checked={form.threatScale === "battle"} onSelect={() => patch("threatScale", "battle")} title="Battle" sub="2,000 threat" />
-            </div>
-          </div>
-
-          <div>
-            <span className={sl}>Victory condition</span>
-            <div className="grid grid-cols-3 gap-1.5">
-              <OptionCard checked={form.gameLength === "short"} onSelect={() => patch("gameLength", "short")} title="Short" sub="50 pts" />
-              <OptionCard checked={form.gameLength === "medium"} onSelect={() => patch("gameLength", "medium")} title="Medium" sub="100 pts" />
-              <OptionCard checked={form.gameLength === "long"} onSelect={() => patch("gameLength", "long")} title="Long" sub="200 pts" />
-            </div>
-          </div>
+    <TournamentCreateForm
+      maxPlayers={form.maxPlayers}
+      onMaxPlayersChange={(v) => patch("maxPlayers", v)}
+      threatScale={form.threatScale}
+      onThreatScaleChange={(v) => patch("threatScale", v)}
+      gameLength={form.gameLength}
+      onGameLengthChange={(v) => patch("gameLength", v)}
+      hoursUntilDeadline={form.hoursUntilDeadline}
+      onHoursUntilDeadlineChange={(hours) => patch("hoursUntilDeadline", hours)}
+      turnPace={form.turnPace}
+      onTurnPaceChange={(v) => patch("turnPace", v)}
+      entryFeeSlot={
+        <div>
+          <span className={FIELD_LABEL_CLASS}>Entry fee (credits)</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="0 — free entry"
+            className={INPUT_CLASS}
+            value={form.entryFee}
+            onChange={(e) => patch("entryFee", e.target.value.replace(/[^0-9]/g, ""))}
+          />
         </div>
-
-        <div className="flex flex-col gap-3">
-          <div>
-            <span className={sl}>Registration closes in</span>
-            <div className="flex gap-1.5 flex-wrap">
-              {DEADLINE_PRESETS.map(({ label, hours }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => patch("hoursUntilDeadline", hours)}
-                  className={`px-4 py-2 text-xs font-bold tracking-wider border transition-colors ${
-                    form.hoursUntilDeadline === hours
-                      ? "border-cyan bg-cyan/10 text-cyan"
-                      : "border-gunmetal bg-black/40 text-text-muted hover:border-steel hover:text-text-secondary"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className={sl}>Turn timer</span>
-            <div className="grid grid-cols-2 gap-1.5">
-              <OptionCard checked={form.turnPace === "immediate"} onSelect={() => patch("turnPace", "immediate")} title="Live" sub="5 min / turn" />
-              <OptionCard checked={form.turnPace === "correspondence"} onSelect={() => patch("turnPace", "correspondence")} title="Async" sub="24 hr / turn" />
-            </div>
-          </div>
-
-          <div>
-            <span className={sl}>Entry fee (credits)</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0 — free entry"
-              className={inputClass}
-              value={form.entryFee}
-              onChange={(e) => patch("entryFee", e.target.value.replace(/[^0-9]/g, ""))}
-            />
-          </div>
-        </div>
-
-        <div className="col-span-2 pt-1 flex flex-col gap-2">
-          {error && <p className="text-xs text-warning-red break-words">{error}</p>}
-          <button
-            disabled={pending}
-            onClick={() => void handleCreate()}
-            className="w-full border border-phosphor-green py-3 text-sm font-bold tracking-wider text-phosphor-green hover:bg-phosphor-green/10 transition-colors disabled:opacity-50"
-          >
-            {pending ? "Creating…" : "Create Tournament"}
-          </button>
-        </div>
-      </div>
-    </div>
+      }
+      error={error}
+      pending={pending}
+      onSubmit={() => void handleCreate()}
+      onBack={onBack}
+    />
   );
 }
 
@@ -405,65 +284,27 @@ function TournamentList({
   );
 
   return (
-    <div className="font-mono">
-      <div className="flex items-center justify-between mb-5">
-        <div className="text-[10px] uppercase tracking-widest text-text-muted">Tournaments</div>
-        <button
-          onClick={onCreate}
-          className="border border-phosphor-green/60 px-3 py-1.5 text-xs text-phosphor-green font-bold tracking-wider hover:border-phosphor-green hover:bg-phosphor-green/5 transition-colors"
-        >
-          + New Tournament
-        </button>
-      </div>
-
-      {isLoading && (
-        <div className="flex items-center gap-2 py-8 text-xs text-text-muted">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-phosphor-green/30 border-t-phosphor-green" />
-          Loading…
-        </div>
-      )}
-
-      {!isLoading && tournaments.length === 0 && (
-        <div className="py-12 text-center text-xs text-text-muted">
-          No tournaments yet.{" "}
-          <button onClick={onCreate} className="text-phosphor-green hover:underline">
-            Create the first one.
-          </button>
-        </div>
-      )}
-
-      {active.length > 0 && (
-        <section className="mb-6">
-          <div className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Open</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {active.map((t) => (
-              <TournamentCardWeb2
-                key={t.summary.id}
-                tournament={t}
-                isCreatorMe={t.summary.creator === currentUserId}
-                onClick={() => onSelect(t.summary.id)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {finished.length > 0 && (
-        <section>
-          <div className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Completed</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {finished.map((t) => (
-              <TournamentCardWeb2
-                key={t.summary.id}
-                tournament={t}
-                isCreatorMe={t.summary.creator === currentUserId}
-                onClick={() => onSelect(t.summary.id)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+    <TournamentListShell
+      isLoading={isLoading}
+      totalCount={tournaments.length}
+      onCreate={onCreate}
+      activeCards={active.map((t) => (
+        <TournamentCardWeb2
+          key={t.summary.id}
+          tournament={t}
+          isCreatorMe={t.summary.creator === currentUserId}
+          onClick={() => onSelect(t.summary.id)}
+        />
+      ))}
+      finishedCards={finished.map((t) => (
+        <TournamentCardWeb2
+          key={t.summary.id}
+          tournament={t}
+          isCreatorMe={t.summary.creator === currentUserId}
+          onClick={() => onSelect(t.summary.id)}
+        />
+      ))}
+    />
   );
 }
 

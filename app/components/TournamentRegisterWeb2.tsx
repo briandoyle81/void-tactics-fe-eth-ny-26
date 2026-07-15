@@ -3,6 +3,11 @@
 import { useState, useCallback } from "react";
 import { useTournamentActionsWeb2 } from "../hooks/useTournamentActionsWeb2";
 import { Web2TournamentState, type Web2TournamentConfig, type Web2TournamentSummary } from "../types/web2Tournament";
+import {
+  TournamentRegisterAuthPrompt,
+  TournamentRegisteredBadge,
+  TournamentRegisterPanel,
+} from "./TournamentRegisterPanel";
 
 // Web2-mode counterpart to `TournamentRegister.tsx` — this is the actual
 // World-ID-swap. No proof widget: sybil resistance is "one registration per
@@ -38,37 +43,29 @@ export function TournamentRegisterWeb2({ tournamentId, config, summary, isRegist
   if (summary.state !== Web2TournamentState.Registration) return null;
 
   if (!isLoggedIn) {
-    return (
-      <div className="border border-gunmetal p-4 text-center text-sm text-text-muted font-mono">
-        Sign in to register.
-      </div>
-    );
+    return <TournamentRegisterAuthPrompt message="Sign in to register." />;
   }
 
   if (isRegistered) {
-    return (
-      <div className="border border-phosphor-green/30 bg-phosphor-green/5 p-4 text-center font-mono">
-        <span className="text-phosphor-green text-sm tracking-wider">✓ REGISTERED</span>
-      </div>
-    );
+    return <TournamentRegisteredBadge />;
   }
 
   const isFull = summary.registrantCount >= config.maxPlayers;
 
   return (
-    <div className="border border-phosphor-green/30 bg-phosphor-green/5 p-4 font-mono">
-      <p className="mb-4 text-xs text-text-muted leading-relaxed">
-        Entry fee: <span className="text-phosphor-green font-bold">{config.entryFee > 0 ? `${config.entryFee} credits` : "FREE"}</span>
-      </p>
-
-      {isFull ? (
-        <div className="text-center text-xs text-warning-red">Tournament is full.</div>
-      ) : pending ? (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-phosphor-green/30 border-t-phosphor-green" />
-          <span className="text-xs text-text-muted">Submitting registration…</span>
-        </div>
-      ) : (
+    <TournamentRegisterPanel
+      infoSection={
+        <p className="mb-4 text-xs text-text-muted leading-relaxed">
+          Entry fee:{" "}
+          <span className="text-phosphor-green font-bold">
+            {config.entryFee > 0 ? `${config.entryFee} credits` : "FREE"}
+          </span>
+        </p>
+      }
+      isFull={isFull}
+      isBusy={pending}
+      busyLabel="Submitting registration…"
+      renderRegisterAction={() => (
         <button
           onClick={() => void handleRegister()}
           className="w-full border border-phosphor-green py-2 text-sm font-bold tracking-wider text-phosphor-green hover:bg-phosphor-green/10 transition-colors font-mono"
@@ -76,8 +73,7 @@ export function TournamentRegisterWeb2({ tournamentId, config, summary, isRegist
           Register
         </button>
       )}
-
-      {error && <p className="mt-3 text-xs text-warning-red leading-relaxed">{error}</p>}
-    </div>
+      error={error}
+    />
   );
 }

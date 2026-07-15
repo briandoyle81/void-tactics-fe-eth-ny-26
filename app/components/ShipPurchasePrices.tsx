@@ -9,6 +9,8 @@ import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { getNativeTokenSymbol } from "../config/networks";
 import { TransactionButton } from "./TransactionButton";
 import { PurchaseTierTable, type PurchaseTierRowData } from "./PurchaseTierTable";
+import { ShipPurchasePricesHeaderCard } from "./ShipPurchasePricesHeaderCard";
+import { ShipPurchaseTierSectionCard } from "./ShipPurchaseTierSectionCard";
 import { useShipPurchasePricesAccess } from "../hooks/useShipPurchasePricesAccess";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
@@ -328,57 +330,16 @@ const ShipPurchasePrices: React.FC = () => {
     emptyMessage: string;
     onAfterSuccess: () => void;
     belowSubtitle?: React.ReactNode;
-  }) => {
-    if (config.isLoading && config.tierIndices.length === 0) {
-      return (
-        <div className="bg-steel rounded-none p-4 border border-gunmetal">
-          <h3 className="text-lg font-mono text-text-primary mb-1">{config.title}</h3>
-          <p className="text-text-muted text-sm font-mono">Loading…</p>
-        </div>
-      );
-    }
-    if (config.tierIndices.length === 0) {
-      return (
-        <div className="bg-steel rounded-none p-4 border border-gunmetal">
-          <h3 className="text-lg font-mono text-text-primary mb-1">{config.title}</h3>
-          <p className="text-warning-red text-sm font-mono">{config.emptyMessage}</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-steel rounded-none p-4 border border-gunmetal">
-        <h3 className="text-lg font-mono text-text-primary mb-1">{config.title}</h3>
-        <p className="text-sm text-text-muted mb-4">{config.subtitle}</p>
-        {config.belowSubtitle ? (
-          <div className="mb-4">{config.belowSubtitle}</div>
-        ) : null}
-        <PurchaseTierTable
-          editable={config.canEdit}
-          rows={config.tierIndices.map((tier, i): PurchaseTierRowData => ({
-            tierLabel: String(tier),
-            shipCount: config.ships[i] ?? 0,
-            onShipCountChange: (value) =>
-              config.setShips((prev) => {
-                const next = [...prev];
-                next[i] = value;
-                return next;
-              }),
-            prices: [
-              {
-                currencyLabel: config.priceLabel,
-                value: config.prices[i] ?? "",
-                onChange: (value) =>
-                  config.setPrices((prev) => {
-                    const next = [...prev];
-                    next[i] = value;
-                    return next;
-                  }),
-              },
-            ],
-          }))}
-        />
-        {config.canEdit ? (
+  }) => (
+    <ShipPurchaseTierSectionCard
+      title={config.title}
+      subtitle={config.subtitle}
+      isLoading={config.isLoading}
+      isEmpty={config.tierIndices.length === 0}
+      emptyMessage={config.emptyMessage}
+      belowSubtitle={config.belowSubtitle}
+      footer={
+        config.canEdit ? (
           <div className="mt-4 flex flex-wrap gap-2">
             <TransactionButton
               transactionId={config.transactionId}
@@ -412,35 +373,55 @@ const ShipPurchasePrices: React.FC = () => {
           <p className="mt-3 text-amber/90 text-xs font-mono">
             Connect as this contract&apos;s owner to submit updates.
           </p>
-        )}
-      </div>
-    );
-  };
+        )
+      }
+    >
+      <PurchaseTierTable
+        editable={config.canEdit}
+        rows={config.tierIndices.map((tier, i): PurchaseTierRowData => ({
+          tierLabel: String(tier),
+          shipCount: config.ships[i] ?? 0,
+          onShipCountChange: (value) =>
+            config.setShips((prev) => {
+              const next = [...prev];
+              next[i] = value;
+              return next;
+            }),
+          prices: [
+            {
+              currencyLabel: config.priceLabel,
+              value: config.prices[i] ?? "",
+              onChange: (value) =>
+                config.setPrices((prev) => {
+                  const next = [...prev];
+                  next[i] = value;
+                  return next;
+                }),
+            },
+          ],
+        }))}
+      />
+    </ShipPurchaseTierSectionCard>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="bg-near-black rounded-none p-4 border border-gunmetal">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-mono text-text-primary mb-2">
-              Ship pack purchase prices
-            </h2>
-            <p className="text-sm text-text-muted">
-              Data loads from the chain and is cached in your browser for one
-              week. Native purchases use{" "}
-              <span className="text-text-secondary">Ships.purchaseWithFlow</span>. UTC
-              pack purchases use{" "}
-              <span className="text-text-secondary">ShipPurchaser.purchaseWithUC</span>.
-              Each contract stores tier ship counts and prices with{" "}
-              <span className="text-text-secondary">setPurchaseInfo</span>.
-            </p>
-            {hasUnsavedChanges ? (
-              <p className="text-amber text-xs font-mono mt-2">
-                Unsaved changes in price entry.
-              </p>
-            ) : null}
-          </div>
-          <div className="shrink-0 flex flex-wrap gap-2">
+      <ShipPurchasePricesHeaderCard
+        description={
+          <>
+            Data loads from the chain and is cached in your browser for one
+            week. Native purchases use{" "}
+            <span className="text-text-secondary">Ships.purchaseWithFlow</span>. UTC
+            pack purchases use{" "}
+            <span className="text-text-secondary">ShipPurchaser.purchaseWithUC</span>.
+            Each contract stores tier ship counts and prices with{" "}
+            <span className="text-text-secondary">setPurchaseInfo</span>.
+          </>
+        }
+        hasUnsavedChanges={hasUnsavedChanges}
+        unsavedChangesLabel="Unsaved changes in price entry."
+        actions={
+          <>
             <button
               type="button"
               onClick={handleClearPriceEntry}
@@ -461,9 +442,9 @@ const ShipPurchasePrices: React.FC = () => {
                 ? "[RELOADING…]"
                 : "[CLEAR CACHE & RELOAD]"}
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {renderSection({
         title: "Native token packs",

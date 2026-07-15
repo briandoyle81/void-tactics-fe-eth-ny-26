@@ -8,7 +8,9 @@ import {
   useMapsContract,
 } from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
+import { MapEditorHeader } from "./MapEditorHeader";
 import { MapPreviewCard } from "./MapPreviewCard";
+import { MapsListShell } from "./MapsListShell";
 import { TransactionButton } from "./TransactionButton";
 import { PresetMap } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
@@ -87,17 +89,10 @@ export default function Maps() {
   if (showEditor) {
     return (
       <div className="space-y-4 -mx-1 -my-1 px-1 py-1">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleEditorCancel}
-            className="px-4 py-2 bg-steel text-text-primary rounded-none font-mono hover:bg-gunmetal"
-          >
-            ← Back to Maps
-          </button>
-          <h2 className="text-xl font-mono text-white">
-            {editingMapId ? `Edit Map ${editingMapId}` : "Create New Map"}
-          </h2>
-        </div>
+        <MapEditorHeader
+          title={editingMapId ? `Edit Map ${editingMapId}` : "Create New Map"}
+          onBack={handleEditorCancel}
+        />
         <MapEditor
           mapId={editingMapId}
           initialBlockedPositions={editingMap?.blockedPositions}
@@ -136,52 +131,25 @@ export default function Maps() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-mono text-white">Maps</h1>
-        {canCreateMaps ? (
-          <button
-            onClick={handleCreateMap}
-            className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10"
-          >
-            Create New Map
-          </button>
-        ) : (
-          <div className="px-4 py-2 bg-steel text-text-muted rounded-none font-mono cursor-not-allowed">
-            Create New Map (Restricted)
-          </div>
-        )}
-      </div>
-
-      <div className="text-sm text-text-muted">
-        Total maps: {mapCount ? Number(mapCount) : 0}
-        {!canCreateMaps && (
-          <div className="mt-2 text-amber">
-            [!] Map creation is currently restricted to authorized addresses only
-          </div>
-        )}
-      </div>
-
-      {maps.length === 0 ? (
-        <div className="text-center py-8 text-text-muted">
-          <p>No maps found. Create your first map to get started!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {maps.map((map) => (
-            <MapPreviewCard
-              key={map.id}
-              map={{
-                id: map.id,
-                titleLabel: `Map #${map.id}`,
-                blockedPositions: map.blockedPositions,
-                scoringPositions: map.scoringPositions,
-              }}
-              onEdit={() => handleEditMap(map.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <MapsListShell
+      canCreateMaps={canCreateMaps}
+      onCreateMap={handleCreateMap}
+      totalMaps={mapCount ? Number(mapCount) : 0}
+      restrictedMessage="[!] Map creation is currently restricted to authorized addresses only"
+      isEmpty={maps.length === 0}
+    >
+      {maps.map((map) => (
+        <MapPreviewCard
+          key={map.id}
+          map={{
+            id: map.id,
+            titleLabel: `Map #${map.id}`,
+            blockedPositions: map.blockedPositions,
+            scoringPositions: map.scoringPositions,
+          }}
+          onEdit={() => handleEditMap(map.id)}
+        />
+      ))}
+    </MapsListShell>
   );
 }

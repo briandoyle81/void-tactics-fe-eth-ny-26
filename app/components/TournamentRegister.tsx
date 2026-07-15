@@ -13,6 +13,11 @@ import { WORLD_APP_ID, WORLD_ACTION } from "../config/tournament";
 import { useTournamentActions } from "../hooks/useTournamentActions";
 import type { TournamentConfig, TournamentSummary } from "../types/types";
 import { TournamentState } from "../types/types";
+import {
+  TournamentRegisterAuthPrompt,
+  TournamentRegisteredBadge,
+  TournamentRegisterPanel,
+} from "./TournamentRegisterPanel";
 
 // IDKit v4: with orbLegacy + allow_legacy_proofs=true the result is IDKitResultV3.
 // responses[0] carries { proof, merkle_root, nullifier } for on-chain semaphore verification.
@@ -110,19 +115,11 @@ export function TournamentRegister({
   if (summary.state !== TournamentState.Registration) return null;
 
   if (!address) {
-    return (
-      <div className="border border-gunmetal p-4 text-center text-sm text-text-muted font-mono">
-        Connect your wallet to register.
-      </div>
-    );
+    return <TournamentRegisterAuthPrompt message="Connect your wallet to register." />;
   }
 
   if (isRegistered) {
-    return (
-      <div className="border border-phosphor-green/30 bg-phosphor-green/5 p-4 text-center font-mono">
-        <span className="text-phosphor-green text-sm tracking-wider">✓ REGISTERED</span>
-      </div>
-    );
+    return <TournamentRegisteredBadge />;
   }
 
   const isFull = summary.registrantCount >= BigInt(config.maxPlayers);
@@ -130,27 +127,24 @@ export function TournamentRegister({
   const isBusy = fetchingContext || pending;
 
   return (
-    <div className="border border-phosphor-green/30 bg-phosphor-green/5 p-4 font-mono">
-      {entryFeeEth && (
-        <p className="mb-3 text-xs text-text-muted">
-          Entry fee:{" "}
-          <span className="text-phosphor-green font-bold">{entryFeeEth} ETH</span>
-        </p>
-      )}
-      <p className="mb-4 text-xs text-text-muted leading-relaxed">
-        Verify your identity with World ID to register. One verification per tournament.
-      </p>
-
-      {isFull ? (
-        <div className="text-center text-xs text-warning-red">Tournament is full.</div>
-      ) : isBusy ? (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-phosphor-green/30 border-t-phosphor-green" />
-          <span className="text-xs text-text-muted">
-            {fetchingContext ? "Preparing verification…" : "Submitting registration…"}
-          </span>
-        </div>
-      ) : (
+    <TournamentRegisterPanel
+      infoSection={
+        <>
+          {entryFeeEth && (
+            <p className="mb-3 text-xs text-text-muted">
+              Entry fee:{" "}
+              <span className="text-phosphor-green font-bold">{entryFeeEth} ETH</span>
+            </p>
+          )}
+          <p className="mb-4 text-xs text-text-muted leading-relaxed">
+            Verify your identity with World ID to register. One verification per tournament.
+          </p>
+        </>
+      }
+      isFull={isFull}
+      isBusy={isBusy}
+      busyLabel={fetchingContext ? "Preparing verification…" : "Submitting registration…"}
+      renderRegisterAction={() => (
         <>
           {rpContext && (
             <IDKitRequestWidget
@@ -173,10 +167,7 @@ export function TournamentRegister({
           </button>
         </>
       )}
-
-      {error && (
-        <p className="mt-3 text-xs text-warning-red leading-relaxed">{error}</p>
-      )}
-    </div>
+      error={error}
+    />
   );
 }

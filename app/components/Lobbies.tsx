@@ -18,7 +18,6 @@ import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useFleetsRead } from "../hooks/useFleetsContract";
 import { useShipsRead } from "../hooks/useShipsContract";
 import {
-  LobbyStatus,
   Lobby,
   Ship,
   Attributes,
@@ -74,6 +73,9 @@ import {
   formatScoreShort,
 } from "../utils/lobbyFormatters";
 import { usePlayerStats } from "../hooks/usePlayerStats";
+import { WinLossBadge } from "./WinLossBadge";
+import { LobbyCardActions } from "./LobbyCardActions";
+import { lobbyStatusColor, lobbyStatusLabel } from "../utils/lobbyStatusDisplay";
 
 function CreatorStats({
   address,
@@ -84,23 +86,7 @@ function CreatorStats({
 }) {
   const stats = usePlayerStats(address, chainId);
   if (!stats) return null;
-  const wins = Number(stats.wins);
-  const losses = Number(stats.losses);
-  return (
-    <div
-      className="flex items-center gap-2 text-base font-bold tabular-nums"
-      style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
-    >
-      <span className="text-phosphor-green">{wins}W</span>
-      <span
-        className="text-[10px] font-normal"
-        style={{ color: "color-mix(in srgb, var(--color-text-muted) 40%, transparent)" }}
-      >
-        /
-      </span>
-      <span className="text-warning-red">{losses}L</span>
-    </div>
-  );
+  return <WinLossBadge wins={Number(stats.wins)} losses={Number(stats.losses)} />;
 }
 
 const Lobbies: React.FC = () => {
@@ -1338,32 +1324,6 @@ const Lobbies: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: number) => {
-    switch (status) {
-      case 0: // LobbyStatus.Open
-        return "text-phosphor-green";
-      case 1: // LobbyStatus.FleetSelection
-        return "text-amber";
-      case 2: // LobbyStatus.InGame
-        return "text-warning-red";
-      default:
-        return "text-text-muted";
-    }
-  };
-
-  const getStatusText = (status: number) => {
-    switch (status) {
-      case 0: // LobbyStatus.Open
-        return "OPEN";
-      case 1: // LobbyStatus.FleetSelection
-        return "FLEET SELECTION";
-      case 2: // LobbyStatus.InGame
-        return "IN GAME";
-      default:
-        return "UNKNOWN";
-    }
-  };
-
   // NOTE: Early returns moved below to keep hook order stable across renders
 
   // Auto-fetch opponent fleet data for grid preview (cache immutable fleets)
@@ -1950,8 +1910,8 @@ const Lobbies: React.FC = () => {
               key={lobby.basic.id.toString()}
               lobbyIdLabel={lobby.basic.id.toString()}
               isCreatorMe={isCreatorMe}
-              statusColorClass={getStatusColor(lobby.state.status)}
-              statusText={getStatusText(lobby.state.status)}
+              statusColorClass={lobbyStatusColor(lobby.state.status)}
+              statusText={lobbyStatusLabel(lobby.state.status)}
               creatorLabel={`${lobby.basic.creator.slice(0, 6)}…${lobby.basic.creator.slice(-4)}`}
               creatorStats={
                 <CreatorStats
@@ -2021,161 +1981,96 @@ const Lobbies: React.FC = () => {
                 ) : undefined
               }
               actions={
-              <>
-              {lobby.state.status === LobbyStatus.Open &&
-                lobby.basic.creator !== address &&
-                lobby.players.joiner !== address && (
-                  <div className="space-y-2">
-                    {/* Check if lobby is reserved */}
-                    {lobby.players.reservedJoiner &&
-                    typeof lobby.players.reservedJoiner === "string" &&
-                    lobby.players.reservedJoiner !==
-                      "0x0000000000000000000000000000000000000000" ? (
-                      // Reserved lobby
-                      address &&
-                      lobby.players.reservedJoiner.toLowerCase() ===
-                        address.toLowerCase() ? (
-                        // Reserved for current user - show accept/reject
-                        <div className="space-y-2">
-                          <p className="text-sm text-amber text-center font-mono">
-                            [GAME RESERVED FOR YOU]
-                          </p>
-                          <div className="flex gap-2">
-                            <LobbyAcceptButton
-                              lobbyId={lobby.basic.id}
-                              disabled={hasActiveLobby}
-                              className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                              onSuccess={() => {
-                                toast.success("Game accepted!");
-                                loadLobbies();
-                              }}
-                              onError={(error) => {
-                                console.error("Failed to accept game:", error);
-                                const errorMessage = error.message || "";
-                                if (
-                                  errorMessage.includes("NotReservedJoiner") ||
-                                  errorMessage.includes("LobbyNotReserved")
-                                ) {
-                                  toast.error(
-                                    "This game is no longer reserved for you",
-                                  );
-                                } else {
-                                  toast.error("Failed to accept game");
-                                }
-                              }}
-                            >
-                              ACCEPT
-                            </LobbyAcceptButton>
-                            <LobbyRejectButton
-                              lobbyId={lobby.basic.id}
-                              disabled={hasActiveLobby}
-                              className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                              onSuccess={() => {
-                                toast.success(
-                                  "Game rejected. Lobby is now open.",
-                                );
-                                loadLobbies();
-                              }}
-                              onError={(error) => {
-                                console.error("Failed to reject game:", error);
-                                toast.error("Failed to reject game");
-                              }}
-                            >
-                              REJECT
-                            </LobbyRejectButton>
-                          </div>
-                          {hasActiveLobby && (
-                            <p className="text-xs text-amber text-center">
-                              You already have an active lobby. Complete it
-                              before accepting another.
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        // Reserved for someone else
-                        <div className="text-center">
-                          <p className="text-sm text-amber font-mono mb-2">
-                            [RESERVED] This game is reserved for another player
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            Reserved for:{" "}
-                            {lobby.players.reservedJoiner.slice(0, 6)}…{lobby.players.reservedJoiner.slice(-4)}
-                          </p>
-                        </div>
-                      )
-                    ) : (
-                      // Open lobby - show join button
-                      <>
-                        <LobbyJoinButton
-                          lobbyId={lobby.basic.id}
-                          disabled={hasActiveLobby}
-                          className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          onSuccess={() => {
-                            toast.success("Joined lobby successfully!");
-                            loadLobbies();
-                          }}
-                          onError={(error) => {
-                            console.error("Failed to join lobby:", error);
-                            const errorMessage = error.message || "";
-                            if (errorMessage.includes("NotReservedJoiner")) {
-                              toast.error(
-                                "This game is reserved for another player",
-                              );
-                            } else {
-                              toast.error("Failed to join lobby");
-                            }
-                          }}
-                        >
-                          JOIN LOBBY
-                        </LobbyJoinButton>
-                        {hasActiveLobby && (
-                          <p className="text-xs text-amber text-center">
-                            You already have an active lobby. Complete it before
-                            joining another.
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-              {/* Show action buttons for creator */}
-              {lobby.basic.creator === address && (
-                <div className="flex flex-col gap-2">
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId > 0n && (
-                      <button
-                        type="button"
-                        onClick={closeFleetModalAndGoToGames}
-                        className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        GO TO GAMES
-                      </button>
-                    )}
-                  {lobby.players.creatorFleetId === 0n &&
-                    lobby.players.joiner !==
-                      "0x0000000000000000000000000000000000000000" && (
-                      <button
-                        onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        SELECT FLEET
-                      </button>
-                    )}
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId === 0n && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        VIEW FLEET SELECTION
-                      </button>
-                    )}
-                  {lobby.state.status !== LobbyStatus.InGame && (
+                <LobbyCardActions
+                  status={lobby.state.status}
+                  isCreatorMe={isCreatorMe}
+                  isJoinerMe={isJoinerMe}
+                  hasJoiner={hasJoiner}
+                  hasReservedJoiner={!!hasReservedJoiner}
+                  isReservedForMe={
+                    !!address &&
+                    !!hasReservedJoiner &&
+                    lobby.players.reservedJoiner.toLowerCase() === address.toLowerCase()
+                  }
+                  reservedLabel={
+                    hasReservedJoiner
+                      ? `${lobby.players.reservedJoiner.slice(0, 6)}…${lobby.players.reservedJoiner.slice(-4)}`
+                      : ""
+                  }
+                  hasActiveLobby={hasActiveLobby}
+                  myFleetId={Number(
+                    isCreatorMe ? lobby.players.creatorFleetId : lobby.players.joinerFleetId,
+                  )}
+                  opponentFleetId={Number(
+                    isCreatorMe ? lobby.players.joinerFleetId : lobby.players.creatorFleetId,
+                  )}
+                  onGoToGames={closeFleetModalAndGoToGames}
+                  onSelectFleet={() => setSelectedLobby(lobby.basic.id)}
+                  joinButton={
+                    <LobbyJoinButton
+                      lobbyId={lobby.basic.id}
+                      disabled={hasActiveLobby}
+                      className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onSuccess={() => {
+                        toast.success("Joined lobby successfully!");
+                        loadLobbies();
+                      }}
+                      onError={(error) => {
+                        console.error("Failed to join lobby:", error);
+                        const errorMessage = error.message || "";
+                        if (errorMessage.includes("NotReservedJoiner")) {
+                          toast.error("This game is reserved for another player");
+                        } else {
+                          toast.error("Failed to join lobby");
+                        }
+                      }}
+                    >
+                      JOIN LOBBY
+                    </LobbyJoinButton>
+                  }
+                  acceptButton={
+                    <LobbyAcceptButton
+                      lobbyId={lobby.basic.id}
+                      disabled={hasActiveLobby}
+                      className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onSuccess={() => {
+                        toast.success("Game accepted!");
+                        loadLobbies();
+                      }}
+                      onError={(error) => {
+                        console.error("Failed to accept game:", error);
+                        const errorMessage = error.message || "";
+                        if (
+                          errorMessage.includes("NotReservedJoiner") ||
+                          errorMessage.includes("LobbyNotReserved")
+                        ) {
+                          toast.error("This game is no longer reserved for you");
+                        } else {
+                          toast.error("Failed to accept game");
+                        }
+                      }}
+                    >
+                      ACCEPT
+                    </LobbyAcceptButton>
+                  }
+                  rejectButton={
+                    <LobbyRejectButton
+                      lobbyId={lobby.basic.id}
+                      disabled={hasActiveLobby}
+                      className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onSuccess={() => {
+                        toast.success("Game rejected. Lobby is now open.");
+                        loadLobbies();
+                      }}
+                      onError={(error) => {
+                        console.error("Failed to reject game:", error);
+                        toast.error("Failed to reject game");
+                      }}
+                    >
+                      REJECT
+                    </LobbyRejectButton>
+                  }
+                  leaveButton={
                     <LobbyLeaveButton
                       lobbyId={lobby.basic.id}
                       allowWhenOtherPending
@@ -2192,83 +2087,8 @@ const Lobbies: React.FC = () => {
                     >
                       LEAVE LOBBY
                     </LobbyLeaveButton>
-                  )}
-                </div>
-              )}
-
-              {/* Show action buttons for joiner */}
-              {lobby.players.joiner === address && (
-                <div className="flex flex-col gap-2">
-                  {lobby.players.creatorFleetId > 0n &&
-                    lobby.players.joinerFleetId > 0n && (
-                      <button
-                        type="button"
-                        onClick={closeFleetModalAndGoToGames}
-                        className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        GO TO GAMES
-                      </button>
-                    )}
-                  {lobby.players.joinerFleetId === 0n && (
-                    <button
-                      onClick={() => setSelectedLobby(lobby.basic.id)}
-                      className="w-full px-4 py-2.5 border border-amber text-amber hover:bg-amber/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                      style={{ borderRadius: 0 }}
-                    >
-                      SELECT FLEET
-                    </button>
-                  )}
-                  {lobby.players.joinerFleetId > 0n &&
-                    lobby.players.creatorFleetId === 0n && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLobby(lobby.basic.id)}
-                        className="w-full px-4 py-2.5 border border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        style={{ borderRadius: 0 }}
-                      >
-                        VIEW FLEET SELECTION
-                      </button>
-                    )}
-                  {lobby.state.status !== LobbyStatus.InGame && (
-                    <LobbyLeaveButton
-                      lobbyId={lobby.basic.id}
-                      allowWhenOtherPending
-                      className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                      onSuccess={() => {
-                        if (selectedLobby === lobby.basic.id) {
-                          resetFleetSelectionModalState();
-                        }
-                        loadLobbies();
-                      }}
-                      onError={(error) => {
-                        console.error("Failed to leave lobby:", error);
-                      }}
-                    >
-                      LEAVE LOBBY
-                    </LobbyLeaveButton>
-                  )}
-                </div>
-              )}
-
-              {/* Show fleet selection phase message when both players are in lobby but haven't both selected fleets */}
-              {lobby.state.status === LobbyStatus.FleetSelection &&
-                lobby.players.joiner !==
-                  "0x0000000000000000000000000000000000000000" &&
-                (lobby.players.creatorFleetId === 0n ||
-                  lobby.players.joinerFleetId === 0n) && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-amber">
-                      Fleet selection phase - waiting for both players to select
-                      fleets
-                    </p>
-                  </div>
-                )}
-
-              {lobby.state.status === LobbyStatus.InGame && (
-                <div className="text-sm text-warning-red">Game in progress</div>
-              )}
-              </>
+                  }
+                />
               }
             />
             );
