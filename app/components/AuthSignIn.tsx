@@ -53,7 +53,7 @@ const AuthSignIn: React.FC = () => {
     <button
       onClick={handleSignIn}
       type="button"
-      className="border-2 border-cyan text-cyan hover:bg-cyan/10 uppercase font-semibold py-2 px-6 tracking-wider transition-colors duration-150"
+      className="border-2 border-amber text-amber hover:bg-amber/10 uppercase font-semibold py-2 px-6 tracking-wider transition-colors duration-150"
       style={{
         fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
         borderRadius: 0,

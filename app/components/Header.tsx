@@ -1,17 +1,7 @@
 "use client";
 
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  useAccount,
-  useBalance,
-  useConfig,
-  useReadContract,
-} from "wagmi";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useAccount, useBalance, useConfig, useReadContract } from "wagmi";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { formatEther } from "viem";
 import { toast } from "react-hot-toast";
@@ -50,7 +40,10 @@ const FAUCET_URLS: Record<number, string> = {
 
 function resolveChainIdFromQueryParam(value: string | null): number | null {
   if (!value) return null;
-  const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
   const numeric = Number(normalized);
   if (Number.isFinite(numeric) && isChainSelectableInUi(numeric)) {
     return numeric;
@@ -80,8 +73,7 @@ function HeaderAlphaBadge({ compact }: { compact?: boolean }) {
         compact ? "px-2 py-0.5" : "px-2.5 py-1"
       }`}
       style={{
-        fontFamily:
-          "var(--font-jetbrains-mono), 'Courier New', monospace",
+        fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
         fontSize: compact ? "10px" : "11px",
         fontWeight: 600,
         textTransform: "uppercase",
@@ -165,7 +157,9 @@ function AuthModeChooser({
   return (
     <div className="relative flex flex-col gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-        <HeaderDisconnectedConnect connectButtonClassName={connectButtonClassName} />
+        <HeaderDisconnectedConnect
+          connectButtonClassName={connectButtonClassName}
+        />
         <span className="text-center text-xs font-mono text-cyan uppercase tracking-wider">
           or
         </span>
@@ -188,7 +182,7 @@ function AuthModeChooser({
             aria-hidden="true"
           />
           <div
-            className="absolute right-0 top-full z-[350] mt-2 w-[min(95vw,64rem)] border border-solid p-5"
+            className="absolute right-0 top-full z-[350] mt-2 w-[min(95vw,64rem)] max-h-[75vh] overflow-y-auto border border-solid p-5"
             style={{
               backgroundColor: "var(--color-near-black)",
               borderColor: "var(--color-gunmetal)",
@@ -214,7 +208,8 @@ function AuthModeChooser({
                 className="border-2 p-4"
                 style={{
                   borderColor: "var(--color-cyan)",
-                  backgroundColor: "color-mix(in srgb, var(--color-cyan) 6%, transparent)",
+                  backgroundColor:
+                    "color-mix(in srgb, var(--color-cyan) 6%, transparent)",
                 }}
               >
                 <h5
@@ -226,9 +221,9 @@ function AuthModeChooser({
                 <p className="font-mono text-sm uppercase tracking-wider text-text-muted mb-3">
                   On-chain
                 </p>
-                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside whitespace-nowrap">
+                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside">
                   <li>True on-chain ownership — every ship is really yours</li>
-                  <li>Take your fleet anywhere Ethereum works</li>
+                  <li>Safe and permissionless modding and data access</li>
                   <li>Permanent, provably fair battle history</li>
                 </ul>
               </div>
@@ -236,7 +231,8 @@ function AuthModeChooser({
                 className="border-2 p-4"
                 style={{
                   borderColor: "var(--color-amber)",
-                  backgroundColor: "color-mix(in srgb, var(--color-amber) 6%, transparent)",
+                  backgroundColor:
+                    "color-mix(in srgb, var(--color-amber) 6%, transparent)",
                 }}
               >
                 <h5
@@ -248,7 +244,7 @@ function AuthModeChooser({
                 <p className="font-mono text-sm uppercase tracking-wider text-text-muted mb-3">
                   Hosted
                 </p>
-                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside whitespace-nowrap">
+                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside">
                   <li>Playing your first battle in under a minute</li>
                   <li>Zero cost to start</li>
                   <li>Just your Google account — nothing else to set up</li>
@@ -296,7 +292,10 @@ function HeaderModeSwitchBadge({
       <div className="flex min-w-0 items-center gap-2">
         <span
           className="shrink-0 border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider"
-          style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)" }}
+          style={{
+            borderColor: "var(--color-cyan)",
+            color: "var(--color-cyan)",
+          }}
         >
           Mode: {currentMode === "web3" ? "Web3" : "Web2"}
         </span>
@@ -320,9 +319,7 @@ function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
   return (
     <div
       className={
-        isMobile
-          ? "relative min-w-0 shrink"
-          : "relative w-fit shrink-0"
+        isMobile ? "relative min-w-0 shrink" : "relative w-fit shrink-0"
       }
     >
       <h1
@@ -339,7 +336,11 @@ function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
         VOID TACTICS
       </h1>
       <div
-        className={isMobile ? "mt-0.5 h-0.5 w-full" : "absolute -bottom-1 left-0 right-0 h-0.5"}
+        className={
+          isMobile
+            ? "mt-0.5 h-0.5 w-full"
+            : "absolute -bottom-1 left-0 right-0 h-0.5"
+        }
         style={{ backgroundColor: "var(--color-cyan)" }}
       />
     </div>
@@ -425,7 +426,8 @@ function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
 const Header: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
-  const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] = useState(false);
+  const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] =
+    useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -649,7 +651,10 @@ const Header: React.FC = () => {
       setIsNetworkMenuOpen(false);
       setIsMobileMenuOpen(false);
     };
-    window.addEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, handleChainChanged);
+    window.addEventListener(
+      VOID_TACTICS_CHAIN_CHANGED_EVENT,
+      handleChainChanged,
+    );
     return () => {
       window.removeEventListener(
         VOID_TACTICS_CHAIN_CHANGED_EVENT,
@@ -716,7 +721,11 @@ const Header: React.FC = () => {
   }, []);
 
   const isConnected = account.isConnected;
-  const { isLoggedIn: isWeb2LoggedIn, username: web2Username, email: web2Email } = useCurrentUser();
+  const {
+    isLoggedIn: isWeb2LoggedIn,
+    username: web2Username,
+    email: web2Email,
+  } = useCurrentUser();
   const { creditBalance } = useUserBalanceWeb2();
   const appMode = useAppMode();
 
@@ -725,8 +734,10 @@ const Header: React.FC = () => {
   // "whichever login just happened."
   const bothIdentitiesActive = isConnected && isWeb2LoggedIn;
   const showWeb2Panel =
-    (!isConnected && isWeb2LoggedIn) || (bothIdentitiesActive && appMode === "web2");
-  const showWeb3Panel = isConnected && !(bothIdentitiesActive && appMode === "web2");
+    (!isConnected && isWeb2LoggedIn) ||
+    (bothIdentitiesActive && appMode === "web2");
+  const showWeb3Panel =
+    isConnected && !(bothIdentitiesActive && appMode === "web2");
 
   // The hamburger/expanded panel is always reachable once hydrated so a
   // logged-out player can still find the web2 sign-in option on mobile.
@@ -760,11 +771,7 @@ const Header: React.FC = () => {
 
     if (!isHydrated) {
       return (
-        <div
-          ref={assignMenuRef}
-          className="h-9 w-9 shrink-0"
-          aria-hidden
-        />
+        <div ref={assignMenuRef} className="h-9 w-9 shrink-0" aria-hidden />
       );
     }
 
@@ -884,40 +891,44 @@ const Header: React.FC = () => {
                   {bothIdentitiesActive && (
                     <HeaderModeSwitchBadge
                       currentMode="web2"
-                      identityLabel={web2Username ?? web2Email ?? "Web2 account"}
+                      identityLabel={
+                        web2Username ?? web2Email ?? "Web2 account"
+                      }
                     />
                   )}
                   <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowUTCPurchaseModalWeb2(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                    style={{
-                      backgroundColor: "var(--color-near-black)",
-                      borderColor: "var(--color-amber)",
-                      borderTopColor: "var(--color-steel)",
-                      borderLeftColor: "var(--color-steel)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-slate)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-near-black)";
-                    }}
-                    title="UTC balance — click to buy more"
-                  >
-                    <span
-                      className="text-xs font-bold tracking-wider uppercase"
+                    <button
+                      type="button"
+                      onClick={() => setShowUTCPurchaseModalWeb2(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
                       style={{
-                        fontFamily:
-                          "var(--font-jetbrains-mono), 'Courier New', monospace",
-                        color: "var(--color-amber)",
+                        backgroundColor: "var(--color-near-black)",
+                        borderColor: "var(--color-amber)",
+                        borderTopColor: "var(--color-steel)",
+                        borderLeftColor: "var(--color-steel)",
                       }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-slate)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-near-black)";
+                      }}
+                      title="UTC balance — click to buy more"
                     >
-                      {creditBalance} UTC
-                    </span>
-                  </button>
-                  <AuthSignIn />
+                      <span
+                        className="text-xs font-bold tracking-wider uppercase"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                          color: "var(--color-amber)",
+                        }}
+                      >
+                        {creditBalance} UTC
+                      </span>
+                    </button>
+                    <AuthSignIn />
                   </div>
                 </div>
               )}
@@ -930,118 +941,51 @@ const Header: React.FC = () => {
                       identityLabel={formatAddress(account.address || "")}
                     />
                   )}
-                <div className="flex w-full flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4">
-                  <div className="flex flex-col items-stretch md:items-end gap-2">
-                    {/* Flow Balance and Buy Flow button */}
-                    <div className="flex items-center gap-2 justify-between md:justify-start">
-                      {/* Flow Balance */}
-                      <div
-                        className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
-                        style={{
-                          backgroundColor: "var(--color-near-black)",
-                          borderColor: "var(--color-phosphor-green)",
-                          borderTopColor: "var(--color-steel)",
-                          borderLeftColor: "var(--color-steel)",
-                        }}
-                      >
-                        <span
-                          className="text-xs font-bold tracking-wider uppercase"
+                  <div className="flex w-full flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4">
+                    <div className="flex flex-col items-stretch md:items-end gap-2">
+                      {/* Flow Balance and Buy Flow button */}
+                      <div className="flex items-center gap-2 justify-between md:justify-start">
+                        {/* Flow Balance */}
+                        <div
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
                           style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-phosphor-green)",
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-phosphor-green)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
                           }}
                         >
-                          {balance?.value
-                            ? `${parseFloat(balance.formatted).toFixed(2)} ${nativeTokenSymbol}`
-                            : `0.00 ${nativeTokenSymbol}`}
-                        </span>
-                      </div>
-                      {/* Get Tokens link — opens chain-appropriate faucet */}
-                      <a
-                        href={FAUCET_URLS[selectedChainId] ?? FAUCET_URLS[545]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-32 h-8 border border-solid text-xs font-bold tracking-wider uppercase flex items-center justify-center transition-colors duration-150"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: "var(--color-cyan)",
-                          backgroundColor: "var(--color-near-black)",
-                          borderColor: "rgba(86, 214, 255, 0.75)",
-                          borderTopColor: "var(--color-steel)",
-                          borderLeftColor: "var(--color-steel)",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "var(--color-slate)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "var(--color-near-black)";
-                        }}
-                      >
-                        [GET TOKENS]
-                      </a>
-                    </div>
-
-                    {/* UTC Balance and Network */}
-                    <div className="flex items-center gap-2 justify-between md:justify-start">
-                      {/* UTC Balance - Clickable */}
-                      <button
-                        onClick={() => setShowUTCPurchaseModal(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                        style={{
-                          backgroundColor: "var(--color-near-black)",
-                          borderColor: "var(--color-amber)",
-                          borderTopColor: "var(--color-steel)",
-                          borderLeftColor: "var(--color-steel)",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor =
-                            "var(--color-amber)";
-                          e.currentTarget.style.backgroundColor =
-                            "var(--color-slate)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor =
-                            "var(--color-amber)";
-                          e.currentTarget.style.backgroundColor =
-                            "var(--color-near-black)";
-                        }}
-                      >
-                        <span
-                          className="text-xs font-bold tracking-wider uppercase"
-                          style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-amber)",
-                          }}
-                        >
-                          {utcBalance
-                            ? `${formatEther(utcBalance as bigint)} UTC`
-                            : "0.00 UTC"}
-                        </span>
-                      </button>
-                      {/* Network (moved here) */}
-                      <div
-                        ref={networkMenuRef}
-                        className="relative z-[120] h-8 w-32"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setIsNetworkMenuOpen((prev) => !prev)}
-                          disabled={!isHydrated || isConnecting}
-                          className="flex h-full w-full items-center justify-center border border-solid px-3 pr-7 text-center text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-70"
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-phosphor-green)",
+                            }}
+                          >
+                            {balance?.value
+                              ? `${parseFloat(balance.formatted).toFixed(2)} ${nativeTokenSymbol}`
+                              : `0.00 ${nativeTokenSymbol}`}
+                          </span>
+                        </div>
+                        {/* Get Tokens link — opens chain-appropriate faucet */}
+                        <a
+                          href={
+                            FAUCET_URLS[selectedChainId] ?? FAUCET_URLS[545]
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-32 h-8 border border-solid text-xs font-bold tracking-wider uppercase flex items-center justify-center transition-colors duration-150"
                           style={{
                             fontFamily:
                               "var(--font-jetbrains-mono), 'Courier New', monospace",
                             color: "var(--color-cyan)",
                             backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-cyan)",
+                            borderColor: "rgba(86, 214, 255, 0.75)",
                             borderTopColor: "var(--color-steel)",
                             borderLeftColor: "var(--color-steel)",
                           }}
                           onMouseEnter={(e) => {
-                            if (!isHydrated || isConnecting) return;
                             e.currentTarget.style.backgroundColor =
                               "var(--color-slate)";
                           }}
@@ -1050,153 +994,230 @@ const Header: React.FC = () => {
                               "var(--color-near-black)";
                           }}
                         >
-                          {(
-                            SUPPORTED_CHAINS.find((c) => c.id === selectedChainId)
-                              ?.name ?? "NETWORK"
-                          ).toUpperCase()}
-                        </button>
-                        <span
-                          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] leading-none"
-                          style={{ color: "var(--color-cyan)" }}
-                        >
-                          {isNetworkMenuOpen ? "▲" : "▼"}
-                        </span>
+                          [GET TOKENS]
+                        </a>
+                      </div>
 
-                        {isNetworkMenuOpen && (
-                          <div
-                            className="absolute left-0 top-[calc(100%+4px)] z-[130] w-32 border border-solid"
+                      {/* UTC Balance and Network */}
+                      <div className="flex items-center gap-2 justify-between md:justify-start">
+                        {/* UTC Balance - Clickable */}
+                        <button
+                          onClick={() => setShowUTCPurchaseModal(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-amber)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "var(--color-amber)";
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "var(--color-amber)";
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-near-black)";
+                          }}
+                        >
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
                             style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-amber)",
+                            }}
+                          >
+                            {utcBalance
+                              ? `${formatEther(utcBalance as bigint)} UTC`
+                              : "0.00 UTC"}
+                          </span>
+                        </button>
+                        {/* Network (moved here) */}
+                        <div
+                          ref={networkMenuRef}
+                          className="relative z-[120] h-8 w-32"
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsNetworkMenuOpen((prev) => !prev)
+                            }
+                            disabled={!isHydrated || isConnecting}
+                            className="flex h-full w-full items-center justify-center border border-solid px-3 pr-7 text-center text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-70"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-cyan)",
                               backgroundColor: "var(--color-near-black)",
                               borderColor: "var(--color-cyan)",
                               borderTopColor: "var(--color-steel)",
                               borderLeftColor: "var(--color-steel)",
                             }}
+                            onMouseEnter={(e) => {
+                              if (!isHydrated || isConnecting) return;
+                              e.currentTarget.style.backgroundColor =
+                                "var(--color-slate)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor =
+                                "var(--color-near-black)";
+                            }}
                           >
-                            {SUPPORTED_CHAINS.map((c) => {
-                              const isActive = c.id === selectedChainId;
-                              const selectable = isChainSelectableInUi(c.id);
-                              return (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  disabled={!selectable}
-                                  title={
-                                    selectable
-                                      ? undefined
-                                      : "Unavailable on this build"
-                                  }
-                                  onClick={() => handleNetworkChange(c.id)}
-                                  className={`flex h-8 w-full items-center px-2 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 ${
-                                    !selectable
-                                      ? "cursor-not-allowed opacity-45"
-                                      : ""
-                                  }`}
-                                  style={{
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                    color: isActive
-                                      ? "var(--color-near-black)"
-                                      : "var(--color-cyan)",
-                                    backgroundColor: isActive
-                                      ? "var(--color-cyan)"
-                                      : "transparent",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    if (isActive || !selectable) return;
-                                    e.currentTarget.style.backgroundColor =
-                                      "var(--color-slate)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    if (isActive || !selectable) return;
-                                    e.currentTarget.style.backgroundColor =
-                                      "transparent";
-                                  }}
-                                >
-                                  {c.name.toUpperCase()}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                            {(
+                              SUPPORTED_CHAINS.find(
+                                (c) => c.id === selectedChainId,
+                              )?.name ?? "NETWORK"
+                            ).toUpperCase()}
+                          </button>
+                          <span
+                            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] leading-none"
+                            style={{ color: "var(--color-cyan)" }}
+                          >
+                            {isNetworkMenuOpen ? "▲" : "▼"}
+                          </span>
+
+                          {isNetworkMenuOpen && (
+                            <div
+                              className="absolute left-0 top-[calc(100%+4px)] z-[130] w-32 border border-solid"
+                              style={{
+                                backgroundColor: "var(--color-near-black)",
+                                borderColor: "var(--color-cyan)",
+                                borderTopColor: "var(--color-steel)",
+                                borderLeftColor: "var(--color-steel)",
+                              }}
+                            >
+                              {SUPPORTED_CHAINS.map((c) => {
+                                const isActive = c.id === selectedChainId;
+                                const selectable = isChainSelectableInUi(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    disabled={!selectable}
+                                    title={
+                                      selectable
+                                        ? undefined
+                                        : "Unavailable on this build"
+                                    }
+                                    onClick={() => handleNetworkChange(c.id)}
+                                    className={`flex h-8 w-full items-center px-2 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 ${
+                                      !selectable
+                                        ? "cursor-not-allowed opacity-45"
+                                        : ""
+                                    }`}
+                                    style={{
+                                      fontFamily:
+                                        "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                      color: isActive
+                                        ? "var(--color-near-black)"
+                                        : "var(--color-cyan)",
+                                      backgroundColor: isActive
+                                        ? "var(--color-cyan)"
+                                        : "transparent",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (isActive || !selectable) return;
+                                      e.currentTarget.style.backgroundColor =
+                                        "var(--color-slate)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (isActive || !selectable) return;
+                                      e.currentTarget.style.backgroundColor =
+                                        "transparent";
+                                    }}
+                                  >
+                                    {c.name.toUpperCase()}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 flex-col items-stretch">
+                      <HeaderLogoutButton
+                        onBeforeLogOut={handleBeforeLogOut}
+                        className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-48 flex items-center justify-center text-xs h-8"
+                        style={{
+                          fontFamily:
+                            "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          borderColor: "var(--color-warning-red)",
+                          color: "var(--color-warning-red)",
+                          backgroundColor: "var(--color-steel)",
+                          borderRadius: 0,
+                        }}
+                      >
+                        [LOG OUT]
+                      </HeaderLogoutButton>
+                      {/* Address (moved here) */}
+                      <div
+                        className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"
+                        style={{
+                          backgroundColor: "var(--color-near-black)",
+                          borderColor: "var(--color-gunmetal)",
+                          borderTopColor: "var(--color-steel)",
+                          borderLeftColor: "var(--color-steel)",
+                        }}
+                      >
+                        <span
+                          className="text-xs font-bold tracking-wider uppercase"
+                          style={{
+                            fontFamily:
+                              "var(--font-jetbrains-mono), 'Courier New', monospace",
+                            color: "var(--color-text-secondary)",
+                          }}
+                        >
+                          {formatAddress(account.address || "")}
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              account.address || "",
+                            );
+                            toast.success("Address copied to clipboard!");
+                          }}
+                          className="p-1 transition-colors duration-150"
+                          style={{
+                            color: "var(--color-text-secondary)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--color-cyan)";
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color =
+                              "var(--color-text-secondary)";
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
+                          }}
+                          title="Copy address to clipboard"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Action buttons */}
-                  <div className="flex gap-2 flex-col items-stretch">
-                    <HeaderLogoutButton
-                      onBeforeLogOut={handleBeforeLogOut}
-                      className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-48 flex items-center justify-center text-xs h-8"
-                      style={{
-                        fontFamily:
-                          "var(--font-rajdhani), 'Arial Black', sans-serif",
-                        borderColor: "var(--color-warning-red)",
-                        color: "var(--color-warning-red)",
-                        backgroundColor: "var(--color-steel)",
-                        borderRadius: 0,
-                      }}
-                    >
-                      [LOG OUT]
-                    </HeaderLogoutButton>
-                    {/* Address (moved here) */}
-                    <div
-                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"
-                      style={{
-                        backgroundColor: "var(--color-near-black)",
-                        borderColor: "var(--color-gunmetal)",
-                        borderTopColor: "var(--color-steel)",
-                        borderLeftColor: "var(--color-steel)",
-                      }}
-                    >
-                      <span
-                        className="text-xs font-bold tracking-wider uppercase"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: "var(--color-text-secondary)",
-                        }}
-                      >
-                        {formatAddress(account.address || "")}
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(account.address || "");
-                          toast.success("Address copied to clipboard!");
-                        }}
-                        className="p-1 transition-colors duration-150"
-                        style={{
-                          color: "var(--color-text-secondary)",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = "var(--color-cyan)";
-                          e.currentTarget.style.backgroundColor =
-                            "var(--color-slate)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color =
-                            "var(--color-text-secondary)";
-                          e.currentTarget.style.backgroundColor = "transparent";
-                        }}
-                        title="Copy address to clipboard"
-                      >
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
                 </div>
               )}
             </div>
@@ -1211,11 +1232,14 @@ const Header: React.FC = () => {
           style={{
             fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
             color: "var(--color-warning-red)",
-            backgroundColor: "color-mix(in srgb, var(--color-warning-red) 10%, transparent)",
-            borderColor: "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
+            backgroundColor:
+              "color-mix(in srgb, var(--color-warning-red) 10%, transparent)",
+            borderColor:
+              "color-mix(in srgb, var(--color-warning-red) 40%, transparent)",
           }}
         >
-          &#9888; Network variant mismatch — claims and purchases may fail. Try switching networks.
+          &#9888; Network variant mismatch — claims and purchases may fail. Try
+          switching networks.
         </div>
       )}
 
@@ -1224,7 +1248,9 @@ const Header: React.FC = () => {
         <UTCPurchaseModal onClose={() => setShowUTCPurchaseModal(false)} />
       )}
       {showUTCPurchaseModalWeb2 && (
-        <UTCPurchaseModalWeb2 onClose={() => setShowUTCPurchaseModalWeb2(false)} />
+        <UTCPurchaseModalWeb2
+          onClose={() => setShowUTCPurchaseModalWeb2(false)}
+        />
       )}
     </header>
   );
