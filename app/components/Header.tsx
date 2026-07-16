@@ -35,7 +35,8 @@ import { readRpcErrorCode } from "../utils/ensureUiChainsInWallet";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
-import { setAppMode } from "../config/appMode";
+import { setAppMode, type AppMode } from "../config/appMode";
+import { useAppMode } from "../hooks/useAppMode";
 import AuthSignIn from "./AuthSignIn";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
@@ -146,8 +147,171 @@ function HeaderDisconnectedConnect({
         borderRadius: 0,
       }}
     >
-      [LOG IN]
+      Web3 // Wallet
     </button>
+  );
+}
+
+/** Wallet-connect + Web2 sign-in choice. "What's the difference?" pops the
+ * comparison cards up as an anchored overlay right below the buttons — it
+ * never pushes the rest of the page down. */
+function AuthModeChooser({
+  connectButtonClassName,
+}: {
+  connectButtonClassName: string;
+}) {
+  const [showComparison, setShowComparison] = useState(false);
+
+  return (
+    <div className="relative flex flex-col gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+        <HeaderDisconnectedConnect connectButtonClassName={connectButtonClassName} />
+        <span className="text-center text-xs font-mono text-cyan uppercase tracking-wider">
+          or
+        </span>
+        <AuthSignIn />
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowComparison((v) => !v)}
+        className="relative z-[351] text-center text-[11px] font-mono uppercase tracking-wider underline"
+        style={{ color: "var(--color-cyan)" }}
+      >
+        What&apos;s the difference?
+      </button>
+
+      {showComparison && (
+        <>
+          <div
+            className="fixed inset-0 z-[340]"
+            onClick={() => setShowComparison(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="absolute right-0 top-full z-[350] mt-2 w-[min(95vw,64rem)] border border-solid p-5"
+            style={{
+              backgroundColor: "var(--color-near-black)",
+              borderColor: "var(--color-gunmetal)",
+              borderTopColor: "var(--color-steel)",
+              borderLeftColor: "var(--color-steel)",
+            }}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-mono text-sm uppercase tracking-wider text-text-muted">
+                Web3 vs Web2
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowComparison(false)}
+                className="font-mono text-sm text-text-muted transition-colors duration-150 hover:text-cyan"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div
+                className="border-2 p-4"
+                style={{
+                  borderColor: "var(--color-cyan)",
+                  backgroundColor: "color-mix(in srgb, var(--color-cyan) 6%, transparent)",
+                }}
+              >
+                <h5
+                  className="font-mono text-lg font-bold uppercase tracking-wider mb-1"
+                  style={{ color: "var(--color-cyan)" }}
+                >
+                  Web3 // Wallet
+                </h5>
+                <p className="font-mono text-sm uppercase tracking-wider text-text-muted mb-3">
+                  On-chain
+                </p>
+                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside whitespace-nowrap">
+                  <li>True on-chain ownership — every ship is really yours</li>
+                  <li>Take your fleet anywhere Ethereum works</li>
+                  <li>Permanent, provably fair battle history</li>
+                </ul>
+              </div>
+              <div
+                className="border-2 p-4"
+                style={{
+                  borderColor: "var(--color-amber)",
+                  backgroundColor: "color-mix(in srgb, var(--color-amber) 6%, transparent)",
+                }}
+              >
+                <h5
+                  className="font-mono text-lg font-bold uppercase tracking-wider mb-1"
+                  style={{ color: "var(--color-amber)" }}
+                >
+                  Web2 // Email
+                </h5>
+                <p className="font-mono text-sm uppercase tracking-wider text-text-muted mb-3">
+                  Hosted
+                </p>
+                <ul className="text-base text-text-secondary space-y-2 list-disc list-inside whitespace-nowrap">
+                  <li>Playing your first battle in under a minute</li>
+                  <li>Zero cost to start</li>
+                  <li>Just your Google account — nothing else to set up</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Shown when both a wallet and a Web2 session are active, so switching
+ * data layers is an explicit player action instead of a silent side effect
+ * of whichever login happened most recently. */
+function HeaderModeSwitchBadge({
+  currentMode,
+  identityLabel,
+}: {
+  currentMode: AppMode;
+  identityLabel: string;
+}) {
+  const otherMode: AppMode = currentMode === "web3" ? "web2" : "web3";
+  const otherLabel = otherMode === "web3" ? "Web3" : "Web2";
+
+  const handleSwitch = () => {
+    setAppMode(otherMode);
+    toast(
+      otherMode === "web2"
+        ? "Switched to Web2. Your on-chain fleet stays put — switch back to see it."
+        : "Switched to Web3. Your Web2 fleet stays put — switch back to see it.",
+      { icon: "⚠️", duration: 5000 },
+    );
+  };
+
+  return (
+    <div
+      className="flex items-center justify-between gap-2 px-3 py-1.5 border border-solid"
+      style={{
+        backgroundColor: "var(--color-near-black)",
+        borderColor: "var(--color-gunmetal)",
+      }}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className="shrink-0 border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider"
+          style={{ borderColor: "var(--color-cyan)", color: "var(--color-cyan)" }}
+        >
+          Mode: {currentMode === "web3" ? "Web3" : "Web2"}
+        </span>
+        <span className="truncate font-mono text-[10px] text-text-muted">
+          {identityLabel}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={handleSwitch}
+        className="shrink-0 font-mono text-[10px] text-text-muted underline transition-colors duration-150 hover:text-cyan"
+      >
+        Switch to {otherLabel} →
+      </button>
+    </div>
   );
 }
 
@@ -552,8 +716,17 @@ const Header: React.FC = () => {
   }, []);
 
   const isConnected = account.isConnected;
-  const { isLoggedIn: isWeb2LoggedIn } = useCurrentUser();
+  const { isLoggedIn: isWeb2LoggedIn, username: web2Username, email: web2Email } = useCurrentUser();
   const { creditBalance } = useUserBalanceWeb2();
+  const appMode = useAppMode();
+
+  // True once a wallet is connected AND a Web2 session is also active —
+  // the ambiguous case where the mode can no longer be inferred from
+  // "whichever login just happened."
+  const bothIdentitiesActive = isConnected && isWeb2LoggedIn;
+  const showWeb2Panel =
+    (!isConnected && isWeb2LoggedIn) || (bothIdentitiesActive && appMode === "web2");
+  const showWeb3Panel = isConnected && !(bothIdentitiesActive && appMode === "web2");
 
   // The hamburger/expanded panel is always reachable once hydrated so a
   // logged-out player can still find the web2 sign-in option on mobile.
@@ -566,8 +739,13 @@ const Header: React.FC = () => {
   }, [isConnected, isConnecting, isWeb2LoggedIn]);
 
   // The login method the player actually used is the mode signal — keep the
-  // app-mode toggle in sync so the rest of the app renders the right data layer.
+  // app-mode toggle in sync so the rest of the app renders the right data
+  // layer. Only auto-assign when there's no ambiguity (exactly one identity
+  // active); when both a wallet and a Web2 session are active, leave the
+  // current mode alone — HeaderModeSwitchBadge lets the player switch
+  // explicitly instead of the app silently reassigning it out from under them.
   useEffect(() => {
+    if (isConnected && isWeb2LoggedIn) return;
     if (isConnected) {
       setAppMode("web3");
     } else if (isWeb2LoggedIn) {
@@ -698,17 +876,18 @@ const Header: React.FC = () => {
               )}
 
               {!isConnected && !isConnecting && !isWeb2LoggedIn && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
-                  <HeaderDisconnectedConnect connectButtonClassName="px-6 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-auto" />
-                  <span className="text-center text-xs font-mono text-text-muted uppercase tracking-wider">
-                    or
-                  </span>
-                  <AuthSignIn />
-                </div>
+                <AuthModeChooser connectButtonClassName="px-6 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-auto" />
               )}
 
-              {!isConnected && !isConnecting && isWeb2LoggedIn && (
-                <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+              {showWeb2Panel && (
+                <div className="flex flex-col items-stretch gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
+                  {bothIdentitiesActive && (
+                    <HeaderModeSwitchBadge
+                      currentMode="web2"
+                      identityLabel={web2Username ?? web2Email ?? "Web2 account"}
+                    />
+                  )}
+                  <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setShowUTCPurchaseModalWeb2(true)}
@@ -739,11 +918,19 @@ const Header: React.FC = () => {
                     </span>
                   </button>
                   <AuthSignIn />
+                  </div>
                 </div>
               )}
 
-              {isConnected && (
-                <div className="flex w-full md:w-auto flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4 md:ml-auto pt-1 md:pt-0">
+              {showWeb3Panel && (
+                <div className="flex w-full md:w-auto flex-col gap-2 md:ml-auto pt-1 md:pt-0">
+                  {bothIdentitiesActive && (
+                    <HeaderModeSwitchBadge
+                      currentMode="web3"
+                      identityLabel={formatAddress(account.address || "")}
+                    />
+                  )}
+                <div className="flex w-full flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4">
                   <div className="flex flex-col items-stretch md:items-end gap-2">
                     {/* Flow Balance and Buy Flow button */}
                     <div className="flex items-center gap-2 justify-between md:justify-start">
@@ -1009,6 +1196,7 @@ const Header: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                </div>
                 </div>
               )}
             </div>
