@@ -178,6 +178,9 @@ const ManageNavy: React.FC = () => {
     claimStatusError,
     isLoadingClaimStatus,
     nextClaimInFormatted,
+    claimFreeShips,
+    isPending: isClaimFreeShipsPending,
+    isConfirmed: isClaimFreeShipsConfirmed,
   } = useFreeShipClaiming();
 
   const shouldForceDroneFactoryTutorial =
@@ -733,6 +736,9 @@ const ManageNavy: React.FC = () => {
       tryClaimButton={
         <FreeShipClaimButton
           isEligible={true}
+          isPending={isClaimFreeShipsPending}
+          isConfirmed={isClaimFreeShipsConfirmed}
+          claimFreeShips={claimFreeShips}
           analyticsSurface="manage_navy"
           className={manageNavyActionButtonClassName("amber")}
           onPress={markFreeShipClaimClickedForTutorial}
@@ -746,6 +752,9 @@ const ManageNavy: React.FC = () => {
       claimButton={
         <FreeShipClaimButton
           isEligible={isEligible}
+          isPending={isClaimFreeShipsPending}
+          isConfirmed={isClaimFreeShipsConfirmed}
+          claimFreeShips={claimFreeShips}
           analyticsSurface="manage_navy"
           className={manageNavyActionButtonClassName("green")}
           onPress={markFreeShipClaimClickedForTutorial}

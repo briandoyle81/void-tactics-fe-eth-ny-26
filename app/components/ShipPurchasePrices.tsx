@@ -14,6 +14,7 @@ import { ShipPurchaseTierSectionCard } from "./ShipPurchaseTierSectionCard";
 import { useShipPurchasePricesAccess } from "../hooks/useShipPurchasePricesAccess";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
+import { useShipsRead } from "../hooks/useShipsContract";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 
@@ -100,6 +101,12 @@ const ShipPurchasePrices: React.FC = () => {
 
   const shipsInfo = useShipsPurchaseInfo();
   const utcInfo = useShipPurchaserPurchaseInfo();
+  // ShipPurchaser has one shared tier table: purchaseWithUC pays tierPrices[]
+  // in UTC for tierShips[] ships, while purchaseUTCWithFlow pays tierPrices[]
+  // in native token and mints tierShips[] * Ships.recycleReward() UTC. Read
+  // recycleReward live so the admin can see the actual UTC payout while
+  // editing, since it's not stored on ShipPurchaser itself.
+  const { data: recycleReward } = useShipsRead("recycleReward");
 
   const [nativeShips, setNativeShips] = useState<number[]>([]);
   const [nativeEth, setNativeEth] = useState<string[]>([]);
@@ -407,14 +414,26 @@ const ShipPurchasePrices: React.FC = () => {
   return (
     <div className="space-y-6">
       <ShipPurchasePricesHeaderCard
+        title="Ship pack & UTC purchase prices"
         description={
           <>
             Data loads from the chain and is cached in your browser for one
-            week. Native purchases use{" "}
-            <span className="text-text-secondary">Ships.purchaseWithFlow</span>. UTC
-            pack purchases use{" "}
-            <span className="text-text-secondary">ShipPurchaser.purchaseWithUC</span>.
-            Each contract stores tier ship counts and prices with{" "}
+            week. Three purchase flows, two contracts:{" "}
+            <span className="text-text-secondary">
+              Tool 1 — ship packs paid in tokens
+            </span>{" "}
+            (<span className="text-text-secondary">Ships.purchaseWithFlow</span>
+            ), and{" "}
+            <span className="text-text-secondary">
+              Tools 2 &amp; 3 — ship packs paid in UTC + UTC packs paid in
+              tokens
+            </span>{" "}
+            (<span className="text-text-secondary">ShipPurchaser</span>
+            &apos;s <span className="text-text-secondary">purchaseWithUC</span>{" "}
+            and{" "}
+            <span className="text-text-secondary">purchaseUTCWithFlow</span>{" "}
+            share one on-chain price table — see the section below). Each
+            contract stores tier ship counts and prices with{" "}
             <span className="text-text-secondary">setPurchaseInfo</span>.
           </>
         }
@@ -447,8 +466,8 @@ const ShipPurchasePrices: React.FC = () => {
       />
 
       {renderSection({
-        title: "Native token packs",
-        subtitle: `Prices are paid in ${nativeSymbol} (18 decimals onchain).`,
+        title: "Tool 1 — Ship packs, priced in tokens",
+        subtitle: `Ships.purchaseWithFlow. Prices are paid in ${nativeSymbol} (18 decimals onchain).`,
         canEdit: isShipsOwner,
         tierIndices: shipsInfo.tiers,
         ships: nativeShips,
@@ -481,8 +500,9 @@ const ShipPurchasePrices: React.FC = () => {
 
       {purchaserDeployed ? (
         renderSection({
-          title: "UTC packs",
-          subtitle: "Prices are Universal Credits (18 decimals).",
+          title: "Tools 2 & 3 — Ship packs (UTC) + UTC packs (tokens) — shared pricing",
+          subtitle:
+            "One table on ShipPurchaser drives both flows: purchaseWithUC charges the UTC price below for that many ships (Tool 2); purchaseUTCWithFlow charges the same number in native token and mints ships × recycleReward UTC (Tool 3). Editing a row changes both at once.",
           canEdit: isPurchaserOwner,
           tierIndices: utcInfo.tiers,
           ships: utcShips,
@@ -501,7 +521,7 @@ const ShipPurchasePrices: React.FC = () => {
           contractAddress: purchaserAddress,
           abi: CONTRACT_ABIS.SHIP_PURCHASER as Abi,
           transactionId: `set-utc-purchase-info-${chainId}`,
-          saveLabel: "[SAVE UTC PACKS]",
+          saveLabel: "[SAVE SHARED PRICING]",
           built: utcBuilt,
           txArgs: utcTxArgs,
           isLoading: utcInfo.isLoading,
@@ -513,10 +533,39 @@ const ShipPurchasePrices: React.FC = () => {
             utcInfo.refetch();
           },
           belowSubtitle: (
-            <p className="text-warning-red/90 text-xs font-mono">
-              Note: it is unusual to change UTC pack prices unless you are
-              running a sale.
-            </p>
+            <div className="space-y-2">
+              <p className="text-warning-red/90 text-xs font-mono">
+                Note: it is unusual to change UTC pack prices unless you are
+                running a sale.
+              </p>
+              <div className="border border-gunmetal bg-black/30 p-2 text-xs font-mono">
+                <p className="text-text-muted mb-1">
+                  Tool 3 preview — UTC minted per tier when bought with{" "}
+                  {nativeSymbol} (ships × recycleReward
+                  {recycleReward !== undefined
+                    ? ` [${formatEther(recycleReward as bigint)}]`
+                    : ""}
+                  ):
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {utcInfo.tiers.map((tier, i) => {
+                    const ships = BigInt(utcShips[i] ?? 0);
+                    const minted =
+                      recycleReward !== undefined
+                        ? ships * (recycleReward as bigint)
+                        : undefined;
+                    return (
+                      <span key={tier} className="text-text-secondary">
+                        Tier {tier}:{" "}
+                        <span className="text-cyan">
+                          {minted !== undefined ? formatEther(minted) : "…"} UTC
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ),
         })
       ) : (

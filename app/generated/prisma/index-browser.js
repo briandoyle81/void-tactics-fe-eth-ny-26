@@ -217,6 +217,29 @@ exports.Prisma.MapScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.AIShipConfigScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  equipment: 'equipment',
+  traits: 'traits',
+  archetype: 'archetype',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AIMapPlacementScalarFieldEnum = {
+  id: 'id',
+  mapId: 'mapId',
+  row: 'row',
+  col: 'col',
+  configId: 'configId'
+};
+
+exports.Prisma.AIFleetShipScalarFieldEnum = {
+  shipId: 'shipId',
+  configId: 'configId',
+  archetype: 'archetype'
+};
+
 exports.Prisma.ConfigScalarFieldEnum = {
   key: 'key',
   value: 'value',
@@ -332,6 +355,9 @@ exports.Prisma.ModelName = {
   Game: 'Game',
   GameTurn: 'GameTurn',
   Map: 'Map',
+  AIShipConfig: 'AIShipConfig',
+  AIMapPlacement: 'AIMapPlacement',
+  AIFleetShip: 'AIFleetShip',
   Config: 'Config',
   PlayerStats: 'PlayerStats',
   Tournament: 'Tournament',

@@ -8,9 +8,16 @@ import { useSelectedChainId } from "./useSelectedChainId";
 const REFETCH_DEBOUNCE_MS = 400;
 const REFETCH_RETRY_MS = 2000;
 
-export function useOwnedShips() {
+// `chainIdOverride` pins the read to a specific chain instead of following
+// the header network picker — the campaign fleet-selection flow needs this
+// (single-player only exists on Base Sepolia, same as every other campaign
+// hook), so a player browsing a different picked chain still sees their
+// real, submittable Base Sepolia ships and attributes rather than whatever
+// chain the picker happens to be on.
+export function useOwnedShips(chainIdOverride?: number) {
   const { address } = useAccount();
-  const activeChainId = useSelectedChainId();
+  const pickerChainId = useSelectedChainId();
+  const activeChainId = chainIdOverride ?? pickerChainId;
 
   const baselineOwnedIdsKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -21,13 +28,13 @@ export function useOwnedShips() {
     () => (address ? [address] : undefined),
     [address],
   );
-  const shipIdsResult = useShipsRead("getShipIdsOwned", shipIdsArgs);
+  const shipIdsResult = useShipsRead("getShipIdsOwned", shipIdsArgs, chainIdOverride);
 
   const shipsDataArgs = useMemo(
     () => (shipIdsResult.data ? [shipIdsResult.data] : undefined),
     [shipIdsResult.data],
   );
-  const shipsDataResult = useShipsRead("getShipsByIds", shipsDataArgs);
+  const shipsDataResult = useShipsRead("getShipsByIds", shipsDataArgs, chainIdOverride);
 
   const prevChainIdRef = useRef<number | null>(null);
   useEffect(() => {

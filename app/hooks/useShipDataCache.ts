@@ -18,6 +18,17 @@ const MAX_CACHE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit (larger since data 
 // Debug flag
 const DEBUG_CACHE = false;
 
+// AIShips.AI_SHIP_ID_OFFSET / SinglePlayerMatch.NODE_MATCH_ID_OFFSET —
+// mirrors the value in docs/singleplayer-frontend-integration.md. AI ship
+// ids are pooled and reused across single-player matches, so a cached
+// entry from an earlier match could serve stale (wrong ship) data for a
+// reused id in a later one — see the guard in cacheShipData below. This is
+// a plain (non-hook) module, so it can't do a live contract read the way a
+// component could; hardcoded here deliberately, same value the contract
+// exposes as a public constant. Re-check against the contract if AI ship
+// rendering ever looks wrong after this value moves again.
+const AI_SHIP_ID_OFFSET = 2n ** 40n;
+
 interface CachedShipData {
   ship: Ship;
   timestamp: number;
@@ -73,6 +84,11 @@ function getCacheKey(shipId: bigint): string {
  */
 export function getCachedShipData(shipId: bigint): Ship | null {
   if (typeof window === "undefined") return null;
+  // Mirrors the write-side guard below: ids are pooled/reused across
+  // matches, so a stale entry for a reused id must never be served, even
+  // if one is already sitting in localStorage (e.g. cached before this
+  // guard existed, or by a caller that doesn't go through cacheShipData).
+  if (shipId >= AI_SHIP_ID_OFFSET) return null;
 
   try {
     const cacheKey = getCacheKey(shipId);
@@ -122,6 +138,10 @@ export function getCachedShipData(shipId: bigint): Ship | null {
  */
 export function cacheShipData(ship: Ship): void {
   if (typeof window === "undefined") return;
+  if (ship.id >= AI_SHIP_ID_OFFSET) {
+    debugLog(`🚫 Skipping cache for AI ship ${ship.id.toString()} — ids are reused across matches`);
+    return;
+  }
 
   try {
     const cacheKey = getCacheKey(ship.id);

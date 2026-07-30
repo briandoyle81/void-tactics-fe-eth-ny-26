@@ -1094,6 +1094,17 @@ input[type="radio"]:focus {
   outline-offset: 2px;
 }
 
+/* Clickable elements should always show the pointer/hand cursor on hover */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* Select dropdowns */
 select {
   cursor: pointer;
@@ -1108,4 +1119,74 @@ select {
 
 select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2356d6ff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+/* ============================================
+   CAMPAIGN STAR CHART
+   ============================================ */
+
+/* Ambient twinkle on the starfield backdrop layer. */
+@keyframes campaign-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Flowing dash along an active (unlocked-but-not-completed) jump lane —
+   draws the eye toward the frontier without animating every lane. */
+@keyframes campaign-lane-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* Soft glow pulse on an unlocked, not-yet-completed node. */
+@keyframes campaign-node-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 0px rgba(86, 214, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 16px 3px rgba(86, 214, 255, 0.65);
+  }
+}
+
+/* Selection reticle corner-bracket pulse. */
+@keyframes campaign-reticle-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.campaign-starfield-twinkle {
+  animation: campaign-star-twinkle 6s ease-in-out infinite;
+}
+
+.campaign-lane-active {
+  animation: campaign-lane-flow 1.2s linear infinite;
+}
+
+.campaign-node-unlocked {
+  animation: campaign-node-glow 2.6s ease-in-out infinite;
+}
+
+.campaign-reticle {
+  animation: campaign-reticle-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campaign-starfield-twinkle,
+  .campaign-lane-active,
+  .campaign-node-unlocked,
+  .campaign-reticle {
+    animation: none !important;
+  }
 }

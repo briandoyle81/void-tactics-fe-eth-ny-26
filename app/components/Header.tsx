@@ -316,11 +316,22 @@ function HeaderModeSwitchBadge({
 
 function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
   const isMobile = variant === "mobile";
+  const handleClick = () => {
+    window.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
+    );
+    document.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
+    );
+  };
   return (
-    <div
-      className={
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label="Go to Info"
+      className={`border-0 bg-transparent p-0 text-left ${
         isMobile ? "relative min-w-0 shrink" : "relative w-fit shrink-0"
-      }
+      }`}
     >
       <h1
         className={
@@ -343,7 +354,7 @@ function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
         }
         style={{ backgroundColor: "var(--color-cyan)" }}
       />
-    </div>
+    </button>
   );
 }
 

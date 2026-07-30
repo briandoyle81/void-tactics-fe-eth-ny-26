@@ -87,6 +87,18 @@ function formatLastMoveDescription(
           : `${shipName} used special ability on ${targetName}`;
       }
     }
+  } else if (lastMove.actionType === ActionType.FactionAbility) {
+    if (lastMove.targetShipId === "0") {
+      description += moved
+        ? " and used its faction ability"
+        : `${shipName} used its faction ability`;
+    } else {
+      const targetShip = shipMap.get(lastMove.targetShipId);
+      const targetName = targetShip?.name ?? `Ship #${lastMove.targetShipId}`;
+      description += moved
+        ? ` and rammed ${targetName}`
+        : `${shipName} rammed ${targetName}`;
+    }
   } else if (lastMove.actionType === ActionType.Pass) {
     description = moved ? `${description} and passed` : `${shipName} passed`;
   } else if (lastMove.actionType === ActionType.ClaimPoints) {

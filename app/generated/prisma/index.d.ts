@@ -49,6 +49,21 @@ export type GameTurn = $Result.DefaultSelection<Prisma.$GameTurnPayload>
  */
 export type Map = $Result.DefaultSelection<Prisma.$MapPayload>
 /**
+ * Model AIShipConfig
+ * 
+ */
+export type AIShipConfig = $Result.DefaultSelection<Prisma.$AIShipConfigPayload>
+/**
+ * Model AIMapPlacement
+ * 
+ */
+export type AIMapPlacement = $Result.DefaultSelection<Prisma.$AIMapPlacementPayload>
+/**
+ * Model AIFleetShip
+ * 
+ */
+export type AIFleetShip = $Result.DefaultSelection<Prisma.$AIFleetShipPayload>
+/**
  * Model Config
  * 
  */
@@ -312,6 +327,36 @@ export class PrismaClient<
     * ```
     */
   get map(): Prisma.MapDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.aIShipConfig`: Exposes CRUD operations for the **AIShipConfig** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AIShipConfigs
+    * const aIShipConfigs = await prisma.aIShipConfig.findMany()
+    * ```
+    */
+  get aIShipConfig(): Prisma.AIShipConfigDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.aIMapPlacement`: Exposes CRUD operations for the **AIMapPlacement** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AIMapPlacements
+    * const aIMapPlacements = await prisma.aIMapPlacement.findMany()
+    * ```
+    */
+  get aIMapPlacement(): Prisma.AIMapPlacementDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.aIFleetShip`: Exposes CRUD operations for the **AIFleetShip** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AIFleetShips
+    * const aIFleetShips = await prisma.aIFleetShip.findMany()
+    * ```
+    */
+  get aIFleetShip(): Prisma.AIFleetShipDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.config`: Exposes CRUD operations for the **Config** model.
@@ -803,6 +848,9 @@ export namespace Prisma {
     Game: 'Game',
     GameTurn: 'GameTurn',
     Map: 'Map',
+    AIShipConfig: 'AIShipConfig',
+    AIMapPlacement: 'AIMapPlacement',
+    AIFleetShip: 'AIFleetShip',
     Config: 'Config',
     PlayerStats: 'PlayerStats',
     Tournament: 'Tournament',
@@ -823,7 +871,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch"
+      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "aIShipConfig" | "aIMapPlacement" | "aIFleetShip" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1345,6 +1393,228 @@ export namespace Prisma {
           }
         }
       }
+      AIShipConfig: {
+        payload: Prisma.$AIShipConfigPayload<ExtArgs>
+        fields: Prisma.AIShipConfigFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AIShipConfigFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AIShipConfigFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          findFirst: {
+            args: Prisma.AIShipConfigFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AIShipConfigFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          findMany: {
+            args: Prisma.AIShipConfigFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>[]
+          }
+          create: {
+            args: Prisma.AIShipConfigCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          createMany: {
+            args: Prisma.AIShipConfigCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AIShipConfigCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>[]
+          }
+          delete: {
+            args: Prisma.AIShipConfigDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          update: {
+            args: Prisma.AIShipConfigUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          deleteMany: {
+            args: Prisma.AIShipConfigDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AIShipConfigUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AIShipConfigUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>[]
+          }
+          upsert: {
+            args: Prisma.AIShipConfigUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIShipConfigPayload>
+          }
+          aggregate: {
+            args: Prisma.AIShipConfigAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAIShipConfig>
+          }
+          groupBy: {
+            args: Prisma.AIShipConfigGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AIShipConfigGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AIShipConfigCountArgs<ExtArgs>
+            result: $Utils.Optional<AIShipConfigCountAggregateOutputType> | number
+          }
+        }
+      }
+      AIMapPlacement: {
+        payload: Prisma.$AIMapPlacementPayload<ExtArgs>
+        fields: Prisma.AIMapPlacementFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AIMapPlacementFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AIMapPlacementFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          findFirst: {
+            args: Prisma.AIMapPlacementFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AIMapPlacementFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          findMany: {
+            args: Prisma.AIMapPlacementFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>[]
+          }
+          create: {
+            args: Prisma.AIMapPlacementCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          createMany: {
+            args: Prisma.AIMapPlacementCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AIMapPlacementCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>[]
+          }
+          delete: {
+            args: Prisma.AIMapPlacementDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          update: {
+            args: Prisma.AIMapPlacementUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          deleteMany: {
+            args: Prisma.AIMapPlacementDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AIMapPlacementUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AIMapPlacementUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>[]
+          }
+          upsert: {
+            args: Prisma.AIMapPlacementUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIMapPlacementPayload>
+          }
+          aggregate: {
+            args: Prisma.AIMapPlacementAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAIMapPlacement>
+          }
+          groupBy: {
+            args: Prisma.AIMapPlacementGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AIMapPlacementGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AIMapPlacementCountArgs<ExtArgs>
+            result: $Utils.Optional<AIMapPlacementCountAggregateOutputType> | number
+          }
+        }
+      }
+      AIFleetShip: {
+        payload: Prisma.$AIFleetShipPayload<ExtArgs>
+        fields: Prisma.AIFleetShipFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AIFleetShipFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AIFleetShipFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          findFirst: {
+            args: Prisma.AIFleetShipFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AIFleetShipFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          findMany: {
+            args: Prisma.AIFleetShipFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>[]
+          }
+          create: {
+            args: Prisma.AIFleetShipCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          createMany: {
+            args: Prisma.AIFleetShipCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AIFleetShipCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>[]
+          }
+          delete: {
+            args: Prisma.AIFleetShipDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          update: {
+            args: Prisma.AIFleetShipUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          deleteMany: {
+            args: Prisma.AIFleetShipDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AIFleetShipUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AIFleetShipUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>[]
+          }
+          upsert: {
+            args: Prisma.AIFleetShipUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AIFleetShipPayload>
+          }
+          aggregate: {
+            args: Prisma.AIFleetShipAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAIFleetShip>
+          }
+          groupBy: {
+            args: Prisma.AIFleetShipGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AIFleetShipGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AIFleetShipCountArgs<ExtArgs>
+            result: $Utils.Optional<AIFleetShipCountAggregateOutputType> | number
+          }
+        }
+      }
       Config: {
         payload: Prisma.$ConfigPayload<ExtArgs>
         fields: Prisma.ConfigFieldRefs
@@ -1830,6 +2100,9 @@ export namespace Prisma {
     game?: GameOmit
     gameTurn?: GameTurnOmit
     map?: MapOmit
+    aIShipConfig?: AIShipConfigOmit
+    aIMapPlacement?: AIMapPlacementOmit
+    aIFleetShip?: AIFleetShipOmit
     config?: ConfigOmit
     playerStats?: PlayerStatsOmit
     tournament?: TournamentOmit
@@ -2099,10 +2372,12 @@ export namespace Prisma {
 
   export type MapCountOutputType = {
     lobbies: number
+    aiPlacements: number
   }
 
   export type MapCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lobbies?: boolean | MapCountOutputTypeCountLobbiesArgs
+    aiPlacements?: boolean | MapCountOutputTypeCountAiPlacementsArgs
   }
 
   // Custom InputTypes
@@ -2121,6 +2396,44 @@ export namespace Prisma {
    */
   export type MapCountOutputTypeCountLobbiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: LobbyWhereInput
+  }
+
+  /**
+   * MapCountOutputType without action
+   */
+  export type MapCountOutputTypeCountAiPlacementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AIMapPlacementWhereInput
+  }
+
+
+  /**
+   * Count Type AIShipConfigCountOutputType
+   */
+
+  export type AIShipConfigCountOutputType = {
+    placements: number
+  }
+
+  export type AIShipConfigCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    placements?: boolean | AIShipConfigCountOutputTypeCountPlacementsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * AIShipConfigCountOutputType without action
+   */
+  export type AIShipConfigCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfigCountOutputType
+     */
+    select?: AIShipConfigCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * AIShipConfigCountOutputType without action
+   */
+  export type AIShipConfigCountOutputTypeCountPlacementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AIMapPlacementWhereInput
   }
 
 
@@ -10038,6 +10351,7 @@ export namespace Prisma {
     scoringTiles?: boolean
     createdAt?: boolean
     lobbies?: boolean | Map$lobbiesArgs<ExtArgs>
+    aiPlacements?: boolean | Map$aiPlacementsArgs<ExtArgs>
     _count?: boolean | MapCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["map"]>
 
@@ -10074,6 +10388,7 @@ export namespace Prisma {
   export type MapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "gridWidth" | "gridHeight" | "blockedTiles" | "scoringTiles" | "createdAt", ExtArgs["result"]["map"]>
   export type MapInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lobbies?: boolean | Map$lobbiesArgs<ExtArgs>
+    aiPlacements?: boolean | Map$aiPlacementsArgs<ExtArgs>
     _count?: boolean | MapCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type MapIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -10083,6 +10398,7 @@ export namespace Prisma {
     name: "Map"
     objects: {
       lobbies: Prisma.$LobbyPayload<ExtArgs>[]
+      aiPlacements: Prisma.$AIMapPlacementPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -10487,6 +10803,7 @@ export namespace Prisma {
   export interface Prisma__MapClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     lobbies<T extends Map$lobbiesArgs<ExtArgs> = {}>(args?: Subset<T, Map$lobbiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LobbyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    aiPlacements<T extends Map$aiPlacementsArgs<ExtArgs> = {}>(args?: Subset<T, Map$aiPlacementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -10940,6 +11257,30 @@ export namespace Prisma {
   }
 
   /**
+   * Map.aiPlacements
+   */
+  export type Map$aiPlacementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    where?: AIMapPlacementWhereInput
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    cursor?: AIMapPlacementWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
    * Map without action
    */
   export type MapDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -10955,6 +11296,3261 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: MapInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AIShipConfig
+   */
+
+  export type AggregateAIShipConfig = {
+    _count: AIShipConfigCountAggregateOutputType | null
+    _avg: AIShipConfigAvgAggregateOutputType | null
+    _sum: AIShipConfigSumAggregateOutputType | null
+    _min: AIShipConfigMinAggregateOutputType | null
+    _max: AIShipConfigMaxAggregateOutputType | null
+  }
+
+  export type AIShipConfigAvgAggregateOutputType = {
+    id: number | null
+    archetype: number | null
+  }
+
+  export type AIShipConfigSumAggregateOutputType = {
+    id: number | null
+    archetype: number | null
+  }
+
+  export type AIShipConfigMinAggregateOutputType = {
+    id: number | null
+    name: string | null
+    archetype: number | null
+    createdAt: Date | null
+  }
+
+  export type AIShipConfigMaxAggregateOutputType = {
+    id: number | null
+    name: string | null
+    archetype: number | null
+    createdAt: Date | null
+  }
+
+  export type AIShipConfigCountAggregateOutputType = {
+    id: number
+    name: number
+    equipment: number
+    traits: number
+    archetype: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type AIShipConfigAvgAggregateInputType = {
+    id?: true
+    archetype?: true
+  }
+
+  export type AIShipConfigSumAggregateInputType = {
+    id?: true
+    archetype?: true
+  }
+
+  export type AIShipConfigMinAggregateInputType = {
+    id?: true
+    name?: true
+    archetype?: true
+    createdAt?: true
+  }
+
+  export type AIShipConfigMaxAggregateInputType = {
+    id?: true
+    name?: true
+    archetype?: true
+    createdAt?: true
+  }
+
+  export type AIShipConfigCountAggregateInputType = {
+    id?: true
+    name?: true
+    equipment?: true
+    traits?: true
+    archetype?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type AIShipConfigAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIShipConfig to aggregate.
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIShipConfigs to fetch.
+     */
+    orderBy?: AIShipConfigOrderByWithRelationInput | AIShipConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AIShipConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIShipConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIShipConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AIShipConfigs
+    **/
+    _count?: true | AIShipConfigCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AIShipConfigAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AIShipConfigSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AIShipConfigMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AIShipConfigMaxAggregateInputType
+  }
+
+  export type GetAIShipConfigAggregateType<T extends AIShipConfigAggregateArgs> = {
+        [P in keyof T & keyof AggregateAIShipConfig]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAIShipConfig[P]>
+      : GetScalarType<T[P], AggregateAIShipConfig[P]>
+  }
+
+
+
+
+  export type AIShipConfigGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AIShipConfigWhereInput
+    orderBy?: AIShipConfigOrderByWithAggregationInput | AIShipConfigOrderByWithAggregationInput[]
+    by: AIShipConfigScalarFieldEnum[] | AIShipConfigScalarFieldEnum
+    having?: AIShipConfigScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AIShipConfigCountAggregateInputType | true
+    _avg?: AIShipConfigAvgAggregateInputType
+    _sum?: AIShipConfigSumAggregateInputType
+    _min?: AIShipConfigMinAggregateInputType
+    _max?: AIShipConfigMaxAggregateInputType
+  }
+
+  export type AIShipConfigGroupByOutputType = {
+    id: number
+    name: string
+    equipment: JsonValue
+    traits: JsonValue
+    archetype: number
+    createdAt: Date
+    _count: AIShipConfigCountAggregateOutputType | null
+    _avg: AIShipConfigAvgAggregateOutputType | null
+    _sum: AIShipConfigSumAggregateOutputType | null
+    _min: AIShipConfigMinAggregateOutputType | null
+    _max: AIShipConfigMaxAggregateOutputType | null
+  }
+
+  type GetAIShipConfigGroupByPayload<T extends AIShipConfigGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AIShipConfigGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AIShipConfigGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AIShipConfigGroupByOutputType[P]>
+            : GetScalarType<T[P], AIShipConfigGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AIShipConfigSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    equipment?: boolean
+    traits?: boolean
+    archetype?: boolean
+    createdAt?: boolean
+    placements?: boolean | AIShipConfig$placementsArgs<ExtArgs>
+    _count?: boolean | AIShipConfigCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["aIShipConfig"]>
+
+  export type AIShipConfigSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    equipment?: boolean
+    traits?: boolean
+    archetype?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["aIShipConfig"]>
+
+  export type AIShipConfigSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    equipment?: boolean
+    traits?: boolean
+    archetype?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["aIShipConfig"]>
+
+  export type AIShipConfigSelectScalar = {
+    id?: boolean
+    name?: boolean
+    equipment?: boolean
+    traits?: boolean
+    archetype?: boolean
+    createdAt?: boolean
+  }
+
+  export type AIShipConfigOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "equipment" | "traits" | "archetype" | "createdAt", ExtArgs["result"]["aIShipConfig"]>
+  export type AIShipConfigInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    placements?: boolean | AIShipConfig$placementsArgs<ExtArgs>
+    _count?: boolean | AIShipConfigCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type AIShipConfigIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type AIShipConfigIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $AIShipConfigPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AIShipConfig"
+    objects: {
+      placements: Prisma.$AIMapPlacementPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      name: string
+      equipment: Prisma.JsonValue
+      traits: Prisma.JsonValue
+      archetype: number
+      createdAt: Date
+    }, ExtArgs["result"]["aIShipConfig"]>
+    composites: {}
+  }
+
+  type AIShipConfigGetPayload<S extends boolean | null | undefined | AIShipConfigDefaultArgs> = $Result.GetResult<Prisma.$AIShipConfigPayload, S>
+
+  type AIShipConfigCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AIShipConfigFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AIShipConfigCountAggregateInputType | true
+    }
+
+  export interface AIShipConfigDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AIShipConfig'], meta: { name: 'AIShipConfig' } }
+    /**
+     * Find zero or one AIShipConfig that matches the filter.
+     * @param {AIShipConfigFindUniqueArgs} args - Arguments to find a AIShipConfig
+     * @example
+     * // Get one AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AIShipConfigFindUniqueArgs>(args: SelectSubset<T, AIShipConfigFindUniqueArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AIShipConfig that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AIShipConfigFindUniqueOrThrowArgs} args - Arguments to find a AIShipConfig
+     * @example
+     * // Get one AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AIShipConfigFindUniqueOrThrowArgs>(args: SelectSubset<T, AIShipConfigFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIShipConfig that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigFindFirstArgs} args - Arguments to find a AIShipConfig
+     * @example
+     * // Get one AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AIShipConfigFindFirstArgs>(args?: SelectSubset<T, AIShipConfigFindFirstArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIShipConfig that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigFindFirstOrThrowArgs} args - Arguments to find a AIShipConfig
+     * @example
+     * // Get one AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AIShipConfigFindFirstOrThrowArgs>(args?: SelectSubset<T, AIShipConfigFindFirstOrThrowArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AIShipConfigs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AIShipConfigs
+     * const aIShipConfigs = await prisma.aIShipConfig.findMany()
+     * 
+     * // Get first 10 AIShipConfigs
+     * const aIShipConfigs = await prisma.aIShipConfig.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const aIShipConfigWithIdOnly = await prisma.aIShipConfig.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AIShipConfigFindManyArgs>(args?: SelectSubset<T, AIShipConfigFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AIShipConfig.
+     * @param {AIShipConfigCreateArgs} args - Arguments to create a AIShipConfig.
+     * @example
+     * // Create one AIShipConfig
+     * const AIShipConfig = await prisma.aIShipConfig.create({
+     *   data: {
+     *     // ... data to create a AIShipConfig
+     *   }
+     * })
+     * 
+     */
+    create<T extends AIShipConfigCreateArgs>(args: SelectSubset<T, AIShipConfigCreateArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AIShipConfigs.
+     * @param {AIShipConfigCreateManyArgs} args - Arguments to create many AIShipConfigs.
+     * @example
+     * // Create many AIShipConfigs
+     * const aIShipConfig = await prisma.aIShipConfig.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AIShipConfigCreateManyArgs>(args?: SelectSubset<T, AIShipConfigCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AIShipConfigs and returns the data saved in the database.
+     * @param {AIShipConfigCreateManyAndReturnArgs} args - Arguments to create many AIShipConfigs.
+     * @example
+     * // Create many AIShipConfigs
+     * const aIShipConfig = await prisma.aIShipConfig.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AIShipConfigs and only return the `id`
+     * const aIShipConfigWithIdOnly = await prisma.aIShipConfig.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AIShipConfigCreateManyAndReturnArgs>(args?: SelectSubset<T, AIShipConfigCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AIShipConfig.
+     * @param {AIShipConfigDeleteArgs} args - Arguments to delete one AIShipConfig.
+     * @example
+     * // Delete one AIShipConfig
+     * const AIShipConfig = await prisma.aIShipConfig.delete({
+     *   where: {
+     *     // ... filter to delete one AIShipConfig
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AIShipConfigDeleteArgs>(args: SelectSubset<T, AIShipConfigDeleteArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AIShipConfig.
+     * @param {AIShipConfigUpdateArgs} args - Arguments to update one AIShipConfig.
+     * @example
+     * // Update one AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AIShipConfigUpdateArgs>(args: SelectSubset<T, AIShipConfigUpdateArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AIShipConfigs.
+     * @param {AIShipConfigDeleteManyArgs} args - Arguments to filter AIShipConfigs to delete.
+     * @example
+     * // Delete a few AIShipConfigs
+     * const { count } = await prisma.aIShipConfig.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AIShipConfigDeleteManyArgs>(args?: SelectSubset<T, AIShipConfigDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIShipConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AIShipConfigs
+     * const aIShipConfig = await prisma.aIShipConfig.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AIShipConfigUpdateManyArgs>(args: SelectSubset<T, AIShipConfigUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIShipConfigs and returns the data updated in the database.
+     * @param {AIShipConfigUpdateManyAndReturnArgs} args - Arguments to update many AIShipConfigs.
+     * @example
+     * // Update many AIShipConfigs
+     * const aIShipConfig = await prisma.aIShipConfig.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AIShipConfigs and only return the `id`
+     * const aIShipConfigWithIdOnly = await prisma.aIShipConfig.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AIShipConfigUpdateManyAndReturnArgs>(args: SelectSubset<T, AIShipConfigUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AIShipConfig.
+     * @param {AIShipConfigUpsertArgs} args - Arguments to update or create a AIShipConfig.
+     * @example
+     * // Update or create a AIShipConfig
+     * const aIShipConfig = await prisma.aIShipConfig.upsert({
+     *   create: {
+     *     // ... data to create a AIShipConfig
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AIShipConfig we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AIShipConfigUpsertArgs>(args: SelectSubset<T, AIShipConfigUpsertArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AIShipConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigCountArgs} args - Arguments to filter AIShipConfigs to count.
+     * @example
+     * // Count the number of AIShipConfigs
+     * const count = await prisma.aIShipConfig.count({
+     *   where: {
+     *     // ... the filter for the AIShipConfigs we want to count
+     *   }
+     * })
+    **/
+    count<T extends AIShipConfigCountArgs>(
+      args?: Subset<T, AIShipConfigCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AIShipConfigCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AIShipConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AIShipConfigAggregateArgs>(args: Subset<T, AIShipConfigAggregateArgs>): Prisma.PrismaPromise<GetAIShipConfigAggregateType<T>>
+
+    /**
+     * Group by AIShipConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIShipConfigGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AIShipConfigGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AIShipConfigGroupByArgs['orderBy'] }
+        : { orderBy?: AIShipConfigGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AIShipConfigGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAIShipConfigGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AIShipConfig model
+   */
+  readonly fields: AIShipConfigFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AIShipConfig.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AIShipConfigClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    placements<T extends AIShipConfig$placementsArgs<ExtArgs> = {}>(args?: Subset<T, AIShipConfig$placementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AIShipConfig model
+   */
+  interface AIShipConfigFieldRefs {
+    readonly id: FieldRef<"AIShipConfig", 'Int'>
+    readonly name: FieldRef<"AIShipConfig", 'String'>
+    readonly equipment: FieldRef<"AIShipConfig", 'Json'>
+    readonly traits: FieldRef<"AIShipConfig", 'Json'>
+    readonly archetype: FieldRef<"AIShipConfig", 'Int'>
+    readonly createdAt: FieldRef<"AIShipConfig", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AIShipConfig findUnique
+   */
+  export type AIShipConfigFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter, which AIShipConfig to fetch.
+     */
+    where: AIShipConfigWhereUniqueInput
+  }
+
+  /**
+   * AIShipConfig findUniqueOrThrow
+   */
+  export type AIShipConfigFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter, which AIShipConfig to fetch.
+     */
+    where: AIShipConfigWhereUniqueInput
+  }
+
+  /**
+   * AIShipConfig findFirst
+   */
+  export type AIShipConfigFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter, which AIShipConfig to fetch.
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIShipConfigs to fetch.
+     */
+    orderBy?: AIShipConfigOrderByWithRelationInput | AIShipConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIShipConfigs.
+     */
+    cursor?: AIShipConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIShipConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIShipConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIShipConfigs.
+     */
+    distinct?: AIShipConfigScalarFieldEnum | AIShipConfigScalarFieldEnum[]
+  }
+
+  /**
+   * AIShipConfig findFirstOrThrow
+   */
+  export type AIShipConfigFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter, which AIShipConfig to fetch.
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIShipConfigs to fetch.
+     */
+    orderBy?: AIShipConfigOrderByWithRelationInput | AIShipConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIShipConfigs.
+     */
+    cursor?: AIShipConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIShipConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIShipConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIShipConfigs.
+     */
+    distinct?: AIShipConfigScalarFieldEnum | AIShipConfigScalarFieldEnum[]
+  }
+
+  /**
+   * AIShipConfig findMany
+   */
+  export type AIShipConfigFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter, which AIShipConfigs to fetch.
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIShipConfigs to fetch.
+     */
+    orderBy?: AIShipConfigOrderByWithRelationInput | AIShipConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AIShipConfigs.
+     */
+    cursor?: AIShipConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIShipConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIShipConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIShipConfigs.
+     */
+    distinct?: AIShipConfigScalarFieldEnum | AIShipConfigScalarFieldEnum[]
+  }
+
+  /**
+   * AIShipConfig create
+   */
+  export type AIShipConfigCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AIShipConfig.
+     */
+    data: XOR<AIShipConfigCreateInput, AIShipConfigUncheckedCreateInput>
+  }
+
+  /**
+   * AIShipConfig createMany
+   */
+  export type AIShipConfigCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AIShipConfigs.
+     */
+    data: AIShipConfigCreateManyInput | AIShipConfigCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AIShipConfig createManyAndReturn
+   */
+  export type AIShipConfigCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * The data used to create many AIShipConfigs.
+     */
+    data: AIShipConfigCreateManyInput | AIShipConfigCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AIShipConfig update
+   */
+  export type AIShipConfigUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AIShipConfig.
+     */
+    data: XOR<AIShipConfigUpdateInput, AIShipConfigUncheckedUpdateInput>
+    /**
+     * Choose, which AIShipConfig to update.
+     */
+    where: AIShipConfigWhereUniqueInput
+  }
+
+  /**
+   * AIShipConfig updateMany
+   */
+  export type AIShipConfigUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AIShipConfigs.
+     */
+    data: XOR<AIShipConfigUpdateManyMutationInput, AIShipConfigUncheckedUpdateManyInput>
+    /**
+     * Filter which AIShipConfigs to update
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * Limit how many AIShipConfigs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIShipConfig updateManyAndReturn
+   */
+  export type AIShipConfigUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * The data used to update AIShipConfigs.
+     */
+    data: XOR<AIShipConfigUpdateManyMutationInput, AIShipConfigUncheckedUpdateManyInput>
+    /**
+     * Filter which AIShipConfigs to update
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * Limit how many AIShipConfigs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIShipConfig upsert
+   */
+  export type AIShipConfigUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AIShipConfig to update in case it exists.
+     */
+    where: AIShipConfigWhereUniqueInput
+    /**
+     * In case the AIShipConfig found by the `where` argument doesn't exist, create a new AIShipConfig with this data.
+     */
+    create: XOR<AIShipConfigCreateInput, AIShipConfigUncheckedCreateInput>
+    /**
+     * In case the AIShipConfig was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AIShipConfigUpdateInput, AIShipConfigUncheckedUpdateInput>
+  }
+
+  /**
+   * AIShipConfig delete
+   */
+  export type AIShipConfigDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+    /**
+     * Filter which AIShipConfig to delete.
+     */
+    where: AIShipConfigWhereUniqueInput
+  }
+
+  /**
+   * AIShipConfig deleteMany
+   */
+  export type AIShipConfigDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIShipConfigs to delete
+     */
+    where?: AIShipConfigWhereInput
+    /**
+     * Limit how many AIShipConfigs to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIShipConfig.placements
+   */
+  export type AIShipConfig$placementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    where?: AIMapPlacementWhereInput
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    cursor?: AIMapPlacementWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
+   * AIShipConfig without action
+   */
+  export type AIShipConfigDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIShipConfig
+     */
+    select?: AIShipConfigSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIShipConfig
+     */
+    omit?: AIShipConfigOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIShipConfigInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AIMapPlacement
+   */
+
+  export type AggregateAIMapPlacement = {
+    _count: AIMapPlacementCountAggregateOutputType | null
+    _avg: AIMapPlacementAvgAggregateOutputType | null
+    _sum: AIMapPlacementSumAggregateOutputType | null
+    _min: AIMapPlacementMinAggregateOutputType | null
+    _max: AIMapPlacementMaxAggregateOutputType | null
+  }
+
+  export type AIMapPlacementAvgAggregateOutputType = {
+    id: number | null
+    mapId: number | null
+    row: number | null
+    col: number | null
+    configId: number | null
+  }
+
+  export type AIMapPlacementSumAggregateOutputType = {
+    id: number | null
+    mapId: number | null
+    row: number | null
+    col: number | null
+    configId: number | null
+  }
+
+  export type AIMapPlacementMinAggregateOutputType = {
+    id: number | null
+    mapId: number | null
+    row: number | null
+    col: number | null
+    configId: number | null
+  }
+
+  export type AIMapPlacementMaxAggregateOutputType = {
+    id: number | null
+    mapId: number | null
+    row: number | null
+    col: number | null
+    configId: number | null
+  }
+
+  export type AIMapPlacementCountAggregateOutputType = {
+    id: number
+    mapId: number
+    row: number
+    col: number
+    configId: number
+    _all: number
+  }
+
+
+  export type AIMapPlacementAvgAggregateInputType = {
+    id?: true
+    mapId?: true
+    row?: true
+    col?: true
+    configId?: true
+  }
+
+  export type AIMapPlacementSumAggregateInputType = {
+    id?: true
+    mapId?: true
+    row?: true
+    col?: true
+    configId?: true
+  }
+
+  export type AIMapPlacementMinAggregateInputType = {
+    id?: true
+    mapId?: true
+    row?: true
+    col?: true
+    configId?: true
+  }
+
+  export type AIMapPlacementMaxAggregateInputType = {
+    id?: true
+    mapId?: true
+    row?: true
+    col?: true
+    configId?: true
+  }
+
+  export type AIMapPlacementCountAggregateInputType = {
+    id?: true
+    mapId?: true
+    row?: true
+    col?: true
+    configId?: true
+    _all?: true
+  }
+
+  export type AIMapPlacementAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIMapPlacement to aggregate.
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIMapPlacements to fetch.
+     */
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AIMapPlacementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIMapPlacements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIMapPlacements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AIMapPlacements
+    **/
+    _count?: true | AIMapPlacementCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AIMapPlacementAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AIMapPlacementSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AIMapPlacementMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AIMapPlacementMaxAggregateInputType
+  }
+
+  export type GetAIMapPlacementAggregateType<T extends AIMapPlacementAggregateArgs> = {
+        [P in keyof T & keyof AggregateAIMapPlacement]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAIMapPlacement[P]>
+      : GetScalarType<T[P], AggregateAIMapPlacement[P]>
+  }
+
+
+
+
+  export type AIMapPlacementGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AIMapPlacementWhereInput
+    orderBy?: AIMapPlacementOrderByWithAggregationInput | AIMapPlacementOrderByWithAggregationInput[]
+    by: AIMapPlacementScalarFieldEnum[] | AIMapPlacementScalarFieldEnum
+    having?: AIMapPlacementScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AIMapPlacementCountAggregateInputType | true
+    _avg?: AIMapPlacementAvgAggregateInputType
+    _sum?: AIMapPlacementSumAggregateInputType
+    _min?: AIMapPlacementMinAggregateInputType
+    _max?: AIMapPlacementMaxAggregateInputType
+  }
+
+  export type AIMapPlacementGroupByOutputType = {
+    id: number
+    mapId: number
+    row: number
+    col: number
+    configId: number
+    _count: AIMapPlacementCountAggregateOutputType | null
+    _avg: AIMapPlacementAvgAggregateOutputType | null
+    _sum: AIMapPlacementSumAggregateOutputType | null
+    _min: AIMapPlacementMinAggregateOutputType | null
+    _max: AIMapPlacementMaxAggregateOutputType | null
+  }
+
+  type GetAIMapPlacementGroupByPayload<T extends AIMapPlacementGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AIMapPlacementGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AIMapPlacementGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AIMapPlacementGroupByOutputType[P]>
+            : GetScalarType<T[P], AIMapPlacementGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AIMapPlacementSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    mapId?: boolean
+    row?: boolean
+    col?: boolean
+    configId?: boolean
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["aIMapPlacement"]>
+
+  export type AIMapPlacementSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    mapId?: boolean
+    row?: boolean
+    col?: boolean
+    configId?: boolean
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["aIMapPlacement"]>
+
+  export type AIMapPlacementSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    mapId?: boolean
+    row?: boolean
+    col?: boolean
+    configId?: boolean
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["aIMapPlacement"]>
+
+  export type AIMapPlacementSelectScalar = {
+    id?: boolean
+    mapId?: boolean
+    row?: boolean
+    col?: boolean
+    configId?: boolean
+  }
+
+  export type AIMapPlacementOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "mapId" | "row" | "col" | "configId", ExtArgs["result"]["aIMapPlacement"]>
+  export type AIMapPlacementInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }
+  export type AIMapPlacementIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }
+  export type AIMapPlacementIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    config?: boolean | AIShipConfigDefaultArgs<ExtArgs>
+  }
+
+  export type $AIMapPlacementPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AIMapPlacement"
+    objects: {
+      map: Prisma.$MapPayload<ExtArgs>
+      config: Prisma.$AIShipConfigPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      mapId: number
+      row: number
+      col: number
+      configId: number
+    }, ExtArgs["result"]["aIMapPlacement"]>
+    composites: {}
+  }
+
+  type AIMapPlacementGetPayload<S extends boolean | null | undefined | AIMapPlacementDefaultArgs> = $Result.GetResult<Prisma.$AIMapPlacementPayload, S>
+
+  type AIMapPlacementCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AIMapPlacementFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AIMapPlacementCountAggregateInputType | true
+    }
+
+  export interface AIMapPlacementDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AIMapPlacement'], meta: { name: 'AIMapPlacement' } }
+    /**
+     * Find zero or one AIMapPlacement that matches the filter.
+     * @param {AIMapPlacementFindUniqueArgs} args - Arguments to find a AIMapPlacement
+     * @example
+     * // Get one AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AIMapPlacementFindUniqueArgs>(args: SelectSubset<T, AIMapPlacementFindUniqueArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AIMapPlacement that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AIMapPlacementFindUniqueOrThrowArgs} args - Arguments to find a AIMapPlacement
+     * @example
+     * // Get one AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AIMapPlacementFindUniqueOrThrowArgs>(args: SelectSubset<T, AIMapPlacementFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIMapPlacement that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementFindFirstArgs} args - Arguments to find a AIMapPlacement
+     * @example
+     * // Get one AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AIMapPlacementFindFirstArgs>(args?: SelectSubset<T, AIMapPlacementFindFirstArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIMapPlacement that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementFindFirstOrThrowArgs} args - Arguments to find a AIMapPlacement
+     * @example
+     * // Get one AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AIMapPlacementFindFirstOrThrowArgs>(args?: SelectSubset<T, AIMapPlacementFindFirstOrThrowArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AIMapPlacements that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AIMapPlacements
+     * const aIMapPlacements = await prisma.aIMapPlacement.findMany()
+     * 
+     * // Get first 10 AIMapPlacements
+     * const aIMapPlacements = await prisma.aIMapPlacement.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const aIMapPlacementWithIdOnly = await prisma.aIMapPlacement.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AIMapPlacementFindManyArgs>(args?: SelectSubset<T, AIMapPlacementFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AIMapPlacement.
+     * @param {AIMapPlacementCreateArgs} args - Arguments to create a AIMapPlacement.
+     * @example
+     * // Create one AIMapPlacement
+     * const AIMapPlacement = await prisma.aIMapPlacement.create({
+     *   data: {
+     *     // ... data to create a AIMapPlacement
+     *   }
+     * })
+     * 
+     */
+    create<T extends AIMapPlacementCreateArgs>(args: SelectSubset<T, AIMapPlacementCreateArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AIMapPlacements.
+     * @param {AIMapPlacementCreateManyArgs} args - Arguments to create many AIMapPlacements.
+     * @example
+     * // Create many AIMapPlacements
+     * const aIMapPlacement = await prisma.aIMapPlacement.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AIMapPlacementCreateManyArgs>(args?: SelectSubset<T, AIMapPlacementCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AIMapPlacements and returns the data saved in the database.
+     * @param {AIMapPlacementCreateManyAndReturnArgs} args - Arguments to create many AIMapPlacements.
+     * @example
+     * // Create many AIMapPlacements
+     * const aIMapPlacement = await prisma.aIMapPlacement.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AIMapPlacements and only return the `id`
+     * const aIMapPlacementWithIdOnly = await prisma.aIMapPlacement.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AIMapPlacementCreateManyAndReturnArgs>(args?: SelectSubset<T, AIMapPlacementCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AIMapPlacement.
+     * @param {AIMapPlacementDeleteArgs} args - Arguments to delete one AIMapPlacement.
+     * @example
+     * // Delete one AIMapPlacement
+     * const AIMapPlacement = await prisma.aIMapPlacement.delete({
+     *   where: {
+     *     // ... filter to delete one AIMapPlacement
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AIMapPlacementDeleteArgs>(args: SelectSubset<T, AIMapPlacementDeleteArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AIMapPlacement.
+     * @param {AIMapPlacementUpdateArgs} args - Arguments to update one AIMapPlacement.
+     * @example
+     * // Update one AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AIMapPlacementUpdateArgs>(args: SelectSubset<T, AIMapPlacementUpdateArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AIMapPlacements.
+     * @param {AIMapPlacementDeleteManyArgs} args - Arguments to filter AIMapPlacements to delete.
+     * @example
+     * // Delete a few AIMapPlacements
+     * const { count } = await prisma.aIMapPlacement.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AIMapPlacementDeleteManyArgs>(args?: SelectSubset<T, AIMapPlacementDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIMapPlacements.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AIMapPlacements
+     * const aIMapPlacement = await prisma.aIMapPlacement.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AIMapPlacementUpdateManyArgs>(args: SelectSubset<T, AIMapPlacementUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIMapPlacements and returns the data updated in the database.
+     * @param {AIMapPlacementUpdateManyAndReturnArgs} args - Arguments to update many AIMapPlacements.
+     * @example
+     * // Update many AIMapPlacements
+     * const aIMapPlacement = await prisma.aIMapPlacement.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AIMapPlacements and only return the `id`
+     * const aIMapPlacementWithIdOnly = await prisma.aIMapPlacement.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AIMapPlacementUpdateManyAndReturnArgs>(args: SelectSubset<T, AIMapPlacementUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AIMapPlacement.
+     * @param {AIMapPlacementUpsertArgs} args - Arguments to update or create a AIMapPlacement.
+     * @example
+     * // Update or create a AIMapPlacement
+     * const aIMapPlacement = await prisma.aIMapPlacement.upsert({
+     *   create: {
+     *     // ... data to create a AIMapPlacement
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AIMapPlacement we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AIMapPlacementUpsertArgs>(args: SelectSubset<T, AIMapPlacementUpsertArgs<ExtArgs>>): Prisma__AIMapPlacementClient<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AIMapPlacements.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementCountArgs} args - Arguments to filter AIMapPlacements to count.
+     * @example
+     * // Count the number of AIMapPlacements
+     * const count = await prisma.aIMapPlacement.count({
+     *   where: {
+     *     // ... the filter for the AIMapPlacements we want to count
+     *   }
+     * })
+    **/
+    count<T extends AIMapPlacementCountArgs>(
+      args?: Subset<T, AIMapPlacementCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AIMapPlacementCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AIMapPlacement.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AIMapPlacementAggregateArgs>(args: Subset<T, AIMapPlacementAggregateArgs>): Prisma.PrismaPromise<GetAIMapPlacementAggregateType<T>>
+
+    /**
+     * Group by AIMapPlacement.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIMapPlacementGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AIMapPlacementGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AIMapPlacementGroupByArgs['orderBy'] }
+        : { orderBy?: AIMapPlacementGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AIMapPlacementGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAIMapPlacementGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AIMapPlacement model
+   */
+  readonly fields: AIMapPlacementFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AIMapPlacement.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AIMapPlacementClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    map<T extends MapDefaultArgs<ExtArgs> = {}>(args?: Subset<T, MapDefaultArgs<ExtArgs>>): Prisma__MapClient<$Result.GetResult<Prisma.$MapPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    config<T extends AIShipConfigDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AIShipConfigDefaultArgs<ExtArgs>>): Prisma__AIShipConfigClient<$Result.GetResult<Prisma.$AIShipConfigPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AIMapPlacement model
+   */
+  interface AIMapPlacementFieldRefs {
+    readonly id: FieldRef<"AIMapPlacement", 'Int'>
+    readonly mapId: FieldRef<"AIMapPlacement", 'Int'>
+    readonly row: FieldRef<"AIMapPlacement", 'Int'>
+    readonly col: FieldRef<"AIMapPlacement", 'Int'>
+    readonly configId: FieldRef<"AIMapPlacement", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AIMapPlacement findUnique
+   */
+  export type AIMapPlacementFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter, which AIMapPlacement to fetch.
+     */
+    where: AIMapPlacementWhereUniqueInput
+  }
+
+  /**
+   * AIMapPlacement findUniqueOrThrow
+   */
+  export type AIMapPlacementFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter, which AIMapPlacement to fetch.
+     */
+    where: AIMapPlacementWhereUniqueInput
+  }
+
+  /**
+   * AIMapPlacement findFirst
+   */
+  export type AIMapPlacementFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter, which AIMapPlacement to fetch.
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIMapPlacements to fetch.
+     */
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIMapPlacements.
+     */
+    cursor?: AIMapPlacementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIMapPlacements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIMapPlacements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIMapPlacements.
+     */
+    distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
+   * AIMapPlacement findFirstOrThrow
+   */
+  export type AIMapPlacementFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter, which AIMapPlacement to fetch.
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIMapPlacements to fetch.
+     */
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIMapPlacements.
+     */
+    cursor?: AIMapPlacementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIMapPlacements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIMapPlacements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIMapPlacements.
+     */
+    distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
+   * AIMapPlacement findMany
+   */
+  export type AIMapPlacementFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter, which AIMapPlacements to fetch.
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIMapPlacements to fetch.
+     */
+    orderBy?: AIMapPlacementOrderByWithRelationInput | AIMapPlacementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AIMapPlacements.
+     */
+    cursor?: AIMapPlacementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIMapPlacements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIMapPlacements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIMapPlacements.
+     */
+    distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
+   * AIMapPlacement create
+   */
+  export type AIMapPlacementCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AIMapPlacement.
+     */
+    data: XOR<AIMapPlacementCreateInput, AIMapPlacementUncheckedCreateInput>
+  }
+
+  /**
+   * AIMapPlacement createMany
+   */
+  export type AIMapPlacementCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AIMapPlacements.
+     */
+    data: AIMapPlacementCreateManyInput | AIMapPlacementCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AIMapPlacement createManyAndReturn
+   */
+  export type AIMapPlacementCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * The data used to create many AIMapPlacements.
+     */
+    data: AIMapPlacementCreateManyInput | AIMapPlacementCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AIMapPlacement update
+   */
+  export type AIMapPlacementUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AIMapPlacement.
+     */
+    data: XOR<AIMapPlacementUpdateInput, AIMapPlacementUncheckedUpdateInput>
+    /**
+     * Choose, which AIMapPlacement to update.
+     */
+    where: AIMapPlacementWhereUniqueInput
+  }
+
+  /**
+   * AIMapPlacement updateMany
+   */
+  export type AIMapPlacementUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AIMapPlacements.
+     */
+    data: XOR<AIMapPlacementUpdateManyMutationInput, AIMapPlacementUncheckedUpdateManyInput>
+    /**
+     * Filter which AIMapPlacements to update
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * Limit how many AIMapPlacements to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIMapPlacement updateManyAndReturn
+   */
+  export type AIMapPlacementUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * The data used to update AIMapPlacements.
+     */
+    data: XOR<AIMapPlacementUpdateManyMutationInput, AIMapPlacementUncheckedUpdateManyInput>
+    /**
+     * Filter which AIMapPlacements to update
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * Limit how many AIMapPlacements to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AIMapPlacement upsert
+   */
+  export type AIMapPlacementUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AIMapPlacement to update in case it exists.
+     */
+    where: AIMapPlacementWhereUniqueInput
+    /**
+     * In case the AIMapPlacement found by the `where` argument doesn't exist, create a new AIMapPlacement with this data.
+     */
+    create: XOR<AIMapPlacementCreateInput, AIMapPlacementUncheckedCreateInput>
+    /**
+     * In case the AIMapPlacement was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AIMapPlacementUpdateInput, AIMapPlacementUncheckedUpdateInput>
+  }
+
+  /**
+   * AIMapPlacement delete
+   */
+  export type AIMapPlacementDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+    /**
+     * Filter which AIMapPlacement to delete.
+     */
+    where: AIMapPlacementWhereUniqueInput
+  }
+
+  /**
+   * AIMapPlacement deleteMany
+   */
+  export type AIMapPlacementDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIMapPlacements to delete
+     */
+    where?: AIMapPlacementWhereInput
+    /**
+     * Limit how many AIMapPlacements to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIMapPlacement without action
+   */
+  export type AIMapPlacementDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIMapPlacement
+     */
+    select?: AIMapPlacementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIMapPlacement
+     */
+    omit?: AIMapPlacementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AIMapPlacementInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AIFleetShip
+   */
+
+  export type AggregateAIFleetShip = {
+    _count: AIFleetShipCountAggregateOutputType | null
+    _avg: AIFleetShipAvgAggregateOutputType | null
+    _sum: AIFleetShipSumAggregateOutputType | null
+    _min: AIFleetShipMinAggregateOutputType | null
+    _max: AIFleetShipMaxAggregateOutputType | null
+  }
+
+  export type AIFleetShipAvgAggregateOutputType = {
+    shipId: number | null
+    configId: number | null
+    archetype: number | null
+  }
+
+  export type AIFleetShipSumAggregateOutputType = {
+    shipId: number | null
+    configId: number | null
+    archetype: number | null
+  }
+
+  export type AIFleetShipMinAggregateOutputType = {
+    shipId: number | null
+    configId: number | null
+    archetype: number | null
+  }
+
+  export type AIFleetShipMaxAggregateOutputType = {
+    shipId: number | null
+    configId: number | null
+    archetype: number | null
+  }
+
+  export type AIFleetShipCountAggregateOutputType = {
+    shipId: number
+    configId: number
+    archetype: number
+    _all: number
+  }
+
+
+  export type AIFleetShipAvgAggregateInputType = {
+    shipId?: true
+    configId?: true
+    archetype?: true
+  }
+
+  export type AIFleetShipSumAggregateInputType = {
+    shipId?: true
+    configId?: true
+    archetype?: true
+  }
+
+  export type AIFleetShipMinAggregateInputType = {
+    shipId?: true
+    configId?: true
+    archetype?: true
+  }
+
+  export type AIFleetShipMaxAggregateInputType = {
+    shipId?: true
+    configId?: true
+    archetype?: true
+  }
+
+  export type AIFleetShipCountAggregateInputType = {
+    shipId?: true
+    configId?: true
+    archetype?: true
+    _all?: true
+  }
+
+  export type AIFleetShipAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIFleetShip to aggregate.
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIFleetShips to fetch.
+     */
+    orderBy?: AIFleetShipOrderByWithRelationInput | AIFleetShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AIFleetShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIFleetShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIFleetShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AIFleetShips
+    **/
+    _count?: true | AIFleetShipCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AIFleetShipAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AIFleetShipSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AIFleetShipMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AIFleetShipMaxAggregateInputType
+  }
+
+  export type GetAIFleetShipAggregateType<T extends AIFleetShipAggregateArgs> = {
+        [P in keyof T & keyof AggregateAIFleetShip]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAIFleetShip[P]>
+      : GetScalarType<T[P], AggregateAIFleetShip[P]>
+  }
+
+
+
+
+  export type AIFleetShipGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AIFleetShipWhereInput
+    orderBy?: AIFleetShipOrderByWithAggregationInput | AIFleetShipOrderByWithAggregationInput[]
+    by: AIFleetShipScalarFieldEnum[] | AIFleetShipScalarFieldEnum
+    having?: AIFleetShipScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AIFleetShipCountAggregateInputType | true
+    _avg?: AIFleetShipAvgAggregateInputType
+    _sum?: AIFleetShipSumAggregateInputType
+    _min?: AIFleetShipMinAggregateInputType
+    _max?: AIFleetShipMaxAggregateInputType
+  }
+
+  export type AIFleetShipGroupByOutputType = {
+    shipId: number
+    configId: number
+    archetype: number
+    _count: AIFleetShipCountAggregateOutputType | null
+    _avg: AIFleetShipAvgAggregateOutputType | null
+    _sum: AIFleetShipSumAggregateOutputType | null
+    _min: AIFleetShipMinAggregateOutputType | null
+    _max: AIFleetShipMaxAggregateOutputType | null
+  }
+
+  type GetAIFleetShipGroupByPayload<T extends AIFleetShipGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AIFleetShipGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AIFleetShipGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AIFleetShipGroupByOutputType[P]>
+            : GetScalarType<T[P], AIFleetShipGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AIFleetShipSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    shipId?: boolean
+    configId?: boolean
+    archetype?: boolean
+  }, ExtArgs["result"]["aIFleetShip"]>
+
+  export type AIFleetShipSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    shipId?: boolean
+    configId?: boolean
+    archetype?: boolean
+  }, ExtArgs["result"]["aIFleetShip"]>
+
+  export type AIFleetShipSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    shipId?: boolean
+    configId?: boolean
+    archetype?: boolean
+  }, ExtArgs["result"]["aIFleetShip"]>
+
+  export type AIFleetShipSelectScalar = {
+    shipId?: boolean
+    configId?: boolean
+    archetype?: boolean
+  }
+
+  export type AIFleetShipOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"shipId" | "configId" | "archetype", ExtArgs["result"]["aIFleetShip"]>
+
+  export type $AIFleetShipPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AIFleetShip"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      shipId: number
+      configId: number
+      archetype: number
+    }, ExtArgs["result"]["aIFleetShip"]>
+    composites: {}
+  }
+
+  type AIFleetShipGetPayload<S extends boolean | null | undefined | AIFleetShipDefaultArgs> = $Result.GetResult<Prisma.$AIFleetShipPayload, S>
+
+  type AIFleetShipCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<AIFleetShipFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AIFleetShipCountAggregateInputType | true
+    }
+
+  export interface AIFleetShipDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AIFleetShip'], meta: { name: 'AIFleetShip' } }
+    /**
+     * Find zero or one AIFleetShip that matches the filter.
+     * @param {AIFleetShipFindUniqueArgs} args - Arguments to find a AIFleetShip
+     * @example
+     * // Get one AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AIFleetShipFindUniqueArgs>(args: SelectSubset<T, AIFleetShipFindUniqueArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AIFleetShip that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AIFleetShipFindUniqueOrThrowArgs} args - Arguments to find a AIFleetShip
+     * @example
+     * // Get one AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AIFleetShipFindUniqueOrThrowArgs>(args: SelectSubset<T, AIFleetShipFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIFleetShip that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipFindFirstArgs} args - Arguments to find a AIFleetShip
+     * @example
+     * // Get one AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AIFleetShipFindFirstArgs>(args?: SelectSubset<T, AIFleetShipFindFirstArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AIFleetShip that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipFindFirstOrThrowArgs} args - Arguments to find a AIFleetShip
+     * @example
+     * // Get one AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AIFleetShipFindFirstOrThrowArgs>(args?: SelectSubset<T, AIFleetShipFindFirstOrThrowArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AIFleetShips that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AIFleetShips
+     * const aIFleetShips = await prisma.aIFleetShip.findMany()
+     * 
+     * // Get first 10 AIFleetShips
+     * const aIFleetShips = await prisma.aIFleetShip.findMany({ take: 10 })
+     * 
+     * // Only select the `shipId`
+     * const aIFleetShipWithShipIdOnly = await prisma.aIFleetShip.findMany({ select: { shipId: true } })
+     * 
+     */
+    findMany<T extends AIFleetShipFindManyArgs>(args?: SelectSubset<T, AIFleetShipFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AIFleetShip.
+     * @param {AIFleetShipCreateArgs} args - Arguments to create a AIFleetShip.
+     * @example
+     * // Create one AIFleetShip
+     * const AIFleetShip = await prisma.aIFleetShip.create({
+     *   data: {
+     *     // ... data to create a AIFleetShip
+     *   }
+     * })
+     * 
+     */
+    create<T extends AIFleetShipCreateArgs>(args: SelectSubset<T, AIFleetShipCreateArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AIFleetShips.
+     * @param {AIFleetShipCreateManyArgs} args - Arguments to create many AIFleetShips.
+     * @example
+     * // Create many AIFleetShips
+     * const aIFleetShip = await prisma.aIFleetShip.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AIFleetShipCreateManyArgs>(args?: SelectSubset<T, AIFleetShipCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AIFleetShips and returns the data saved in the database.
+     * @param {AIFleetShipCreateManyAndReturnArgs} args - Arguments to create many AIFleetShips.
+     * @example
+     * // Create many AIFleetShips
+     * const aIFleetShip = await prisma.aIFleetShip.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AIFleetShips and only return the `shipId`
+     * const aIFleetShipWithShipIdOnly = await prisma.aIFleetShip.createManyAndReturn({
+     *   select: { shipId: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AIFleetShipCreateManyAndReturnArgs>(args?: SelectSubset<T, AIFleetShipCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AIFleetShip.
+     * @param {AIFleetShipDeleteArgs} args - Arguments to delete one AIFleetShip.
+     * @example
+     * // Delete one AIFleetShip
+     * const AIFleetShip = await prisma.aIFleetShip.delete({
+     *   where: {
+     *     // ... filter to delete one AIFleetShip
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AIFleetShipDeleteArgs>(args: SelectSubset<T, AIFleetShipDeleteArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AIFleetShip.
+     * @param {AIFleetShipUpdateArgs} args - Arguments to update one AIFleetShip.
+     * @example
+     * // Update one AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AIFleetShipUpdateArgs>(args: SelectSubset<T, AIFleetShipUpdateArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AIFleetShips.
+     * @param {AIFleetShipDeleteManyArgs} args - Arguments to filter AIFleetShips to delete.
+     * @example
+     * // Delete a few AIFleetShips
+     * const { count } = await prisma.aIFleetShip.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AIFleetShipDeleteManyArgs>(args?: SelectSubset<T, AIFleetShipDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIFleetShips.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AIFleetShips
+     * const aIFleetShip = await prisma.aIFleetShip.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AIFleetShipUpdateManyArgs>(args: SelectSubset<T, AIFleetShipUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AIFleetShips and returns the data updated in the database.
+     * @param {AIFleetShipUpdateManyAndReturnArgs} args - Arguments to update many AIFleetShips.
+     * @example
+     * // Update many AIFleetShips
+     * const aIFleetShip = await prisma.aIFleetShip.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AIFleetShips and only return the `shipId`
+     * const aIFleetShipWithShipIdOnly = await prisma.aIFleetShip.updateManyAndReturn({
+     *   select: { shipId: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AIFleetShipUpdateManyAndReturnArgs>(args: SelectSubset<T, AIFleetShipUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AIFleetShip.
+     * @param {AIFleetShipUpsertArgs} args - Arguments to update or create a AIFleetShip.
+     * @example
+     * // Update or create a AIFleetShip
+     * const aIFleetShip = await prisma.aIFleetShip.upsert({
+     *   create: {
+     *     // ... data to create a AIFleetShip
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AIFleetShip we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AIFleetShipUpsertArgs>(args: SelectSubset<T, AIFleetShipUpsertArgs<ExtArgs>>): Prisma__AIFleetShipClient<$Result.GetResult<Prisma.$AIFleetShipPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AIFleetShips.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipCountArgs} args - Arguments to filter AIFleetShips to count.
+     * @example
+     * // Count the number of AIFleetShips
+     * const count = await prisma.aIFleetShip.count({
+     *   where: {
+     *     // ... the filter for the AIFleetShips we want to count
+     *   }
+     * })
+    **/
+    count<T extends AIFleetShipCountArgs>(
+      args?: Subset<T, AIFleetShipCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AIFleetShipCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AIFleetShip.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AIFleetShipAggregateArgs>(args: Subset<T, AIFleetShipAggregateArgs>): Prisma.PrismaPromise<GetAIFleetShipAggregateType<T>>
+
+    /**
+     * Group by AIFleetShip.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AIFleetShipGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AIFleetShipGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AIFleetShipGroupByArgs['orderBy'] }
+        : { orderBy?: AIFleetShipGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AIFleetShipGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAIFleetShipGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AIFleetShip model
+   */
+  readonly fields: AIFleetShipFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AIFleetShip.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AIFleetShipClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AIFleetShip model
+   */
+  interface AIFleetShipFieldRefs {
+    readonly shipId: FieldRef<"AIFleetShip", 'Int'>
+    readonly configId: FieldRef<"AIFleetShip", 'Int'>
+    readonly archetype: FieldRef<"AIFleetShip", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AIFleetShip findUnique
+   */
+  export type AIFleetShipFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter, which AIFleetShip to fetch.
+     */
+    where: AIFleetShipWhereUniqueInput
+  }
+
+  /**
+   * AIFleetShip findUniqueOrThrow
+   */
+  export type AIFleetShipFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter, which AIFleetShip to fetch.
+     */
+    where: AIFleetShipWhereUniqueInput
+  }
+
+  /**
+   * AIFleetShip findFirst
+   */
+  export type AIFleetShipFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter, which AIFleetShip to fetch.
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIFleetShips to fetch.
+     */
+    orderBy?: AIFleetShipOrderByWithRelationInput | AIFleetShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIFleetShips.
+     */
+    cursor?: AIFleetShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIFleetShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIFleetShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIFleetShips.
+     */
+    distinct?: AIFleetShipScalarFieldEnum | AIFleetShipScalarFieldEnum[]
+  }
+
+  /**
+   * AIFleetShip findFirstOrThrow
+   */
+  export type AIFleetShipFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter, which AIFleetShip to fetch.
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIFleetShips to fetch.
+     */
+    orderBy?: AIFleetShipOrderByWithRelationInput | AIFleetShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AIFleetShips.
+     */
+    cursor?: AIFleetShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIFleetShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIFleetShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIFleetShips.
+     */
+    distinct?: AIFleetShipScalarFieldEnum | AIFleetShipScalarFieldEnum[]
+  }
+
+  /**
+   * AIFleetShip findMany
+   */
+  export type AIFleetShipFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter, which AIFleetShips to fetch.
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AIFleetShips to fetch.
+     */
+    orderBy?: AIFleetShipOrderByWithRelationInput | AIFleetShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AIFleetShips.
+     */
+    cursor?: AIFleetShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AIFleetShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AIFleetShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AIFleetShips.
+     */
+    distinct?: AIFleetShipScalarFieldEnum | AIFleetShipScalarFieldEnum[]
+  }
+
+  /**
+   * AIFleetShip create
+   */
+  export type AIFleetShipCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * The data needed to create a AIFleetShip.
+     */
+    data: XOR<AIFleetShipCreateInput, AIFleetShipUncheckedCreateInput>
+  }
+
+  /**
+   * AIFleetShip createMany
+   */
+  export type AIFleetShipCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AIFleetShips.
+     */
+    data: AIFleetShipCreateManyInput | AIFleetShipCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AIFleetShip createManyAndReturn
+   */
+  export type AIFleetShipCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * The data used to create many AIFleetShips.
+     */
+    data: AIFleetShipCreateManyInput | AIFleetShipCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AIFleetShip update
+   */
+  export type AIFleetShipUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * The data needed to update a AIFleetShip.
+     */
+    data: XOR<AIFleetShipUpdateInput, AIFleetShipUncheckedUpdateInput>
+    /**
+     * Choose, which AIFleetShip to update.
+     */
+    where: AIFleetShipWhereUniqueInput
+  }
+
+  /**
+   * AIFleetShip updateMany
+   */
+  export type AIFleetShipUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AIFleetShips.
+     */
+    data: XOR<AIFleetShipUpdateManyMutationInput, AIFleetShipUncheckedUpdateManyInput>
+    /**
+     * Filter which AIFleetShips to update
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * Limit how many AIFleetShips to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIFleetShip updateManyAndReturn
+   */
+  export type AIFleetShipUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * The data used to update AIFleetShips.
+     */
+    data: XOR<AIFleetShipUpdateManyMutationInput, AIFleetShipUncheckedUpdateManyInput>
+    /**
+     * Filter which AIFleetShips to update
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * Limit how many AIFleetShips to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIFleetShip upsert
+   */
+  export type AIFleetShipUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * The filter to search for the AIFleetShip to update in case it exists.
+     */
+    where: AIFleetShipWhereUniqueInput
+    /**
+     * In case the AIFleetShip found by the `where` argument doesn't exist, create a new AIFleetShip with this data.
+     */
+    create: XOR<AIFleetShipCreateInput, AIFleetShipUncheckedCreateInput>
+    /**
+     * In case the AIFleetShip was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AIFleetShipUpdateInput, AIFleetShipUncheckedUpdateInput>
+  }
+
+  /**
+   * AIFleetShip delete
+   */
+  export type AIFleetShipDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
+    /**
+     * Filter which AIFleetShip to delete.
+     */
+    where: AIFleetShipWhereUniqueInput
+  }
+
+  /**
+   * AIFleetShip deleteMany
+   */
+  export type AIFleetShipDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AIFleetShips to delete
+     */
+    where?: AIFleetShipWhereInput
+    /**
+     * Limit how many AIFleetShips to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AIFleetShip without action
+   */
+  export type AIFleetShipDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AIFleetShip
+     */
+    select?: AIFleetShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AIFleetShip
+     */
+    omit?: AIFleetShipOmit<ExtArgs> | null
   }
 
 
@@ -16897,6 +20493,38 @@ export namespace Prisma {
   export type MapScalarFieldEnum = (typeof MapScalarFieldEnum)[keyof typeof MapScalarFieldEnum]
 
 
+  export const AIShipConfigScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    equipment: 'equipment',
+    traits: 'traits',
+    archetype: 'archetype',
+    createdAt: 'createdAt'
+  };
+
+  export type AIShipConfigScalarFieldEnum = (typeof AIShipConfigScalarFieldEnum)[keyof typeof AIShipConfigScalarFieldEnum]
+
+
+  export const AIMapPlacementScalarFieldEnum: {
+    id: 'id',
+    mapId: 'mapId',
+    row: 'row',
+    col: 'col',
+    configId: 'configId'
+  };
+
+  export type AIMapPlacementScalarFieldEnum = (typeof AIMapPlacementScalarFieldEnum)[keyof typeof AIMapPlacementScalarFieldEnum]
+
+
+  export const AIFleetShipScalarFieldEnum: {
+    shipId: 'shipId',
+    configId: 'configId',
+    archetype: 'archetype'
+  };
+
+  export type AIFleetShipScalarFieldEnum = (typeof AIFleetShipScalarFieldEnum)[keyof typeof AIFleetShipScalarFieldEnum]
+
+
   export const ConfigScalarFieldEnum: {
     key: 'key',
     value: 'value',
@@ -17755,6 +21383,7 @@ export namespace Prisma {
     scoringTiles?: JsonFilter<"Map">
     createdAt?: DateTimeFilter<"Map"> | Date | string
     lobbies?: LobbyListRelationFilter
+    aiPlacements?: AIMapPlacementListRelationFilter
   }
 
   export type MapOrderByWithRelationInput = {
@@ -17766,6 +21395,7 @@ export namespace Prisma {
     scoringTiles?: SortOrder
     createdAt?: SortOrder
     lobbies?: LobbyOrderByRelationAggregateInput
+    aiPlacements?: AIMapPlacementOrderByRelationAggregateInput
   }
 
   export type MapWhereUniqueInput = Prisma.AtLeast<{
@@ -17780,6 +21410,7 @@ export namespace Prisma {
     scoringTiles?: JsonFilter<"Map">
     createdAt?: DateTimeFilter<"Map"> | Date | string
     lobbies?: LobbyListRelationFilter
+    aiPlacements?: AIMapPlacementListRelationFilter
   }, "id">
 
   export type MapOrderByWithAggregationInput = {
@@ -17808,6 +21439,173 @@ export namespace Prisma {
     blockedTiles?: JsonWithAggregatesFilter<"Map">
     scoringTiles?: JsonWithAggregatesFilter<"Map">
     createdAt?: DateTimeWithAggregatesFilter<"Map"> | Date | string
+  }
+
+  export type AIShipConfigWhereInput = {
+    AND?: AIShipConfigWhereInput | AIShipConfigWhereInput[]
+    OR?: AIShipConfigWhereInput[]
+    NOT?: AIShipConfigWhereInput | AIShipConfigWhereInput[]
+    id?: IntFilter<"AIShipConfig"> | number
+    name?: StringFilter<"AIShipConfig"> | string
+    equipment?: JsonFilter<"AIShipConfig">
+    traits?: JsonFilter<"AIShipConfig">
+    archetype?: IntFilter<"AIShipConfig"> | number
+    createdAt?: DateTimeFilter<"AIShipConfig"> | Date | string
+    placements?: AIMapPlacementListRelationFilter
+  }
+
+  export type AIShipConfigOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    equipment?: SortOrder
+    traits?: SortOrder
+    archetype?: SortOrder
+    createdAt?: SortOrder
+    placements?: AIMapPlacementOrderByRelationAggregateInput
+  }
+
+  export type AIShipConfigWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: AIShipConfigWhereInput | AIShipConfigWhereInput[]
+    OR?: AIShipConfigWhereInput[]
+    NOT?: AIShipConfigWhereInput | AIShipConfigWhereInput[]
+    name?: StringFilter<"AIShipConfig"> | string
+    equipment?: JsonFilter<"AIShipConfig">
+    traits?: JsonFilter<"AIShipConfig">
+    archetype?: IntFilter<"AIShipConfig"> | number
+    createdAt?: DateTimeFilter<"AIShipConfig"> | Date | string
+    placements?: AIMapPlacementListRelationFilter
+  }, "id">
+
+  export type AIShipConfigOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    equipment?: SortOrder
+    traits?: SortOrder
+    archetype?: SortOrder
+    createdAt?: SortOrder
+    _count?: AIShipConfigCountOrderByAggregateInput
+    _avg?: AIShipConfigAvgOrderByAggregateInput
+    _max?: AIShipConfigMaxOrderByAggregateInput
+    _min?: AIShipConfigMinOrderByAggregateInput
+    _sum?: AIShipConfigSumOrderByAggregateInput
+  }
+
+  export type AIShipConfigScalarWhereWithAggregatesInput = {
+    AND?: AIShipConfigScalarWhereWithAggregatesInput | AIShipConfigScalarWhereWithAggregatesInput[]
+    OR?: AIShipConfigScalarWhereWithAggregatesInput[]
+    NOT?: AIShipConfigScalarWhereWithAggregatesInput | AIShipConfigScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AIShipConfig"> | number
+    name?: StringWithAggregatesFilter<"AIShipConfig"> | string
+    equipment?: JsonWithAggregatesFilter<"AIShipConfig">
+    traits?: JsonWithAggregatesFilter<"AIShipConfig">
+    archetype?: IntWithAggregatesFilter<"AIShipConfig"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"AIShipConfig"> | Date | string
+  }
+
+  export type AIMapPlacementWhereInput = {
+    AND?: AIMapPlacementWhereInput | AIMapPlacementWhereInput[]
+    OR?: AIMapPlacementWhereInput[]
+    NOT?: AIMapPlacementWhereInput | AIMapPlacementWhereInput[]
+    id?: IntFilter<"AIMapPlacement"> | number
+    mapId?: IntFilter<"AIMapPlacement"> | number
+    row?: IntFilter<"AIMapPlacement"> | number
+    col?: IntFilter<"AIMapPlacement"> | number
+    configId?: IntFilter<"AIMapPlacement"> | number
+    map?: XOR<MapScalarRelationFilter, MapWhereInput>
+    config?: XOR<AIShipConfigScalarRelationFilter, AIShipConfigWhereInput>
+  }
+
+  export type AIMapPlacementOrderByWithRelationInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+    map?: MapOrderByWithRelationInput
+    config?: AIShipConfigOrderByWithRelationInput
+  }
+
+  export type AIMapPlacementWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    mapId_row_col?: AIMapPlacementMapIdRowColCompoundUniqueInput
+    AND?: AIMapPlacementWhereInput | AIMapPlacementWhereInput[]
+    OR?: AIMapPlacementWhereInput[]
+    NOT?: AIMapPlacementWhereInput | AIMapPlacementWhereInput[]
+    mapId?: IntFilter<"AIMapPlacement"> | number
+    row?: IntFilter<"AIMapPlacement"> | number
+    col?: IntFilter<"AIMapPlacement"> | number
+    configId?: IntFilter<"AIMapPlacement"> | number
+    map?: XOR<MapScalarRelationFilter, MapWhereInput>
+    config?: XOR<AIShipConfigScalarRelationFilter, AIShipConfigWhereInput>
+  }, "id" | "mapId_row_col">
+
+  export type AIMapPlacementOrderByWithAggregationInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+    _count?: AIMapPlacementCountOrderByAggregateInput
+    _avg?: AIMapPlacementAvgOrderByAggregateInput
+    _max?: AIMapPlacementMaxOrderByAggregateInput
+    _min?: AIMapPlacementMinOrderByAggregateInput
+    _sum?: AIMapPlacementSumOrderByAggregateInput
+  }
+
+  export type AIMapPlacementScalarWhereWithAggregatesInput = {
+    AND?: AIMapPlacementScalarWhereWithAggregatesInput | AIMapPlacementScalarWhereWithAggregatesInput[]
+    OR?: AIMapPlacementScalarWhereWithAggregatesInput[]
+    NOT?: AIMapPlacementScalarWhereWithAggregatesInput | AIMapPlacementScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AIMapPlacement"> | number
+    mapId?: IntWithAggregatesFilter<"AIMapPlacement"> | number
+    row?: IntWithAggregatesFilter<"AIMapPlacement"> | number
+    col?: IntWithAggregatesFilter<"AIMapPlacement"> | number
+    configId?: IntWithAggregatesFilter<"AIMapPlacement"> | number
+  }
+
+  export type AIFleetShipWhereInput = {
+    AND?: AIFleetShipWhereInput | AIFleetShipWhereInput[]
+    OR?: AIFleetShipWhereInput[]
+    NOT?: AIFleetShipWhereInput | AIFleetShipWhereInput[]
+    shipId?: IntFilter<"AIFleetShip"> | number
+    configId?: IntFilter<"AIFleetShip"> | number
+    archetype?: IntFilter<"AIFleetShip"> | number
+  }
+
+  export type AIFleetShipOrderByWithRelationInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIFleetShipWhereUniqueInput = Prisma.AtLeast<{
+    shipId?: number
+    AND?: AIFleetShipWhereInput | AIFleetShipWhereInput[]
+    OR?: AIFleetShipWhereInput[]
+    NOT?: AIFleetShipWhereInput | AIFleetShipWhereInput[]
+    configId?: IntFilter<"AIFleetShip"> | number
+    archetype?: IntFilter<"AIFleetShip"> | number
+  }, "shipId">
+
+  export type AIFleetShipOrderByWithAggregationInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+    _count?: AIFleetShipCountOrderByAggregateInput
+    _avg?: AIFleetShipAvgOrderByAggregateInput
+    _max?: AIFleetShipMaxOrderByAggregateInput
+    _min?: AIFleetShipMinOrderByAggregateInput
+    _sum?: AIFleetShipSumOrderByAggregateInput
+  }
+
+  export type AIFleetShipScalarWhereWithAggregatesInput = {
+    AND?: AIFleetShipScalarWhereWithAggregatesInput | AIFleetShipScalarWhereWithAggregatesInput[]
+    OR?: AIFleetShipScalarWhereWithAggregatesInput[]
+    NOT?: AIFleetShipScalarWhereWithAggregatesInput | AIFleetShipScalarWhereWithAggregatesInput[]
+    shipId?: IntWithAggregatesFilter<"AIFleetShip"> | number
+    configId?: IntWithAggregatesFilter<"AIFleetShip"> | number
+    archetype?: IntWithAggregatesFilter<"AIFleetShip"> | number
   }
 
   export type ConfigWhereInput = {
@@ -18844,6 +22642,7 @@ export namespace Prisma {
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     lobbies?: LobbyCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
   }
 
   export type MapUncheckedCreateInput = {
@@ -18855,6 +22654,7 @@ export namespace Prisma {
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
   }
 
   export type MapUpdateInput = {
@@ -18865,6 +22665,7 @@ export namespace Prisma {
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
   }
 
   export type MapUncheckedUpdateInput = {
@@ -18876,6 +22677,7 @@ export namespace Prisma {
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
   }
 
   export type MapCreateManyInput = {
@@ -18905,6 +22707,163 @@ export namespace Prisma {
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AIShipConfigCreateInput = {
+    name: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    archetype: number
+    createdAt?: Date | string
+    placements?: AIMapPlacementCreateNestedManyWithoutConfigInput
+  }
+
+  export type AIShipConfigUncheckedCreateInput = {
+    id?: number
+    name: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    archetype: number
+    createdAt?: Date | string
+    placements?: AIMapPlacementUncheckedCreateNestedManyWithoutConfigInput
+  }
+
+  export type AIShipConfigUpdateInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    placements?: AIMapPlacementUpdateManyWithoutConfigNestedInput
+  }
+
+  export type AIShipConfigUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    placements?: AIMapPlacementUncheckedUpdateManyWithoutConfigNestedInput
+  }
+
+  export type AIShipConfigCreateManyInput = {
+    id?: number
+    name: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    archetype: number
+    createdAt?: Date | string
+  }
+
+  export type AIShipConfigUpdateManyMutationInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AIShipConfigUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AIMapPlacementCreateInput = {
+    row: number
+    col: number
+    map: MapCreateNestedOneWithoutAiPlacementsInput
+    config: AIShipConfigCreateNestedOneWithoutPlacementsInput
+  }
+
+  export type AIMapPlacementUncheckedCreateInput = {
+    id?: number
+    mapId: number
+    row: number
+    col: number
+    configId: number
+  }
+
+  export type AIMapPlacementUpdateInput = {
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    map?: MapUpdateOneRequiredWithoutAiPlacementsNestedInput
+    config?: AIShipConfigUpdateOneRequiredWithoutPlacementsNestedInput
+  }
+
+  export type AIMapPlacementUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIMapPlacementCreateManyInput = {
+    id?: number
+    mapId: number
+    row: number
+    col: number
+    configId: number
+  }
+
+  export type AIMapPlacementUpdateManyMutationInput = {
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIMapPlacementUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIFleetShipCreateInput = {
+    shipId: number
+    configId: number
+    archetype: number
+  }
+
+  export type AIFleetShipUncheckedCreateInput = {
+    shipId: number
+    configId: number
+    archetype: number
+  }
+
+  export type AIFleetShipUpdateInput = {
+    shipId?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+    archetype?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIFleetShipUncheckedUpdateInput = {
+    shipId?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+    archetype?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIFleetShipCreateManyInput = {
+    shipId: number
+    configId: number
+    archetype: number
+  }
+
+  export type AIFleetShipUpdateManyMutationInput = {
+    shipId?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+    archetype?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIFleetShipUncheckedUpdateManyInput = {
+    shipId?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+    archetype?: IntFieldUpdateOperationsInput | number
   }
 
   export type ConfigCreateInput = {
@@ -20080,6 +24039,16 @@ export namespace Prisma {
     round?: SortOrder
   }
 
+  export type AIMapPlacementListRelationFilter = {
+    every?: AIMapPlacementWhereInput
+    some?: AIMapPlacementWhereInput
+    none?: AIMapPlacementWhereInput
+  }
+
+  export type AIMapPlacementOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type MapCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
@@ -20116,6 +24085,125 @@ export namespace Prisma {
     id?: SortOrder
     gridWidth?: SortOrder
     gridHeight?: SortOrder
+  }
+
+  export type AIShipConfigCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    equipment?: SortOrder
+    traits?: SortOrder
+    archetype?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AIShipConfigAvgOrderByAggregateInput = {
+    id?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIShipConfigMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    archetype?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AIShipConfigMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    archetype?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AIShipConfigSumOrderByAggregateInput = {
+    id?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type MapScalarRelationFilter = {
+    is?: MapWhereInput
+    isNot?: MapWhereInput
+  }
+
+  export type AIShipConfigScalarRelationFilter = {
+    is?: AIShipConfigWhereInput
+    isNot?: AIShipConfigWhereInput
+  }
+
+  export type AIMapPlacementMapIdRowColCompoundUniqueInput = {
+    mapId: number
+    row: number
+    col: number
+  }
+
+  export type AIMapPlacementCountOrderByAggregateInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+  }
+
+  export type AIMapPlacementAvgOrderByAggregateInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+  }
+
+  export type AIMapPlacementMaxOrderByAggregateInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+  }
+
+  export type AIMapPlacementMinOrderByAggregateInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+  }
+
+  export type AIMapPlacementSumOrderByAggregateInput = {
+    id?: SortOrder
+    mapId?: SortOrder
+    row?: SortOrder
+    col?: SortOrder
+    configId?: SortOrder
+  }
+
+  export type AIFleetShipCountOrderByAggregateInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIFleetShipAvgOrderByAggregateInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIFleetShipMaxOrderByAggregateInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIFleetShipMinOrderByAggregateInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
+  }
+
+  export type AIFleetShipSumOrderByAggregateInput = {
+    shipId?: SortOrder
+    configId?: SortOrder
+    archetype?: SortOrder
   }
 
   export type ConfigCountOrderByAggregateInput = {
@@ -21248,11 +25336,25 @@ export namespace Prisma {
     connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
   }
 
+  export type AIMapPlacementCreateNestedManyWithoutMapInput = {
+    create?: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput> | AIMapPlacementCreateWithoutMapInput[] | AIMapPlacementUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutMapInput | AIMapPlacementCreateOrConnectWithoutMapInput[]
+    createMany?: AIMapPlacementCreateManyMapInputEnvelope
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+  }
+
   export type LobbyUncheckedCreateNestedManyWithoutMapInput = {
     create?: XOR<LobbyCreateWithoutMapInput, LobbyUncheckedCreateWithoutMapInput> | LobbyCreateWithoutMapInput[] | LobbyUncheckedCreateWithoutMapInput[]
     connectOrCreate?: LobbyCreateOrConnectWithoutMapInput | LobbyCreateOrConnectWithoutMapInput[]
     createMany?: LobbyCreateManyMapInputEnvelope
     connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+  }
+
+  export type AIMapPlacementUncheckedCreateNestedManyWithoutMapInput = {
+    create?: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput> | AIMapPlacementCreateWithoutMapInput[] | AIMapPlacementUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutMapInput | AIMapPlacementCreateOrConnectWithoutMapInput[]
+    createMany?: AIMapPlacementCreateManyMapInputEnvelope
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
   }
 
   export type LobbyUpdateManyWithoutMapNestedInput = {
@@ -21269,6 +25371,20 @@ export namespace Prisma {
     deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
   }
 
+  export type AIMapPlacementUpdateManyWithoutMapNestedInput = {
+    create?: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput> | AIMapPlacementCreateWithoutMapInput[] | AIMapPlacementUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutMapInput | AIMapPlacementCreateOrConnectWithoutMapInput[]
+    upsert?: AIMapPlacementUpsertWithWhereUniqueWithoutMapInput | AIMapPlacementUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: AIMapPlacementCreateManyMapInputEnvelope
+    set?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    disconnect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    delete?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    update?: AIMapPlacementUpdateWithWhereUniqueWithoutMapInput | AIMapPlacementUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: AIMapPlacementUpdateManyWithWhereWithoutMapInput | AIMapPlacementUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+  }
+
   export type LobbyUncheckedUpdateManyWithoutMapNestedInput = {
     create?: XOR<LobbyCreateWithoutMapInput, LobbyUncheckedCreateWithoutMapInput> | LobbyCreateWithoutMapInput[] | LobbyUncheckedCreateWithoutMapInput[]
     connectOrCreate?: LobbyCreateOrConnectWithoutMapInput | LobbyCreateOrConnectWithoutMapInput[]
@@ -21281,6 +25397,90 @@ export namespace Prisma {
     update?: LobbyUpdateWithWhereUniqueWithoutMapInput | LobbyUpdateWithWhereUniqueWithoutMapInput[]
     updateMany?: LobbyUpdateManyWithWhereWithoutMapInput | LobbyUpdateManyWithWhereWithoutMapInput[]
     deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
+  }
+
+  export type AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput = {
+    create?: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput> | AIMapPlacementCreateWithoutMapInput[] | AIMapPlacementUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutMapInput | AIMapPlacementCreateOrConnectWithoutMapInput[]
+    upsert?: AIMapPlacementUpsertWithWhereUniqueWithoutMapInput | AIMapPlacementUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: AIMapPlacementCreateManyMapInputEnvelope
+    set?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    disconnect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    delete?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    update?: AIMapPlacementUpdateWithWhereUniqueWithoutMapInput | AIMapPlacementUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: AIMapPlacementUpdateManyWithWhereWithoutMapInput | AIMapPlacementUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+  }
+
+  export type AIMapPlacementCreateNestedManyWithoutConfigInput = {
+    create?: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput> | AIMapPlacementCreateWithoutConfigInput[] | AIMapPlacementUncheckedCreateWithoutConfigInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutConfigInput | AIMapPlacementCreateOrConnectWithoutConfigInput[]
+    createMany?: AIMapPlacementCreateManyConfigInputEnvelope
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+  }
+
+  export type AIMapPlacementUncheckedCreateNestedManyWithoutConfigInput = {
+    create?: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput> | AIMapPlacementCreateWithoutConfigInput[] | AIMapPlacementUncheckedCreateWithoutConfigInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutConfigInput | AIMapPlacementCreateOrConnectWithoutConfigInput[]
+    createMany?: AIMapPlacementCreateManyConfigInputEnvelope
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+  }
+
+  export type AIMapPlacementUpdateManyWithoutConfigNestedInput = {
+    create?: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput> | AIMapPlacementCreateWithoutConfigInput[] | AIMapPlacementUncheckedCreateWithoutConfigInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutConfigInput | AIMapPlacementCreateOrConnectWithoutConfigInput[]
+    upsert?: AIMapPlacementUpsertWithWhereUniqueWithoutConfigInput | AIMapPlacementUpsertWithWhereUniqueWithoutConfigInput[]
+    createMany?: AIMapPlacementCreateManyConfigInputEnvelope
+    set?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    disconnect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    delete?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    update?: AIMapPlacementUpdateWithWhereUniqueWithoutConfigInput | AIMapPlacementUpdateWithWhereUniqueWithoutConfigInput[]
+    updateMany?: AIMapPlacementUpdateManyWithWhereWithoutConfigInput | AIMapPlacementUpdateManyWithWhereWithoutConfigInput[]
+    deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+  }
+
+  export type AIMapPlacementUncheckedUpdateManyWithoutConfigNestedInput = {
+    create?: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput> | AIMapPlacementCreateWithoutConfigInput[] | AIMapPlacementUncheckedCreateWithoutConfigInput[]
+    connectOrCreate?: AIMapPlacementCreateOrConnectWithoutConfigInput | AIMapPlacementCreateOrConnectWithoutConfigInput[]
+    upsert?: AIMapPlacementUpsertWithWhereUniqueWithoutConfigInput | AIMapPlacementUpsertWithWhereUniqueWithoutConfigInput[]
+    createMany?: AIMapPlacementCreateManyConfigInputEnvelope
+    set?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    disconnect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    delete?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+    update?: AIMapPlacementUpdateWithWhereUniqueWithoutConfigInput | AIMapPlacementUpdateWithWhereUniqueWithoutConfigInput[]
+    updateMany?: AIMapPlacementUpdateManyWithWhereWithoutConfigInput | AIMapPlacementUpdateManyWithWhereWithoutConfigInput[]
+    deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+  }
+
+  export type MapCreateNestedOneWithoutAiPlacementsInput = {
+    create?: XOR<MapCreateWithoutAiPlacementsInput, MapUncheckedCreateWithoutAiPlacementsInput>
+    connectOrCreate?: MapCreateOrConnectWithoutAiPlacementsInput
+    connect?: MapWhereUniqueInput
+  }
+
+  export type AIShipConfigCreateNestedOneWithoutPlacementsInput = {
+    create?: XOR<AIShipConfigCreateWithoutPlacementsInput, AIShipConfigUncheckedCreateWithoutPlacementsInput>
+    connectOrCreate?: AIShipConfigCreateOrConnectWithoutPlacementsInput
+    connect?: AIShipConfigWhereUniqueInput
+  }
+
+  export type MapUpdateOneRequiredWithoutAiPlacementsNestedInput = {
+    create?: XOR<MapCreateWithoutAiPlacementsInput, MapUncheckedCreateWithoutAiPlacementsInput>
+    connectOrCreate?: MapCreateOrConnectWithoutAiPlacementsInput
+    upsert?: MapUpsertWithoutAiPlacementsInput
+    connect?: MapWhereUniqueInput
+    update?: XOR<XOR<MapUpdateToOneWithWhereWithoutAiPlacementsInput, MapUpdateWithoutAiPlacementsInput>, MapUncheckedUpdateWithoutAiPlacementsInput>
+  }
+
+  export type AIShipConfigUpdateOneRequiredWithoutPlacementsNestedInput = {
+    create?: XOR<AIShipConfigCreateWithoutPlacementsInput, AIShipConfigUncheckedCreateWithoutPlacementsInput>
+    connectOrCreate?: AIShipConfigCreateOrConnectWithoutPlacementsInput
+    upsert?: AIShipConfigUpsertWithoutPlacementsInput
+    connect?: AIShipConfigWhereUniqueInput
+    update?: XOR<XOR<AIShipConfigUpdateToOneWithWhereWithoutPlacementsInput, AIShipConfigUpdateWithoutPlacementsInput>, AIShipConfigUncheckedUpdateWithoutPlacementsInput>
   }
 
   export type UserCreateNestedOneWithoutStatsInput = {
@@ -23087,6 +27287,7 @@ export namespace Prisma {
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
+    aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
   }
 
   export type MapUncheckedCreateWithoutLobbiesInput = {
@@ -23097,6 +27298,7 @@ export namespace Prisma {
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
+    aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
   }
 
   export type MapCreateOrConnectWithoutLobbiesInput = {
@@ -23398,6 +27600,7 @@ export namespace Prisma {
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
   }
 
   export type MapUncheckedUpdateWithoutLobbiesInput = {
@@ -23408,6 +27611,7 @@ export namespace Prisma {
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
   }
 
   export type FleetUpsertWithWhereUniqueWithoutLobbyInput = {
@@ -24007,6 +28211,29 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type AIMapPlacementCreateWithoutMapInput = {
+    row: number
+    col: number
+    config: AIShipConfigCreateNestedOneWithoutPlacementsInput
+  }
+
+  export type AIMapPlacementUncheckedCreateWithoutMapInput = {
+    id?: number
+    row: number
+    col: number
+    configId: number
+  }
+
+  export type AIMapPlacementCreateOrConnectWithoutMapInput = {
+    where: AIMapPlacementWhereUniqueInput
+    create: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput>
+  }
+
+  export type AIMapPlacementCreateManyMapInputEnvelope = {
+    data: AIMapPlacementCreateManyMapInput | AIMapPlacementCreateManyMapInput[]
+    skipDuplicates?: boolean
+  }
+
   export type LobbyUpsertWithWhereUniqueWithoutMapInput = {
     where: LobbyWhereUniqueInput
     update: XOR<LobbyUpdateWithoutMapInput, LobbyUncheckedUpdateWithoutMapInput>
@@ -24021,6 +28248,180 @@ export namespace Prisma {
   export type LobbyUpdateManyWithWhereWithoutMapInput = {
     where: LobbyScalarWhereInput
     data: XOR<LobbyUpdateManyMutationInput, LobbyUncheckedUpdateManyWithoutMapInput>
+  }
+
+  export type AIMapPlacementUpsertWithWhereUniqueWithoutMapInput = {
+    where: AIMapPlacementWhereUniqueInput
+    update: XOR<AIMapPlacementUpdateWithoutMapInput, AIMapPlacementUncheckedUpdateWithoutMapInput>
+    create: XOR<AIMapPlacementCreateWithoutMapInput, AIMapPlacementUncheckedCreateWithoutMapInput>
+  }
+
+  export type AIMapPlacementUpdateWithWhereUniqueWithoutMapInput = {
+    where: AIMapPlacementWhereUniqueInput
+    data: XOR<AIMapPlacementUpdateWithoutMapInput, AIMapPlacementUncheckedUpdateWithoutMapInput>
+  }
+
+  export type AIMapPlacementUpdateManyWithWhereWithoutMapInput = {
+    where: AIMapPlacementScalarWhereInput
+    data: XOR<AIMapPlacementUpdateManyMutationInput, AIMapPlacementUncheckedUpdateManyWithoutMapInput>
+  }
+
+  export type AIMapPlacementScalarWhereInput = {
+    AND?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+    OR?: AIMapPlacementScalarWhereInput[]
+    NOT?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+    id?: IntFilter<"AIMapPlacement"> | number
+    mapId?: IntFilter<"AIMapPlacement"> | number
+    row?: IntFilter<"AIMapPlacement"> | number
+    col?: IntFilter<"AIMapPlacement"> | number
+    configId?: IntFilter<"AIMapPlacement"> | number
+  }
+
+  export type AIMapPlacementCreateWithoutConfigInput = {
+    row: number
+    col: number
+    map: MapCreateNestedOneWithoutAiPlacementsInput
+  }
+
+  export type AIMapPlacementUncheckedCreateWithoutConfigInput = {
+    id?: number
+    mapId: number
+    row: number
+    col: number
+  }
+
+  export type AIMapPlacementCreateOrConnectWithoutConfigInput = {
+    where: AIMapPlacementWhereUniqueInput
+    create: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput>
+  }
+
+  export type AIMapPlacementCreateManyConfigInputEnvelope = {
+    data: AIMapPlacementCreateManyConfigInput | AIMapPlacementCreateManyConfigInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type AIMapPlacementUpsertWithWhereUniqueWithoutConfigInput = {
+    where: AIMapPlacementWhereUniqueInput
+    update: XOR<AIMapPlacementUpdateWithoutConfigInput, AIMapPlacementUncheckedUpdateWithoutConfigInput>
+    create: XOR<AIMapPlacementCreateWithoutConfigInput, AIMapPlacementUncheckedCreateWithoutConfigInput>
+  }
+
+  export type AIMapPlacementUpdateWithWhereUniqueWithoutConfigInput = {
+    where: AIMapPlacementWhereUniqueInput
+    data: XOR<AIMapPlacementUpdateWithoutConfigInput, AIMapPlacementUncheckedUpdateWithoutConfigInput>
+  }
+
+  export type AIMapPlacementUpdateManyWithWhereWithoutConfigInput = {
+    where: AIMapPlacementScalarWhereInput
+    data: XOR<AIMapPlacementUpdateManyMutationInput, AIMapPlacementUncheckedUpdateManyWithoutConfigInput>
+  }
+
+  export type MapCreateWithoutAiPlacementsInput = {
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    lobbies?: LobbyCreateNestedManyWithoutMapInput
+  }
+
+  export type MapUncheckedCreateWithoutAiPlacementsInput = {
+    id?: number
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
+  }
+
+  export type MapCreateOrConnectWithoutAiPlacementsInput = {
+    where: MapWhereUniqueInput
+    create: XOR<MapCreateWithoutAiPlacementsInput, MapUncheckedCreateWithoutAiPlacementsInput>
+  }
+
+  export type AIShipConfigCreateWithoutPlacementsInput = {
+    name: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    archetype: number
+    createdAt?: Date | string
+  }
+
+  export type AIShipConfigUncheckedCreateWithoutPlacementsInput = {
+    id?: number
+    name: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    archetype: number
+    createdAt?: Date | string
+  }
+
+  export type AIShipConfigCreateOrConnectWithoutPlacementsInput = {
+    where: AIShipConfigWhereUniqueInput
+    create: XOR<AIShipConfigCreateWithoutPlacementsInput, AIShipConfigUncheckedCreateWithoutPlacementsInput>
+  }
+
+  export type MapUpsertWithoutAiPlacementsInput = {
+    update: XOR<MapUpdateWithoutAiPlacementsInput, MapUncheckedUpdateWithoutAiPlacementsInput>
+    create: XOR<MapCreateWithoutAiPlacementsInput, MapUncheckedCreateWithoutAiPlacementsInput>
+    where?: MapWhereInput
+  }
+
+  export type MapUpdateToOneWithWhereWithoutAiPlacementsInput = {
+    where?: MapWhereInput
+    data: XOR<MapUpdateWithoutAiPlacementsInput, MapUncheckedUpdateWithoutAiPlacementsInput>
+  }
+
+  export type MapUpdateWithoutAiPlacementsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUpdateManyWithoutMapNestedInput
+  }
+
+  export type MapUncheckedUpdateWithoutAiPlacementsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
+  }
+
+  export type AIShipConfigUpsertWithoutPlacementsInput = {
+    update: XOR<AIShipConfigUpdateWithoutPlacementsInput, AIShipConfigUncheckedUpdateWithoutPlacementsInput>
+    create: XOR<AIShipConfigCreateWithoutPlacementsInput, AIShipConfigUncheckedCreateWithoutPlacementsInput>
+    where?: AIShipConfigWhereInput
+  }
+
+  export type AIShipConfigUpdateToOneWithWhereWithoutPlacementsInput = {
+    where?: AIShipConfigWhereInput
+    data: XOR<AIShipConfigUpdateWithoutPlacementsInput, AIShipConfigUncheckedUpdateWithoutPlacementsInput>
+  }
+
+  export type AIShipConfigUpdateWithoutPlacementsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AIShipConfigUncheckedUpdateWithoutPlacementsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    archetype?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type UserCreateWithoutStatsInput = {
@@ -25731,6 +30132,13 @@ export namespace Prisma {
     joinerFleetSetAt?: Date | string | null
   }
 
+  export type AIMapPlacementCreateManyMapInput = {
+    id?: number
+    row: number
+    col: number
+    configId: number
+  }
+
   export type LobbyUpdateWithoutMapInput = {
     status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
     costLimit?: IntFieldUpdateOperationsInput | number
@@ -25785,6 +30193,53 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type AIMapPlacementUpdateWithoutMapInput = {
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    config?: AIShipConfigUpdateOneRequiredWithoutPlacementsNestedInput
+  }
+
+  export type AIMapPlacementUncheckedUpdateWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIMapPlacementUncheckedUpdateManyWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    configId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIMapPlacementCreateManyConfigInput = {
+    id?: number
+    mapId: number
+    row: number
+    col: number
+  }
+
+  export type AIMapPlacementUpdateWithoutConfigInput = {
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+    map?: MapUpdateOneRequiredWithoutAiPlacementsNestedInput
+  }
+
+  export type AIMapPlacementUncheckedUpdateWithoutConfigInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type AIMapPlacementUncheckedUpdateManyWithoutConfigInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    row?: IntFieldUpdateOperationsInput | number
+    col?: IntFieldUpdateOperationsInput | number
   }
 
   export type TournamentRegistrantCreateManyTournamentInput = {

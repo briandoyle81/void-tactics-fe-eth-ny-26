@@ -1,8 +1,10 @@
-import { useReadContract, useWriteContract, useAccount } from "wagmi";
+import { useMemo } from "react";
+import { useReadContract, useReadContracts, useWriteContract, useAccount } from "wagmi";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
 import { useSelectedChainId } from "./useSelectedChainId";
+import { MapMode } from "../types/types";
 
 export type UseMapsReadOptions = {
   query?: { enabled?: boolean };
@@ -109,8 +111,52 @@ export function useMapExists(mapId: number) {
   });
 }
 
-export function useGetGameMapState(gameId: number) {
+export function useMapMode(mapId: number, readOptions?: { chainSource?: "wallet" | "picker" }) {
+  const enabled = isValidPositiveInt(mapId);
+  const result = useMapsRead("mapMode", enabled ? [BigInt(mapId)] : undefined, {
+    query: { enabled },
+    chainSource: readOptions?.chainSource ?? "picker",
+  });
+  return { ...result, data: result.data as MapMode | undefined };
+}
+
+// Batched mode lookup for a whole map list (picker filtering, admin badges)
+// — one multicall instead of N individual reads.
+export function useMapModes(mapIds: number[]) {
+  const pickerChainId = useSelectedChainId();
+  const { MAPS } = getContractAddresses(pickerChainId);
+  const contracts = useMemo(
+    () =>
+      mapIds.map((id) => ({
+        address: MAPS as `0x${string}`,
+        abi: CONTRACT_ABIS.MAPS as Abi,
+        chainId: pickerChainId,
+        functionName: "mapMode" as const,
+        args: [BigInt(id)] as const,
+      })),
+    [mapIds, MAPS, pickerChainId],
+  );
+  const { data, isLoading, error } = useReadContracts({
+    contracts,
+    query: { enabled: mapIds.length > 0 },
+  });
+  const modeByMapId = useMemo(() => {
+    const map = new Map<number, MapMode>();
+    mapIds.forEach((id, i) => {
+      const mode = data?.[i]?.result as MapMode | undefined;
+      if (mode !== undefined) map.set(id, mode);
+    });
+    return map;
+  }, [mapIds, data]);
+  return { modeByMapId, isLoading, error };
+}
+
+export function useGetGameMapState(
+  gameId: number,
+  readOptions?: { chainSource?: "wallet" | "picker" },
+) {
   return useMapsRead("getGameMapState", [BigInt(gameId)], {
     query: { enabled: gameId > 0 },
+    chainSource: readOptions?.chainSource ?? "wallet",
   });
 }

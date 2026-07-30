@@ -5,6 +5,16 @@ const POLL_INTERVAL_FOCUSED_MS = 30 * 1000;
 const POLL_INTERVAL_UNFOCUSED_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_HIDDEN_MS = 60 * 60 * 1000;
 const TURN_POLL_DIVISOR = 10;
+// Post-move polling normally scales with turnTime (poll faster the shorter
+// the turn clock is) — that's the right heuristic for PvP, including 24h
+// correspondence games where slow polling is intentional. vs-AI games also
+// store a 24h turnTime (to represent "unlimited", since nothing on-chain
+// enforces it there), but the AI actually responds in seconds, not hours —
+// deriving its polling cadence from that stored value would leave the
+// "AI is taking its turn" loop waiting hours between refetches. Use a fixed
+// fast cadence for single-player games instead.
+const AI_POST_MOVE_POLL_INTERVAL_MS = 2 * 1000;
+const AI_POST_MOVE_WINDOW_MS = 60 * 1000;
 
 interface UseGamePollingParams {
   gameId: number;
@@ -12,6 +22,7 @@ interface UseGamePollingParams {
   gameData: { turnState: { currentTurn: string; currentRound: number | bigint } } | undefined;
   refetchGame: () => void;
   onRefetch: () => void;
+  isSinglePlayerGame?: boolean;
 }
 
 export function useGamePolling({
@@ -20,6 +31,7 @@ export function useGamePolling({
   gameData,
   refetchGame,
   onRefetch,
+  isSinglePlayerGame = false,
 }: UseGamePollingParams) {
   const prevGameStateRef = React.useRef<{
     currentTurn: string;
@@ -117,14 +129,22 @@ export function useGamePolling({
 
     lastPollTimeRef.current = Date.now();
     const turnTimeMs = Number(turnTime || 0) * 1000;
-    const pollIntervalAfterMove = turnTimeMs / TURN_POLL_DIVISOR;
+    // How long to keep polling at the faster post-move cadence, and how
+    // fast that cadence is — both derived from turnTime for PvP, but fixed
+    // for single-player games (see AI_POST_MOVE_* constants above).
+    const postMoveWindowMs = isSinglePlayerGame
+      ? AI_POST_MOVE_WINDOW_MS
+      : turnTimeMs;
+    const pollIntervalAfterMove = isSinglePlayerGame
+      ? AI_POST_MOVE_POLL_INTERVAL_MS
+      : turnTimeMs / TURN_POLL_DIVISOR;
 
     if (playerMoveTimeRef.current) {
       const moveTime = playerMoveTimeRef.current;
       const now = Date.now();
       const timeSinceMove = now - moveTime;
 
-      if (timeSinceMove >= turnTimeMs) {
+      if (timeSinceMove >= postMoveWindowMs) {
         const timeUntilNextPoll =
           pollIntervalAfterMove - (timeSinceMove % pollIntervalAfterMove);
         pollingTimeoutRef.current = setTimeout(() => {
@@ -150,7 +170,7 @@ export function useGamePolling({
           lastPollTimeRef.current = Date.now();
           refetchGame();
           const timeSince = Date.now() - (playerMoveTimeRef.current || 0);
-          if (timeSince >= turnTimeMs) {
+          if (timeSince >= postMoveWindowMs) {
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
@@ -193,7 +213,7 @@ export function useGamePolling({
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
       if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
     };
-  }, [activityRevision, playerMoveTimestamp, refetchGame, turnTime]);
+  }, [activityRevision, playerMoveTimestamp, refetchGame, turnTime, isSinglePlayerGame]);
 
   // Reset move time when it's no longer the player's turn
   React.useEffect(() => {

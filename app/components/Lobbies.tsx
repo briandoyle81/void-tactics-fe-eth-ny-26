@@ -14,6 +14,9 @@ import {
 } from "wagmi";
 import { formatEther } from "viem";
 import { useLobbies } from "../hooks/useLobbies";
+import { useFleetPlacement } from "../hooks/useFleetPlacement";
+import { useFleetShipAttributes } from "../hooks/useFleetShipAttributes";
+import { buildFleetShipListItems } from "../utils/buildFleetShipListItems";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useFleetsRead } from "../hooks/useFleetsContract";
 import { useShipsRead } from "../hooks/useShipsContract";
@@ -21,7 +24,7 @@ import {
   Lobby,
   Ship,
   Attributes,
-  GRID_DIMENSIONS,
+  MapMode,
 } from "../types/types";
 import { toast } from "react-hot-toast";
 import { cacheShipsData } from "../hooks/useShipDataCache";
@@ -32,7 +35,6 @@ import { LobbyCard } from "./LobbyCard";
 import { FleetViewModal } from "./FleetViewModal";
 import { LoadFleetMenu } from "./LoadFleetMenu";
 import { FleetSelectionModal } from "./FleetSelectionModal";
-import { type FleetFilters, DEFAULT_FLEET_FILTERS, matchesFleetFilters } from "../utils/fleetFilters";
 import { LobbyCreateForm, LobbyTurnOrderNote } from "./LobbyCreateForm";
 import { LobbyCreateSection } from "./LobbyCreateSection";
 import { LobbyCreateButton } from "./LobbyCreateButton";
@@ -43,6 +45,7 @@ import { LobbyRejectButton } from "./LobbyRejectButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { MapDisplay } from "./MapDisplay";
+import { useGetAllPresetMaps, useMapModes } from "../hooks/useMapsContract";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useLobby } from "../hooks/useLobbiesContract";
 import {
@@ -107,6 +110,28 @@ const Lobbies: React.FC = () => {
     lastTransactionHash,
   } = useLobbies();
 
+  // PvP map picker — Maps now has a PvP/PvE/Both mode (see
+  // docs/Frontend_Update_Guide_Campaigns_Maps.md #2), enforced on-chain:
+  // Lobbies.createLobby reverts InvalidMapId for a PvE-only map. Filter the
+  // full preset list down to PvP-eligible maps (PvP or Both) here rather
+  // than trusting whatever the form's default happened to be. Declared
+  // early in the component (not near createForm below) so effects that
+  // reference it aren't reading a not-yet-initialized value.
+  const { data: allPresetMapsData } = useGetAllPresetMaps();
+  const allPresetMapIds = useMemo(() => {
+    const raw = allPresetMapsData as readonly [readonly bigint[], unknown, unknown] | undefined;
+    return raw ? raw[0].map((id) => Number(id)) : [];
+  }, [allPresetMapsData]);
+  const { modeByMapId: lobbyMapModeById } = useMapModes(allPresetMapIds);
+  const pvpEligibleMapIds = useMemo(
+    () => allPresetMapIds.filter((id) => lobbyMapModeById.get(id) !== MapMode.PvE),
+    [allPresetMapIds, lobbyMapModeById],
+  );
+  const pvpMapOptions = useMemo(
+    () => pvpEligibleMapIds.map((id) => ({ id, label: `Map #${id}` })),
+    [pvpEligibleMapIds],
+  );
+
   // Wait for transaction receipt for fleet creation
   const { isSuccess: isFleetCreated, error: fleetCreationError } =
     useWaitForTransactionReceipt({
@@ -166,32 +191,63 @@ const Lobbies: React.FC = () => {
   const canCreateLobby = !paused && isConnected;
   const needsPaymentForLobby =
     activeLobbiesCount >= Number(freeGamesPerAddress || 0n);
-
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [pendingCreateLobbyHash, setPendingCreateLobbyHash] = useState<
     `0x${string}` | undefined
   >(undefined);
 
-  const { isSuccess: isCreateLobbyConfirmed } = useWaitForTransactionReceipt({
-    hash: pendingCreateLobbyHash,
-    chainId,
-    query: { enabled: !!pendingCreateLobbyHash },
-  });
+  // Navigate to Games tab (used by the Go to Games button elsewhere in this
+  // file once a game actually exists to navigate to).
+  const navigateToGamesTab = useCallback(() => {
+    localStorage.setItem("void-tactics-active-tab", "Games");
+    // Fallback marker so Home can detect explicit Games navigation intent.
+    localStorage.setItem("void-tactics-force-games-tab", "true");
+
+    // Use fresh event objects per target (re-dispatching the same Event object
+    // is unreliable across environments).
+    window.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-games", {
+        bubbles: true,
+      }),
+    );
+    document.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-games", {
+        bubbles: true,
+      }),
+    );
+  }, []);
+
+  const { isSuccess: isCreateLobbyConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: pendingCreateLobbyHash,
+      chainId,
+      query: { enabled: !!pendingCreateLobbyHash },
+    });
 
   React.useEffect(() => {
     if (!isCreateLobbyConfirmed || !pendingCreateLobbyHash) return;
-    setShowCreateForm(false);
-    setCreateForm({
-      threatScale: "skirmish",
-      turnPace: "immediate",
-      selectedMapId: "1",
-      scoreLength: "medium",
-      creatorGoesFirst: false,
-      reservedJoiner: "",
-    });
     setPendingCreateLobbyHash(undefined);
-    loadLobbies();
-  }, [isCreateLobbyConfirmed, pendingCreateLobbyHash, loadLobbies]);
+
+    (async () => {
+      // Wait for the new lobby to actually land in the list before closing
+      // the create form — closing right on receipt confirmation (the old
+      // behavior) could beat this refetch, so the form (and its "CREATING
+      // ..." button state) would vanish a beat before the lobby the player
+      // just created was visible anywhere, making it look like nothing
+      // happened.
+      await loadLobbies();
+      setShowCreateForm(false);
+      setCreateForm({
+        threatScale: "skirmish",
+        turnPace: "immediate",
+        selectedMapId:
+          pvpEligibleMapIds.length > 0 ? String(pvpEligibleMapIds[0]) : "1",
+        scoreLength: "medium",
+        creatorGoesFirst: false,
+        reservedJoiner: "",
+      });
+    })();
+  }, [isCreateLobbyConfirmed, pendingCreateLobbyHash, loadLobbies, pvpEligibleMapIds]);
 
   useEffect(() => {
     if ((needsShipsForLobbyUi || needsConstructForLobbyUi) && showCreateForm) {
@@ -203,19 +259,11 @@ const Lobbies: React.FC = () => {
   useEffect(() => {
     selectedLobbyRef.current = selectedLobby;
   }, [selectedLobby]);
-  const [selectedShips, setSelectedShips] = useState<bigint[]>([]);
-  const [shipPositions, setShipPositions] = useState<
-    Array<{ shipId: bigint; row: number; col: number }>
-  >([]);
-  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
+  // selectedShips/shipPositions/selectedShipId/draggedShipId/dragOverPosition
+  // now come from the shared useFleetPlacement hook (destructured as `fleet`
+  // further down, once resolvedLobbyForSelected is available) — see there.
   const [showFleetConfirmation, setShowFleetConfirmation] = useState(false);
 
-  // Drag and drop state
-  const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
-  const [dragOverPosition, setDragOverPosition] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
   // Track last drag over position to prevent excessive state updates
   const lastDragOverPositionRef = useRef<{ row: number; col: number } | null>(
     null,
@@ -320,6 +368,40 @@ const Lobbies: React.FC = () => {
     if (liveN > listN) return live;
     return live;
   }, [selectedLobby, selectedLobbyLive, lobbyList.lobbies]);
+
+  // Shared fleet-picking core (selection state, drag/move handlers, cost
+  // calculations) — same hook single-player's NodeMatchModal uses via
+  // useNodeFleetSelection.ts, parameterized here for whichever side of
+  // whichever lobby is currently selected. See feedback_no_parallel_
+  // components memory: this used to be duplicated between the two flows.
+  const isCreatorForSelected = resolvedLobbyForSelected?.basic.creator === address;
+  const costLimitForSelected = resolvedLobbyForSelected
+    ? Number(resolvedLobbyForSelected.basic.costLimit)
+    : 1000;
+  const fleet = useFleetPlacement({
+    ships,
+    costLimit: costLimitForSelected,
+    costsVersion: globalCostsVersion,
+    isCreatorSide: isCreatorForSelected,
+  });
+  const {
+    selectedShips,
+    setSelectedShips,
+    shipPositions,
+    setShipPositions,
+    selectedShipId,
+    setSelectedShipId,
+    draggedShipId,
+    setDraggedShipId,
+    dragOverPosition,
+    setDragOverPosition,
+    filteredShips,
+    hasStaleCostsVersion: selectedFleetHasStaleCostsVersion,
+    fleetFilters,
+    setFleetFilters,
+    addShip: addShipToFleet,
+    removeShip: removeShipFromFleet,
+  } = fleet;
 
   // When viewing a lobby that is waiting for the other player's fleet, poll so both players see updates
   const currentLobbyForPolling = resolvedLobbyForSelected;
@@ -455,7 +537,14 @@ const Lobbies: React.FC = () => {
         { icon: "⚠️", duration: 6000 },
       );
     }
-  }, [globalCostsVersion, ships, playerFleetShips, resolveFleetPickerShip]);
+  }, [
+    globalCostsVersion,
+    ships,
+    playerFleetShips,
+    resolveFleetPickerShip,
+    setSelectedShips,
+    setShipPositions,
+  ]);
 
   // Track the last loaded fleet ID to avoid reloading unnecessarily
   const lastLoadedFleetIdRef = useRef<bigint | null>(null);
@@ -518,6 +607,9 @@ const Lobbies: React.FC = () => {
     chainId,
     resolvedLobbyForSelected,
     selectedLobbyPlayerHasFleetOnChain,
+    setSelectedShips,
+    setShipPositions,
+    setSelectedShipId,
   ]);
 
   // Persist draft while picking a fleet (not after fleet exists on-chain)
@@ -585,7 +677,13 @@ const Lobbies: React.FC = () => {
       // Clear the ref when modal closes or no fleet exists
       lastLoadedFleetIdRef.current = null;
     }
-  }, [selectedLobby, playerFleetId, playerFleetIdsAndPositions]);
+  }, [
+    selectedLobby,
+    playerFleetId,
+    playerFleetIdsAndPositions,
+    setSelectedShips,
+    setShipPositions,
+  ]);
 
   // Normalize opponent positions for MapDisplay when viewing a fleet
   const opponentPositions = React.useMemo(() => {
@@ -628,87 +726,23 @@ const Lobbies: React.FC = () => {
     [opponentShipsData],
   );
 
-  // Fleet selection filters
-  const [fleetFilters, setFleetFilters] = useState<FleetFilters>(DEFAULT_FLEET_FILTERS);
+  // fleetFilters/setFleetFilters now come from the shared fleet hook above.
 
   // In-game properties toggle
   const [showInGameProperties, setShowInGameProperties] = useState(true);
 
-  // Get ship attributes for in-game properties
+  // Get ship attributes for in-game properties (movement, weapon range,
+  // etc.) — same source/calculation for creator and joiner.
   const shipIds = React.useMemo(() => ships.map((ship) => ship.id), [ships]);
-  // Ship attributes (movement, weapon range, etc.) from contract – same source and calculation for creator and joiner
   const {
     attributes: shipAttributes,
-    isLoading: attributesLoading,
+    attributesMap,
+    attributesLoading: fleetSelectionAttributesLoading,
     isFromCache,
-  } = useShipAttributesByIds(shipIds);
+  } = useFleetShipAttributes(shipIds);
 
-  // Helper function to find next available position for a ship
-  const findNextPosition = (
-    isCreator: boolean,
-    existingPositions: Array<{ row: number; col: number }>,
-  ) => {
-    if (isCreator) {
-      // Creator ships start in upper left (rows 0-10, cols 0-3)
-      // Find the next available position in order: (0,0), (1,0), (2,0), ..., (10,0), (0,1), (1,1), etc.
-      for (let col = 0; col < 4; col++) {
-        for (let row = 0; row < 11; row++) {
-          if (
-            !existingPositions.some((pos) => pos.row === row && pos.col === col)
-          ) {
-            return { row, col };
-          }
-        }
-      }
-    } else {
-      // Joiner ships start in lower right (rows 0-10, cols 13-16)
-      // Find the next available position in order: (10,16), (9,16), (8,16), ..., (0,16), (10,15), etc.
-      for (let col = 16; col >= 13; col--) {
-        for (let row = 10; row >= 0; row--) {
-          if (
-            !existingPositions.some((pos) => pos.row === row && pos.col === col)
-          ) {
-            return { row, col };
-          }
-        }
-      }
-    }
-    return null; // No available position
-  };
-
-  // Function to add ship to fleet with position
-  const addShipToFleet = (shipId: bigint) => {
-    const currentLobby = lobbyList.lobbies.find(
-      (lobby) => lobby.basic.id === selectedLobby,
-    );
-    if (!currentLobby) return;
-
-    const isCreator = currentLobby.basic.creator === address;
-    const existingPositions = shipPositions.map((pos) => ({
-      row: pos.row,
-      col: pos.col,
-    }));
-
-    const position = findNextPosition(isCreator, existingPositions);
-
-    if (position) {
-      setSelectedShips((prev) => [...prev, shipId]);
-      setShipPositions((prev) => [
-        ...prev,
-        { shipId, row: position.row, col: position.col },
-      ]);
-    }
-  };
-
-  // Function to remove ship from fleet
-  const removeShipFromFleet = (shipId: bigint) => {
-    setSelectedShips((prev) => prev.filter((id) => id !== shipId));
-    setShipPositions((prev) => prev.filter((pos) => pos.shipId !== shipId));
-    // Clear selection if the removed ship was selected
-    if (selectedShipId === shipId) {
-      setSelectedShipId(null);
-    }
-  };
+  // findNextPosition/addShipToFleet/removeShipFromFleet now live in the
+  // shared useFleetPlacement hook (aliased from `fleet` above).
 
   // Function to handle ship selection on the grid
   const handleShipSelect = (shipId: bigint) => {
@@ -716,91 +750,16 @@ const Lobbies: React.FC = () => {
     setTapPendingShipId(null);
   };
 
-  // Function to handle ship movement on the grid
+  // Function to handle ship movement on the grid — thin wrapper over the
+  // shared fleet.moveShip (which owns the deployment-zone/occupancy rules)
+  // that also clears touch tap-to-place state, a Lobbies-only concern.
   const handleShipMove = (shipId: bigint, row: number, col: number) => {
-    // Check if the ship is already in the fleet
-    if (!selectedShips.includes(shipId)) {
-      // Ship not in fleet - try to add it
-      const currentLobby = lobbyList.lobbies.find(
-        (lobby) => lobby.basic.id === selectedLobby,
-      );
-      if (!currentLobby) return;
-
-      const isCreator = currentLobby.basic.creator === address;
-
-      // Same deployment zone rules as MapDisplay: creator left 4 cols (0-3), joiner right 4 cols (13-16)
-      const isValidPosition =
-        row >= 0 &&
-        row < GRID_DIMENSIONS.HEIGHT &&
-        col >= 0 &&
-        col < GRID_DIMENSIONS.WIDTH &&
-        (isCreator ? col <= 3 : col >= 13 && col <= 16);
-
-      if (!isValidPosition) return;
-
-      // Check if position is already occupied
-      const existingPosition = shipPositions.find(
-        (pos) => pos.row === row && pos.col === col,
-      );
-      if (existingPosition) {
-        return; // Position already occupied
-      }
-
-      // Add ship to fleet at this position
-      setSelectedShips((prev) => [...prev, shipId]);
-      setShipPositions((prev) => [...prev, { shipId, row, col }]);
-      setTapPendingShipId(null);
-      return;
-    }
-
-    // Same deployment zone rules as MapDisplay (creator 0-3, joiner 13-16)
-    const currentLobbyForMove = lobbyList.lobbies.find(
-      (lobby) => lobby.basic.id === selectedLobby,
-    );
-    if (currentLobbyForMove) {
-      const isCreatorMove = currentLobbyForMove.basic.creator === address;
-      const inDeploymentZone = isCreatorMove
-        ? col >= 0 && col <= 3
-        : col >= 13 && col <= 16;
-      if (
-        row < 0 ||
-        row >= GRID_DIMENSIONS.HEIGHT ||
-        col < 0 ||
-        col >= GRID_DIMENSIONS.WIDTH ||
-        !inDeploymentZone
-      ) {
-        return;
-      }
-    }
-
-    // Check if position is already occupied
-    const existingPosition = shipPositions.find(
-      (pos) => pos.row === row && pos.col === col,
-    );
-    if (existingPosition) {
-      return; // Position already occupied
-    }
-
-    // Update the ship's position
-    setShipPositions((prev) =>
-      prev.map((pos) => (pos.shipId === shipId ? { ...pos, row, col } : pos)),
-    );
-
-    // Clear selection and pending placement after moving
-    setSelectedShipId(null);
+    fleet.moveShip(shipId, row, col);
     setTapPendingShipId(null);
   };
 
-  // Drag and drop handlers
-  const handleDragStart = (shipId: bigint) => {
-    setDraggedShipId(shipId);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedShipId(null);
-    setDragOverPosition(null);
-    lastDragOverPositionRef.current = null;
-  };
+  // Ship-list drag start/end now handled inside buildFleetShipListItems
+  // (setDraggedShipId/setDragOverPosition passed through directly).
 
   const handleDragOver = (row: number, col: number, e: React.DragEvent) => {
     e.preventDefault(); // Allow drop
@@ -844,38 +803,8 @@ const Lobbies: React.FC = () => {
     lastDragOverPositionRef.current = null;
   };
 
-  // Ship list tap handler — desktop adds immediately, touch enters pending-placement mode
-  const handleListShipTap = (shipId: bigint, canSelect: boolean) => {
-    if (!canSelect) return;
-    if (selectedShips.includes(shipId)) {
-      removeShipFromFleet(shipId);
-      setTapPendingShipId(null);
-    } else if (isTouchDevice) {
-      setTapPendingShipId((prev) => (prev === shipId ? null : shipId));
-    } else {
-      addShipToFleet(shipId);
-    }
-  };
-
-  // Navigate to Games tab (used by Go to Games button)
-  const navigateToGamesTab = useCallback(() => {
-    localStorage.setItem("void-tactics-active-tab", "Games");
-    // Fallback marker so Home can detect explicit Games navigation intent.
-    localStorage.setItem("void-tactics-force-games-tab", "true");
-
-    // Use fresh event objects per target (re-dispatching the same Event object
-    // is unreliable across environments).
-    window.dispatchEvent(
-      new CustomEvent("void-tactics-navigate-to-games", {
-        bubbles: true,
-      }),
-    );
-    document.dispatchEvent(
-      new CustomEvent("void-tactics-navigate-to-games", {
-        bubbles: true,
-      }),
-    );
-  }, []);
+  // Ship list tap handling (desktop adds immediately, touch enters
+  // pending-placement mode) now lives inside buildFleetShipListItems.
 
   const resetFleetSelectionModalState = useCallback(() => {
     const lid = selectedLobbyRef.current;
@@ -906,7 +835,7 @@ const Lobbies: React.FC = () => {
       defenseType: "all",
       specialType: "all",
     });
-  }, [address, chainId]);
+  }, [address, chainId, setSelectedShips, setShipPositions, setSelectedShipId, setFleetFilters]);
 
   useEffect(() => {
     const onChainChanged = () => {
@@ -927,7 +856,7 @@ const Lobbies: React.FC = () => {
         onChainChanged,
       );
     };
-  }, [resetFleetSelectionModalState]);
+  }, [resetFleetSelectionModalState, setDraggedShipId, setDragOverPosition]);
 
   /** Close the fleet modal but keep in-memory and saved draft selection. */
   const closeFleetModalOnly = useCallback(() => {
@@ -946,22 +875,17 @@ const Lobbies: React.FC = () => {
     setShipPositions([]);
     setSelectedShipId(null);
     setShowLoadFleetMenu(false);
-  }, [selectedLobby, address, chainId]);
+  }, [selectedLobby, address, chainId, setSelectedShips, setShipPositions, setSelectedShipId]);
 
   const applyLoadedFleetSelection = useCallback(
     (shipIdsToLoad: bigint[]) => {
       if (!selectedLobby) return;
-      const currentLobby = lobbyList.lobbies.find(
-        (lobby) => lobby.basic.id === selectedLobby,
-      );
-      if (!currentLobby) return;
-      const isCreator = currentLobby.basic.creator === address;
 
       const placedShipIds: bigint[] = [];
       const nextPositions: Array<{ shipId: bigint; row: number; col: number }> = [];
       const existingPositions: Array<{ row: number; col: number }> = [];
       for (const shipId of shipIdsToLoad) {
-        const position = findNextPosition(isCreator, existingPositions);
+        const position = fleet.findNextPosition(existingPositions);
         if (!position) break;
         placedShipIds.push(shipId);
         nextPositions.push({ shipId, row: position.row, col: position.col });
@@ -983,7 +907,7 @@ const Lobbies: React.FC = () => {
         toast.success(`Loaded ${placedShipIds.length} ships from saved fleet.`);
       }
     },
-    [selectedLobby, lobbyList.lobbies, address],
+    [selectedLobby, fleet, setSelectedShips, setShipPositions, setSelectedShipId],
   );
 
   const getFleetLoadPlan = useCallback(
@@ -1059,67 +983,14 @@ const Lobbies: React.FC = () => {
     navigateToGamesTab();
   }, [resetFleetSelectionModalState, navigateToGamesTab]);
 
-  // Create a map of ship ID to attributes for quick lookup (only when rows align
-  // with shipIds so we never show another ship's stats on the wrong card).
-  const attributesAlignedWithShipIds =
-    shipIds.length === 0 ||
-    shipAttributes.length === shipIds.length;
-  const attributesMap = React.useMemo(() => {
-    const map = new Map<bigint, (typeof shipAttributes)[0]>();
-    if (!attributesAlignedWithShipIds) return map;
-    shipIds.forEach((shipId, index) => {
-      if (shipAttributes[index]) {
-        map.set(shipId, shipAttributes[index]);
-      }
-    });
-    return map;
-  }, [shipIds, shipAttributes, attributesAlignedWithShipIds]);
-
-  const fleetSelectionAttributesLoading =
-    attributesLoading || !attributesAlignedWithShipIds;
+  // attributesMap/fleetSelectionAttributesLoading now come from
+  // useFleetShipAttributes above.
 
   // Filter panel state
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-  // Filter ships based on current filters
-  const filteredShips = ships.filter((ship) => {
-    const costsVersionOk =
-      globalCostsVersion === null ||
-      Number(ship.shipData.costsVersion) === globalCostsVersion;
-
-    if (selectedShips.includes(ship.id)) {
-      return costsVersionOk;
-    }
-
-    if (!costsVersionOk) return false;
-
-    return matchesFleetFilters(
-      {
-        cost: Number(ship.shipData.cost),
-        isShiny: ship.shipData.shiny,
-        accuracy: ship.traits.accuracy,
-        hull: ship.traits.hull,
-        speed: ship.traits.speed,
-        isConstructed: ship.shipData.constructed,
-        isDestroyed: ship.shipData.timestampDestroyed > 0n,
-        inFleet: ship.shipData.inFleet,
-        mainWeapon: ship.equipment.mainWeapon,
-        shields: ship.equipment.shields,
-        special: ship.equipment.special,
-      },
-      fleetFilters,
-    );
-  });
-
-  const selectedFleetHasStaleCostsVersion = useMemo(() => {
-    if (globalCostsVersion === null) return false;
-    return selectedShips.some((id) => {
-      const ship = resolveFleetPickerShip(id);
-      return (
-        !ship || Number(ship.shipData.costsVersion) !== globalCostsVersion
-      );
-    });
-  }, [globalCostsVersion, selectedShips, resolveFleetPickerShip]);
+  // filteredShips/selectedFleetHasStaleCostsVersion now come from the
+  // shared fleet hook above.
 
   // Create lobby form state
   const [createForm, setCreateForm] = useState({
@@ -1130,6 +1001,18 @@ const Lobbies: React.FC = () => {
     creatorGoesFirst: false,
     reservedJoiner: "", // Optional: address to reserve for (empty for open lobby)
   });
+
+  // Once the eligible list loads, snap the form off the "1" placeholder
+  // onto a map that's actually valid to submit, if it isn't already
+  // (pvpEligibleMapIds/pvpMapOptions are declared earlier, near useLobbies).
+  useEffect(() => {
+    if (pvpEligibleMapIds.length === 0) return;
+    setCreateForm((prev) =>
+      pvpEligibleMapIds.includes(Number(prev.selectedMapId))
+        ? prev
+        : { ...prev, selectedMapId: String(pvpEligibleMapIds[0]) },
+    );
+  }, [pvpEligibleMapIds]);
 
   const createFormMaxScore = useMemo(() => {
     switch (createForm.scoreLength) {
@@ -1185,28 +1068,17 @@ const Lobbies: React.FC = () => {
       return;
     }
 
-    const currentLobby = lobbyList.lobbies.find(
-      (lobby) => lobby.basic.id === lobbyId,
-    );
-    const totalCost = selectedShips.reduce((sum, shipId) => {
-      const ship = ships.find((s) => s.id === shipId);
-      return sum + (ship ? Number(ship.shipData.cost) : 0);
-    }, 0);
-    const costLimit = currentLobby
-      ? Number(currentLobby.basic.costLimit)
-      : 1000;
-    const ninetyPercentThreshold = costLimit * 0.9;
-    const isUnderNinetyPercent = totalCost < ninetyPercentThreshold;
-    const isOverCostLimit = totalCost > costLimit;
-
-    if (isOverCostLimit) {
+    // lobbyId is always selectedLobby (handleCreateFleet's one call site),
+    // so fleet's own totalCost/isOverLimit/isUnder90Percent — already scoped
+    // to selectedLobby's costLimit — apply directly here.
+    if (fleet.isOverLimit) {
       toast.error(
-        `Fleet threat (${totalCost}) exceeds this lobby limit (${costLimit}). Remove ships or pick a different lobby.`,
+        `Fleet threat (${fleet.totalCost}) exceeds this lobby limit (${costLimitForSelected}). Remove ships or pick a different lobby.`,
       );
       return;
     }
 
-    if (isUnderNinetyPercent) {
+    if (fleet.isUnder90Percent) {
       setShowFleetConfirmation(true);
       return;
     }
@@ -1227,14 +1099,23 @@ const Lobbies: React.FC = () => {
     setShowFleetConfirmation(false);
 
     // Refetch selected lobby and lobby list so UI shows updated fleet state immediately
-    refetchSelectedLobby();
     refetchGames();
 
     (async () => {
+      // Only now — once fresh lobby data reflects the new fleet — is it
+      // safe to say we're no longer "creating". Clearing isCreatingFleet
+      // synchronously (right on receipt confirmation, before this refetch
+      // resolves) left `participantHasFleet` momentarily stale-false, so
+      // FleetSelectionModal would flash back to the pre-creation "CONFIRM
+      // FLEET" UI for a beat before this same refetch caught up.
+      await refetchSelectedLobby();
+      setIsCreatingFleet(false);
+
       // Brief delay so chain state is updated before we refetch (helps joiner who selected second)
       await new Promise((r) => setTimeout(r, 1200));
       await loadLobbies();
       await refetchSelectedLobby();
+
       // Always leave fleet UI after this wallet's fleet tx confirms. List vs getLobby can disagree
       // for one block; the joiner already submitted a valid fleet, so switching to Games is correct.
       resetFleetSelectionModalState();
@@ -1255,6 +1136,7 @@ const Lobbies: React.FC = () => {
       const errorMessage = fleetCreationError.message || "Transaction failed";
       toast.error(`Fleet creation failed: ${errorMessage}`);
       lastFleetCreationLobbyRef.current = null;
+      setIsCreatingFleet(false);
     }
   }, [fleetCreationError]);
 
@@ -1275,19 +1157,11 @@ const Lobbies: React.FC = () => {
       return;
     }
 
-    const currentLobbyForCost = lobbyList.lobbies.find(
-      (lobby) => lobby.basic.id === lobbyId,
-    );
-    const totalThreat = selectedShips.reduce((sum, shipId) => {
-      const ship = ships.find((s) => s.id === shipId);
-      return sum + (ship ? Number(ship.shipData.cost) : 0);
-    }, 0);
-    const lobbyCostLimit = currentLobbyForCost
-      ? Number(currentLobbyForCost.basic.costLimit)
-      : 1000;
-    if (totalThreat > lobbyCostLimit) {
+    // lobbyId is always selectedLobby (both call sites) — reuse fleet's own
+    // totalCost/isOverLimit rather than re-deriving them.
+    if (fleet.isOverLimit) {
       toast.error(
-        `Fleet threat (${totalThreat}) exceeds this lobby limit (${lobbyCostLimit}). Remove ships before confirming.`,
+        `Fleet threat (${fleet.totalCost}) exceeds this lobby limit (${costLimitForSelected}). Remove ships before confirming.`,
       );
       return;
     }
@@ -1300,14 +1174,22 @@ const Lobbies: React.FC = () => {
         col: pos.col,
       }));
 
-      // Submit tx - store lobby ID to show toast when receipt is received
+      // Submit tx - store lobby ID to show toast when receipt is received.
+      // isCreatingFleet stays true past this point — createFleet only
+      // resolves once the wallet sends the tx, not once it's confirmed.
+      // The busy state is cleared later, by the isFleetCreated/
+      // fleetCreationError effects above, once we actually know the
+      // outcome.
       lastFleetCreationLobbyRef.current = lobbyId;
       await createFleet(lobbyId, selectedShips, startingPositions);
 
       // Don't show toast here - wait for receipt (handled in useEffect above)
     } catch (error) {
+      // Failed to even send the tx (e.g. rejected in wallet) — nothing to
+      // wait for, so clear the busy state immediately.
       console.error("Failed to create fleet:", error);
       lastFleetCreationLobbyRef.current = null;
+      setIsCreatingFleet(false);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       if (
@@ -1319,8 +1201,6 @@ const Lobbies: React.FC = () => {
       } else {
         toast.error(`Fleet creation failed: ${errorMessage}`);
       }
-    } finally {
-      setIsCreatingFleet(false);
     }
   };
 
@@ -1728,6 +1608,8 @@ const Lobbies: React.FC = () => {
             scoreLength={createForm.scoreLength}
             onScoreLengthChange={(v) => setCreateForm((prev) => ({ ...prev, scoreLength: v }))}
             mapIdLabel={createForm.selectedMapId}
+            mapOptions={pvpMapOptions}
+            onMapIdChange={(id) => setCreateForm((prev) => ({ ...prev, selectedMapId: id }))}
             onClose={() => setShowCreateForm(false)}
             extraFields={
               <>
@@ -1822,6 +1704,7 @@ const Lobbies: React.FC = () => {
                       : undefined
                   }
                   disabled={
+                    pvpEligibleMapIds.length === 0 ||
                     !!(
                       createForm.reservedJoiner.trim() &&
                       address &&
@@ -1832,7 +1715,11 @@ const Lobbies: React.FC = () => {
                   className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
                   onTransactionSent={(hash) => {
                     setPendingCreateLobbyHash(hash);
-                    setShowCreateForm(false);
+                    // Form stays open (button shows "[CREATING...]" via
+                    // TransactionButton's own pending state) until the
+                    // isCreateLobbyConfirmed effect above closes it — once
+                    // the new lobby is actually in the list, not just
+                    // once the tx is sent.
                   }}
                   onSuccess={() => {}}
                   onError={(error) => {
@@ -1904,7 +1791,6 @@ const Lobbies: React.FC = () => {
               typeof lobby.players.reservedJoiner === "string" &&
               lobby.players.reservedJoiner !==
                 "0x0000000000000000000000000000000000000000";
-
             return (
             <LobbyCard
               key={lobby.basic.id.toString()}
@@ -2120,81 +2006,29 @@ const Lobbies: React.FC = () => {
                 ? currentLobby.players.creatorFleetId > 0n
                 : currentLobby.players.joinerFleetId > 0n
               : false;
-          const totalCost = selectedShips.reduce((sum, shipId) => {
-            const ship = ships.find((s) => s.id === shipId);
-            return sum + (ship ? Number(ship.shipData.cost) : 0);
-          }, 0);
-          const costLimit = currentLobby
-            ? Number(currentLobby.basic.costLimit)
-            : 1000;
-          const isOverLimit = totalCost > costLimit;
-          const isUnder90Percent = totalCost < costLimit * 0.9;
+          // totalCost/costLimit/isOverLimit/isUnder90Percent/hasMovedShip
+          // come from the shared fleet hook (already scoped to this same
+          // selectedLobby/side) — see fleet.totalCost etc. below.
+          const totalCost = fleet.totalCost;
+          const costLimit = costLimitForSelected;
+          const isOverLimit = fleet.isOverLimit;
+          const isUnder90Percent = fleet.isUnder90Percent;
+          const hasMovedShip = fleet.hasMovedShip;
 
-          // Check if all ships are not in the default (far) column
-          // Creator default: column 0 (left edge), Joiner default: last column (right edge)
-          const hasMovedShip =
-            shipPositions.length > 0 &&
-            shipPositions.some((pos) => {
-              if (isCreator) {
-                // Creator: at least one ship must not be in column 0
-                return pos.col !== 0;
-              } else {
-                // Joiner: at least one ship must not be in the far-right column
-                return pos.col !== GRID_DIMENSIONS.WIDTH - 1;
-              }
-            });
-
-          const sortedFleetPickerShips = [...filteredShips].sort((a, b) => {
-            // Selected ships first
-            const aSelected = selectedShips.includes(a.id);
-            const bSelected = selectedShips.includes(b.id);
-
-            if (aSelected && !bSelected) return -1;
-            if (!aSelected && bSelected) return 1;
-
-            // Within each group, sort by ship ID
-            return Number(a.id - b.id);
-          });
-
-          const shipListItems = sortedFleetPickerShips.map((ship) => {
-            const canSelect =
-              ship.shipData.timestampDestroyed === 0n &&
-              ship.shipData.constructed &&
-              !ship.shipData.inFleet;
-            const handleCardClick = () => handleListShipTap(ship.id, canSelect);
-
-            return {
-              key: ship.id.toString(),
-              canSelect,
-              isPending: tapPendingShipId === ship.id,
-              isTouchDevice,
-              onDragStart: () => handleDragStart(ship.id),
-              onDragEnd: handleDragEnd,
-              card: (
-                <ShipCard
-                  ship={toShipCardData(ship)}
-                  shipImage={<ShipImage ship={ship} className="h-full w-full" />}
-                  isStarred={false}
-                  onToggleStar={() => {}}
-                  isSelected={selectedShips.includes(ship.id)}
-                  onToggleSelection={() => {
-                    if (canSelect) {
-                      handleCardClick();
-                    }
-                  }}
-                  onRecycleClick={() => {}}
-                  showInGameProperties={showInGameProperties}
-                  inGameAttributes={attributesMap.get(ship.id)}
-                  attributesLoading={fleetSelectionAttributesLoading}
-                  selectionMode={true}
-                  hideRecycle={true}
-                  hideCheckbox={true}
-                  onCardClick={handleCardClick}
-                  canSelect={canSelect}
-                  flipShip={isCreator}
-                />
-              ),
-            };
+          const shipListItems = buildFleetShipListItems({
+            ships: filteredShips,
+            selectedShips,
+            addShip: addShipToFleet,
+            removeShip: removeShipFromFleet,
+            setDraggedShipId,
+            setDragOverPosition,
+            attributesMap,
+            attributesLoading: fleetSelectionAttributesLoading,
+            showInGameProperties,
+            flipShips: isCreator,
+            tapPendingShipId,
+            setTapPendingShipId,
+            isTouchDevice,
           });
 
           const mapDisplay = currentLobby && (
@@ -2315,17 +2149,9 @@ const Lobbies: React.FC = () => {
       {showFleetConfirmation &&
         selectedLobby &&
         (() => {
-          const currentLobby = lobbyList.lobbies.find(
-            (lobby) => lobby.basic.id === selectedLobby,
-          );
-          const totalCost = selectedShips.reduce((sum, shipId) => {
-            const ship = ships.find((s) => s.id === shipId);
-            return sum + (ship ? Number(ship.shipData.cost) : 0);
-          }, 0);
-          const costLimit = currentLobby
-            ? Number(currentLobby.basic.costLimit)
-            : 1000;
-          const confirmationOverLimit = totalCost > costLimit;
+          const totalCost = fleet.totalCost;
+          const costLimit = costLimitForSelected;
+          const confirmationOverLimit = fleet.isOverLimit;
 
           return (
             <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[420]">

@@ -7,6 +7,7 @@ import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
+import { useShipsRead } from "../hooks/useShipsContract";
 import type { Abi } from "viem";
 import { formatEther } from "viem";
 
@@ -22,10 +23,18 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
   const {
     tiers,
     pricesWei,
+    shipsPerTier,
     tierCount,
     isLoading: isLoadingTiers,
     purchaserDeployed,
   } = useShipPurchaserPurchaseInfo();
+
+  // purchaseUTCWithFlow mints tierShips[tier] * Ships.recycleReward() UTC —
+  // the same payout as buying that tier's ship pack and recycling every
+  // ship, not a 1:1 match with the FLOW price paid (see ShipPurchaser
+  // contract). Read live rather than assuming 1:1 so this stays correct as
+  // recycleReward or tierShips are admin-adjusted.
+  const { data: recycleReward } = useShipsRead("recycleReward");
 
   const { data: utcBalance, refetch: refetchUTCBalance } = useReadContract({
     address: CONTRACT_ADDRESSES.UNIVERSAL_CREDITS as `0x${string}`,
@@ -101,16 +110,16 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
       balanceDescription={
         <>
           Universal Credits (UTC) are the in-game balance token. Buy UTC with
-          TOKENS at a 1:1 rate, then spend UTC when you reserve games or
-          check out ship packs elsewhere. This purchase only adds UTC to your
-          wallet.
+          TOKENS, then spend UTC when you reserve games or check out ship
+          packs elsewhere. This purchase only adds UTC to your wallet.
         </>
       }
       chooseAmountDescription={
         <>
           Each option is a fixed {nativeTokenSymbol} payment. You receive the
-          same amount in UTC. Larger options are for convenience only, not a
-          different product.
+          UTC that tier&apos;s ship pack would earn from a full recycle, not a
+          1:1 match with the {nativeTokenSymbol} paid. Larger options are for
+          convenience only, not a different product.
         </>
       }
     >
@@ -132,14 +141,16 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
             const flowCost = pricesWei[index] ?? 0n;
             const flowCostFormatted = formatEther(flowCost);
             const colors = getTierColors(tier);
-            const utcDisplay = flowCostFormatted;
+            const shipsInTier = BigInt(shipsPerTier[index] ?? 0);
+            const utcMinted = shipsInTier * ((recycleReward as bigint) ?? 0n);
+            const utcDisplay = formatEther(utcMinted);
 
             return (
               <UTCPurchaseButton
                 key={index}
                 tier={tier}
                 flowCost={flowCost}
-                utcAmount={flowCostFormatted}
+                utcAmount={utcDisplay}
                 className={`relative min-h-0 px-4 py-4 rounded-none border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-left`}
                 refetch={refetchUTCBalance}
                 onSuccess={handlePurchaseSuccess}

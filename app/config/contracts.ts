@@ -9,7 +9,13 @@ import DroneYardContract from "../contracts/DeployModule#DroneYard.json";
 import TutorialClaimContract from "../contracts/DeployModule#TutorialClaim.json";
 import ShipPurchaserContract from "../contracts/DeployModule#ShipPurchaser.json";
 import TournamentContract from "../contracts/DeployModule#Tournament.json";
-import GameBlobRegistryContract from "../contracts/GameBlobRegistryModule#GameBlobRegistry.json";
+import GameBlobRegistryContract from "../contracts/DeployModule#GameBlobRegistry.json";
+import SinglePlayerMatchContract from "../contracts/DeployModule#SinglePlayerMatch.json";
+import AIEncountersContract from "../contracts/DeployModule#AIEncounters.json";
+import PvPMatchContract from "../contracts/DeployModule#PvPMatch.json";
+import NodeMapContract from "../contracts/DeployModule#NodeMap.json";
+import AIShipsContract from "../contracts/DeployModule#AIShips.json";
+import ShipsRouterContract from "../contracts/DeployModule#ShipsRouter.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -80,7 +86,13 @@ const RONIN_SAIGON_CONTRACT_ADDRESSES = {
 const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Ships"] ?? ZERO_ADDRESS,
   TOURNAMENT: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Tournament"] ?? ZERO_ADDRESS,
-  GAME_BLOB_REGISTRY: BASE_SEPOLIA_DEPLOYED_ADDRESSES["GameBlobRegistryModule#GameBlobRegistry"] ?? ZERO_ADDRESS,
+  GAME_BLOB_REGISTRY: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#GameBlobRegistry"] ?? ZERO_ADDRESS,
+  SINGLE_PLAYER_MATCH: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#SinglePlayerMatch"] ?? ZERO_ADDRESS,
+  AI_ENCOUNTERS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#AIEncounters"] ?? ZERO_ADDRESS,
+  PVP_MATCH: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#PvPMatch"] ?? ZERO_ADDRESS,
+  NODE_MAP: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeMap"] ?? ZERO_ADDRESS,
+  AI_SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#AIShips"] ?? ZERO_ADDRESS,
+  SHIPS_ROUTER: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipsRouter"] ?? ZERO_ADDRESS,
   FLEETS:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Fleets"] ?? ZERO_ADDRESS,
   LOBBIES:
@@ -173,6 +185,12 @@ export const CONTRACT_ABIS = {
   SHIP_PURCHASER: ShipPurchaserContract.abi,
   TOURNAMENT: TournamentContract.abi,
   GAME_BLOB_REGISTRY: GameBlobRegistryContract.abi,
+  SINGLE_PLAYER_MATCH: SinglePlayerMatchContract.abi,
+  AI_ENCOUNTERS: AIEncountersContract.abi,
+  PVP_MATCH: PvPMatchContract.abi,
+  NODE_MAP: NodeMapContract.abi,
+  AI_SHIPS: AIShipsContract.abi,
+  SHIPS_ROUTER: ShipsRouterContract.abi,
 } as const;
 
 // Contract types for wagmi

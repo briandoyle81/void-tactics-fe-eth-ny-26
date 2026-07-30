@@ -11,6 +11,7 @@ import { MapEditorHeader } from "./MapEditorHeader";
 import { MapPreviewCard } from "./MapPreviewCard";
 import { MapsListShell } from "./MapsListShell";
 import { MapPosition, ScoringPosition } from "../types/types";
+import { AIEncountersAdminPanelWeb2 } from "./AIEncountersAdminPanelWeb2";
 
 interface Web2Map {
   id: number;
@@ -180,25 +181,28 @@ export default function MapsWeb2() {
   }
 
   return (
-    <MapsListShell
-      canCreateMaps={canCreateMaps}
-      onCreateMap={handleCreateMap}
-      totalMaps={maps.length}
-      restrictedMessage="[!] Map creation is currently restricted to authorized accounts only"
-      isEmpty={maps.length === 0}
-    >
-      {maps.map((map) => (
-        <MapPreviewCard
-          key={map.id}
-          map={{
-            id: map.id,
-            titleLabel: `Map #${map.id} — ${map.name}`,
-            blockedPositions: map.blockedTiles,
-            scoringPositions: map.scoringTiles,
-          }}
-          onEdit={() => handleEditMap(map)}
-        />
-      ))}
-    </MapsListShell>
+    <div className="space-y-4">
+      <MapsListShell
+        canCreateMaps={canCreateMaps}
+        onCreateMap={handleCreateMap}
+        totalMaps={maps.length}
+        restrictedMessage="[!] Map creation is currently restricted to authorized accounts only"
+        isEmpty={maps.length === 0}
+      >
+        {maps.map((map) => (
+          <MapPreviewCard
+            key={map.id}
+            map={{
+              id: map.id,
+              titleLabel: `Map #${map.id} — ${map.name}`,
+              blockedPositions: map.blockedTiles,
+              scoringPositions: map.scoringTiles,
+            }}
+            onEdit={() => handleEditMap(map)}
+          />
+        ))}
+      </MapsListShell>
+      <AIEncountersAdminPanelWeb2 mapIds={maps.map((m) => m.id)} />
+    </div>
   );
 }

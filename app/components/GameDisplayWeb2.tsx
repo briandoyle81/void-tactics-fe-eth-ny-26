@@ -29,6 +29,8 @@ import {
 } from "../hooks/useGameplayInteraction";
 import { apiMutate } from "../lib/apiMutate";
 import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
+import { AI_USER_ID } from "../config/aiUser";
+import { useAITurnLoopWeb2 } from "../hooks/useAITurnLoopWeb2";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -161,6 +163,56 @@ export default function GameDisplayWeb2({
   const isCurrentPlayerTurn = !readOnly && game.turnState.currentTurn === userId;
   const gameWinnerResult = toGameWinnerResultWeb2(game.metadata.winner, userId);
   const isGameOver = gameWinnerResult !== null;
+
+  // Single-player games are regular Game rows where the joiner is the AI
+  // sentinel user — same read shape as PvP, just a different currentTurn id
+  // to watch for. Mirrors GameDisplay.tsx's isSinglePlayerGame/isAITurn.
+  const isSinglePlayerGame = game.metadata.joiner === AI_USER_ID;
+  const isAITurn = isSinglePlayerGame && game.turnState.currentTurn === AI_USER_ID;
+
+  const aiTurnLoop = useAITurnLoopWeb2({
+    gameId,
+    isAITurn,
+    isGameOver,
+    lastMoveSignal: game.lastMove ? `${game.lastMove.shipId}-${game.lastMove.timestamp}` : "",
+    refetchGame: () => refetchGame(),
+  });
+
+  // "AI is taking its turn..." as a toast rather than a sticky banner over
+  // the grid — mirrors GameDisplay.tsx. Fixed id so successive updates
+  // (move count ticking up) replace the same toast instead of stacking.
+  const aiTurnToastId = `ai-turn-${gameId}`;
+  React.useEffect(() => {
+    if (!isSinglePlayerGame) return;
+    if (aiTurnLoop.error) {
+      toast.error(aiTurnLoop.error, { id: aiTurnToastId });
+      return;
+    }
+    if (aiTurnLoop.isAIThinking) {
+      toast.loading(
+        `AI is taking its turn${
+          aiTurnLoop.moveCount > 0 ? ` (move ${aiTurnLoop.moveCount})` : ""
+        }...`,
+        { id: aiTurnToastId },
+      );
+    } else {
+      toast.dismiss(aiTurnToastId);
+    }
+  }, [
+    isSinglePlayerGame,
+    aiTurnLoop.isAIThinking,
+    aiTurnLoop.moveCount,
+    aiTurnLoop.error,
+    aiTurnToastId,
+  ]);
+
+  // Don't leave the loading toast stuck on screen after leaving this game.
+  React.useEffect(() => {
+    return () => {
+      toast.dismiss(aiTurnToastId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Play alert sound when it becomes the player's turn (turn changes from
   // opponent to player only).
@@ -316,6 +368,10 @@ export default function GameDisplayWeb2({
       refetchGame();
       refetch?.();
     } catch (e) {
+      // Clear the selection first so the confirm widget vanishes cleanly
+      // instead of briefly re-rendering in its normal "ready to submit"
+      // state before disappearing — matches GameDisplay.tsx's ordering.
+      handleCancelMove();
       toast.error(e instanceof Error ? e.message : "Move failed");
     } finally {
       setIsSubmitting(false);
@@ -479,8 +535,17 @@ export default function GameDisplayWeb2({
             </h1>
             {!isGameOver && (() => {
               const isParticipant = !readOnly && (isCreatorMe || game.metadata.joiner === userId);
-              const canSeizeTurn = !isCurrentPlayerTurn && isParticipant && turnSecondsLeft <= 0;
-              const hasExceededTime = isCurrentPlayerTurn && isParticipant && turnSecondsLeft <= 0;
+              // No timeout-claim for single-player: the AI turn loop is
+              // still actively driving moves server-side even if it runs
+              // long, and racing a forfeit-claim against an in-flight
+              // ai-turn call isn't worth the complexity (mirrors
+              // GameDisplay.tsx's isSinglePlayerGame exclusion).
+              const canSeizeTurn =
+                !isCurrentPlayerTurn && !isSinglePlayerGame && isParticipant && turnSecondsLeft <= 0;
+              // Mirrors GameDisplay.tsx: vs-AI turns are unlimited, so don't
+              // show the "opponent can claim victory" warning for them.
+              const hasExceededTime =
+                isCurrentPlayerTurn && isParticipant && !isSinglePlayerGame && turnSecondsLeft <= 0;
               return (
                 <GameTurnTimerPanel
                   hasExceededTime={hasExceededTime}

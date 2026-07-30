@@ -15,6 +15,13 @@ import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 
 type Position = { row: number; col: number };
 type TargetRef = { shipId: number; position: Position };
+type HoveredCell = {
+  shipId: number;
+  row: number;
+  col: number;
+  isCreator: boolean;
+  fromFleet?: boolean;
+} | null;
 
 interface GameGridOverlaysProps {
   grid: (GridShipPosition | null)[][];
@@ -64,6 +71,7 @@ interface GameGridOverlaysProps {
   tutorialDefaultLabel?: string;
   movementTileSet: Set<string>;
   isHoveringValidTarget: boolean;
+  hoveredCell: HoveredCell;
   selectedShipCreatorSide: boolean | null;
   directedWeaponBeamTargetId: number | null;
   flakEffectCells: Position[];
@@ -111,6 +119,7 @@ export function GameGridOverlays({
   tutorialDefaultLabel = "Click here",
   movementTileSet,
   isHoveringValidTarget,
+  hoveredCell,
   selectedShipCreatorSide,
   directedWeaponBeamTargetId,
   flakEffectCells,
@@ -137,8 +146,20 @@ export function GameGridOverlays({
             {/* Move path arrow: proposed move or last completed move with a spatial path, same geometry. */}
             {(() => {
                 const proposedDestination = effectiveDragCell ?? previewPosition;
+                // isHoveringValidTarget is a single grid-wide flag ("some
+                // valid target is hovered somewhere"), not scoped to this
+                // cell — checking it alone hid the move arrow whenever any
+                // enemy ship in weapons range was hovered, anywhere on the
+                // board. Only suppress the arrow when the hovered valid
+                // target is actually the proposed destination itself.
+                const isHoveringDestinationAsValidTarget =
+                  isHoveringValidTarget &&
+                  hoveredCell !== null &&
+                  proposedDestination !== null &&
+                  hoveredCell.row === proposedDestination.row &&
+                  hoveredCell.col === proposedDestination.col;
                 const useProposedMoveArrow =
-                  selectedShipId !== null && proposedDestination !== null && !isHoveringValidTarget && retreatPrepShipId == null;
+                  selectedShipId !== null && proposedDestination !== null && !isHoveringDestinationAsValidTarget && retreatPrepShipId == null;
 
                 const lastMoveHasPath =
                   lastMoveOldPosition != null &&
@@ -328,7 +349,11 @@ export function GameGridOverlays({
 
                 // When replaying a last move that was a Special (e.g. EMP),
                 // do not show any weapon beam animation.
-                if (!selectedShipId && lastMoveActionType === ActionType.Special) {
+                if (
+                  !selectedShipId &&
+                  (lastMoveActionType === ActionType.Special ||
+                    lastMoveActionType === ActionType.FactionAbility)
+                ) {
                   return null;
                 }
 
@@ -401,6 +426,19 @@ export function GameGridOverlays({
                 );
               })()}
 
+            {/* TEMP DEBUG: remove after diagnosing missile-animation-stops-looping report */}
+            {(() => {
+              console.log("[MISSILE-DEBUG] overlay check", {
+                selectedShipId,
+                lastMoveShipId,
+                directedWeaponBeamTargetId,
+                selectedWeaponType,
+                lastMoveActionType,
+                targetShipId,
+                hoveredCell,
+              });
+              return null;
+            })()}
             {/* Missile Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
               directedWeaponBeamTargetId &&
@@ -408,15 +446,24 @@ export function GameGridOverlays({
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
-                if (!shipId) return null;
+                if (!shipId) {
+                  console.log("[MISSILE-DEBUG] bailed: no shipId");
+                  return null;
+                }
 
-                if (!selectedShipId && lastMoveActionType === ActionType.Special) {
+                if (
+                  !selectedShipId &&
+                  (lastMoveActionType === ActionType.Special ||
+                    lastMoveActionType === ActionType.FactionAbility)
+                ) {
+                  console.log("[MISSILE-DEBUG] bailed: lastMoveActionType is Special/FactionAbility", { lastMoveActionType });
                   return null;
                 }
 
                 // Check if the ship has a Missile weapon (mainWeapon === 2)
                 const ship = shipMap.get(shipId);
                 if (!ship || ship.equipment.mainWeapon !== 2) {
+                  console.log("[MISSILE-DEBUG] bailed: ship missing or not missile weapon", { shipId, found: !!ship, mainWeapon: ship?.equipment.mainWeapon });
                   return null;
                 }
 
@@ -445,14 +492,22 @@ export function GameGridOverlays({
                       });
                     });
                   }
-                  if (attackerRow === -1 || attackerCol === -1) return null;
+                  if (attackerRow === -1 || attackerCol === -1) {
+                    console.log("[MISSILE-DEBUG] bailed: attacker position not found on grid", { shipId, lastMoveNewPosition });
+                    return null;
+                  }
                 } else {
                   // No preview or drag position - don't show animation
+                  console.log("[MISSILE-DEBUG] bailed: no preview/drag/lastMove position for shipId", { shipId, lastMoveShipId, previewPosition, draggedShipId, dragOverCell });
                   return null;
                 }
 
                 const targetPosition = findShipPositionById(targetShipId);
-                if (!targetPosition) return null;
+                if (!targetPosition) {
+                  console.log("[MISSILE-DEBUG] bailed: target position not found", { targetShipId });
+                  return null;
+                }
+                console.log("[MISSILE-DEBUG] rendering MissileShootingAnimation", { shipId, attackerRow, attackerCol, targetShipId, targetPosition });
 
                 const attackerIsCreator =
                   selectedShipCreatorSide ??
@@ -480,7 +535,11 @@ export function GameGridOverlays({
                 const shipId = selectedShipId || lastMoveShipId;
                 if (!shipId) return null;
 
-                if (!selectedShipId && lastMoveActionType === ActionType.Special) {
+                if (
+                  !selectedShipId &&
+                  (lastMoveActionType === ActionType.Special ||
+                    lastMoveActionType === ActionType.FactionAbility)
+                ) {
                   return null;
                 }
 
@@ -553,7 +612,11 @@ export function GameGridOverlays({
                 const shipId = selectedShipId || lastMoveShipId;
                 if (!shipId) return null;
 
-                if (!selectedShipId && lastMoveActionType === ActionType.Special) {
+                if (
+                  !selectedShipId &&
+                  (lastMoveActionType === ActionType.Special ||
+                    lastMoveActionType === ActionType.FactionAbility)
+                ) {
                   return null;
                 }
 
@@ -853,7 +916,8 @@ export function GameGridOverlays({
 
                 const shouldShowRammingLabels =
                   (isRammingMovePreview && rammingPreviewPosition != null) ||
-                  (lastMoveActionNum === ActionType.Ram &&
+                  ((lastMoveActionNum === ActionType.Ram ||
+                    lastMoveActionNum === ActionType.FactionAbility) &&
                     lastMoveNewPosition != null &&
                     lastMoveNewPosition.row >= 0 &&
                     lastMoveNewPosition.col >= 0);
@@ -1038,7 +1102,8 @@ export function GameGridOverlays({
                     {(() => {
                       // Last-move ram labels — same two labels as staged preview, at the to-position
                       if (
-                        lastMoveActionNum !== ActionType.Ram ||
+                        (lastMoveActionNum !== ActionType.Ram &&
+                          lastMoveActionNum !== ActionType.FactionAbility) ||
                         !lastMoveNewPosition ||
                         lastMoveNewPosition.row < 0 ||
                         lastMoveNewPosition.col < 0

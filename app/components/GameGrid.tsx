@@ -529,6 +529,7 @@ export function GameGrid({
             tutorialDefaultLabel={tutorialDefaultLabel}
             movementTileSet={movementTileSet}
             isHoveringValidTarget={isHoveringValidTarget}
+            hoveredCell={hoveredCell}
             selectedShipCreatorSide={selectedShipCreatorSide}
             directedWeaponBeamTargetId={directedWeaponBeamTargetId}
             flakEffectCells={flakEffectCells}

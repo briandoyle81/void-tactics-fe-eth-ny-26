@@ -55,7 +55,14 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   const missileIdRef = useRef(0);
   const impactIdRef = useRef(0);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    console.log("[MISSILE-DEBUG] mounted", { attackerRow, attackerCol, targetRow, targetCol });
+    return () => {
+      mountedRef.current = false;
+      console.log("[MISSILE-DEBUG] unmounted", { attackerRow, attackerCol, targetRow, targetCol });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const animationFrameRef = useRef<number | null>(null);
   const impactAnimationRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,7 +101,10 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
 
   // Select target spot and spawn missile
   const spawnMissile = useCallback(() => {
-    if (!gridContainerRef.current) return;
+    if (!gridContainerRef.current) {
+      console.log("[MISSILE-DEBUG] spawnMissile bailed: no gridContainerRef.current");
+      return;
+    }
 
     const attackerCenter = getAttackerOrigin();
     const targetCenter = getCellCenter(targetRow, targetCol);
@@ -207,18 +217,21 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   // Handle missile despawn and respawn
   useEffect(() => {
     if (missiles.length === 0) {
+      console.log("[MISSILE-DEBUG] scheduling respawn", { attackerRow, attackerCol, targetRow, targetCol });
       // No missiles - wait 1 second then spawn next pair
       timeoutRef.current = setTimeout(() => {
+        console.log("[MISSILE-DEBUG] respawn timeout firing", { attackerRow, attackerCol, targetRow, targetCol });
         spawnMissile();
       }, MISSILE_RESPAWN_DELAY_MS);
 
       return () => {
+        console.log("[MISSILE-DEBUG] respawn effect cleanup (clearing scheduled respawn)", { attackerRow, attackerCol, targetRow, targetCol });
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
       };
     }
-  }, [missiles.length, spawnMissile]);
+  }, [missiles.length, spawnMissile, attackerRow, attackerCol, targetRow, targetCol]);
 
   // Animate missile movement
   useEffect(() => {

@@ -75,11 +75,16 @@ export type ShipAttributesWriteFunction =
   | "addEngineSpeed"
   | "setCosts";
 
+// `chainIdOverride` pins the read to a specific chain instead of following
+// the header network picker — needed by the campaign flow (Base-Sepolia-
+// only, like every other campaign hook).
 export function useShipAttributesRead(
   functionName: ShipAttributesReadFunction,
-  args?: readonly unknown[]
+  args?: readonly unknown[],
+  chainIdOverride?: number,
 ) {
-  const chainId = useSelectedChainId();
+  const pickerChainId = useSelectedChainId();
+  const chainId = chainIdOverride ?? pickerChainId;
   const shipAttributes = getContractAddresses(chainId)
     .SHIP_ATTRIBUTES as `0x${string}`;
 
@@ -115,8 +120,8 @@ export function useCurrentAttributesVersion() {
   return useShipAttributesRead("getCurrentAttributesVersion");
 }
 
-export function useCurrentCostsVersion() {
-  return useShipAttributesRead("getCurrentCostsVersion");
+export function useCurrentCostsVersion(chainIdOverride?: number) {
+  return useShipAttributesRead("getCurrentCostsVersion", undefined, chainIdOverride);
 }
 
 export function useCosts() {

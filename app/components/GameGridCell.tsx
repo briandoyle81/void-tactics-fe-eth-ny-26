@@ -6,6 +6,7 @@ import { Attributes, ActionType } from "../types/types";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { GridShipImage } from "./GridShipImage";
 import { calculateShipRank } from "../utils/shipLevel";
+import { setMirroredDragImage } from "../utils/dragShipImage";
 import { RetreatPrepAnimation } from "./weapon-animations/RetreatPrepAnimation";
 
 type Position = { row: number; col: number };
@@ -157,7 +158,8 @@ export function GameGridCell({
                   lastMoveTargetShipId != null &&
                   cell.shipId === lastMoveTargetShipId &&
                   (lastMoveActionNum === ActionType.Shoot ||
-                    lastMoveActionNum === ActionType.Special);
+                    lastMoveActionNum === ActionType.Special ||
+                    lastMoveActionNum === ActionType.FactionAbility);
                 const shouldRenderShipContent =
                   !!cell && !isCellFled && (!isCellDestroyed || isLastMoveDestroyedTargetCell);
                 const isSelected = selectedShipId === cell?.shipId;
@@ -274,25 +276,36 @@ export function GameGridCell({
                         previewPosition === null || previewAtCurrentPos || alreadyRamming;
 
                       if (inMoveRange && inWeaponRange && noMoveElsewhere) {
-                        if (alreadyRamming && selectedWeaponType !== "ram") {
-                          // 2nd click (weapon mode): cycle ramming → weapon targeting
+                        // Ram is only proposed when the player has explicitly
+                        // selected Ram as their action — otherwise (weapon or
+                        // special mode) a click always targets the ship in
+                        // place, never auto-proposes moving onto it.
+                        if (selectedWeaponType === "ram") {
+                          if (!alreadyRamming) {
+                            setPreviewPosition({ row: rowIndex, col: colIndex });
+                            setTargetShipId(cell.shipId);
+                          }
+                          return;
+                        }
+                        // Skip re-proposing when hold is already active — ship
+                        // stays in place, use weapon targeting.
+                        if (!previewAtCurrentPos) {
                           if (selRow >= 0) setPreviewPosition({ row: selRow, col: selCol });
                           setTargetShipId(cell.shipId);
                           return;
                         }
-                        // Skip ramming when hold is active — ship stays in place, use weapon targeting
-                        if (!previewAtCurrentPos) {
-                          setPreviewPosition({ row: rowIndex, col: colIndex });
-                          setTargetShipId(cell.shipId);
-                          return;
-                        }
                         // previewAtCurrentPos (hold active): fall through to normal weapon targeting
-                      } else if (inMoveRange && noMoveElsewhere && !previewAtCurrentPos) {
-                        // In movement range only (not weapon range): ram — but only if
-                        // the player hasn't already staged a move somewhere else, and
-                        // hold is not active. When a move is staged, fall through so
-                        // normal target selection can fire at this ship from the staged
-                        // position instead.
+                      } else if (
+                        inMoveRange &&
+                        noMoveElsewhere &&
+                        !previewAtCurrentPos &&
+                        selectedWeaponType === "ram"
+                      ) {
+                        // In movement range only (not weapon range): ram is the
+                        // only way to interact with this ship at all, but still
+                        // only fires when Ram is the selected action — otherwise
+                        // fall through (weapon/special mode has nothing to do
+                        // with a target outside its range).
                         setPreviewPosition({ row: rowIndex, col: colIndex });
                         setTargetShipId(cell.shipId);
                         return;
@@ -501,8 +514,20 @@ export function GameGridCell({
                   return true;
                 })();
 
+                // isHoveringValidTarget is computed once for the whole grid
+                // (GameGrid.tsx) — it only says *some* valid target is
+                // hovered, not that it's this cell. Without also checking
+                // hoveredCell's own row/col here, hovering a valid target
+                // anywhere on the board (e.g. an enemy ship in weapons
+                // range) blanked the "to" position's destination preview
+                // even when that hover had nothing to do with this cell.
+                const isHoveringThisCellAsValidTarget =
+                  isHoveringValidTarget &&
+                  hoveredCell !== null &&
+                  hoveredCell.row === rowIndex &&
+                  hoveredCell.col === colIndex;
                 const isHidingDestinationPreview =
-                  isHoveringValidTarget && (
+                  isHoveringThisCellAsValidTarget && (
                     (previewPosition !== null &&
                       rowIndex === previewPosition.row &&
                       colIndex === previewPosition.col) ||
@@ -662,6 +687,24 @@ export function GameGridCell({
                     onDrop={(e) => {
                       e.preventDefault();
                       if (draggedShipId && isMovementTile) {
+                        // A disabled-enemy tile is only enterable at all because
+                        // it's a valid ram target (see canEnterOccupiedCell) —
+                        // dropping there must not propose a ram unless Ram is
+                        // the selected action, mirroring the click-path guard
+                        // above. Otherwise this is a normal move, unaffected.
+                        const isDisabledEnemyDropTarget =
+                          !!cell?.shipId &&
+                          !isShipOwnedByCurrentPlayer(cell.shipId) &&
+                          (() => {
+                            const targetAttrs = getShipAttributes(cell.shipId!);
+                            return !!targetAttrs && targetAttrs.hullPoints === 0;
+                          })();
+                        if (isDisabledEnemyDropTarget && selectedWeaponType !== "ram") {
+                          setDraggedShipId(null);
+                          setDragOverCell(null);
+                          lastDragOverCellRef.current = null;
+                          return;
+                        }
                         // Update preview position - works whether dragging from original or preview position
                         setPreviewPosition({ row: rowIndex, col: colIndex });
                         setTargetShipId(null);
@@ -900,52 +943,16 @@ export function GameGridCell({
                               cell.shipId.toString(),
                             );
 
-                            // Create custom drag image that preserves ship orientation
-                            // Find the ship image element (it's inside a div with class "relative")
+                            // Custom drag image that preserves ship
+                            // orientation (browsers don't reliably respect a
+                            // live CSS transform in the default drag-ghost
+                            // snapshot) — see dragShipImage.ts.
                             const shipImageContainer =
                               e.currentTarget.querySelector(
                                 ".relative img",
-                              ) as HTMLImageElement;
-                            if (
-                              shipImageContainer &&
-                              shipImageContainer.complete &&
-                              shipImageContainer.naturalWidth > 0
-                            ) {
-                              // Create a canvas to capture the ship image with its current transform
-                              const canvas = document.createElement("canvas");
-                              canvas.width = 64;
-                              canvas.height = 64;
-                              const ctx = canvas.getContext("2d");
-
-                              if (ctx) {
-                                // Apply flip transformation if needed (creator ships are flipped)
-                                if (cell.isCreator) {
-                                  ctx.translate(64, 0);
-                                  ctx.scale(-1, 1);
-                                }
-
-                                // Draw the ship image
-                                ctx.drawImage(shipImageContainer, 0, 0, 64, 64);
-
-                                // Create a temporary element for the drag image
-                                const dragImage = document.createElement("img");
-                                dragImage.src = canvas.toDataURL();
-                                dragImage.style.position = "absolute";
-                                dragImage.style.top = "-1000px";
-                                dragImage.style.width = "64px";
-                                dragImage.style.height = "64px";
-                                document.body.appendChild(dragImage);
-
-                                // Set the drag image with offset to center it
-                                e.dataTransfer.setDragImage(dragImage, 32, 32);
-
-                                // Clean up after a short delay
-                                setTimeout(() => {
-                                  if (document.body.contains(dragImage)) {
-                                    document.body.removeChild(dragImage);
-                                  }
-                                }, 0);
-                              }
+                              ) as HTMLImageElement | null;
+                            if (shipImageContainer) {
+                              setMirroredDragImage(e, shipImageContainer, cell.isCreator);
                             }
                           }
                         }}

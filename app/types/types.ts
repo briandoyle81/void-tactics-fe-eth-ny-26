@@ -190,6 +190,8 @@ export interface PlayerLobbyState {
   hasActiveLobby: boolean;
   kickCount: bigint;
   lastKickTime: bigint;
+  /** Unresolved (not yet InGame) lobbies reserved for the AI. The first one is free to create; a second concurrent one costs 1 UTC. */
+  activeAILobbiesCount: bigint;
 }
 
 export interface Attributes {
@@ -226,6 +228,8 @@ export interface GameMetadata {
   creatorGoesFirst: boolean;
   startedAt: bigint;
   winner: Address;
+  ended: boolean;
+  orchestrator: Address; // PvPMatch or SinglePlayerMatch — whichever contract started this game
 }
 
 export interface GameTurnState {
@@ -273,7 +277,8 @@ export type PlayerLobbyStateTuple = [
   bigint, // activeLobbiesCount
   boolean, // hasActiveLobby
   bigint, // kickCount
-  bigint // lastKickTime
+  bigint, // lastKickTime
+  bigint // activeAILobbiesCount
 ];
 
 export type GameDataTuple = [
@@ -338,6 +343,7 @@ export function tupleToPlayerLobbyState(
     hasActiveLobby: tuple[2],
     kickCount: tuple[3],
     lastKickTime: tuple[4],
+    activeAILobbiesCount: tuple[5],
   };
 }
 
@@ -398,6 +404,15 @@ export interface GameDataView {
   lastMove?: LastMove; // Last move made in the game
 }
 
+// NOTE: values 0-4 (Pass..Special) match the on-chain Game.ActionType 1:1.
+// ClaimPoints (5) and Ram (6) are web2/simulated-only — the real contract's
+// on-chain ActionType enum has no equivalents (scoring is automatic per
+// round, and ramming is now dispatched as FactionAbility). Raw on-chain
+// value 5 must be normalized to FactionAbility (7) at the web3 read
+// boundary — see useGetGame in useGameContract.ts — before it reaches any
+// shared component, since literal 5 would otherwise collide with
+// ClaimPoints. Do not renumber/remove ClaimPoints or Ram: web2 persists
+// these raw integers directly (see app/api/games/[id]/action/route.ts).
 export enum ActionType {
   Pass,
   Shoot,
@@ -406,6 +421,85 @@ export enum ActionType {
   Special,
   ClaimPoints,
   Ram,
+  FactionAbility,
+}
+
+// SinglePlayerMatch / AIEncounters types
+export enum Archetype {
+  Grunt,
+  Aggressor,
+  Sniper,
+  Support,
+  Turtle,
+  Rammer,
+}
+
+// SinglePlayerMatch.aiShipInfo(shipId)
+export interface AIShipInfo {
+  archetype: Archetype;
+  variant: number;
+  special: number;
+}
+
+// NodeMap.getAllNodes()/.getNode(nodeId) — the campaign graph. No display
+// names/flavor text on-chain, see app/config/campaignNodes.ts for that.
+export interface CampaignNode {
+  id: bigint;
+  campaignId: bigint;
+  mapId: bigint;
+  prerequisites: bigint[];
+  costLimit: bigint;
+  turnTime: bigint;
+  maxScore: bigint;
+  creatorGoesFirst: boolean;
+  // Descriptive difficulty reference only — never enforced against the
+  // actual AI fleet cost on-chain. Purely for admin/UI display.
+  enemyThreat: bigint;
+  exists: boolean;
+}
+
+// Maps.mapMode(mapId) / createPresetMap(..., mode) — which flow a map is
+// valid for. Enforced on-chain: Lobbies reverts InvalidMapId for PvE-only
+// maps, NodeMap reverts InvalidMapMode for maps that aren't PvE or Both.
+export enum MapMode {
+  PvP = 0,
+  PvE = 1,
+  Both = 2,
+}
+
+// AIEncounters' on-chain `Colors`/`Traits` structs have a third color slot
+// (h3/s3/l3) that the shared ShipColors/ShipTraits types (used for regular
+// ship purchasing/rendering) don't carry — see ShipConstructor.tsx, which
+// already tracks h3/s3/l3 separately from ShipColors for the same reason.
+// Scoped to AIEncounters only; not a fix for the wider ShipColors gap.
+export interface AIEncountersColors {
+  h1: number;
+  s1: number;
+  l1: number;
+  h2: number;
+  s2: number;
+  l2: number;
+  h3: number;
+  s3: number;
+  l3: number;
+}
+
+export interface AIEncountersTraits {
+  serialNumber: bigint;
+  colors: AIEncountersColors;
+  variant: number;
+  accuracy: number;
+  hull: number;
+  speed: number;
+}
+
+// AIEncounters.getAIShipConfig(configId) / getAllAIShipConfigs()
+export interface AIShipConfig {
+  id: bigint;
+  name: string;
+  equipment: ShipEquipment;
+  traits: AIEncountersTraits;
+  archetype: Archetype;
 }
 
 // Maps contract types
@@ -453,6 +547,8 @@ export interface GameMetadata {
   creatorGoesFirst: boolean;
   startedAt: bigint;
   winner: Address;
+  ended: boolean;
+  orchestrator: Address; // PvPMatch or SinglePlayerMatch — whichever contract started this game
 }
 
 export interface GameTurnState {

@@ -2,24 +2,25 @@
 
 import React from "react";
 import { TransactionButton } from "./TransactionButton";
-import { useGameContract } from "../hooks/useGameContract";
+import { usePvPMatchContract } from "../hooks/useGameContract";
 import { toast } from "react-hot-toast";
 
 // The web3-specific CONFIRM button for FleeSafetySwitch.tsx's retreat
 // modal — wraps the contract `flee` call. Pass to `renderConfirmButton`.
+// `flee` lives on PvPMatch (not Game) — see usePvPMatchContract.
 interface FleeConfirmButtonWeb3Props {
   gameId: bigint;
   onSuccess: () => void;
 }
 
 export function FleeConfirmButtonWeb3({ gameId, onSuccess }: FleeConfirmButtonWeb3Props) {
-  const gameContract = useGameContract();
+  const pvpMatchContract = usePvPMatchContract();
 
   return (
     <TransactionButton
       transactionId={`flee-game-${gameId}`}
-      contractAddress={gameContract.address}
-      abi={gameContract.abi}
+      contractAddress={pvpMatchContract.address}
+      abi={pvpMatchContract.abi}
       functionName="flee"
       args={[gameId]}
       onSuccess={() => {

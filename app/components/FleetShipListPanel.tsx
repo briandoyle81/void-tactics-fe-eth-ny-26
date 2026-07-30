@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { setMirroredDragImage } from "../utils/dragShipImage";
 
 // Shared between Lobbies.tsx (web3) and LobbiesWeb2.tsx (web2) — the
 // draggable/tappable ship-card list column inside the fleet-selection
@@ -16,6 +17,15 @@ export interface FleetShipListItemData {
   onDragStart: () => void;
   onDragEnd: () => void;
   card: ReactNode;
+  // Whether `card` renders its ship art mirrored (creator ships — see
+  // ShipCard's flipShip prop). The browser's default drag-ghost snapshot
+  // does not reliably respect a live CSS transform (confirmed already
+  // worked around once, for the live-game grid's own ship dragging — see
+  // GameGridCell.tsx's onDragStart) — without baking the mirror into an
+  // actual pixel snapshot here too, a dragged creator ship's ghost image
+  // shows facing the wrong way even though the card and the final placed
+  // ship both render correctly.
+  isFlipped?: boolean;
 }
 
 interface FleetShipListPanelProps {
@@ -32,9 +42,17 @@ export function FleetShipListPanel({ widthClass, items }: FleetShipListPanelProp
             key={item.key}
             draggable={item.canSelect && !item.isTouchDevice}
             onDragStart={(e) => {
-              if (item.canSelect) {
-                item.onDragStart();
-                e.dataTransfer.effectAllowed = "move";
+              if (!item.canSelect) return;
+              item.onDragStart();
+              e.dataTransfer.effectAllowed = "move";
+
+              // Custom drag image so a mirrored (creator) ship's ghost
+              // actually shows mirrored — see isFlipped's doc comment above.
+              const shipImg = e.currentTarget.querySelector(
+                "img",
+              ) as HTMLImageElement | null;
+              if (shipImg) {
+                setMirroredDragImage(e, shipImg, !!item.isFlipped);
               }
             }}
             onDragEnd={item.onDragEnd}

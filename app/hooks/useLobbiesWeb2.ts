@@ -9,11 +9,13 @@ import type { Web2Lobby } from "../types/web2Lobby";
 import { useCurrentUser } from "./useCurrentUser";
 import { USER_BALANCE_QUERY_KEY } from "./useUserBalanceWeb2";
 
-// Web2-mode counterpart to `useLobbies.ts`. Deliberately excludes:
-// - `createAiLobby` — AI opponent was eliminated, never ported (see
-//   docs/merge-explore-traditional-plan.md Stage 2).
-// - `timeoutGame` — calls `/api/games/[id]/timeout`, which belongs to the
-//   not-yet-built games subsystem.
+// Web2-mode counterpart to `useLobbies.ts`. `createAiLobby` (see
+// docs/merge-explore-traditional-plan.md Stage 2 for why it was originally
+// dropped) is back as `createAILobby`, now backed by AIShipConfig/
+// AIMapPlacement (the web2 counterpart to AIEncounters) rather than the old
+// difficulty-based random fleet generator — see app/lib/aiFleetWeb2.ts.
+// Deliberately still excludes `timeoutGame` — calls `/api/games/[id]/timeout`,
+// which belongs to the not-yet-built games subsystem.
 
 export interface CreateLobbyParams {
   costLimit?: number;
@@ -85,6 +87,23 @@ export function useLobbiesWeb2() {
     await invalidateLobbies();
   }, [invalidateLobbies]);
 
+  const createAILobby = useCallback(async (params: {
+    costLimit?: number;
+    turnTimeSeconds?: number;
+    maxScore?: number;
+    mapId: number;
+  }): Promise<{ lobbyId: number }> => {
+    const result = await apiMutate<{ lobbyId: number }>("/api/lobbies/vs-ai", "POST", {
+      costLimit: params.costLimit ?? 1000,
+      turnTimeSeconds: params.turnTimeSeconds ?? 120,
+      maxScore: params.maxScore ?? 50,
+      mapId: params.mapId,
+    });
+    await invalidateLobbies();
+    queryClient.invalidateQueries({ queryKey: USER_BALANCE_QUERY_KEY });
+    return result;
+  }, [invalidateLobbies, queryClient]);
+
   const leaveLobby = useCallback(async (lobbyId: number) => {
     await apiMutate(`/api/lobbies/${lobbyId}`, "DELETE");
     await invalidateLobbies();
@@ -152,6 +171,7 @@ export function useLobbiesWeb2() {
     lobbyList,
     loadLobbies: refetch,
     createLobby,
+    createAILobby,
     joinLobby,
     leaveLobby,
     createFleet,

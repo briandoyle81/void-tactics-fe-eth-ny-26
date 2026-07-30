@@ -100,7 +100,12 @@ export function TournamentRegister({
       setError(null);
       setPending(true);
       try {
-        await actions.register(tournamentId, config.entryFee, fields);
+        const hash = await actions.register(tournamentId, config.entryFee, fields);
+        // register() resolves once the wallet sends the tx, not once it's
+        // confirmed — wait for the receipt before treating this as done.
+        if (actions.publicClient) {
+          await actions.publicClient.waitForTransactionReceipt({ hash });
+        }
         onSuccess();
       } catch (err) {
         setError(parseRevertMessage(err));

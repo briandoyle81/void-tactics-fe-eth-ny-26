@@ -26,8 +26,16 @@ export function useTurnChangeAlertSound(
     if (!readOnly && isMyTurn && identity && prevTurnRef.current === false) {
       const audio = new Audio("/sound/alert.mp3");
       audio.volume = 0.5;
-      audio.play().catch(() => {
-        // Silently fail - some browsers block autoplay
+      audio.play().catch((err) => {
+        // Most commonly a browser autoplay-policy rejection — surfaced so
+        // it's diagnosable instead of a silent, unexplained no-op.
+        console.warn("[useTurnChangeAlertSound] audio.play() failed:", err);
+      });
+    } else if (!readOnly) {
+      console.log("[useTurnChangeAlertSound] skipped:", {
+        isMyTurn,
+        hasIdentity: !!identity,
+        prevTurn: prevTurnRef.current,
       });
     }
     prevTurnRef.current = isMyTurn;

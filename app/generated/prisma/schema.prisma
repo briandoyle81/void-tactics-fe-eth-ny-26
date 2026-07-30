@@ -187,7 +187,51 @@ model Map {
   scoringTiles Json     @default("[]")
   createdAt    DateTime @default(now())
 
-  lobbies Lobby[]
+  lobbies      Lobby[]
+  aiPlacements AIMapPlacement[]
+}
+
+// ── AI Encounters (web2 counterpart to the on-chain AIEncounters contract) ──────
+// Admin-curated single-player AI content: ship loadouts (AIShipConfig) placed
+// onto specific map tiles (AIMapPlacement). Mirrors AIEncounters.sol's
+// aiShipConfigs/mapPlacements 1:1 in shape, gated the same way
+// (requireWeb2Admin, not per-address on-chain permissions).
+
+model AIShipConfig {
+  id        Int      @id @default(autoincrement())
+  name      String
+  // ShipEquipment: { mainWeapon, armor, shields, special }
+  equipment Json
+  // ShipTraits: { serialNumber, colors: {h1,s1,l1,h2,s2,l2}, variant, accuracy, hull, speed }
+  traits    Json
+  // Archetype enum value: Grunt=0, Aggressor=1, Sniper=2, Support=3, Turtle=4, Rammer=5
+  archetype Int
+  createdAt DateTime @default(now())
+
+  placements AIMapPlacement[]
+}
+
+model AIMapPlacement {
+  id       Int          @id @default(autoincrement())
+  mapId    Int
+  map      Map          @relation(fields: [mapId], references: [id])
+  row      Int
+  col      Int
+  configId Int
+  config   AIShipConfig @relation(fields: [configId], references: [id])
+
+  @@unique([mapId, row, col])
+  @@index([mapId])
+}
+
+// Records which AIShipConfig (and therefore which archetype) a given
+// generated AI Ship row was built from — Ship itself has no archetype
+// field, and AI ships are freshly generated per game (see aiFleetWeb2.ts),
+// so this is the only place that mapping is recoverable at take-turn time.
+model AIFleetShip {
+  shipId    Int @id
+  configId  Int
+  archetype Int
 }
 
 // ── System Config ──────────────────────────────────────────────────────────────

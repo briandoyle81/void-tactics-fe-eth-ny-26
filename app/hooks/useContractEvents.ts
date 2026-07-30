@@ -6,6 +6,8 @@ import { usePlayerGames } from "./usePlayerGames";
 import { getContractAddresses } from "../config/contracts";
 import { useCallback, useMemo } from "react";
 import { getSelectedChainId } from "../config/networks";
+import { baseSepolia } from "viem/chains";
+import { SINGLE_PLAYER_MATCH_ADDRESS } from "./useSinglePlayerMatch";
 
 const SHIP_TRANSFER_EVENT_ABI = [
   {
@@ -31,6 +33,20 @@ const GAME_UPDATE_EVENT_ABI = [
       },
     ],
     name: "GameUpdate",
+    type: "event",
+  },
+] as const;
+
+const AI_TURN_TAKEN_EVENT_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "gameId", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "shipId", type: "uint256" },
+      { indexed: false, internalType: "uint8", name: "actionType", type: "uint8" },
+      { indexed: false, internalType: "uint256", name: "targetShipId", type: "uint256" },
+    ],
+    name: "AITurnTaken",
     type: "event",
   },
 ] as const;
@@ -117,6 +133,37 @@ export function useContractEvents() {
     [refetchGames]
   );
 
+  // Fired once per SinglePlayerMatch.takeAITurn call. takeAITurn already
+  // routes through Game's own move logic (which emits GameUpdate, handled
+  // above), so this is a secondary/defensive refetch trigger — not the
+  // primary sync mechanism.
+  const handleAITurnTakenLogs = useCallback(
+    (logs: unknown[]) => {
+      if (!Array.isArray(logs) || logs.length === 0) return;
+
+      try {
+        const gameIds = new Set<number>();
+        logs.forEach((log) => {
+          const args = (log as { args?: { gameId?: bigint } }).args;
+          if (args && typeof args.gameId === "bigint") {
+            gameIds.add(Number(args.gameId));
+          }
+        });
+
+        if (gameIds.size === 0) return;
+
+        globalGameRefetchFunctions.forEach((refetchFn, gameId) => {
+          if (gameIds.has(gameId)) {
+            refetchFn();
+          }
+        });
+      } catch (error) {
+        console.error("Error processing AI turn logs:", error);
+      }
+    },
+    [],
+  );
+
   const shipEventConfig = useMemo(
     () => ({
       chainId: activeChainId,
@@ -145,11 +192,28 @@ export function useContractEvents() {
     [activeChainId, contractAddresses.GAME, handleGameUpdateLogs, shouldWatch]
   );
 
+  const aiTurnEventConfig = useMemo(
+    () => ({
+      chainId: activeChainId,
+      address: SINGLE_PLAYER_MATCH_ADDRESS,
+      abi: AI_TURN_TAKEN_EVENT_ABI,
+      eventName: "AITurnTaken" as const,
+      poll: true as const,
+      pollingInterval: 5000,
+      enabled: shouldWatch && activeChainId === baseSepolia.id,
+      onLogs: handleAITurnTakenLogs,
+    }),
+    [activeChainId, handleAITurnTakenLogs, shouldWatch]
+  );
+
   // Watch ship transfer events (only when address is available)
   useWatchContractEvent(shipEventConfig);
 
   // Watch game update events
   useWatchContractEvent(gameEventConfig);
+
+  // Watch AI turn events (single-player, Base Sepolia only)
+  useWatchContractEvent(aiTurnEventConfig);
 
   return {
     isListening: !!address,

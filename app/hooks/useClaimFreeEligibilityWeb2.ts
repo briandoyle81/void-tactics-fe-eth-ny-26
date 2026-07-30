@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { formatTimeUntil } from "./useFreeShipClaiming";
+import { useCurrentUser } from "./useCurrentUser";
 
 // Web2-mode counterpart to `useFreeShipClaiming`'s eligibility/cooldown
 // half (the claim action itself is a plain REST POST — see
@@ -14,9 +15,15 @@ interface ClaimFreeEligibility {
 }
 
 export function useClaimFreeEligibilityWeb2() {
+  // Called unconditionally from Info.tsx (the default tab, mounted
+  // regardless of web2/web3 mode) — without this gate, it hits
+  // /api/ships/claim-free and polls indefinitely even for web3 users who
+  // have no web2 session at all.
+  const { isLoggedIn } = useCurrentUser();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["ships", "claim-free-eligibility", "web2"],
     queryFn: () => apiFetch<ClaimFreeEligibility>("/api/ships/claim-free"),
+    enabled: isLoggedIn,
     refetchInterval: 60_000,
   });
 

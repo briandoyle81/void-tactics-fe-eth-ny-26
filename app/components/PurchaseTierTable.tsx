@@ -23,9 +23,12 @@ export interface PurchaseTierRowData {
 interface PurchaseTierTableProps {
   rows: PurchaseTierRowData[];
   editable: boolean;
+  /** Header label for the `shipCount` column — defaults to "Ships / pack".
+   * Set this when reusing the table for a non-ship quantity (e.g. "UTC / pack"). */
+  quantityLabel?: string;
 }
 
-export function PurchaseTierTable({ rows, editable }: PurchaseTierTableProps) {
+export function PurchaseTierTable({ rows, editable, quantityLabel = "Ships / pack" }: PurchaseTierTableProps) {
   const currencyLabels = rows[0]?.prices.map((p) => p.currencyLabel) ?? [];
 
   return (
@@ -34,7 +37,7 @@ export function PurchaseTierTable({ rows, editable }: PurchaseTierTableProps) {
         <thead>
           <tr className="border-b border-gunmetal text-text-muted">
             <th className="py-2 pr-4">Tier</th>
-            <th className="py-2 pr-4">Ships / pack</th>
+            <th className="py-2 pr-4">{quantityLabel}</th>
             {currencyLabels.map((label) => (
               <th key={label} className="py-2 pr-4 last:pr-0">
                 Price ({label})

@@ -4,6 +4,12 @@ import { GRID_DIMENSIONS } from "../types/types";
 export const IMMEDIATE_GAME_TURN_SECONDS = 5 * 60;
 /** Onchain turn timer when creating a Correspondence game lobby. */
 export const CORRESPONDENCE_GAME_TURN_SECONDS = 24 * 60 * 60;
+/** Turn timer stored for AI-reserved lobbies — Lobbies.MAX_TURN_TIME, the
+ * contract's ceiling. Nothing on-chain enforces turnTime for vs-AI games
+ * (SinglePlayerMatch has no timeout function), so this just represents
+ * "unlimited" as closely as the field allows, independent of the human's
+ * turn-pace choice. */
+export const AI_GAME_TURN_SECONDS = 24 * 60 * 60;
 
 export function formatLobbyTurnTimeDisplay(seconds: bigint): string {
   const s = Number(seconds);

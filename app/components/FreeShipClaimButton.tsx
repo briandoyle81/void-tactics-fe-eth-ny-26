@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import posthog from "posthog-js";
 
 interface FreeShipClaimButtonProps {
   isEligible: boolean;
+  isPending: boolean;
+  isConfirmed: boolean;
+  claimFreeShips: () => Promise<void>;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
@@ -19,8 +21,20 @@ interface FreeShipClaimButtonProps {
   onError?: (error: Error) => void;
 }
 
+// `isEligible`/`isPending`/`isConfirmed`/`claimFreeShips` are passed down
+// from a single `useFreeShipClaiming()` call owned by the parent
+// (ManageNavy.tsx / Info.tsx), rather than calling the hook again here.
+// This hook keeps its own component-local eligibility cache/state — a
+// second instance meant the button's own isPending/isConfirmed could clear
+// (tx confirmed) before the *parent's* separate instance had refetched and
+// flipped its own isEligible to false, so the button would briefly
+// re-render as claimable again before the parent caught up. Sharing one
+// instance removes that race entirely.
 export function FreeShipClaimButton({
   isEligible,
+  isPending,
+  isConfirmed,
+  claimFreeShips,
   children,
   className = "",
   disabled = false,
@@ -30,7 +44,6 @@ export function FreeShipClaimButton({
   onError,
 }: FreeShipClaimButtonProps) {
   const { address } = useAccount();
-  const { claimFreeShips, isPending, isConfirmed } = useFreeShipClaiming();
   const hasCalledOnSuccess = useRef(false);
 
   // Call onSuccess when transaction is confirmed (only once)

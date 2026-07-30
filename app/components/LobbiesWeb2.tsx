@@ -27,10 +27,13 @@ import { useLobbyPauseAdminWeb2 } from "../hooks/useLobbyPauseAdminWeb2";
 import {
   LobbyCreateForm,
   LobbyTurnOrderNote,
+  CardCheckbox,
   type ThreatScale,
   type TurnPace,
   type ScoreLength,
 } from "./LobbyCreateForm";
+import { AI_USER_ID } from "../config/aiUser";
+import { useAIEncounterMapsWeb2 } from "../hooks/useAIEncounterMapsWeb2";
 import {
   SKIRMISH_THREAT_LIMIT,
   BATTLE_THREAT_LIMIT,
@@ -86,6 +89,7 @@ const LobbiesWeb2: React.FC = () => {
     lobbyList,
     loadLobbies,
     createLobby,
+    createAILobby,
     joinLobby,
     leaveLobby,
     createFleet,
@@ -116,6 +120,9 @@ const LobbiesWeb2: React.FC = () => {
   };
 
   const [reservedJoinerEmail, setReservedJoinerEmail] = useState("");
+  const [opponentMode, setOpponentMode] = useState<"pvp" | "ai">("pvp");
+  const [aiMapId, setAiMapId] = useState<number | null>(null);
+  const { mapIds: aiMapIds, isLoading: aiMapsLoading } = useAIEncounterMapsWeb2();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [costLimit, setCostLimit] = useState(SKIRMISH_THREAT_LIMIT);
   const [turnTimeSeconds, setTurnTimeSeconds] = useState(IMMEDIATE_GAME_TURN_SECONDS);
@@ -238,8 +245,20 @@ const LobbiesWeb2: React.FC = () => {
     }
   };
 
+  // Default the AI map picker to the first available AI-configured map.
+  useEffect(() => {
+    if (aiMapId === null && aiMapIds.length > 0) setAiMapId(aiMapIds[0]);
+  }, [aiMapId, aiMapIds]);
+
   const handleCreate = () =>
     run("create lobby", async () => {
+      if (opponentMode === "ai") {
+        if (aiMapId === null) return;
+        await createAILobby({ costLimit, turnTimeSeconds, maxScore, mapId: aiMapId });
+        setShowCreateForm(false);
+        toast.success("Match against AI created");
+        return;
+      }
       // Matches web3's Lobbies.tsx, which also has no real map picker (its
       // "Map" field is a locked input hardcoded to map 1) — this keeps both
       // modes on the same fixed map rather than leaving mapId unset (which
@@ -578,69 +597,128 @@ const LobbiesWeb2: React.FC = () => {
             onScoreLengthChange={(v) =>
               setMaxScore(v === "long" ? LONG_MAX_SCORE : v === "medium" ? MEDIUM_MAX_SCORE : SHORT_MAX_SCORE)
             }
-            mapIdLabel="1"
+            mapIdLabel={opponentMode === "ai" ? String(aiMapId ?? "") : "1"}
             onClose={() => setShowCreateForm(false)}
             extraFields={
               <>
                 <div>
-                  <label className="block text-sm text-text-muted mb-1">
-                    Reserve for Player (Optional — enter their email)
-                  </label>
-                  <input
-                    type="text"
-                    value={reservedJoinerEmail}
-                    onChange={(e) => setReservedJoinerEmail(e.target.value)}
-                    className={`w-full px-3 py-2 bg-black/60 border rounded-none text-cyan ${
-                      reservedJoinerEmail.trim() &&
-                      currentUserEmail &&
-                      reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
-                        ? "border-warning-red"
-                        : "border-amber"
-                    }`}
-                    placeholder="player@example.com (leave empty for open lobby)"
-                  />
-                  {reservedJoinerEmail.trim() &&
-                  currentUserEmail &&
-                  reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase() ? (
-                    <p className="text-xs text-warning-red mt-1 font-bold">
-                      [ERR] Cannot reserve a lobby for yourself! Please enter a
-                      different player&apos;s email or leave empty for an open
-                      lobby.
-                    </p>
-                  ) : reservedJoinerEmail.trim() ? (
-                    <p className="text-xs text-amber mt-1">
-                      {`// Requires ${reservationFeeUtc} UTC to reserve game for this player`}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-amber mt-1">
-                      Leave empty to create an open lobby
-                    </p>
-                  )}
+                  <span className="block text-sm text-text-muted mb-2">Opponent</span>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                    <CardCheckbox
+                      checked={opponentMode === "pvp"}
+                      onCheck={(c) => setOpponentMode(c ? "pvp" : "ai")}
+                      label="Player"
+                      caption="Open lobby or reserve for a specific email"
+                    />
+                    <CardCheckbox
+                      checked={opponentMode === "ai"}
+                      onCheck={(c) => setOpponentMode(c ? "ai" : "pvp")}
+                      label="AI"
+                      caption="AI opponent — same fees/flow as a reserved match"
+                    />
+                  </div>
                 </div>
-                <LobbyTurnOrderNote />
-                {/* Cost summary — only shown when fees apply */}
-                {(playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0) ||
-                (reservedJoinerEmail.trim() &&
-                  currentUserEmail &&
-                  reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase()) ? (
-                  <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
-                    <p className="text-amber font-bold tracking-wider">{"// COST BREAKDOWN"}</p>
-                    {playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0 ? (
+                {opponentMode === "ai" ? (
+                  <>
+                    <div>
+                      <span className="block text-sm text-text-muted mb-2">Map</span>
+                      {aiMapsLoading ? (
+                        <p className="text-xs text-text-muted">Loading AI-configured maps...</p>
+                      ) : aiMapIds.length === 0 ? (
+                        <p className="text-xs text-warning-red">No maps have AI content configured yet.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                          {aiMapIds.map((id) => (
+                            <CardCheckbox
+                              key={id}
+                              checked={aiMapId === id}
+                              onCheck={(c) => c && setAiMapId(id)}
+                              label={`Map ${id}`}
+                              caption="AI encounter configured"
+                              compact
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <LobbyTurnOrderNote />
+                    <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                      <p className="text-amber font-bold tracking-wider">{"// COST BREAKDOWN"}</p>
+                      {playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0 ? (
+                        <div className="flex justify-between gap-4">
+                          <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                          <span className="text-amber font-bold shrink-0">{lobbyCreationCostUtc} UTC</span>
+                        </div>
+                      ) : null}
                       <div className="flex justify-between gap-4">
-                        <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
-                        <span className="text-amber font-bold shrink-0">{lobbyCreationCostUtc} UTC</span>
-                      </div>
-                    ) : null}
-                    {reservedJoinerEmail.trim() &&
-                    currentUserEmail &&
-                    reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase() ? (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-text-secondary">Reservation fee (private lobby)</span>
+                        <span className="text-text-secondary">Reservation fee (vs AI)</span>
                         <span className="text-amber font-bold shrink-0">{reservationFeeUtc} UTC</span>
                       </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm text-text-muted mb-1">
+                        Reserve for Player (Optional — enter their email)
+                      </label>
+                      <input
+                        type="text"
+                        value={reservedJoinerEmail}
+                        onChange={(e) => setReservedJoinerEmail(e.target.value)}
+                        className={`w-full px-3 py-2 bg-black/60 border rounded-none text-cyan ${
+                          reservedJoinerEmail.trim() &&
+                          currentUserEmail &&
+                          reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
+                            ? "border-warning-red"
+                            : "border-amber"
+                        }`}
+                        placeholder="player@example.com (leave empty for open lobby)"
+                      />
+                      {reservedJoinerEmail.trim() &&
+                      currentUserEmail &&
+                      reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase() ? (
+                        <p className="text-xs text-warning-red mt-1 font-bold">
+                          [ERR] Cannot reserve a lobby for yourself! Please enter a
+                          different player&apos;s email or leave empty for an open
+                          lobby.
+                        </p>
+                      ) : reservedJoinerEmail.trim() ? (
+                        <p className="text-xs text-amber mt-1">
+                          {`// Requires ${reservationFeeUtc} UTC to reserve game for this player`}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber mt-1">
+                          Leave empty to create an open lobby
+                        </p>
+                      )}
+                    </div>
+                    <LobbyTurnOrderNote />
+                    {/* Cost summary — only shown when fees apply */}
+                    {(playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0) ||
+                    (reservedJoinerEmail.trim() &&
+                      currentUserEmail &&
+                      reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase()) ? (
+                      <div className="border border-amber/60 bg-black/30 p-3 font-mono text-xs space-y-1">
+                        <p className="text-amber font-bold tracking-wider">{"// COST BREAKDOWN"}</p>
+                        {playerState.lobbiesCreatedCount >= freeGamesPerAddress && lobbyCreationCostUtc > 0 ? (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-text-secondary">Lobby fee (free games exhausted)</span>
+                            <span className="text-amber font-bold shrink-0">{lobbyCreationCostUtc} UTC</span>
+                          </div>
+                        ) : null}
+                        {reservedJoinerEmail.trim() &&
+                        currentUserEmail &&
+                        reservedJoinerEmail.trim().toLowerCase() !== currentUserEmail.toLowerCase() ? (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-text-secondary">Reservation fee (private lobby)</span>
+                            <span className="text-amber font-bold shrink-0">{reservationFeeUtc} UTC</span>
+                          </div>
+                        ) : null}
+                      </div>
                     ) : null}
-                  </div>
-                ) : null}
+                  </>
+                )}
               </>
             }
             footer={
@@ -649,11 +727,13 @@ const LobbiesWeb2: React.FC = () => {
                   onClick={handleCreate}
                   disabled={
                     busy ||
-                    !!(
-                      reservedJoinerEmail.trim() &&
-                      currentUserEmail &&
-                      reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
-                    )
+                    (opponentMode === "ai"
+                      ? aiMapId === null
+                      : !!(
+                          reservedJoinerEmail.trim() &&
+                          currentUserEmail &&
+                          reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
+                        ))
                   }
                   className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
                 >
@@ -709,10 +789,18 @@ const LobbiesWeb2: React.FC = () => {
                 statusText={lobbyStatusLabel(lobby.state.status)}
                 creatorLabel={truncateId(lobby.basic.creator)}
                 creatorStats={<CreatorStatsWeb2 userId={lobby.basic.creator} />}
-                joinerLabel={lobby.players.joiner ? truncateId(lobby.players.joiner) : null}
+                joinerLabel={
+                  lobby.players.joiner === AI_USER_ID
+                    ? "AI"
+                    : lobby.players.joiner
+                      ? truncateId(lobby.players.joiner)
+                      : null
+                }
                 isJoinerMe={isJoinerMe}
                 joinerStats={
-                  lobby.players.joiner ? <CreatorStatsWeb2 userId={lobby.players.joiner} /> : undefined
+                  lobby.players.joiner && lobby.players.joiner !== AI_USER_ID ? (
+                    <CreatorStatsWeb2 userId={lobby.players.joiner} />
+                  ) : undefined
                 }
                 reservedLabel={hasReservedJoiner ? truncateId(lobby.players.reservedJoiner) : null}
                 threatLabel={formatThreatShort(lobby.basic.costLimit)}

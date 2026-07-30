@@ -1,0 +1,122 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "DroneStorefront",
+  "sourceName": "contracts/DroneStorefront.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_droneEnergyCores",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "droneEnergyCores",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_droneEnergyCores",
+          "type": "address"
+        }
+      ],
+      "name": "setDroneEnergyCoresAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060405161036038038061036083398101604081905261002f916100d4565b338061005557604051631e4fbdf760e01b81526000600482015260240160405180910390fd5b61005e81610084565b50600180546001600160a01b0319166001600160a01b0392909216919091179055610104565b600080546001600160a01b038381166001600160a01b0319831681178455604051919092169283917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09190a35050565b6000602082840312156100e657600080fd5b81516001600160a01b03811681146100fd57600080fd5b9392505050565b61024d806101136000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80630b3d12dc1461005c578063715018a6146100715780638da5cb5b14610079578063dbf1f20914610097578063f2fde38b146100aa575b600080fd5b61006f61006a3660046101d3565b6100bd565b005b61006f6100e7565b6100816100fb565b60405161008e9190610203565b60405180910390f35b600154610081906001600160a01b031681565b61006f6100b83660046101d3565b61010a565b6100c5610151565b600180546001600160a01b0319166001600160a01b0392909216919091179055565b6100ef610151565b6100f96000610183565b565b6000546001600160a01b031690565b610112610151565b6001600160a01b038116610145576000604051631e4fbdf760e01b815260040161013c9190610203565b60405180910390fd5b61014e81610183565b50565b3361015a6100fb565b6001600160a01b0316146100f9573360405163118cdaa760e01b815260040161013c9190610203565b600080546001600160a01b038381166001600160a01b0319831681178455604051919092169283917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09190a35050565b6000602082840312156101e557600080fd5b81356001600160a01b03811681146101fc57600080fd5b9392505050565b6001600160a01b039190911681526020019056fea2646970667358221220a3bd4e4891802b140bcda2b5c67930b1517a79d2d43c52591554416c506754b164736f6c634300081c0033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100575760003560e01c80630b3d12dc1461005c578063715018a6146100715780638da5cb5b14610079578063dbf1f20914610097578063f2fde38b146100aa575b600080fd5b61006f61006a3660046101d3565b6100bd565b005b61006f6100e7565b6100816100fb565b60405161008e9190610203565b60405180910390f35b600154610081906001600160a01b031681565b61006f6100b83660046101d3565b61010a565b6100c5610151565b600180546001600160a01b0319166001600160a01b0392909216919091179055565b6100ef610151565b6100f96000610183565b565b6000546001600160a01b031690565b610112610151565b6001600160a01b038116610145576000604051631e4fbdf760e01b815260040161013c9190610203565b60405180910390fd5b61014e81610183565b50565b3361015a6100fb565b6001600160a01b0316146100f9573360405163118cdaa760e01b815260040161013c9190610203565b600080546001600160a01b038381166001600160a01b0319831681178455604051919092169283917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09190a35050565b6000602082840312156101e557600080fd5b81356001600160a01b03811681146101fc57600080fd5b9392505050565b6001600160a01b039190911681526020019056fea2646970667358221220a3bd4e4891802b140bcda2b5c67930b1517a79d2d43c52591554416c506754b164736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -51,11 +51,17 @@ function TournamentDetail({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const run = useCallback(
-    async (fn: () => Promise<unknown>) => {
+    async (fn: () => Promise<`0x${string}`>) => {
       setActionPending(true);
       setActionError(null);
       try {
-        await fn();
+        const hash = await fn();
+        // fn() resolves once the wallet sends the tx, not once it's
+        // confirmed — wait for the receipt before clearing actionPending,
+        // same fix as CreateTournament.handleCreate below.
+        if (actions.publicClient) {
+          await actions.publicClient.waitForTransactionReceipt({ hash });
+        }
         void refetch();
       } catch (err) {
         setActionError(err instanceof Error ? err.message : "Transaction failed");
@@ -63,7 +69,7 @@ function TournamentDetail({
         setActionPending(false);
       }
     },
-    [refetch],
+    [refetch, actions.publicClient],
   );
 
   if (isLoading || !summary || !config) {

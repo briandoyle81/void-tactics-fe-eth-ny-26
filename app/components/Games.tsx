@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useContractEvents } from "../hooks/useContractEvents";
 import GameDisplay from "./GameDisplay";
@@ -14,6 +15,24 @@ const Games: React.FC = () => {
   const { address, isConnected } = useAccount();
   const { games, isLoading, error, refetch } = usePlayerGames();
   const [selectedGame, setSelectedGame] = useState<GameDataView | null>(null);
+  const queryClient = useQueryClient();
+  const [isResettingCache, setIsResettingCache] = useState(false);
+
+  // Debug affordance: the games list is read through wagmi/TanStack Query,
+  // which caches by (address, chainId, args) and only refetches in the
+  // background — so a stale/empty cached result can keep showing even after
+  // the underlying chain state has changed. This forces every cached read
+  // (not just this one) to be thrown out and refetched, to rule caching in
+  // or out when a game unexpectedly isn't appearing.
+  const handleResetCache = async () => {
+    setIsResettingCache(true);
+    try {
+      queryClient.clear();
+      await refetch();
+    } finally {
+      setIsResettingCache(false);
+    }
+  };
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
   const TIE_ADDRESS = "0x0000000000000000000000000000000000000001";
 
@@ -244,14 +263,28 @@ const Games: React.FC = () => {
   }
 
   return (
-    <GamesListShell
-      isAuthenticated={isConnected}
-      authRequiredMessage="Please connect your wallet to view your games."
-      isLoading={isLoading}
-      error={error}
-      count={sortedGames.length}
-    >
-      {sortedGames.map((game) => {
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => void handleResetCache()}
+        disabled={isResettingCache}
+        className="font-mono text-[10px] uppercase tracking-widest px-2 py-1 border disabled:opacity-50"
+        style={{
+          color: "var(--color-cyan)",
+          borderColor: "var(--color-cyan)",
+          backgroundColor: "var(--color-near-black)",
+        }}
+      >
+        {isResettingCache ? "[RESETTING CACHE...]" : "[DEBUG: RESET CACHE]"}
+      </button>
+      <GamesListShell
+        isAuthenticated={isConnected}
+        authRequiredMessage="Please connect your wallet to view your games."
+        isLoading={isLoading}
+        error={error}
+        count={sortedGames.length}
+      >
+        {sortedGames.map((game) => {
         const isFinished = game.metadata.winner !== ZERO_ADDRESS;
         const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
         const isVictory = isFinished && !isDraw && game.metadata.winner === address;
@@ -290,7 +323,8 @@ const Games: React.FC = () => {
           />
         );
       })}
-    </GamesListShell>
+      </GamesListShell>
+    </div>
   );
 };
 

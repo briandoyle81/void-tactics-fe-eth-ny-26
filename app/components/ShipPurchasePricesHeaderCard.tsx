@@ -7,6 +7,7 @@ interface ShipPurchasePricesHeaderCardProps {
   hasUnsavedChanges: boolean;
   unsavedChangesLabel: string;
   actions?: React.ReactNode;
+  title?: string;
 }
 
 // Shared header card between ShipPurchasePrices.tsx (web3) and
@@ -16,12 +17,13 @@ export const ShipPurchasePricesHeaderCard: React.FC<ShipPurchasePricesHeaderCard
   hasUnsavedChanges,
   unsavedChangesLabel,
   actions,
+  title = "Ship pack purchase prices",
 }) => (
   <div className="bg-near-black rounded-none p-4 border border-gunmetal">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
         <h2 className="text-xl font-mono text-text-primary mb-2">
-          Ship pack purchase prices
+          {title}
         </h2>
         <p className="text-sm text-text-muted">{description}</p>
         {hasUnsavedChanges ? (
