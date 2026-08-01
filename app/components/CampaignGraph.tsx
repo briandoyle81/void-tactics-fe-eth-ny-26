@@ -238,10 +238,26 @@ function JumpLanes({ layout }: JumpLanesProps) {
   );
 }
 
+// Remembers the last-viewed node per wallet, matching Games.tsx's
+// `selectedGameId-${address}` convention — falls back to "anonymous" for a
+// disconnected viewer so the map still remembers something sane.
+function campaignSelectedNodeStorageKey(address: string | undefined): string {
+  return `campaign-selected-node-${address || "anonymous"}`;
+}
+
 export function CampaignGraph() {
   const { address } = useAccount();
   const { nodes, isLoading, error, refetch } = useCampaignGraph(address);
-  const [selectedNodeId, setSelectedNodeId] = React.useState<bigint | null>(null);
+  const [selectedNodeId, setSelectedNodeIdState] = React.useState<bigint | null>(null);
+  const setSelectedNodeId = React.useCallback(
+    (nodeId: bigint) => {
+      setSelectedNodeIdState(nodeId);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(campaignSelectedNodeStorageKey(address), nodeId.toString());
+      }
+    },
+    [address],
+  );
   const queryClient = useQueryClient();
   const [isResettingCache, setIsResettingCache] = React.useState(false);
 
@@ -309,13 +325,19 @@ export function CampaignGraph() {
     [nodes, selectedNodeId],
   );
 
-  // Auto-select the root node once the graph loads, so the preview panel
-  // isn't empty on first render.
+  // Restore the last-viewed node once the graph loads; fall back to the
+  // root node (first render, or a saved id that's no longer valid — e.g. a
+  // different wallet, or campaign content changed) so the preview panel is
+  // never empty.
   React.useEffect(() => {
-    if (selectedNodeId === null && nodes.length > 0) {
-      setSelectedNodeId(nodes[0].id);
-    }
-  }, [nodes, selectedNodeId]);
+    if (selectedNodeId !== null || nodes.length === 0) return;
+    const saved =
+      typeof window !== "undefined"
+        ? localStorage.getItem(campaignSelectedNodeStorageKey(address))
+        : null;
+    const savedNode = saved ? nodes.find((n) => n.id.toString() === saved) : undefined;
+    setSelectedNodeIdState(savedNode ? savedNode.id : nodes[0].id);
+  }, [nodes, selectedNodeId, address]);
 
   if (isLoading) {
     return (

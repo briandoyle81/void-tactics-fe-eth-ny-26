@@ -17,6 +17,25 @@ export const SINGLE_PLAYER_MATCH_ADDRESS = CONTRACT_ADDRESSES_BY_CHAIN_ID[
   CHAIN_ID
 ].SINGLE_PLAYER_MATCH as `0x${string}`;
 
+// The on-chain AI logic (pathfinding + combat resolution) makes takeAITurn
+// a genuinely expensive call — measured via eth_estimateGas at ~1.41M gas
+// for a single call on a real game, not the few-hundred-k typical of most
+// writes here. Auto-estimation isn't reliable for this specific call under
+// Dynamic's server-side (secure-enclave) signing path — set an explicit,
+// generously-padded limit so it's never silently underestimated and leaves
+// the AI's turn stuck mid-loop with no on-chain error at all. Confirmed
+// flat cost regardless of map (per contracts-side update), so one constant
+// covers every node.
+const TAKE_AI_TURN_GAS_LIMIT = 2_500_000n;
+
+// startNodeMatch's cost scales with the node's AI fleet size/complexity —
+// confirmed up to ~4M gas on the most expensive map ("bastion") after the
+// fleet-size rebalance. Unlike takeAITurn this isn't flat across nodes, but
+// there's no per-node cost table wired into the frontend (and unused gas
+// from the limit isn't spent, just capped), so one generously-padded
+// constant covers every node rather than trying to track per-map costs.
+const START_NODE_MATCH_GAS_LIMIT = 5_500_000n;
+
 export function useSinglePlayerMatchContract() {
   return {
     address: SINGLE_PLAYER_MATCH_ADDRESS,
@@ -42,6 +61,7 @@ export function useSinglePlayerMatch() {
         functionName: "startNodeMatch",
         args: [nodeId, shipIds, positions],
         chainId: CHAIN_ID,
+        gas: START_NODE_MATCH_GAS_LIMIT,
       }),
     [writeContractAsync],
   );
@@ -54,6 +74,7 @@ export function useSinglePlayerMatch() {
         functionName: "takeAITurn",
         args: [gameId],
         chainId: CHAIN_ID,
+        gas: TAKE_AI_TURN_GAS_LIMIT,
       }),
     [writeContractAsync],
   );

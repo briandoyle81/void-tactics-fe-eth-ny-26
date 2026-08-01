@@ -426,19 +426,6 @@ export function GameGridOverlays({
                 );
               })()}
 
-            {/* TEMP DEBUG: remove after diagnosing missile-animation-stops-looping report */}
-            {(() => {
-              console.log("[MISSILE-DEBUG] overlay check", {
-                selectedShipId,
-                lastMoveShipId,
-                directedWeaponBeamTargetId,
-                selectedWeaponType,
-                lastMoveActionType,
-                targetShipId,
-                hoveredCell,
-              });
-              return null;
-            })()}
             {/* Missile Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
               directedWeaponBeamTargetId &&
@@ -447,7 +434,6 @@ export function GameGridOverlays({
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
                 if (!shipId) {
-                  console.log("[MISSILE-DEBUG] bailed: no shipId");
                   return null;
                 }
 
@@ -456,14 +442,12 @@ export function GameGridOverlays({
                   (lastMoveActionType === ActionType.Special ||
                     lastMoveActionType === ActionType.FactionAbility)
                 ) {
-                  console.log("[MISSILE-DEBUG] bailed: lastMoveActionType is Special/FactionAbility", { lastMoveActionType });
                   return null;
                 }
 
                 // Check if the ship has a Missile weapon (mainWeapon === 2)
                 const ship = shipMap.get(shipId);
                 if (!ship || ship.equipment.mainWeapon !== 2) {
-                  console.log("[MISSILE-DEBUG] bailed: ship missing or not missile weapon", { shipId, found: !!ship, mainWeapon: ship?.equipment.mainWeapon });
                   return null;
                 }
 
@@ -493,21 +477,17 @@ export function GameGridOverlays({
                     });
                   }
                   if (attackerRow === -1 || attackerCol === -1) {
-                    console.log("[MISSILE-DEBUG] bailed: attacker position not found on grid", { shipId, lastMoveNewPosition });
                     return null;
                   }
                 } else {
                   // No preview or drag position - don't show animation
-                  console.log("[MISSILE-DEBUG] bailed: no preview/drag/lastMove position for shipId", { shipId, lastMoveShipId, previewPosition, draggedShipId, dragOverCell });
                   return null;
                 }
 
                 const targetPosition = findShipPositionById(targetShipId);
                 if (!targetPosition) {
-                  console.log("[MISSILE-DEBUG] bailed: target position not found", { targetShipId });
                   return null;
                 }
-                console.log("[MISSILE-DEBUG] rendering MissileShootingAnimation", { shipId, attackerRow, attackerCol, targetShipId, targetPosition });
 
                 const attackerIsCreator =
                   selectedShipCreatorSide ??

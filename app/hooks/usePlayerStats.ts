@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useReadContract } from "wagmi";
 import type { Abi } from "viem";
-import GameResultsContract from "../contracts/DeployModule#GameResults.json";
+import GameResultsContract from "../contracts/artifacts/DeployModule#GameResults.json";
 import { DEPLOYED_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 
 const GAME_RESULTS_ABI = GameResultsContract.abi as Abi;

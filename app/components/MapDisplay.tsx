@@ -9,6 +9,7 @@ import {
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
+import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 import { MapDisplayView } from "./MapDisplayView";
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import type { ShipCardData } from "../types/shipCardData";
@@ -16,9 +17,11 @@ import type { Attributes } from "../types/types";
 
 // Thin web3 adapter over the shared, string-native `MapDisplayView` — see
 // that file for the actual rendering/interaction logic. Keeps this
-// component's bigint-based public prop interface unchanged (only consumer
-// is Lobbies.tsx's fleet-selection modal, 2 call sites) so nothing else
-// needed to change when this was genericized.
+// component's bigint-based public prop interface unchanged. Used by
+// Lobbies.tsx's fleet-selection modal (real ships only, both sides) and
+// NodeMatchModal.tsx's deployment map (real player ships + synthetic
+// enemy-preview ships — see the shipIds filter below for why that mix
+// matters).
 interface MapDisplayProps {
   mapId: number;
   className?: string;
@@ -105,17 +108,49 @@ export function MapDisplay({
     [shipByStringId],
   );
 
-  const shipIds = React.useMemo(() => fullShips.map((ship) => ship.id), [fullShips]);
+  // Enemy-fleet preview ships (NodeMatchModal's pre-launch deployment map)
+  // are synthetic — aiConfigToPreviewShip gives them a fake id and a zero
+  // owner address, since no real on-chain ship exists until the match
+  // actually starts. Mixing a fake id into this one batched
+  // calculateShipAttributesByIds call reverts the whole call, so exclude
+  // anything without a real owner rather than let it blank out attributes
+  // for every ship on the board, including the player's own real ones.
+  const shipIds = React.useMemo(
+    () =>
+      fullShips
+        .filter((ship) => ship.owner !== "0x0000000000000000000000000000000000000000")
+        .map((ship) => ship.id),
+    [fullShips],
+  );
   const { attributes, isLoading: attributesLoading } = useShipAttributesByIds(shipIds);
   const attributesMap = React.useMemo(() => {
     const map = new Map<string, Attributes>();
-    fullShips.forEach((ship, index) => {
+    // Index-aligned with shipIds (the filtered query), not fullShips —
+    // attributes[i] corresponds to shipIds[i], and those two arrays only
+    // match fullShips 1:1 when nothing was filtered out above.
+    shipIds.forEach((shipId, index) => {
       if (attributes[index]) {
-        map.set(ship.id.toString(), attributes[index]);
+        map.set(shipId.toString(), attributes[index]);
+      }
+    });
+    // Synthetic preview ships (excluded from the contract query above, no
+    // real on-chain data to fetch) still have real equipment/traits baked
+    // in — compute their attributes the same way SimulatedGameDisplay/
+    // tutorial ships do, client-side, so their tooltips show real numbers
+    // instead of nothing. Scoped to the zero-owner check specifically
+    // (not "missing from map for any reason") so a real ship whose fetch
+    // hasn't resolved yet still correctly reads as loading, not silently
+    // swapped for a locally-approximated value.
+    fullShips.forEach((ship) => {
+      if (
+        ship.owner === "0x0000000000000000000000000000000000000000" &&
+        !map.has(ship.id.toString())
+      ) {
+        map.set(ship.id.toString(), calculateAttributesFromContracts(ship));
       }
     });
     return map;
-  }, [fullShips, attributes]);
+  }, [shipIds, attributes, fullShips]);
 
   const stringShipPositions = React.useMemo(
     () => shipPositions.map((pos) => ({ shipId: pos.shipId.toString(), row: pos.row, col: pos.col })),

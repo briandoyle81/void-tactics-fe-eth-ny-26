@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { usePublicClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import { parseEventLogs, type Abi } from "viem";
 import { toast } from "react-hot-toast";
@@ -19,6 +19,7 @@ import type { AIShipConfig, Ship } from "../types/types";
 import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { CONTRACT_ABIS } from "../config/contracts";
 import type { CampaignGraphNode } from "../hooks/useNodeMap";
+import { navigateToGame } from "../utils/navigateToGame";
 
 // AIShipConfig ids and the player's own owned-ship ids are separate
 // namespaces on-chain and can collide (e.g. both could have id 3) — this
@@ -45,6 +46,7 @@ interface NodeMatchModalProps {
 // a reuse of it directly — see the migration plan for why).
 export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProps) {
   const { startNodeMatch } = useSinglePlayerMatch();
+  const { address } = useAccount();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
@@ -112,6 +114,8 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         const gameId = (logs[0]?.args as { gameId?: bigint } | undefined)?.gameId;
         if (!gameId) {
           console.error("NodeMatchStarted event not found in receipt", receipt);
+        } else {
+          navigateToGame(address, gameId);
         }
       }
       toast.success("Mission launched!");

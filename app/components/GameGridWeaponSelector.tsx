@@ -48,13 +48,29 @@ export function GameGridWeaponSelector({
   setTargetShipId,
 }: GameGridWeaponSelectorProps) {
   const hasRealTarget = targetShipId != null && targetShipId !== 0;
-  // Hide only when confirm widget is showing without a real target (confirm widget embeds selector then)
-  if (showConfirmWidget && !hasRealTarget) return null;
-  if (!selectedShipId || !isCurrentPlayerTurn) return null;
-  if (!isShipOwnedByCurrentPlayer(selectedShipId)) return null;
-  if (isRammingMovePreview) return null;
+  // Hide only when the confirm widget is actually showing without a real
+  // target (it embeds its own copy of this selector then) — matches
+  // GameGrid.tsx's `showConfirmWidget && previewPosition && ...` render gate
+  // for <GameGridConfirmWidget> exactly. Checking showConfirmWidget alone
+  // (without previewPosition) previously hid this selector even when the
+  // confirm widget wasn't rendering yet (e.g. selecting a no-target special
+  // like Flak before staging a move), leaving neither selector visible.
+  if (showConfirmWidget && previewPosition && !hasRealTarget) {
+    return null;
+  }
+  if (!selectedShipId || !isCurrentPlayerTurn) {
+    return null;
+  }
+  if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
+    return null;
+  }
+  if (isRammingMovePreview) {
+    return null;
+  }
   const ship = shipMap.get(selectedShipId);
-  if (!ship) return null;
+  if (!ship) {
+    return null;
+  }
 
   // Find the ship's current (non-preview) cell position
   let shipRow = -1, shipCol = -1;
@@ -70,7 +86,9 @@ export function GameGridWeaponSelector({
     const sp = allShipPositions.find(p => p.shipId === selectedShipId);
     if (sp) { shipRow = sp.position.row; shipCol = sp.position.col; }
   }
-  if (shipRow < 0) return null;
+  if (shipRow < 0) {
+    return null;
+  }
 
   const hasSpecial = ship.equipment.special > 0;
   const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
@@ -84,7 +102,9 @@ export function GameGridWeaponSelector({
     { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon) },
     ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special) }] : []),
   ];
-  if (weapons.length <= 1) return null; // only one option — nothing to choose
+  if (weapons.length <= 1) {
+    return null; // only one option — nothing to choose
+  }
 
   // When a move is staged, anchor to the destination (same origin as the laser beam);
   // otherwise anchor to the ship's current (from) cell.

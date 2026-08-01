@@ -1039,18 +1039,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     ],
   );
 
-  // TEMP DEBUG: remove after diagnosing missile-animation-stops-looping report
-  React.useEffect(() => {
-    console.log("[MISSILE-DEBUG] shouldShowLastMoveOnGrid changed", {
-      shouldShowLastMoveOnGrid,
-      displayedLastMoveShipId: displayedLastMove?.shipId,
-      displayedLastMoveActionType: displayedLastMove?.actionType,
-      displayedLastMoveTargetShipId: displayedLastMove?.targetShipId,
-      selectedShipId,
-      optimisticLastMove,
-    });
-  }, [shouldShowLastMoveOnGrid, displayedLastMove, selectedShipId, optimisticLastMove]);
-
   // Check if a ship belongs to the current player
   const isShipOwnedByCurrentPlayer = React.useCallback(
     (shipId: bigint): boolean => {
@@ -1094,7 +1082,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   React.useEffect(() => {
     if (selectedShipId !== null || isShowingProposedMove) {
       if (isDisplayingLastMoveRef.current) {
-        console.log("[MISSILE-DEBUG] sync effect: clearing last-move display (ship selected or proposed move)", { selectedShipId, isShowingProposedMove });
         isDisplayingLastMoveRef.current = false;
         lastDisplayedMoveRef.current = null;
         if (!isShowingProposedMove) {
@@ -1112,17 +1099,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       lastDisplayedMoveRef.current.newRow !== displayedLastMove.newRow ||
       lastDisplayedMoveRef.current.newCol !== displayedLastMove.newCol;
 
-    console.log("[MISSILE-DEBUG] sync effect evaluating", {
-      shouldShowLastMove,
-      lastMoveChanged,
-      lastDisplayedMoveRef: lastDisplayedMoveRef.current,
-      displayedLastMoveShipId: displayedLastMove?.shipId,
-      displayedLastMoveNewRow: displayedLastMove?.newRow,
-      displayedLastMoveNewCol: displayedLastMove?.newCol,
-      displayedLastMoveTargetShipId: displayedLastMove?.targetShipId,
-      displayedLastMoveActionType: displayedLastMove?.actionType,
-    });
-
     if (shouldShowLastMove && displayedLastMove && lastMoveChanged) {
       const lastMoveShip = shipMap.get(displayedLastMove.shipId);
       if (lastMoveShip) {
@@ -1138,13 +1114,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           col: displayedLastMove.newCol,
         });
         if (displayedLastMove.targetShipId !== 0n) {
-          console.log("[MISSILE-DEBUG] sync effect: setTargetShipId", { targetShipId: displayedLastMove.targetShipId });
           setTargetShipId(displayedLastMove.targetShipId);
         } else {
           setTargetShipId(null);
         }
         if (displayedLastMove.actionType === ActionType.Shoot) {
-          console.log("[MISSILE-DEBUG] sync effect: setWeaponTypeFromGrid(weapon)");
           setWeaponTypeFromGrid("weapon");
         } else if (
           displayedLastMove.actionType === ActionType.Special ||
@@ -1152,11 +1126,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         ) {
           setWeaponTypeFromGrid("special");
         }
-      } else {
-        console.log("[MISSILE-DEBUG] sync effect: lastMoveShip not found in shipMap", { shipId: displayedLastMove.shipId });
       }
     } else if (!shouldShowLastMove && isDisplayingLastMoveRef.current) {
-      console.log("[MISSILE-DEBUG] sync effect: hiding last-move display (shouldShowLastMove is false)");
       isDisplayingLastMoveRef.current = false;
       lastDisplayedMoveRef.current = null;
       interaction.setPreviewPosition(null);

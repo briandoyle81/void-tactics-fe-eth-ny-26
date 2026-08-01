@@ -15,6 +15,8 @@ import { toShipCardData } from "../utils/toShipCardData";
 import { HoverShipCardTooltip, type HoverAnchorRect } from "./HoverShipCardTooltip";
 import { ARCHETYPE_LABEL, aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { NodeMatchModal } from "./NodeMatchModal";
+import { useNodeGameStatus } from "../hooks/useNodeGameStatus";
+import { navigateToGame } from "../utils/navigateToGame";
 
 interface HoveredShip {
   config: AIShipConfig;
@@ -30,8 +32,9 @@ interface CampaignNodePreviewProps {
 // unchanged by the migration — still keyed by mapId) plus the Launch
 // Mission CTA that opens NodeMatchModal.
 export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const [showFleetModal, setShowFleetModal] = React.useState(false);
+  const { activeGameId } = useNodeGameStatus(node.id);
   const [hoveredShip, setHoveredShip] = React.useState<HoveredShip | null>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const content = getNodeContent(node.id);
@@ -80,7 +83,13 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
         </div>
         <button
           type="button"
-          onClick={() => setShowFleetModal(true)}
+          onClick={() => {
+            if (activeGameId != null) {
+              navigateToGame(address, activeGameId);
+            } else {
+              setShowFleetModal(true);
+            }
+          }}
           disabled={!node.unlocked || !isConnected}
           className="mt-6 self-start border-2 border-phosphor-green px-4 py-2 text-sm font-bold tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10 disabled:cursor-not-allowed disabled:opacity-40"
           style={{ borderRadius: 0 }}
@@ -92,7 +101,7 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
                 : undefined
           }
         >
-          [LAUNCH MISSION]
+          {activeGameId != null ? "[ENTER COMBAT]" : "[LAUNCH MISSION]"}
         </button>
       </div>
 
