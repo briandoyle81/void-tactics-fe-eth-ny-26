@@ -45,6 +45,12 @@ interface GameGridCellProps {
   highlightedMovePosition?: Position | null;
   lastMoveShipId?: number | null;
   lastMoveOldPosition?: Position | null;
+  /** Real "did this move actually end up here" position — direct comparison
+   * target for the new-position tile highlight, rather than inferring "new"
+   * from "matches lastMoveShipId and isn't at old position" (that heuristic
+   * misfires on a leftover ghost cell from an earlier, already-superseded
+   * move — see isLastMoveNewPosition's doc for the failure mode). */
+  lastMoveNewPosition?: Position | null;
   lastMoveActionType?: ActionType | null;
   lastMoveTargetShipId?: number | null;
   lastMoveIsCurrentPlayer?: boolean | undefined;
@@ -112,6 +118,7 @@ export function GameGridCell({
   highlightedMovePosition,
   lastMoveShipId,
   lastMoveOldPosition,
+  lastMoveNewPosition,
   lastMoveActionType,
   lastMoveTargetShipId,
   lastMoveIsCurrentPlayer,
@@ -1351,10 +1358,21 @@ export function GameGridCell({
                             lastMoveOldPosition &&
                             rowIndex === lastMoveOldPosition.row &&
                             colIndex === lastMoveOldPosition.col;
+                          // Compared directly against the real new-position
+                          // coordinate rather than inferred as "matches
+                          // lastMoveShipId and isn't the old-position cell" —
+                          // that heuristic misfires when the grid still has a
+                          // leftover ghost cell from an earlier, already-
+                          // superseded move with the same shipId (e.g. right
+                          // after a hold-and-fire submit, before game.lastMove
+                          // itself has refetched), mislabeling that stale
+                          // ghost as "new position" instead of correctly
+                          // showing nothing extra.
                           const isLastMoveNewPosition =
                             lastMoveShipId === cell.shipId &&
-                            lastMoveOldPosition &&
-                            !isLastMoveOldPosition; // New position is where the ship is but not at old position
+                            lastMoveNewPosition != null &&
+                            rowIndex === lastMoveNewPosition.row &&
+                            colIndex === lastMoveNewPosition.col;
 
                           // Check if this is a proposed move preview (to position)
                           // It's a proposed move preview if: it's a preview cell AND there's an active proposed move (previewPosition exists) AND it's not the last move old position

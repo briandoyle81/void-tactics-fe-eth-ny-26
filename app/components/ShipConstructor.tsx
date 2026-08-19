@@ -10,9 +10,12 @@ import { TransactionButton } from "./TransactionButton";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
+import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { invalidateShipAttributesByIdsCache } from "../utils/shipAttributesLocalCache";
 
 const ShipConstructor: React.FC = () => {
   const { address } = useAccount();
+  const selectedChainId = useSelectedChainId();
   const { ships, isLoading: isLoadingShips } = useOwnedShips();
   const [mode, setMode] = useState<"create" | "customize">("customize");
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
@@ -1058,6 +1061,16 @@ const ShipConstructor: React.FC = () => {
                       // the approve button and amount stay in sync with contracts.
                       refetchModificationCost?.();
                       refetchAllowance?.();
+                      // DroneYard.modifyShip changes this ship's on-chain
+                      // attributes (movement/range/etc.) with no other
+                      // signal the attributes cache would ever pick up on —
+                      // drop its cached entry so fleet selection stops
+                      // showing the pre-modification numbers (see
+                      // shipAttributesLocalCache.ts's cache-TTL doc).
+                      invalidateShipAttributesByIdsCache(
+                        selectedChainId,
+                        selectedShipId ?? undefined,
+                      );
                     }}
                     validateBeforeTransaction={() => {
                       if (!address) {

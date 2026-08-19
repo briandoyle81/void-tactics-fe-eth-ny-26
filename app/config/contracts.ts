@@ -6,6 +6,7 @@ import UniversalCreditsContract from "../contracts/artifacts/DeployModule#Univer
 import MapsContract from "../contracts/artifacts/DeployModule#Maps.json";
 import ShipAttributesContract from "../contracts/artifacts/DeployModule#ShipAttributes.json";
 import DroneYardContract from "../contracts/artifacts/DeployModule#DroneYard.json";
+import DroneEnergyCoresContract from "../contracts/artifacts/DeployModule#DroneEnergyCores.json";
 import TutorialClaimContract from "../contracts/artifacts/DeployModule#TutorialClaim.json";
 import ShipPurchaserContract from "../contracts/artifacts/DeployModule#ShipPurchaser.json";
 import TournamentContract from "../contracts/artifacts/DeployModule#Tournament.json";
@@ -55,6 +56,9 @@ const FLOW_TESTNET_CONTRACT_ADDRESSES = {
   SHIP_ATTRIBUTES: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShipAttributes"],
   SHIP_PURCHASER: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShipPurchaser"],
   DRONE_YARD: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneYard"],
+  DRONE_ENERGY_CORES:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ?? ZERO_ADDRESS,
 } as const;
@@ -78,6 +82,9 @@ const RONIN_SAIGON_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
     ZERO_ADDRESS,
@@ -110,6 +117,9 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
     ZERO_ADDRESS,
@@ -134,6 +144,9 @@ const XAI_TESTNET_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
     ZERO_ADDRESS,
@@ -181,6 +194,7 @@ export const CONTRACT_ABIS = {
   MAPS: MapsContract.abi,
   SHIP_ATTRIBUTES: ShipAttributesContract.abi,
   DRONE_YARD: DroneYardContract.abi,
+  DRONE_ENERGY_CORES: DroneEnergyCoresContract.abi,
   TUTORIAL_CLAIM: TutorialClaimContract.abi,
   SHIP_PURCHASER: ShipPurchaserContract.abi,
   TOURNAMENT: TournamentContract.abi,

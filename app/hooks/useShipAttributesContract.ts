@@ -148,7 +148,10 @@ export function useShieldData(shieldIndex: number) {
   return useShipAttributesRead("getShieldData", args);
 }
 
-export function useSpecialData(specialIndex: number) {
-  const args = useMemo(() => [specialIndex] as const, [specialIndex]);
+// `getSpecialData` takes a `_variant` argument (ship traits.variant) as of
+// the contract redeploy that added per-variant special stats — see
+// useSpecialRange.ts's matching doc for the failure mode when it's omitted.
+export function useSpecialData(specialIndex: number, variant: number = 0) {
+  const args = useMemo(() => [specialIndex, variant] as const, [specialIndex, variant]);
   return useShipAttributesRead("getSpecialData", args);
 }

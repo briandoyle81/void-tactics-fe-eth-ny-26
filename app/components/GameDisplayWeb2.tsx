@@ -17,7 +17,9 @@ import { useGameStreamWeb2 } from "../hooks/useGameStreamWeb2";
 import { useGamePollingWeb2 } from "../hooks/useGamePollingWeb2";
 import { useMapWeb2 } from "../hooks/useMapWeb2";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
-import { useTurnChangeAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { RoundStartModal } from "./RoundStartModal";
+import { GameResultModal } from "./GameResultModal";
 import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import {
   useGameViewChromeLayout,
@@ -214,9 +216,65 @@ export default function GameDisplayWeb2({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Track previous turn state — passed into useTurnChangeAlertSound below as
+  // an external ref so the optimistic-move-confirmed effect further down can
+  // stamp it directly (see that effect's "still my turn" comment for why).
+  const prevTurnRef = React.useRef<boolean | null>(null);
+
   // Play alert sound when it becomes the player's turn (turn changes from
   // opponent to player only).
-  useTurnChangeAlertSound(isCurrentPlayerTurn, userId, readOnly);
+  useTurnChangeAlertSound(isCurrentPlayerTurn, userId, readOnly, prevTurnRef);
+
+  // Round-start announcement — mirrors GameDisplay.tsx's roundStartInfo:
+  // fires on the very first render (game start) and again whenever
+  // currentRound changes (new round). Gated on !isGameOver so the last
+  // round's end doesn't pop this alongside the result screen. Also captures
+  // each side's round-only score gain by diffing against a snapshot taken
+  // the last time a round started — undefined on the very first showing.
+  const [roundStartInfo, setRoundStartInfo] = React.useState<{
+    round: number;
+    isMyTurnFirst: boolean;
+    myRoundScore?: number;
+    opponentRoundScore?: number;
+    myScore: number;
+    opponentScore: number;
+    maxScore?: number;
+  } | null>(null);
+  const prevRoundForModalRef = React.useRef<number | undefined>(undefined);
+  const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
+    undefined,
+  );
+  React.useEffect(() => {
+    if (isGameOver) return;
+    const round = game.turnState.currentRound;
+    if (prevRoundForModalRef.current === round) return;
+    prevRoundForModalRef.current = round;
+
+    const isCreatorNow = game.metadata.creator === userId;
+    const myScoreNow = isCreatorNow ? game.creatorScore : game.joinerScore;
+    const opponentScoreNow = isCreatorNow ? game.joinerScore : game.creatorScore;
+    const prevScores = prevRoundScoreRef.current;
+    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+
+    setRoundStartInfo({
+      round,
+      isMyTurnFirst: game.turnState.currentTurn === userId,
+      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+      myScore: myScoreNow,
+      opponentScore: opponentScoreNow,
+      maxScore: game.maxScore,
+    });
+  }, [
+    game.turnState.currentRound,
+    game.turnState.currentTurn,
+    game.creatorScore,
+    game.joinerScore,
+    game.maxScore,
+    game.metadata.creator,
+    userId,
+    isGameOver,
+  ]);
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
@@ -405,8 +463,21 @@ export default function GameDisplayWeb2({
       game.lastMove.oldCol === optimisticLastMoveWeb2.oldCol &&
       game.lastMove.newRow === optimisticLastMoveWeb2.newRow &&
       game.lastMove.newCol === optimisticLastMoveWeb2.newCol;
-    if (matches) setOptimisticLastMoveWeb2(null);
-  }, [optimisticLastMoveWeb2, game.lastMove]);
+    if (matches) {
+      setOptimisticLastMoveWeb2(null);
+      // Still my turn after my own move was confirmed (a same-turn
+      // multi-move sequence) — web2's isCurrentPlayerTurn has no artificial
+      // "awaiting sync" dip like web3's isMyTurnEffective, so it never
+      // transitions false->true for this case and useTurnChangeAlertSound's
+      // own detection can't catch it; play the cue directly. Stamping the
+      // ref marks this as handled so the hook doesn't also treat a later,
+      // unrelated transition as a double cue.
+      if (!readOnly && game.turnState.currentTurn === userId) {
+        playTurnAlertSound();
+        prevTurnRef.current = true;
+      }
+    }
+  }, [optimisticLastMoveWeb2, game.lastMove, game.turnState.currentTurn, userId, readOnly]);
 
   const lastMove = optimisticLastMoveWeb2 ?? game.lastMove;
   const lastMoveShipId = lastMove?.shipId ?? null;
@@ -440,6 +511,14 @@ export default function GameDisplayWeb2({
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] = useState(false);
 
   const gameScoreData = toGameScoreDataWeb2(game, userId);
+  const { myScore, opponentScore, maxScore } = gameScoreData;
+
+  // End-of-game result screen (GameResultModal) — mirrors GameDisplay.tsx's
+  // own isGameResultDismissed. Web2 has no campaign/mission mode, so unlike
+  // web3 this always uses the plain PvP copy path (no nodeId/
+  // missionLossReason) — but it does need to cover web2's tie outcome
+  // (WEB2_TIE_SENTINEL), which web3's Game.sol can't produce at all.
+  const [isGameResultDismissed, setIsGameResultDismissed] = useState(false);
 
   const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
     game.turnState.turnTime,
@@ -773,6 +852,31 @@ export default function GameDisplayWeb2({
           />
         );
       })()}
+      {roundStartInfo && !isGameOver && (
+        <RoundStartModal
+          key={roundStartInfo.round.toString()}
+          round={roundStartInfo.round}
+          isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+          myRoundScore={roundStartInfo.myRoundScore}
+          opponentRoundScore={roundStartInfo.opponentRoundScore}
+          myScore={roundStartInfo.myScore}
+          opponentScore={roundStartInfo.opponentScore}
+          maxScore={roundStartInfo.maxScore}
+          onClose={() => setRoundStartInfo(null)}
+        />
+      )}
+      {isGameOver && !isGameResultDismissed && (
+        <GameResultModal
+          isVictory={gameWinnerResult === "me"}
+          isTie={gameWinnerResult === "tie"}
+          myScore={myScore}
+          opponentScore={opponentScore}
+          maxScore={maxScore}
+          onClose={() => setIsGameResultDismissed(true)}
+          primaryActionLabel="Back to Games"
+          onPrimaryAction={onBack}
+        />
+      )}
     </div>
   );
 }

@@ -20,6 +20,11 @@ interface GameGridWeaponSelectorProps {
   getShipAttributes: (shipId: number) => Attributes | null;
   showConfirmWidget?: boolean;
   isRammingMovePreview?: boolean;
+  /** Non-null (== selectedShipId) whenever the selection is in retreat mode
+   * — forced for a disabled (0hp) ship, or voluntarily toggled for a
+   * healthy one. Either way the ship can only Retreat this turn, so no
+   * weapon/special/ram choice applies. */
+  retreatPrepShipId?: number | null;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setTargetShipId: (shipId: number | null) => void;
 }
@@ -44,6 +49,7 @@ export function GameGridWeaponSelector({
   getShipAttributes,
   showConfirmWidget = false,
   isRammingMovePreview = false,
+  retreatPrepShipId = null,
   setSelectedWeaponType,
   setTargetShipId,
 }: GameGridWeaponSelectorProps) {
@@ -69,6 +75,12 @@ export function GameGridWeaponSelector({
   }
   const ship = shipMap.get(selectedShipId);
   if (!ship) {
+    return null;
+  }
+  // A ship in retreat mode (forced for 0hp, or voluntarily toggled) can
+  // only submit Retreat this turn — surfaced via the on-grid/off-grid
+  // confirm widgets' RETREAT button, never this weapon/special/ram selector.
+  if (retreatPrepShipId != null) {
     return null;
   }
 

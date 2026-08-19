@@ -24,6 +24,9 @@ interface GameGridConfirmWidgetProps {
   specialType: number;
   targetShipId: number | null;
   isRammingMovePreview: boolean;
+  /** Non-null (== selectedShipId) whenever the selection is in retreat mode
+   * — see GameGridWeaponSelector.tsx's matching prop. */
+  retreatPrepShipId?: number | null;
   movementRange: readonly { row: number; col: number }[];
   grid: (GridShipPosition | null)[][];
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
@@ -44,6 +47,7 @@ export function GameGridConfirmWidget({
   specialType,
   targetShipId,
   isRammingMovePreview,
+  retreatPrepShipId = null,
   movementRange,
   grid,
   isShipOwnedByCurrentPlayer,
@@ -58,6 +62,12 @@ export function GameGridConfirmWidget({
     if (isRammingMovePreview) return null;
     const ship = selectedShipId ? shipMap.get(selectedShipId) : null;
     if (!ship) return null;
+    // A ship in retreat mode (forced for 0hp, or voluntarily toggled) can
+    // only submit Retreat this turn — see GameGridWeaponSelector.tsx's
+    // matching guard.
+    if (retreatPrepShipId != null) {
+      return null;
+    }
     const hasSpecial = ship.equipment.special > 0;
     const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
       const cell = grid[r]?.[c];

@@ -458,6 +458,7 @@ export function GameGrid({
                   highlightedMovePosition={highlightedMovePosition}
                   lastMoveShipId={lastMoveShipId}
                   lastMoveOldPosition={lastMoveOldPosition}
+                  lastMoveNewPosition={lastMoveNewPosition}
                   lastMoveActionType={lastMoveActionType}
                   lastMoveTargetShipId={lastMoveTargetShipId}
                   lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
@@ -563,31 +564,36 @@ export function GameGrid({
             getShipAttributes={getShipAttributes}
             showConfirmWidget={showConfirmWidget}
             isRammingMovePreview={isRammingMovePreview}
+            retreatPrepShipId={retreatPrepShipId}
             setSelectedWeaponType={setSelectedWeaponType}
             setTargetShipId={setTargetShipId}
           />
 
-          {showConfirmWidget && previewPosition && onCancelMove && confirmWidgetAnchor && (
-            <GameGridConfirmWidget
-              confirmWidgetAnchor={confirmWidgetAnchor}
-              confirmWidgetLabel={confirmWidgetLabel}
-              onConfirmMove={onConfirmMove ?? (() => {})}
-              onCancelMove={onCancelMove}
-              confirmButton={confirmButton}
-              selectedShipId={selectedShipId}
-              shipMap={shipMap}
-              selectedWeaponType={selectedWeaponType}
-              specialType={specialType}
-              targetShipId={targetShipId}
-              isRammingMovePreview={isRammingMovePreview ?? false}
-              movementRange={movementRange}
-              grid={grid}
-              isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
-              getShipAttributes={getShipAttributes}
-              setSelectedWeaponType={setSelectedWeaponType}
-              setTargetShipId={setTargetShipId}
-            />
-          )}
+          {showConfirmWidget &&
+            (previewPosition || retreatPrepShipId != null) &&
+            onCancelMove &&
+            confirmWidgetAnchor && (
+              <GameGridConfirmWidget
+                confirmWidgetAnchor={confirmWidgetAnchor}
+                confirmWidgetLabel={confirmWidgetLabel}
+                onConfirmMove={onConfirmMove ?? (() => {})}
+                onCancelMove={onCancelMove}
+                confirmButton={confirmButton}
+                selectedShipId={selectedShipId}
+                shipMap={shipMap}
+                selectedWeaponType={selectedWeaponType}
+                specialType={specialType}
+                targetShipId={targetShipId}
+                isRammingMovePreview={isRammingMovePreview ?? false}
+                retreatPrepShipId={retreatPrepShipId}
+                movementRange={movementRange}
+                grid={grid}
+                isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
+                getShipAttributes={getShipAttributes}
+                setSelectedWeaponType={setSelectedWeaponType}
+                setTargetShipId={setTargetShipId}
+              />
+            )}
         </div>
       </div>
     </>

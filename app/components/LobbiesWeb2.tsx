@@ -1062,6 +1062,10 @@ const LobbiesWeb2: React.FC = () => {
               isCreator={isCreator}
               shipListItems={shipListItems}
               mapDisplay={mapDisplay}
+              onDropShip={(shipId) => {
+                const id = Number(shipId);
+                if (!Number.isNaN(id)) removeShipFromFleet(id);
+              }}
             />
           );
         })()}

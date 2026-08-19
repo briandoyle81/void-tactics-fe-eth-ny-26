@@ -496,6 +496,26 @@ const Header: React.FC = () => {
     query: { enabled: isHydrated && !!account.address },
   });
 
+  // Read Drone Cores balance — DroneEnergyCores is only deployed on Base
+  // Sepolia so far (resolves to the zero address on other chains), so gate
+  // the read on that rather than firing a doomed call and showing a
+  // misleading "0.00" on chains where the contract doesn't exist at all.
+  const droneEnergyCoresAddress = CONTRACT_ADDRESSES.DRONE_ENERGY_CORES as
+    | `0x${string}`
+    | undefined;
+  const isDroneEnergyCoresDeployed =
+    !!droneEnergyCoresAddress &&
+    droneEnergyCoresAddress.toLowerCase() !==
+      "0x0000000000000000000000000000000000000000";
+  const { data: droneCoresBalance } = useReadContract({
+    address: droneEnergyCoresAddress,
+    abi: CONTRACT_ABIS.DRONE_ENERGY_CORES as Abi,
+    functionName: "balanceOf",
+    args: account.address ? [account.address] : undefined,
+    chainId: selectedChainId,
+    query: { enabled: isHydrated && !!account.address && isDroneEnergyCoresDeployed },
+  });
+
   // Hydration safety
   useEffect(() => {
     setIsHydrated(true);
@@ -1011,6 +1031,31 @@ const Header: React.FC = () => {
 
                       {/* UTC Balance and Network */}
                       <div className="flex items-center gap-2 justify-between md:justify-start">
+                        {/* Drone Cores Balance */}
+                        <div
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-cyan)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                        >
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-cyan)",
+                            }}
+                          >
+                            {isDroneEnergyCoresDeployed
+                              ? droneCoresBalance
+                                ? `${formatEther(droneCoresBalance as bigint)} DC`
+                                : "0.00 DC"
+                              : "N/A DC"}
+                          </span>
+                        </div>
                         {/* UTC Balance - Clickable */}
                         <button
                           onClick={() => setShowUTCPurchaseModal(true)}

@@ -574,19 +574,27 @@ export function useGameplayInteraction({
     return cur ? cur.position : { row: 0, col: 0 };
   }, [previewPosition, selectedShipId, aliveShipPositions]);
 
+  // Retreat never has a previewPosition/targetShipId (it submits at the
+  // ship's current tile — see computedMoveCoords' fallback below), so it
+  // needs its own inclusion here rather than falling out of the
+  // previewPosition/targetShipId check like every other action.
   const showConfirmWidget =
-    !isGameOver && isShowingProposedMove && actionOverride !== ActionType.Retreat && (previewPosition !== null || targetShipId !== null);
+    !isGameOver &&
+    isShowingProposedMove &&
+    (actionOverride === ActionType.Retreat || previewPosition !== null || targetShipId !== null);
 
   const confirmWidgetLabel =
-    computedActionType === ActionType.Pass
-      ? "HOLD FIRE"
-      : computedActionType === ActionType.Ram
-        ? "RAM"
-        : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
-          ? "REPAIR"
-          : targetShipId != null && targetShipId !== 0
-            ? "FIRE"
-            : "SUBMIT";
+    computedActionType === ActionType.Retreat
+      ? "RETREAT"
+      : computedActionType === ActionType.Pass
+        ? "HOLD FIRE"
+        : computedActionType === ActionType.Ram
+          ? "RAM"
+          : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+            ? "REPAIR"
+            : targetShipId != null && targetShipId !== 0
+              ? "FIRE"
+              : "SUBMIT";
 
   const buildActionPayload = useCallback((): GameplayActionPayload | null => {
     if (!selectedShipId) return null;

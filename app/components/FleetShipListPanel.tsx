@@ -31,11 +31,29 @@ export interface FleetShipListItemData {
 interface FleetShipListPanelProps {
   widthClass: string;
   items: FleetShipListItemData[];
+  /** Called with the dragged ship's id (as set via dataTransfer's
+   * "text/plain" by MapDisplayView's on-grid ship drag) when a ship is
+   * dropped back onto this list — the drop-to-unplace gesture. Omit to
+   * leave this panel a drag source only, same as before. */
+  onDropShip?: (shipId: string) => void;
 }
 
-export function FleetShipListPanel({ widthClass, items }: FleetShipListPanelProps) {
+export function FleetShipListPanel({ widthClass, items, onDropShip }: FleetShipListPanelProps) {
   return (
-    <div className={`${widthClass} h-full`}>
+    <div
+      className={`${widthClass} h-full`}
+      onDragOver={(e) => {
+        if (!onDropShip) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(e) => {
+        if (!onDropShip) return;
+        e.preventDefault();
+        const shipId = e.dataTransfer.getData("text/plain");
+        if (shipId) onDropShip(shipId);
+      }}
+    >
       <div className="grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh]">
         {items.map((item) => (
           <div

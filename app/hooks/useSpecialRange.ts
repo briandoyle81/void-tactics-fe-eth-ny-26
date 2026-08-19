@@ -4,13 +4,18 @@ import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { useSelectedChainId } from "./useSelectedChainId";
 
-export function useSpecialRange(special: number) {
+// `getSpecialRange` takes a `_variant` argument (ship traits.variant) as of
+// the contract redeploy that added per-variant special stats — omitting it
+// throws an ABI encoding length mismatch and silently leaves specialRange
+// undefined, which callers then fall back to the ship's gun range for
+// (wrong shooting range whenever a special is the selected weapon).
+export function useSpecialRange(special: number, variant: number = 0) {
   const chainId = useSelectedChainId();
   const address = useMemo(
     () => getContractAddresses(chainId).SHIP_ATTRIBUTES as `0x${string}`,
     [chainId],
   );
-  const args = useMemo(() => [special] as const, [special]);
+  const args = useMemo(() => [special, variant] as const, [special, variant]);
 
   const {
     data: specialRange,

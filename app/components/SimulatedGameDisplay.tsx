@@ -75,6 +75,7 @@ import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
+import { RoundStartModal } from "./RoundStartModal";
 import {
   useAccount,
   usePublicClient,
@@ -612,6 +613,55 @@ export function SimulatedGameDisplay({
   }, []);
   useResetSelectionOnTurnChange(gameState.turnState.currentTurn, resetSelection);
 
+  // Round-start announcement — mirrors GameDisplay.tsx's roundStartInfo:
+  // fires on the very first render (game start) and again whenever
+  // currentRound changes (new round). Also captures each side's round-only
+  // score gain by diffing against a snapshot taken the last time a round
+  // started — undefined on the very first showing (game start).
+  const [roundStartInfo, setRoundStartInfo] = React.useState<{
+    round: number;
+    isMyTurnFirst: boolean;
+    myRoundScore?: number;
+    opponentRoundScore?: number;
+    myScore: number;
+    opponentScore: number;
+    maxScore?: number;
+  } | null>(null);
+  const prevRoundForModalRef = React.useRef<number | undefined>(undefined);
+  const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
+    undefined,
+  );
+  React.useEffect(() => {
+    const round = gameState.turnState.currentRound;
+    if (prevRoundForModalRef.current === round) return;
+    prevRoundForModalRef.current = round;
+
+    const isCreatorNow =
+      gameState.metadata.creator.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase();
+    const myScoreNow = isCreatorNow ? gameState.creatorScore : gameState.joinerScore;
+    const opponentScoreNow = isCreatorNow ? gameState.joinerScore : gameState.creatorScore;
+    const prevScores = prevRoundScoreRef.current;
+    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+
+    setRoundStartInfo({
+      round,
+      isMyTurnFirst:
+        gameState.turnState.currentTurn.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase(),
+      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+      myScore: myScoreNow,
+      opponentScore: opponentScoreNow,
+      maxScore: gameState.maxScore,
+    });
+  }, [
+    gameState.turnState.currentRound,
+    gameState.turnState.currentTurn,
+    gameState.creatorScore,
+    gameState.joinerScore,
+    gameState.maxScore,
+    gameState.metadata.creator,
+  ]);
+
   // Map of onchain ship ID (bigint) to ship object. Tutorial IDs are strings;
   // when we need a ship we convert TutorialShipId -> bigint for this map only.
   // Fingerprint `tutorialShips.ts` content so HMR updates ship objects; `useMemo([])`
@@ -734,8 +784,9 @@ export function SimulatedGameDisplay({
   // Get special range data for the selected ship
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
   const specialType = selectedShip?.equipment.special || 0;
-  const { specialRange } = useSpecialRange(specialType);
-  const { data: specialData } = useSpecialData(specialType);
+  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const { specialRange } = useSpecialRange(specialType, selectedShipVariant);
+  const { data: specialData } = useSpecialData(specialType, selectedShipVariant);
 
   // Check if a ship belongs to the tutorial player. GameGrid passes bigint IDs,
   // so this matches the main game's signature and uses the bigint-based map.
@@ -1269,15 +1320,17 @@ export function SimulatedGameDisplay({
 
   const confirmWidgetLabel = useMemo(
     () =>
-      computedActionType === ActionType.Pass
-        ? "HOLD FIRE"
-        : computedActionType === ActionType.Ram
-          ? "RAM"
-          : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
-            ? "REPAIR"
-            : targetShipId != null && targetShipId !== 0n
-              ? "FIRE"
-              : "SUBMIT",
+      computedActionType === ActionType.Retreat
+        ? "RETREAT"
+        : computedActionType === ActionType.Pass
+          ? "HOLD FIRE"
+          : computedActionType === ActionType.Ram
+            ? "RAM"
+            : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+              ? "REPAIR"
+              : targetShipId != null && targetShipId !== 0n
+                ? "FIRE"
+                : "SUBMIT",
     [computedActionType, selectedWeaponType, specialType, targetShipId],
   );
 
@@ -4024,6 +4077,19 @@ export function SimulatedGameDisplay({
             </div>
           </div>
         ) : null}
+        {roundStartInfo && (
+          <RoundStartModal
+            key={roundStartInfo.round.toString()}
+            round={roundStartInfo.round}
+            isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+            myRoundScore={roundStartInfo.myRoundScore}
+            opponentRoundScore={roundStartInfo.opponentRoundScore}
+            myScore={roundStartInfo.myScore}
+            opponentScore={roundStartInfo.opponentScore}
+            maxScore={roundStartInfo.maxScore}
+            onClose={() => setRoundStartInfo(null)}
+          />
+        )}
       </div>
     );
   }
@@ -5023,6 +5089,19 @@ export function SimulatedGameDisplay({
             </div>
           </div>
         </div>
+      )}
+      {roundStartInfo && (
+        <RoundStartModal
+          key={roundStartInfo.round.toString()}
+          round={roundStartInfo.round}
+          isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+          myRoundScore={roundStartInfo.myRoundScore}
+          opponentRoundScore={roundStartInfo.opponentRoundScore}
+          myScore={roundStartInfo.myScore}
+          opponentScore={roundStartInfo.opponentScore}
+          maxScore={roundStartInfo.maxScore}
+          onClose={() => setRoundStartInfo(null)}
+        />
       )}
     </div>
   );

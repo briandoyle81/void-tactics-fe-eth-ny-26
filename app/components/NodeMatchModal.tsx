@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useAccount, usePublicClient } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { baseSepolia } from "viem/chains";
 import { parseEventLogs, type Abi } from "viem";
 import { toast } from "react-hot-toast";
@@ -48,6 +49,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
   const { startNodeMatch } = useSinglePlayerMatch();
   const { address } = useAccount();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
@@ -115,6 +117,17 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         if (!gameId) {
           console.error("NodeMatchStarted event not found in receipt", receipt);
         } else {
+          // The tx receipt above already confirms the game exists on-chain —
+          // what's stale here is purely client-side: Games.tsx's
+          // usePlayerGames() read is cached by TanStack Query and won't know
+          // to refetch just because the active tab changed. Without this,
+          // Games.tsx's restore-selected-game effect can't find the new
+          // gameId in its (stale) list, silently drops the pending
+          // navigation, and falls back to the plain list view — exactly the
+          // "goes to Games but doesn't show the new game" symptom. Awaiting
+          // the invalidation (not just firing it) closes the race for the
+          // common case where Games.tsx is already mounted behind this tab.
+          await queryClient.invalidateQueries();
           navigateToGame(address, gameId);
         }
       }
@@ -180,6 +193,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
     <MapDisplay
       mapId={Number(node.mapId)}
       className="w-full h-full"
+      chainIdOverride={baseSepolia.id}
       showPlayerOverlay={true}
       isCreator={true}
       isCreatorViewer={true}
@@ -241,7 +255,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         isUnder90Percent: fleet.isUnder90Percent,
         hasMovedShip: fleet.hasMovedShip,
         hasStaleCosts: fleet.hasStaleCostsVersion,
-        readyLabel: `LAUNCH MISSION (${fleet.selectedShips.length})`,
+        readyLabel: `${node.completed ? "REPLAY MISSION" : "LAUNCH MISSION"} (${fleet.selectedShips.length})`,
       }}
       onCreateFleet={() => void handleLaunch()}
       onCancel={onClose}
@@ -267,6 +281,13 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
       isCreator={true}
       shipListItems={shipListItems}
       mapDisplay={mapDisplay}
+      onDropShip={(shipId) => {
+        try {
+          fleet.removeShip(BigInt(shipId));
+        } catch {
+          // Not a valid ship id (e.g. a drag originating outside this modal) — ignore.
+        }
+      }}
     />
   );
 }

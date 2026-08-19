@@ -19,16 +19,21 @@ const CANVAS_MIN_HEIGHT = 560;
 
 // The depth-derived column is usually right, but some nodes are narrative
 // shortcuts where raw prerequisite depth undersells how far along the
-// branch they actually are — node 8 "The Gauntlet" skips ahead to node 9,
-// bypassing the mainline (see campaignNodes.ts), so it reads better sitting
-// further right than its shallow prerequisite depth would place it. Keyed
-// by node id, values are 1-indexed (column 1 = leftmost) to match how
-// columns are talked about outside the code. Only affects where the node
-// itself renders — other nodes' depths (computed from their prerequisites)
-// are unaffected, since this is applied after depth calculation, not inside
-// it.
+// branch they actually are — nodes 22-24 (the shortcut chain, harder than
+// the mainline node it parallels — see campaignNodes.ts) all branch
+// directly off node 2, so their raw depth places them right at the start of
+// the graph even though they're meant to read as a late-game alternate path
+// that reconverges with the mainline at node 25. Bumped to sit alongside
+// mainline nodes 13-15, ending one column before node 25's convergence
+// point. Keyed by node id, values are 1-indexed (column 1 = leftmost) to
+// match how columns are talked about outside the code. Only affects where
+// the node itself renders — other nodes' depths (computed from their
+// prerequisites) are unaffected, since this is applied after depth
+// calculation, not inside it.
 const MANUAL_COLUMN_OVERRIDES: Record<number, number> = {
-  8: 4,
+  22: 13,
+  23: 14,
+  24: 15,
 };
 
 interface NodePosition {
@@ -85,7 +90,7 @@ function groupNodesByDepth(nodes: CampaignGraphNode[]): CampaignGraphNode[][] {
 
 // Column/tier layout: nodes sharing a depth stack vertically, centered
 // against the tallest column, in id order. This is a plain BFS-by-depth,
-// not a real graph-layout algorithm — the campaign is small (10 nodes
+// not a real graph-layout algorithm — the campaign is small (30 nodes
 // today) and doesn't justify pulling in a layout library — but it gives
 // every node a real {x, y}, which is what lets the jump-lane connectors
 // below be drawn as actual lines instead of text. `colWidth` is picked by
@@ -152,6 +157,11 @@ function Starfield() {
 
 interface JumpLanesProps {
   layout: GraphLayout;
+  /** Highlights the incoming edge(s) into this node in yellow when it's
+   * selected and not yet completed — "here's the route to what you're
+   * about to fly." Cleared missions don't need the callout (their lanes
+   * are already the solid green "done" color). */
+  selectedNodeId: bigint | null;
 }
 
 // Prerequisite connectors as actual SVG lines, drawn for every edge on the
@@ -174,11 +184,12 @@ interface JumpLanesProps {
 // visually implying a connection that doesn't exist on-chain — bowing the
 // line clear of the direct path avoids that regardless of exact node
 // positions.
-function JumpLanes({ layout }: JumpLanesProps) {
+function JumpLanes({ layout, selectedNodeId }: JumpLanesProps) {
   const edges: React.ReactNode[] = [];
   layout.columns.flat().forEach((node) => {
     const to = layout.positions.get(node.id.toString());
     if (!to) return;
+    const isSelectedRoute = selectedNodeId != null && node.id === selectedNodeId && !node.completed;
     node.prerequisites.forEach((prereqId) => {
       const prereq = layout.columns.flat().find((n) => n.id === prereqId);
       const from = layout.positions.get(prereqId.toString());
@@ -199,6 +210,26 @@ function JumpLanes({ layout }: JumpLanesProps) {
         opacity: isCleared || isFrontier ? 0.9 : 0.8,
         fill: "none",
       };
+      // Neon-tube treatment for the route into the currently selected,
+      // not-yet-completed node: a wide, pulsing, blurred amber halo
+      // (`campaign-route-glow`'s animated drop-shadow) underneath a bright,
+      // crisp core stroke, both drawn before the normal lane line so its
+      // dash pattern/frontier color still reads on top.
+      const glowOuterProps = {
+        stroke: "var(--color-amber)",
+        strokeWidth: 9,
+        strokeLinecap: "round" as const,
+        opacity: 0.9,
+        fill: "none",
+        className: "campaign-route-glow",
+      };
+      const glowCoreProps = {
+        stroke: "#fff3d6",
+        strokeWidth: 2.5,
+        strokeLinecap: "round" as const,
+        opacity: 0.95,
+        fill: "none",
+      };
 
       const fromY = from.y + CAMPAIGN_NODE_CIRCLE_OFFSET_Y;
       const toY = to.y + CAMPAIGN_NODE_CIRCLE_OFFSET_Y;
@@ -212,14 +243,35 @@ function JumpLanes({ layout }: JumpLanesProps) {
         // has less going on — down if the line's natural midpoint sits in
         // the top half of the canvas, up otherwise.
         const bow = midY < layout.height / 2 ? ROW_HEIGHT * 0.6 : -ROW_HEIGHT * 0.6;
-        edges.push(
-          <path
-            key={key}
-            d={`M ${from.x} ${fromY} Q ${midX} ${midY + bow} ${to.x} ${toY}`}
-            {...commonProps}
-          />,
-        );
+        const d = `M ${from.x} ${fromY} Q ${midX} ${midY + bow} ${to.x} ${toY}`;
+        if (isSelectedRoute) {
+          edges.push(<path key={`${key}-glow-outer`} d={d} {...glowOuterProps} />);
+          edges.push(<path key={`${key}-glow-core`} d={d} {...glowCoreProps} />);
+        }
+        edges.push(<path key={key} d={d} {...commonProps} />);
       } else {
+        if (isSelectedRoute) {
+          edges.push(
+            <line
+              key={`${key}-glow-outer`}
+              x1={from.x}
+              y1={fromY}
+              x2={to.x}
+              y2={toY}
+              {...glowOuterProps}
+            />,
+          );
+          edges.push(
+            <line
+              key={`${key}-glow-core`}
+              x1={from.x}
+              y1={fromY}
+              x2={to.x}
+              y2={toY}
+              {...glowCoreProps}
+            />,
+          );
+        }
         edges.push(
           <line key={key} x1={from.x} y1={fromY} x2={to.x} y2={toY} {...commonProps} />,
         );
@@ -400,7 +452,7 @@ export function CampaignGraph() {
               className="absolute"
               style={{ left: CANVAS_PADDING, top: contentTop, width: layout.width, height: layout.height }}
             >
-              <JumpLanes layout={layout} />
+              <JumpLanes layout={layout} selectedNodeId={selectedNodeId} />
               {layout.columns.flat().map((node) => {
                 const pos = layout.positions.get(node.id.toString());
                 if (!pos) return null;

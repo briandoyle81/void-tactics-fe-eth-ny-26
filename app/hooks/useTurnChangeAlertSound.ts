@@ -1,5 +1,20 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 
+/** Shared by every "it's your turn" cue — the transition-based hook below,
+ * and GameDisplay.tsx/GameDisplayWeb2.tsx's own "still my turn after my
+ * submitted move was confirmed" trigger (a same-turn multi-move sequence
+ * never dips isMyTurn false->true, so that case can't rely on the hook's
+ * transition detection and calls this directly instead). */
+export function playTurnAlertSound() {
+  const audio = new Audio("/sound/alert.mp3");
+  audio.volume = 0.5;
+  audio.play().catch((err) => {
+    // Most commonly a browser autoplay-policy rejection — surfaced so
+    // it's diagnosable instead of a silent, unexplained no-op.
+    console.warn("[playTurnAlertSound] audio.play() failed:", err);
+  });
+}
+
 /**
  * Shared between GameDisplay.tsx (web3) and GameDisplayWeb2.tsx (web2) —
  * plays an alert sound only when the turn changes from opponent to player,
@@ -24,19 +39,7 @@ export function useTurnChangeAlertSound(
 
   useEffect(() => {
     if (!readOnly && isMyTurn && identity && prevTurnRef.current === false) {
-      const audio = new Audio("/sound/alert.mp3");
-      audio.volume = 0.5;
-      audio.play().catch((err) => {
-        // Most commonly a browser autoplay-policy rejection — surfaced so
-        // it's diagnosable instead of a silent, unexplained no-op.
-        console.warn("[useTurnChangeAlertSound] audio.play() failed:", err);
-      });
-    } else if (!readOnly) {
-      console.log("[useTurnChangeAlertSound] skipped:", {
-        isMyTurn,
-        hasIdentity: !!identity,
-        prevTurn: prevTurnRef.current,
-      });
+      playTurnAlertSound();
     }
     prevTurnRef.current = isMyTurn;
     // prevTurnRef is a stable ref (either internal or caller-provided); it

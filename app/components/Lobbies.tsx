@@ -2141,6 +2141,13 @@ const Lobbies: React.FC = () => {
               isCreator={isCreator}
               shipListItems={shipListItems}
               mapDisplay={mapDisplay}
+              onDropShip={(shipId) => {
+                try {
+                  removeShipFromFleet(BigInt(shipId));
+                } catch {
+                  // Not a valid ship id (e.g. a drag originating outside this modal) — ignore.
+                }
+              }}
             />
           );
         })()}

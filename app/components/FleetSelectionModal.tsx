@@ -97,6 +97,10 @@ export interface FleetSelectionModalProps {
   isCreator: boolean;
   shipListItems: FleetShipListItemData[];
   mapDisplay: ReactNode;
+  /** Dragging a placed ship off the grid and dropping it here unplaces it —
+   * see FleetShipListPanel's onDropShip for the mechanics. Omit to leave
+   * the list a drag source only (removal still works via click-to-toggle). */
+  onDropShip?: (shipId: string) => void;
 }
 
 export function FleetSelectionModal({
@@ -132,6 +136,7 @@ export function FleetSelectionModal({
   isCreator,
   shipListItems,
   mapDisplay,
+  onDropShip,
 }: FleetSelectionModalProps) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[400]">
@@ -295,7 +300,7 @@ export function FleetSelectionModal({
             {isCreator ? (
               <>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} />
+                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
                 )}
                 <div
                   className={`${participantHasFleet ? "w-full" : "w-3/4"} h-full flex items-center justify-center`}
@@ -311,7 +316,7 @@ export function FleetSelectionModal({
                   {mapDisplay}
                 </div>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} />
+                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
                 )}
               </>
             )}

@@ -34,7 +34,8 @@ import {
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
-import { GameResultModal } from "./GameResultModal";
+import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { RoundStartModal } from "./RoundStartModal";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
 import { TransactionButton } from "./TransactionButton";
 import { toast } from "react-hot-toast";
@@ -73,7 +74,7 @@ import {
 import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
-import { useTurnChangeAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
@@ -626,8 +627,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Get special range data for the selected ship
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
   const specialType = selectedShip?.equipment.special || 0;
-  const { specialRange } = useSpecialRange(specialType);
-  const { data: specialData } = useSpecialData(specialType);
+  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const { specialRange } = useSpecialRange(specialType, selectedShipVariant);
+  const { data: specialData } = useSpecialData(specialType, selectedShipVariant);
 
   // Get ship attributes by ship ID from game data
   const getShipAttributes = React.useCallback(
@@ -657,8 +659,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const draggedShipForSpecialRange =
     draggedShipId != null ? shipMap.get(draggedShipId) : null;
   const draggedShipSpecialType = draggedShipForSpecialRange?.equipment.special ?? 0;
+  const draggedShipVariant = draggedShipForSpecialRange?.traits.variant ?? 0;
   const { specialRange: draggedShipSpecialRange } = useSpecialRange(
     draggedShipId != null ? draggedShipSpecialType : 0,
+    draggedShipVariant,
   );
 
   // Build a set of shipIds that have already moved this round (from game data)
@@ -1146,6 +1150,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setWeaponTypeFromGrid,
   ]);
 
+  // Track previous turn state — shared with useTurnChangeAlertSound below
+  // (which relies on this effect running first and updating the ref before
+  // it reads it — see that hook's doc) and with the "still my turn" cue
+  // right below, which stamps this ref itself to suppress the hook's own
+  // transition detection from double-firing the same cue a render later.
+  const prevTurnRef = React.useRef<boolean | null>(null);
+
   // Clear optimistic last move once the contract state catches up.
   React.useEffect(() => {
     if (!optimisticLastMove) return;
@@ -1167,12 +1178,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       // Clear local proposal UI now (not immediately on submit) so the
       // previewed board state remains visible during the sync gap.
       interaction.handleCancelMove();
+      // A same-turn multi-move sequence (still my turn after this move)
+      // plays the cue directly here rather than waiting on
+      // useTurnChangeAlertSound's own false->true transition detection —
+      // that transition (isMyTurnEffective dipped false for the submit's
+      // "awaiting sync" window and is about to flip back true next render)
+      // would otherwise ALSO fire a render later and double the sound.
+      // Stamping the ref now marks that transition as already handled so
+      // the hook's own effect sees prevTurnRef.current === true next render
+      // and stays silent — this also correctly skips the "opponent just
+      // finished" cleanup in the effect below, since no real hand-off
+      // happened here.
+      if (!readOnly && game.turnState.currentTurn === address) {
+        playTurnAlertSound();
+        prevTurnRef.current = true;
+      }
     }
     // interaction is a fresh object every render; depend on the stable handler only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     optimisticLastMove,
     game.lastMove,
+    game.turnState.currentTurn,
+    address,
+    readOnly,
     optimisticLastMove?.shipId,
     optimisticLastMove?.actionType,
     optimisticLastMove?.targetShipId,
@@ -1294,10 +1323,60 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
-  // Track previous turn state — shared with the pending-transaction-clearing
-  // effect below, which relies on this hook's effect running first and
-  // updating the ref before it reads it (see useTurnChangeAlertSound's doc).
-  const prevTurnRef = React.useRef<boolean | null>(null);
+  // Round-start announcement — fires on the very first render (game start)
+  // and again every time currentRound changes (new round). Gated on
+  // !isGameOver so the last round's end doesn't pop this alongside (or
+  // instead of) GameResultModal. Also captures how many points each side
+  // gained during the round that just ended, by diffing the cumulative
+  // score against a snapshot taken the last time a round started —
+  // undefined on the very first showing (game start), where there's no
+  // prior round to diff against.
+  const [roundStartInfo, setRoundStartInfo] = React.useState<{
+    round: bigint;
+    isMyTurnFirst: boolean;
+    myRoundScore?: number;
+    opponentRoundScore?: number;
+    myScore: number;
+    opponentScore: number;
+    maxScore?: number;
+  } | null>(null);
+  const prevRoundForModalRef = React.useRef<bigint | undefined>(undefined);
+  const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
+    undefined,
+  );
+  React.useEffect(() => {
+    if (isGameOver) return;
+    const round = game.turnState.currentRound;
+    if (prevRoundForModalRef.current === round) return;
+    prevRoundForModalRef.current = round;
+
+    const isCreatorNow = game.metadata.creator === address;
+    const myScoreNow = Number(isCreatorNow ? game.creatorScore : game.joinerScore);
+    const opponentScoreNow = Number(isCreatorNow ? game.joinerScore : game.creatorScore);
+    const maxScoreNow = Number(game.maxScore);
+
+    const prevScores = prevRoundScoreRef.current;
+    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+
+    setRoundStartInfo({
+      round,
+      isMyTurnFirst: game.turnState.currentTurn === address,
+      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+      myScore: myScoreNow,
+      opponentScore: opponentScoreNow,
+      maxScore: maxScoreNow,
+    });
+  }, [
+    game.turnState.currentRound,
+    game.turnState.currentTurn,
+    game.creatorScore,
+    game.joinerScore,
+    game.maxScore,
+    game.metadata.creator,
+    address,
+    isGameOver,
+  ]);
 
   // Play alert sound when it becomes the player's turn
   useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
@@ -2076,6 +2155,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const gameScoreData = toGameScoreData(game, address);
   const { myScore, opponentScore, maxScore } = gameScoreData;
+
+  // Best-effort loss explanation for GameResultModal's mission copy — only
+  // meaningful for single-player, since PvP defeats just show the score
+  // (see GameResultModal.tsx's MissionLossReason doc). "fled" is omitted
+  // here: single-player has no whole-match flee (FleeSafetySwitch is never
+  // shown for it below), only the reliably-inferrable "enemyScore" (they
+  // hit the target first) vs. the fallback "fleetDestroyed" (covers both
+  // genuine combat losses and the rare all-ships-retreated-individually
+  // case — no on-chain field distinguishes the two).
+  const missionLossReason: MissionLossReason | undefined =
+    isSinglePlayerGame && gameWinnerResult === "opponent"
+      ? opponentScore >= maxScore
+        ? "enemyScore"
+        : "fleetDestroyed"
+      : undefined;
   const mobileTurnLabel =
     game.metadata.winner !== "0x0000000000000000000000000000000000000000"
       ? game.metadata.winner === address
@@ -2694,7 +2788,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           <GameResultModal
             isVictory={gameWinnerResult === "me"}
             myScore={myScore}
+            opponentScore={opponentScore}
             maxScore={maxScore}
+            missionLossReason={missionLossReason}
             nodeId={
               isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
                 ? nodeIdForGame
@@ -2709,6 +2805,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               }
               onBack();
             }}
+          />
+        )}
+        {roundStartInfo && !isGameOver && (
+          <RoundStartModal
+            key={roundStartInfo.round.toString()}
+            round={roundStartInfo.round}
+            isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+            myRoundScore={roundStartInfo.myRoundScore}
+            opponentRoundScore={roundStartInfo.opponentRoundScore}
+            myScore={roundStartInfo.myScore}
+            opponentScore={roundStartInfo.opponentScore}
+            maxScore={roundStartInfo.maxScore}
+            onClose={() => setRoundStartInfo(null)}
           />
         )}
       </div>
@@ -3704,7 +3813,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         <GameResultModal
           isVictory={gameWinnerResult === "me"}
           myScore={myScore}
+          opponentScore={opponentScore}
           maxScore={maxScore}
+          missionLossReason={missionLossReason}
           nodeId={
             isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
               ? nodeIdForGame
@@ -3719,6 +3830,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             }
             onBack();
           }}
+        />
+      )}
+      {roundStartInfo && !isGameOver && (
+        <RoundStartModal
+          key={roundStartInfo.round.toString()}
+          round={roundStartInfo.round}
+          isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+          myRoundScore={roundStartInfo.myRoundScore}
+          opponentRoundScore={roundStartInfo.opponentRoundScore}
+          myScore={roundStartInfo.myScore}
+          opponentScore={roundStartInfo.opponentScore}
+          maxScore={roundStartInfo.maxScore}
+          onClose={() => setRoundStartInfo(null)}
         />
       )}
     </div>

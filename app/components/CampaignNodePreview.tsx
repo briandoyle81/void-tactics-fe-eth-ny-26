@@ -91,7 +91,11 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
             }
           }}
           disabled={!node.unlocked || !isConnected}
-          className="mt-6 self-start border-2 border-phosphor-green px-4 py-2 text-sm font-bold tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className={`mt-6 self-start border-2 px-4 py-2 text-sm font-bold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            activeGameId != null
+              ? "border-warning-red text-warning-red hover:bg-warning-red/10"
+              : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+          }`}
           style={{ borderRadius: 0 }}
           title={
             !isConnected
@@ -101,7 +105,11 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
                 : undefined
           }
         >
-          {activeGameId != null ? "[ENTER COMBAT]" : "[LAUNCH MISSION]"}
+          {activeGameId != null
+            ? "[ENTER COMBAT]"
+            : node.completed
+              ? "[REPLAY MISSION]"
+              : "[LAUNCH MISSION]"}
         </button>
       </div>
 

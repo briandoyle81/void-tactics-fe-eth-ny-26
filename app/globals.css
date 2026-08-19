@@ -1155,6 +1155,20 @@ select:focus {
   }
 }
 
+/* Soft glow pulse on the route line into the currently selected,
+   not-yet-completed campaign node. */
+@keyframes campaign-route-glow-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px rgba(255, 210, 63, 0.95))
+      drop-shadow(0 0 3px rgba(255, 210, 63, 0.7));
+  }
+  50% {
+    filter: drop-shadow(0 0 1.5px rgba(255, 210, 63, 1))
+      drop-shadow(0 0 3px rgba(255, 210, 63, 0.95));
+  }
+}
+
 /* Selection reticle corner-bracket pulse. */
 @keyframes campaign-reticle-pulse {
   0%,
@@ -1182,11 +1196,18 @@ select:focus {
   animation: campaign-reticle-pulse 1.6s ease-in-out infinite;
 }
 
+.campaign-route-glow {
+  filter: drop-shadow(0 0 1px rgba(255, 210, 63, 1))
+    drop-shadow(0 0 3px rgba(255, 210, 63, 0.85));
+  animation: campaign-route-glow-pulse 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .campaign-starfield-twinkle,
   .campaign-lane-active,
   .campaign-node-unlocked,
-  .campaign-reticle {
+  .campaign-reticle,
+  .campaign-route-glow {
     animation: none !important;
   }
 }
