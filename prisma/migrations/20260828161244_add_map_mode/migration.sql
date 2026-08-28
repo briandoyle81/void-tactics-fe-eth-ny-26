@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Map" ADD COLUMN     "mode" INTEGER NOT NULL DEFAULT 2;

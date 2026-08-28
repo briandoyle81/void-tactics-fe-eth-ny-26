@@ -245,7 +245,7 @@ const Info: React.FC = () => {
                   !hasClaimStatusError &&
                   isEligible &&
                   (appMode === "web2" ? (
-                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} />
+                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} analyticsSurface="info" />
                   ) : (
                     <FreeShipClaimButton
                       isEligible={isEligible}
@@ -372,6 +372,7 @@ const Info: React.FC = () => {
               seedOffset={0}
               align="start"
               side="allied"
+              forcedVariant={1}
             />
           </div>
           <div
@@ -383,6 +384,7 @@ const Info: React.FC = () => {
               align="start"
               side="enemy"
               flipLayout={true}
+              forcedVariant={2}
             />
           </div>
         </div>

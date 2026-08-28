@@ -17,6 +17,18 @@ import PvPMatchContract from "../contracts/artifacts/DeployModule#PvPMatch.json"
 import NodeMapContract from "../contracts/artifacts/DeployModule#NodeMap.json";
 import AIShipsContract from "../contracts/artifacts/DeployModule#AIShips.json";
 import ShipsRouterContract from "../contracts/artifacts/DeployModule#ShipsRouter.json";
+import DroneStorefrontContract from "../contracts/artifacts/DeployModule#DroneStorefront.json";
+import FreeShipClaimContract from "../contracts/artifacts/DeployModule#FreeShipClaim.json";
+import RamResolverContract from "../contracts/artifacts/DeployModule#RamResolver.json";
+import RepairResolverContract from "../contracts/artifacts/DeployModule#RepairResolver.json";
+import DroneNamesContract from "../contracts/artifacts/DeployModule#DroneNames.json";
+import VariantPurchaseGateContract from "../contracts/artifacts/DeployModule#VariantPurchaseGate.json";
+import ShatteredHiveMedalContract from "../contracts/artifacts/DeployModule#ShatteredHiveMedal.json";
+import RoguelikeNodeMapContract from "../contracts/artifacts/DeployModule#RoguelikeNodeMap.json";
+import RoguelikeRunContract from "../contracts/artifacts/DeployModule#RoguelikeRun.json";
+import RoguelikeMatchContract from "../contracts/artifacts/DeployModule#RoguelikeMatch.json";
+import RoguelikeResupplyContract from "../contracts/artifacts/DeployModule#RoguelikeResupply.json";
+import RandomManagerContract from "../contracts/artifacts/DeployModule#RandomManager.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -61,6 +73,28 @@ const FLOW_TESTNET_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ?? ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ?? ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ?? ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const RONIN_SAIGON_CONTRACT_ADDRESSES = {
@@ -88,6 +122,30 @@ const RONIN_SAIGON_CONTRACT_ADDRESSES = {
   TUTORIAL_CLAIM:
     RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
     ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ??
+    ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ??
+    ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
@@ -100,6 +158,39 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   NODE_MAP: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeMap"] ?? ZERO_ADDRESS,
   AI_SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#AIShips"] ?? ZERO_ADDRESS,
   SHIPS_ROUTER: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipsRouter"] ?? ZERO_ADDRESS,
+  ROGUELIKE_NODE_MAP:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeNodeMap"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_RUN:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeRun"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_MATCH:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeMatch"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_RESUPPLY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeResupply"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ??
+    ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ??
+    ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
   FLEETS:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Fleets"] ?? ZERO_ADDRESS,
   LOBBIES:
@@ -122,6 +213,9 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
 } as const;
 
@@ -149,6 +243,28 @@ const XAI_TESTNET_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
+    ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ?? ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ?? ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
 } as const;
 
@@ -205,6 +321,18 @@ export const CONTRACT_ABIS = {
   NODE_MAP: NodeMapContract.abi,
   AI_SHIPS: AIShipsContract.abi,
   SHIPS_ROUTER: ShipsRouterContract.abi,
+  DRONE_STOREFRONT: DroneStorefrontContract.abi,
+  FREE_SHIP_CLAIM: FreeShipClaimContract.abi,
+  RAM_RESOLVER: RamResolverContract.abi,
+  REPAIR_RESOLVER: RepairResolverContract.abi,
+  DRONE_NAMES: DroneNamesContract.abi,
+  VARIANT_PURCHASE_GATE: VariantPurchaseGateContract.abi,
+  SHATTERED_HIVE_MEDAL: ShatteredHiveMedalContract.abi,
+  ROGUELIKE_NODE_MAP: RoguelikeNodeMapContract.abi,
+  ROGUELIKE_RUN: RoguelikeRunContract.abi,
+  ROGUELIKE_MATCH: RoguelikeMatchContract.abi,
+  ROGUELIKE_RESUPPLY: RoguelikeResupplyContract.abi,
+  RANDOM_MANAGER: RandomManagerContract.abi,
 } as const;
 
 // Contract types for wagmi

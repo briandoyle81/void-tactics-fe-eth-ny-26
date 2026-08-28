@@ -10,7 +10,7 @@ import { useFleetPlacement } from "./useFleetPlacement";
 // wrapper around the shared useFleetPlacement (see feedback_no_parallel_
 // components memory for why this used to be its own parallel copy of
 // Lobbies.tsx's logic, and why that was wrong).
-export function useNodeFleetSelection(costLimit: number) {
+export function useNodeFleetSelection(costLimit: number, requiredVariant?: number) {
   // Pinned to Base Sepolia — single-player only exists there, so the
   // player's ships/costs-version must come from that chain regardless of
   // what the header network picker is set to (see useOwnedShips.ts).
@@ -26,6 +26,7 @@ export function useNodeFleetSelection(costLimit: number) {
     costLimit,
     costsVersion: globalCostsVersion,
     isCreatorSide: true,
+    requiredVariant,
   });
 
   return { ...fleet, shipsLoading };

@@ -9,6 +9,7 @@ import { renderAft } from "./renderers/RenderAft";
 import { renderWeapon } from "./renderers/RenderWeapon";
 import { renderBody } from "./renderers/RenderBody";
 import { renderFore } from "./renderers/RenderFore";
+import { renderShipV2Body } from "./ImageRendererV2";
 
 // IPFS URIs for different ship states
 const UNCONSTRUCTED_IMAGE =
@@ -44,40 +45,46 @@ export function renderShip(ship: ShipVisual): string {
     // For constructed and non-destroyed ships, render the SVG
     let svg = BASE_SVG;
 
-    // Call each renderer in sequence from bottom to top
-    try {
-      svg += renderSpecial(ship); // Special effects (bottom)
-    } catch (error) {
-      console.error("Error in renderSpecial:", error);
-      throw error;
-    }
+    if (ship.traits.variant === 2) {
+      // Variant 2 ("Drone" faction) has its own, fully distinct rendering
+      // pipeline — see ImageRendererV2.ts / renderersV2/*.
+      svg += renderShipV2Body(ship);
+    } else {
+      // Call each renderer in sequence from bottom to top
+      try {
+        svg += renderSpecial(ship); // Special effects (bottom)
+      } catch (error) {
+        console.error("Error in renderSpecial:", error);
+        throw error;
+      }
 
-    try {
-      svg += renderAft(ship); // Aft section
-    } catch (error) {
-      console.error("Error in renderAft:", error);
-      throw error;
-    }
+      try {
+        svg += renderAft(ship); // Aft section
+      } catch (error) {
+        console.error("Error in renderAft:", error);
+        throw error;
+      }
 
-    try {
-      svg += renderWeapon(ship); // Weapons
-    } catch (error) {
-      console.error("Error in renderWeapon:", error);
-      throw error;
-    }
+      try {
+        svg += renderWeapon(ship); // Weapons
+      } catch (error) {
+        console.error("Error in renderWeapon:", error);
+        throw error;
+      }
 
-    try {
-      svg += renderBody(ship); // Body
-    } catch (error) {
-      console.error("Error in renderBody:", error);
-      throw error;
-    }
+      try {
+        svg += renderBody(ship); // Body
+      } catch (error) {
+        console.error("Error in renderBody:", error);
+        throw error;
+      }
 
-    try {
-      svg += renderFore(ship); // Fore section (top)
-    } catch (error) {
-      console.error("Error in renderFore:", error);
-      throw error;
+      try {
+        svg += renderFore(ship); // Fore section (top)
+      } catch (error) {
+        console.error("Error in renderFore:", error);
+        throw error;
+      }
     }
 
     // Close the SVG

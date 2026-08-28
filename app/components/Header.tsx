@@ -9,6 +9,8 @@ import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import UTCPurchaseModal from "./UTCPurchaseModal";
 import UTCPurchaseModalWeb2 from "./UTCPurchaseModalWeb2";
+import DroneStorefront from "./DroneStorefront";
+import DroneStorefrontWeb2 from "./DroneStorefrontWeb2";
 import {
   DEFAULT_CHAIN_ID,
   getSelectedChainId,
@@ -437,8 +439,10 @@ function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
 const Header: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
+  const [showDroneStorefront, setShowDroneStorefront] = useState(false);
   const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] =
     useState(false);
+  const [showDroneStorefrontWeb2, setShowDroneStorefrontWeb2] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -757,7 +761,7 @@ const Header: React.FC = () => {
     username: web2Username,
     email: web2Email,
   } = useCurrentUser();
-  const { creditBalance } = useUserBalanceWeb2();
+  const { creditBalance, decBalance } = useUserBalanceWeb2();
   const appMode = useAppMode();
 
   // True once a wallet is connected AND a Web2 session is also active —
@@ -930,6 +934,37 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setShowDroneStorefrontWeb2(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
+                      style={{
+                        backgroundColor: "var(--color-near-black)",
+                        borderColor: "var(--color-cyan)",
+                        borderTopColor: "var(--color-steel)",
+                        borderLeftColor: "var(--color-steel)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-slate)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-near-black)";
+                      }}
+                      title="Drone Energy Cores — click to view Drone Storefront"
+                    >
+                      <span
+                        className="text-xs font-bold tracking-wider uppercase"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                          color: "var(--color-cyan)",
+                        }}
+                      >
+                        {decBalance} DC
+                      </span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setShowUTCPurchaseModalWeb2(true)}
                       className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
                       style={{
@@ -1031,14 +1066,25 @@ const Header: React.FC = () => {
 
                       {/* UTC Balance and Network */}
                       <div className="flex items-center gap-2 justify-between md:justify-start">
-                        {/* Drone Cores Balance */}
-                        <div
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
+                        {/* Drone Cores Balance - Clickable (opens Drone Storefront) */}
+                        <button
+                          onClick={() => setShowDroneStorefront(true)}
+                          disabled={!isDroneEnergyCoresDeployed}
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-60"
                           style={{
                             backgroundColor: "var(--color-near-black)",
                             borderColor: "var(--color-cyan)",
                             borderTopColor: "var(--color-steel)",
                             borderLeftColor: "var(--color-steel)",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isDroneEnergyCoresDeployed) return;
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-near-black)";
                           }}
                         >
                           <span
@@ -1055,7 +1101,7 @@ const Header: React.FC = () => {
                                 : "0.00 DC"
                               : "N/A DC"}
                           </span>
-                        </div>
+                        </button>
                         {/* UTC Balance - Clickable */}
                         <button
                           onClick={() => setShowUTCPurchaseModal(true)}
@@ -1307,6 +1353,12 @@ const Header: React.FC = () => {
         <UTCPurchaseModalWeb2
           onClose={() => setShowUTCPurchaseModalWeb2(false)}
         />
+      )}
+      {showDroneStorefront && (
+        <DroneStorefront onClose={() => setShowDroneStorefront(false)} />
+      )}
+      {showDroneStorefrontWeb2 && (
+        <DroneStorefrontWeb2 onClose={() => setShowDroneStorefrontWeb2(false)} />
       )}
     </header>
   );

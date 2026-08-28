@@ -34,9 +34,11 @@ import {
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
+import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
 import { RoundStartModal } from "./RoundStartModal";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
+import { useRoguelikeAITurnLoop } from "../hooks/useRoguelikeAITurnLoop";
 import { TransactionButton } from "./TransactionButton";
 import { toast } from "react-hot-toast";
 import { useTransaction } from "../providers/TransactionContext";
@@ -60,6 +62,7 @@ import {
   type GameEventsShipInfo,
 } from "./GameEvents";
 import { GameLastMovePanel } from "./GameLastMovePanel";
+import { GameReplayControls, GameReplayBanner } from "./GameReplayControls";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -696,18 +699,31 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Single-player games are regular Game sessions where the "opponent" is
   // the SinglePlayerMatch contract — same read APIs as PvP, just a
-  // different currentTurn address to watch for.
+  // different currentTurn address to watch for. Roguelike run combat
+  // (docs/update/Frontend_Update_Guide_Roguelike_Campaign.md) is the same
+  // shape again, just orchestrated by RoguelikeMatch instead — a third
+  // case, not a variant of isSinglePlayerGame (different contract entirely,
+  // different "return to" destination).
   const isSinglePlayerGame =
     game.metadata.orchestrator?.toLowerCase() ===
     SINGLE_PLAYER_MATCH_ADDRESS.toLowerCase();
+  const isRoguelikeGame =
+    game.metadata.orchestrator?.toLowerCase() ===
+    ROGUELIKE_MATCH_ADDRESS.toLowerCase();
+  const isVsAIGame = isSinglePlayerGame || isRoguelikeGame;
+  const aiOrchestratorAddress = isRoguelikeGame
+    ? ROGUELIKE_MATCH_ADDRESS
+    : SINGLE_PLAYER_MATCH_ADDRESS;
   const isAITurn =
-    isSinglePlayerGame &&
+    isVsAIGame &&
     game.turnState.currentTurn?.toLowerCase() ===
-      SINGLE_PLAYER_MATCH_ADDRESS.toLowerCase();
+      aiOrchestratorAddress.toLowerCase();
 
   // End-of-game result screen (GameResultModal) — node id lookup only
-  // matters for single-player, where it drives the mission-appropriate
-  // copy/title and the "Return to Campaign" CTA.
+  // matters for the original single-player campaign, where it drives the
+  // mission-appropriate copy/title and the "Return to Campaign" CTA.
+  // Roguelike games have no equivalent node-id lookup (they're not tied to
+  // NodeMap at all) — see the isRoguelikeGame-gated CTA below instead.
   const { data: nodeIdForGame } = useGameIdToNodeId(
     isSinglePlayerGame ? game.metadata.gameId : undefined,
   );
@@ -719,25 +735,37 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     gameData,
     refetchGame,
     onRefetch: () => interaction.setTargetShipId(null),
-    isSinglePlayerGame,
+    isSinglePlayerGame: isVsAIGame,
   });
 
-  const aiTurnLoop = useAITurnLoop({
+  const lastMoveSignal = game.lastMove
+    ? `${game.lastMove.shipId}-${game.lastMove.timestamp}`
+    : "";
+
+  // Both loops are always mounted (rules of hooks) — each is a no-op unless
+  // its own isAITurn flag is true, so only one is ever actually driving.
+  const singlePlayerAiTurnLoop = useAITurnLoop({
     gameId: game.metadata.gameId,
-    isAITurn,
+    isAITurn: isAITurn && !isRoguelikeGame,
     isGameOver,
-    lastMoveSignal: game.lastMove
-      ? `${game.lastMove.shipId}-${game.lastMove.timestamp}`
-      : "",
+    lastMoveSignal,
     refetchGame,
   });
+  const roguelikeAiTurnLoop = useRoguelikeAITurnLoop({
+    gameId: game.metadata.gameId,
+    isAITurn: isAITurn && isRoguelikeGame,
+    isGameOver,
+    lastMoveSignal,
+    refetchGame,
+  });
+  const aiTurnLoop = isRoguelikeGame ? roguelikeAiTurnLoop : singlePlayerAiTurnLoop;
 
   // "AI is taking its turn..." as a toast rather than a sticky banner over
   // the grid. Fixed id so successive updates (move count ticking up) replace
   // the same toast instead of stacking new ones.
   const aiTurnToastId = `ai-turn-${game.metadata.gameId.toString()}`;
   React.useEffect(() => {
-    if (!isSinglePlayerGame) return;
+    if (!isVsAIGame) return;
     if (aiTurnLoop.error) {
       toast.error(aiTurnLoop.error, { id: aiTurnToastId });
       return;
@@ -753,7 +781,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       toast.dismiss(aiTurnToastId);
     }
   }, [
-    isSinglePlayerGame,
+    isVsAIGame,
     aiTurnLoop.isAIThinking,
     aiTurnLoop.moveCount,
     aiTurnLoop.error,
@@ -987,6 +1015,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         );
       } else if (errorMessage.includes("PositionOccupied")) {
         toast.error("Target position is already occupied");
+      } else if (
+        errorMessage.includes("TargetNotFound") ||
+        errorMessage.includes("InvalidRamTarget")
+      ) {
+        toast.error(
+          "That target is no longer in the game — select a new target",
+        );
       } else {
         toast.error(`Transaction failed: ${errorMessage}`);
       }
@@ -2006,10 +2041,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   }}
                 >
                   <option value="weapon">
-                    {getMainWeaponName(ship.equipment.mainWeapon)}
+                    {getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant)}
                   </option>
                   <option value="special">
-                    {getSpecialName(ship.equipment.special)}
+                    {getSpecialName(ship.equipment.special, ship.traits.variant)}
                   </option>
                 </select>
               </div>
@@ -2165,7 +2200,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // genuine combat losses and the rare all-ships-retreated-individually
   // case — no on-chain field distinguishes the two).
   const missionLossReason: MissionLossReason | undefined =
-    isSinglePlayerGame && gameWinnerResult === "opponent"
+    isVsAIGame && gameWinnerResult === "opponent"
       ? opponentScore >= maxScore
         ? "enemyScore"
         : "fleetDestroyed"
@@ -2203,9 +2238,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         : "none";
   const mobileWeaponDisplayName =
     selectedShip && selectedWeaponType === "weapon"
-      ? getMainWeaponName(selectedShip.equipment.mainWeapon)
+      ? getMainWeaponName(selectedShip.equipment.mainWeapon, selectedShipVariant)
       : selectedShip && selectedWeaponType === "special"
-        ? getSpecialName(selectedShip.equipment.special)
+        ? getSpecialName(selectedShip.equipment.special, selectedShipVariant)
         : "Weapon";
   const tutorialDefaultLabel = isLandscapeMobile ? "Tap here" : "Click here";
 
@@ -2494,7 +2529,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         >
                           <span className="truncate">
                             {selectedShip
-                              ? getMainWeaponName(selectedShip.equipment.mainWeapon)
+                              ? getMainWeaponName(selectedShip.equipment.mainWeapon, selectedShipVariant)
                               : "Weapon"}
                           </span>
                         </button>
@@ -2520,7 +2555,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         >
                           <span className="truncate">
                             {selectedShip
-                              ? getSpecialName(selectedShip.equipment.special)
+                              ? getSpecialName(selectedShip.equipment.special, selectedShipVariant)
                               : "Special"}
                           </span>
                         </button>
@@ -2665,7 +2700,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       renderShipCard={renderShipCard}
                     />
                   </div>
-                {!isSinglePlayerGame &&
+                {!isVsAIGame &&
                 game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
                   <div
                     className={`pointer-events-none absolute top-1 z-[230] ${
@@ -2797,9 +2832,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 : undefined
             }
             onClose={() => setIsGameResultDismissed(true)}
-            primaryActionLabel={isSinglePlayerGame ? "Return to Campaign" : "Back to Games"}
+            primaryActionLabel={
+              isRoguelikeGame
+                ? "Return to Run"
+                : isSinglePlayerGame
+                  ? "Return to Campaign"
+                  : "Back to Games"
+            }
             onPrimaryAction={() => {
-              if (isSinglePlayerGame) {
+              if (isRoguelikeGame) {
+                window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+                document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+              } else if (isSinglePlayerGame) {
                 window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
                 document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
               }
@@ -2979,7 +3023,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                {gameWinnerResult === null && !isSinglePlayerGame && (
+                {gameWinnerResult === null && !isVsAIGame && (
                   <FleeSafetySwitch
                     onFlee={() => {
                       toast.success("You have fled the battle!");
@@ -3043,7 +3087,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 const canSeizeTurn =
                   !readOnly &&
                   !isMyTurnEffective &&
-                  !isSinglePlayerGame &&
+                  !isVsAIGame &&
                   isParticipant &&
                   turnSecondsLeft <= 0;
                 // Game.sol never self-enforces turnTime and
@@ -3055,7 +3099,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   !readOnly &&
                   isMyTurnEffective &&
                   isParticipant &&
-                  !isSinglePlayerGame &&
+                  !isVsAIGame &&
                   turnSecondsLeft <= 0;
 
                 return (
@@ -3335,17 +3379,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </div>
           {/* Replay banner */}
           {isReplaying && (
-            <div
-              className="pointer-events-none absolute top-1 left-1 z-[230] px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
-              style={{
-                ...STYLE_LABEL,
-                color: "var(--color-cyan)",
-                backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
-                border: "1px solid var(--color-steel)",
-              }}
-            >
-              {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
-            </div>
+            <GameReplayBanner
+              label={replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
+            />
           )}
           {/* Replay controls (bottom-left) */}
           <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
@@ -3387,57 +3423,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </div>
               )}
               {isReplaying && (
-                <div
-                  className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
-                  style={{
-                    borderColor: "var(--color-steel)",
-                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                    borderRadius: 0,
-                  }}
-                >
-                  <button
-                    onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
-                    disabled={replayStep <= -1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    ◀ Prev
-                  </button>
-                  <span className="text-[11px] font-mono text-text-muted min-w-[5rem] text-center">
-                    {replayStep < 0
+                <GameReplayControls
+                  stepLabel={
+                    replayStep < 0
                       ? "Start"
-                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`}
-                  </span>
-                  <button
-                    onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
-                    disabled={replayStep >= replayTurns.length - 1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() => setReplayAutoPlay((p) => !p)}
-                    disabled={replayStep >= replayTurns.length - 1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{
-                      ...STYLE_LABEL,
-                      borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
-                      color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
-                      backgroundColor: "transparent",
-                      borderRadius: 0,
-                    }}
-                  >
-                    {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
-                  </button>
-                  <button
-                    onClick={exitReplay}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    ✕ Exit
-                  </button>
-                </div>
+                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`
+                  }
+                  onPrev={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                  canPrev={replayStep > -1}
+                  onNext={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                  canNext={replayStep < replayTurns.length - 1}
+                  isPlaying={replayAutoPlay}
+                  onTogglePlay={() => setReplayAutoPlay((p) => !p)}
+                  onExit={exitReplay}
+                />
               )}
             </div>
           </div>
@@ -3650,12 +3649,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               >
                 {isMyTurnEffective
                   ? "Your turn"
-                  : isSinglePlayerGame
+                  : isVsAIGame
                     ? "AI's turn"
                     : "Opponent turn"}{" "}
                 | {formatSeconds(Math.max(0, turnSecondsLeft))}
               </div>
-              {!isSinglePlayerGame &&
+              {!isVsAIGame &&
               game.metadata.winner ===
                 "0x0000000000000000000000000000000000000000" ? (
                 <FleeSafetySwitch
@@ -3822,9 +3821,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               : undefined
           }
           onClose={() => setIsGameResultDismissed(true)}
-          primaryActionLabel={isSinglePlayerGame ? "Return to Campaign" : "Back to Games"}
+          primaryActionLabel={
+            isRoguelikeGame
+              ? "Return to Run"
+              : isSinglePlayerGame
+                ? "Return to Campaign"
+                : "Back to Games"
+          }
           onPrimaryAction={() => {
-            if (isSinglePlayerGame) {
+            if (isRoguelikeGame) {
+              window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+              document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+            } else if (isSinglePlayerGame) {
               window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
               document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
             }

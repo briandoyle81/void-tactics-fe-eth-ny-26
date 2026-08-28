@@ -3,9 +3,15 @@ import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { maybeAdvanceRound } from "@/app/lib/tournamentBracket";
 
-// Creator-only fallback (mirrors web3's admin "resolve as draw") for a
-// stuck match — e.g. a player abandons without triggering flee/timeout.
-// Body: { winnerId: string } — must be one of the match's two players.
+// Creator-only fallback (mirrors web3's admin "Resolve as Draw" — despite
+// the label, Tournament.sol's resolveDraw doesn't void the match: it's a
+// TEMPORARY deterministic tiebreak that awards the match to whichever
+// player registered first, docs/tournament.md §O-8) for a stuck match —
+// e.g. a player abandons without triggering flee/timeout.
+// Body: { winnerId?: string } — when omitted, auto-resolves to whichever of
+// the match's two players registered for the tournament earlier, matching
+// web3's actual behavior; when provided, must be one of the match's two
+// players (a web2-only superset letting the creator override the tiebreak).
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; matchId: string }> },
@@ -20,7 +26,8 @@ export async function POST(
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const { winnerId } = await req.json() as { winnerId?: string };
+  const body = await req.json().catch(() => ({}));
+  let { winnerId }: { winnerId?: string } = body;
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -34,6 +41,20 @@ export async function POST(
   }
   if (match.resolved) {
     return NextResponse.json({ error: "Match already resolved" }, { status: 409 });
+  }
+  if (!match.player1Id || !match.player2Id) {
+    return NextResponse.json({ error: "Match is missing a player" }, { status: 409 });
+  }
+
+  if (!winnerId) {
+    const registrants = await prisma.tournamentRegistrant.findMany({
+      where: { tournamentId, userId: { in: [match.player1Id, match.player2Id] } },
+      orderBy: { registeredAt: "asc" },
+    });
+    if (registrants.length === 0) {
+      return NextResponse.json({ error: "No registration record for either player" }, { status: 409 });
+    }
+    winnerId = registrants[0].userId;
   }
   if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
     return NextResponse.json({ error: "winnerId must be one of the match's players" }, { status: 400 });

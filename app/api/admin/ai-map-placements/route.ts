@@ -6,6 +6,9 @@ import { requireWeb2Admin } from "@/app/lib/auth";
 // PUT  { mapId, row, col, configId } — upsert a single placement (matches
 // web3's AIEncounters.setMapPlacement 1:1).
 // DELETE { mapId, row, col } — clear a placement.
+// POST { mapId, placements: [{row, col, configId}] } — replace every
+// placement for a map in one call, matching web3's setMapPlacements (whole-
+// array replace) 1:1 — used by the map-placement editor's single "Save".
 
 export async function GET(req: NextRequest) {
   const { error } = await requireWeb2Admin();
@@ -48,6 +51,47 @@ export async function PUT(req: NextRequest) {
     include: { config: true },
   });
   return NextResponse.json(placement);
+}
+
+export async function POST(req: NextRequest) {
+  const { error } = await requireWeb2Admin();
+  if (error) return error;
+
+  const body = await req.json();
+  const { mapId, placements } = body ?? {};
+
+  if (!Number.isInteger(mapId) || mapId <= 0) {
+    return NextResponse.json({ error: "Invalid mapId" }, { status: 400 });
+  }
+  if (!Array.isArray(placements)) {
+    return NextResponse.json({ error: "placements must be an array" }, { status: 400 });
+  }
+  for (const p of placements) {
+    if (!Number.isInteger(p?.row) || !Number.isInteger(p?.col) || !Number.isInteger(p?.configId)) {
+      return NextResponse.json({ error: "Each placement needs row/col/configId" }, { status: 400 });
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.aIMapPlacement.deleteMany({ where: { mapId } });
+    if (placements.length > 0) {
+      await tx.aIMapPlacement.createMany({
+        data: placements.map((p: { row: number; col: number; configId: number }) => ({
+          mapId,
+          row: p.row,
+          col: p.col,
+          configId: p.configId,
+        })),
+      });
+    }
+  });
+
+  const updated = await prisma.aIMapPlacement.findMany({
+    where: { mapId },
+    include: { config: true },
+    orderBy: [{ row: "asc" }, { col: "asc" }],
+  });
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(req: NextRequest) {

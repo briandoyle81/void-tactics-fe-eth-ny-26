@@ -4,10 +4,10 @@ import React from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { UTCPurchaseButton } from "./UTCPurchaseButton";
 import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
+import { UTCPurchaseTierCardContent } from "./UTCPurchaseTierCardContent";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
-import { useShipsRead } from "../hooks/useShipsContract";
 import type { Abi } from "viem";
 import { formatEther } from "viem";
 
@@ -23,18 +23,14 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
   const {
     tiers,
     pricesWei,
-    shipsPerTier,
     tierCount,
     isLoading: isLoadingTiers,
     purchaserDeployed,
   } = useShipPurchaserPurchaseInfo();
 
-  // purchaseUTCWithFlow mints tierShips[tier] * Ships.recycleReward() UTC —
-  // the same payout as buying that tier's ship pack and recycling every
-  // ship, not a 1:1 match with the FLOW price paid (see ShipPurchaser
-  // contract). Read live rather than assuming 1:1 so this stays correct as
-  // recycleReward or tierShips are admin-adjusted.
-  const { data: recycleReward } = useShipsRead("recycleReward");
+  // purchaseUTCWithFlow now mints UTC 1:1 with the FLOW price paid (see
+  // docs/update/Frontend_Update_Guide.md — ShipPurchaser no longer bases
+  // the mint on tierShips * Ships.recycleReward()).
 
   const { data: utcBalance, refetch: refetchUTCBalance } = useReadContract({
     address: CONTRACT_ADDRESSES.UNIVERSAL_CREDITS as `0x${string}`,
@@ -116,9 +112,8 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
       }
       chooseAmountDescription={
         <>
-          Each option is a fixed {nativeTokenSymbol} payment. You receive the
-          UTC that tier&apos;s ship pack would earn from a full recycle, not a
-          1:1 match with the {nativeTokenSymbol} paid. Larger options are for
+          Each option is a fixed {nativeTokenSymbol} payment, minted as UTC
+          1:1 with the {nativeTokenSymbol} paid. Larger options are for
           convenience only, not a different product.
         </>
       }
@@ -141,9 +136,8 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
             const flowCost = pricesWei[index] ?? 0n;
             const flowCostFormatted = formatEther(flowCost);
             const colors = getTierColors(tier);
-            const shipsInTier = BigInt(shipsPerTier[index] ?? 0);
-            const utcMinted = shipsInTier * ((recycleReward as bigint) ?? 0n);
-            const utcDisplay = formatEther(utcMinted);
+            // 1:1 mint with the FLOW price paid — see docs/update/Frontend_Update_Guide.md.
+            const utcDisplay = flowCostFormatted;
 
             return (
               <UTCPurchaseButton
@@ -155,30 +149,11 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
                 refetch={refetchUTCBalance}
                 onSuccess={handlePurchaseSuccess}
               >
-                <div className="flex flex-col gap-3">
-                  <div className="text-base font-extrabold leading-tight">
-                    {utcDisplay} UTC
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 text-[12px] sm:grid-cols-2">
-                    <div className="border border-solid border-current/30 bg-black/20 px-2 py-1.5">
-                      <div className="opacity-75 text-[10px] uppercase tracking-wide">
-                        You pay
-                      </div>
-                      <div className="font-bold">
-                        {flowCostFormatted} {nativeTokenSymbol}
-                      </div>
-                    </div>
-                    <div className="border border-solid border-current/30 bg-black/20 px-2 py-1.5">
-                      <div className="opacity-75 text-[10px] uppercase tracking-wide">
-                        You receive
-                      </div>
-                      <div className="font-bold">{utcDisplay} UTC</div>
-                    </div>
-                  </div>
-                  <div className="text-[10px] uppercase tracking-[0.08em] opacity-80">
-                    [Click to buy with {nativeTokenSymbol}]
-                  </div>
-                </div>
+                <UTCPurchaseTierCardContent
+                  utcAmountLabel={`${utcDisplay} UTC`}
+                  payLabel={`${flowCostFormatted} ${nativeTokenSymbol}`}
+                  footerLabel={`[Click to buy with ${nativeTokenSymbol}]`}
+                />
               </UTCPurchaseButton>
             );
           })}

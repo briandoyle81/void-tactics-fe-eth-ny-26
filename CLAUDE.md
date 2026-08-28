@@ -90,3 +90,9 @@ Only true dependencies belong in dependency arrays — don't include stable refe
 `SimulatedGameDisplay.tsx` (tutorial game view) and `GameDisplay.tsx` (live game view) must always look and feel identical. Any visual or layout change to one must be applied to the other.
 
 The only permitted differences are elements that exist solely in `SimulatedGameDisplay` to support the tutorial: overlay panels, task lists, step-driven highlights, and simulated action feedback. Everything else — colors, spacing, typography, component structure — must stay in sync.
+
+## No Backend Services in Place of Contract Functions
+
+Never build a backend service (API route, cron job, keeper) to work around something a smart contract function could do directly. If a flow needs new server-side logic, the default assumption is that the logic belongs on-chain, not in `app/api/`.
+
+The only acceptable reason for a backend service to exist is to call a smart contract function on behalf of an authorized/privileged user — i.e. a call that requires a specific credential the player's own wallet doesn't have (e.g. `app/api/flow/fulfill/route.ts`'s `SHIP_MINTER_PRIVATE_KEY` calling the access-controlled `createShips` after verifying a Fireblocks Flow payment off-chain). If a contract function has no access control and any wallet can call it, the player's own wallet should call it — don't stand up a service wallet/keeper to do it "for smoother UX." Extra player-signed transactions are the correct tradeoff over new backend infrastructure.

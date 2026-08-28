@@ -10,8 +10,12 @@ import { MapEditor } from "./MapEditor";
 import { MapEditorHeader } from "./MapEditorHeader";
 import { MapPreviewCard } from "./MapPreviewCard";
 import { MapsListShell } from "./MapsListShell";
-import { MapPosition, ScoringPosition } from "../types/types";
+import { MapPosition, ScoringPosition, MapMode } from "../types/types";
 import { AIEncountersAdminPanelWeb2 } from "./AIEncountersAdminPanelWeb2";
+import { NodeMapAdminPanelWeb2 } from "./NodeMapAdminPanelWeb2";
+import { RoguelikeNodeMapAdminPanelWeb2 } from "./RoguelikeNodeMapAdminPanelWeb2";
+import { LobbyAdminPanelWeb2 } from "./LobbyAdminPanelWeb2";
+import { AdminSettingsExportWeb2 } from "./AdminSettingsExportWeb2";
 
 interface Web2Map {
   id: number;
@@ -20,6 +24,7 @@ interface Web2Map {
   gridHeight: number;
   blockedTiles: MapPosition[];
   scoringTiles: ScoringPosition[];
+  mode: MapMode;
 }
 
 // Web2-mode counterpart to `Maps.tsx` — same layout, list/preview cards, and
@@ -31,6 +36,7 @@ function Web2MapSaveButton({
   isEditing,
   mapId,
   name,
+  mode,
   blockedPositions,
   scoringPositions,
   validationError,
@@ -39,6 +45,7 @@ function Web2MapSaveButton({
   isEditing: boolean;
   mapId?: number;
   name: string;
+  mode: MapMode;
   blockedPositions: MapPosition[];
   scoringPositions: ScoringPosition[];
   validationError: string | null;
@@ -66,6 +73,7 @@ function Web2MapSaveButton({
       } else {
         await apiMutate("/api/maps", "POST", {
           name,
+          mode,
           blockedTiles: blockedPositions,
           scoringTiles: scoringPositions,
         });
@@ -102,6 +110,11 @@ export default function MapsWeb2() {
     undefined,
   );
   const [editingName, setEditingName] = useState("");
+  // Mode for a map being created — Both by default, same as Maps.tsx's
+  // createMode, valid for every picker until narrowed deliberately.
+  const [createMode, setCreateMode] = useState<MapMode>(MapMode.Both);
+  const [editingMode, setEditingMode] = useState<MapMode>(MapMode.Both);
+  const [modePending, setModePending] = useState(false);
 
   const editingMap = useMemo(
     () => maps.find((m) => m.id === editingMapId),
@@ -111,6 +124,7 @@ export default function MapsWeb2() {
   const handleCreateMap = () => {
     setEditingMapId(undefined);
     setEditingName("");
+    setCreateMode(MapMode.Both);
     setShowEditor(true);
   };
 
@@ -121,6 +135,7 @@ export default function MapsWeb2() {
     }
     setEditingMapId(map.id);
     setEditingName(map.name);
+    setEditingMode(map.mode);
     setShowEditor(true);
   };
 
@@ -133,6 +148,19 @@ export default function MapsWeb2() {
   const handleEditorCancel = () => {
     setShowEditor(false);
     setEditingMapId(undefined);
+  };
+
+  const handleReclassifyMode = async (mapId: number, mode: MapMode) => {
+    setEditingMode(mode);
+    setModePending(true);
+    try {
+      await apiMutate(`/api/maps/${mapId}`, "PATCH", { mode });
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to reclassify map mode");
+    } finally {
+      setModePending(false);
+    }
   };
 
   if (showEditor) {
@@ -152,6 +180,39 @@ export default function MapsWeb2() {
             className="w-64 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none disabled:opacity-50"
           />
         </div>
+        {editingMapId !== undefined ? (
+          <div className="flex flex-wrap items-center gap-3 border border-gunmetal bg-black/40 p-3 font-mono text-sm">
+            <span className="text-xs uppercase tracking-wider text-cyan">Mode</span>
+            <select
+              value={editingMode}
+              disabled={modePending}
+              onChange={(e) => void handleReclassifyMode(editingMapId, Number(e.target.value) as MapMode)}
+              className="px-2 py-1 bg-near-black border text-cyan focus:outline-none disabled:opacity-50"
+              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+            >
+              <option value={MapMode.PvP}>PvP</option>
+              <option value={MapMode.PvE}>PvE</option>
+              <option value={MapMode.Both}>Both</option>
+            </select>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 border border-gunmetal bg-black/40 p-3 font-mono text-sm">
+            <span className="text-xs uppercase tracking-wider text-cyan">Mode</span>
+            <select
+              value={createMode}
+              onChange={(e) => setCreateMode(Number(e.target.value) as MapMode)}
+              className="px-2 py-1 bg-near-black border text-cyan focus:outline-none"
+              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+            >
+              <option value={MapMode.PvP}>PvP</option>
+              <option value={MapMode.PvE}>PvE</option>
+              <option value={MapMode.Both}>Both</option>
+            </select>
+            <span className="text-xs text-text-muted">
+              PvP lobbies reject PvE-only maps; campaign nodes reject PvP-only maps.
+            </span>
+          </div>
+        )}
         <MapEditor
           mapId={editingMapId}
           initialBlockedPositions={editingMap?.blockedTiles}
@@ -169,6 +230,7 @@ export default function MapsWeb2() {
               isEditing={editingMapId !== undefined}
               mapId={editingMapId}
               name={editingName}
+              mode={createMode}
               blockedPositions={blockedPositions}
               scoringPositions={scoringPositions}
               validationError={validationError}
@@ -198,11 +260,18 @@ export default function MapsWeb2() {
               blockedPositions: map.blockedTiles,
               scoringPositions: map.scoringTiles,
             }}
+            modeLabel={MapMode[map.mode]}
             onEdit={() => handleEditMap(map)}
           />
         ))}
       </MapsListShell>
-      <AIEncountersAdminPanelWeb2 mapIds={maps.map((m) => m.id)} />
+      <AIEncountersAdminPanelWeb2
+        mapIds={maps.filter((m) => m.mode !== MapMode.PvP).map((m) => m.id)}
+      />
+      <NodeMapAdminPanelWeb2 />
+      <RoguelikeNodeMapAdminPanelWeb2 />
+      <LobbyAdminPanelWeb2 />
+      <AdminSettingsExportWeb2 maps={maps} />
     </div>
   );
 }

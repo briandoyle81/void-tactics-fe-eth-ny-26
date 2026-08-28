@@ -9,9 +9,9 @@ import { GameHistoryList, type GameHistoryRowData } from "./GameHistoryList";
 
 // Web2-mode counterpart to `Profile.tsx` — same layout/copy, backed by
 // `usePlayerGamesWeb2`/session user id instead of `usePlayerGames`/wallet
-// address. Opponent identity is intentionally omitted (no username lookup
-// exists client-side yet — `GamesWeb2.tsx`'s card also drops it for the
-// same reason), unlike web3 Profile's truncated-address display.
+// address. Opponent identity uses `creatorLabel`/`joinerLabel` (attached
+// server-side by GET /api/games — see Web2GameMetadata's doc comment)
+// instead of web3 Profile's truncated-address display.
 const ProfileWeb2: React.FC = () => {
   const { userId, isLoggedIn } = useCurrentUser();
   const { games, isLoading } = usePlayerGamesWeb2();
@@ -77,6 +77,7 @@ const ProfileWeb2: React.FC = () => {
         id: game.metadata.gameId.toString(),
         outcomeText: outcome.text,
         outcomeColor: outcome.color,
+        opponentLabel: isCreator ? game.metadata.joinerLabel : game.metadata.creatorLabel,
         dateLabel: formatDate(game.metadata.startedAt),
         playerScore: isCreator ? game.creatorScore : game.joinerScore,
         maxScore: game.maxScore,

@@ -23,7 +23,7 @@ const MAX_RENDERED_CACHE_SIZE = 100;
 const renderedImageAccessOrder: string[] = [];
 
 function getRenderedImageKey(ship: Web2Ship): string {
-  return `${ship.id.toString()}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
+  return `${ship.id.toString()}-${ship.traits.variant}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
 }
 
 function getCachedRenderedImage(ship: Web2Ship): string | null {
@@ -80,6 +80,7 @@ export function useShipRendererWeb2(ship: Web2Ship): ShipImageState {
   }, [
     isValidShip,
     ship?.id,
+    ship?.traits?.variant,
     ship?.equipment?.mainWeapon,
     ship?.equipment?.armor,
     ship?.equipment?.shields,

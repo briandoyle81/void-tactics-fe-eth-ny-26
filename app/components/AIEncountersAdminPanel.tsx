@@ -7,6 +7,7 @@ import {
   ARMOR_NAMES,
   SHIELD_NAMES,
   SPECIAL_NAMES,
+  SPECIAL_NAMES_V2,
   Archetype,
   AIShipConfig,
   MapPosition,
@@ -121,7 +122,7 @@ function ShipConfigForm({
         <div>
           <label className="block text-xs text-cyan mb-1">Special</label>
           <select value={special} onChange={(e) => setSpecial(Number(e.target.value))} className={inputClass} style={inputStyle}>
-            {Object.entries(SPECIAL_NAMES).map(([v, n]) => (
+            {Object.entries(variant === 2 ? SPECIAL_NAMES_V2 : SPECIAL_NAMES).map(([v, n]) => (
               <option key={v} value={v}>{n}</option>
             ))}
           </select>
@@ -134,7 +135,14 @@ function ShipConfigForm({
             type="number"
             min={1}
             value={variant}
-            onChange={(e) => setVariant(Math.max(1, Number(e.target.value)))}
+            onChange={(e) => {
+              const v = Math.max(1, Number(e.target.value));
+              setVariant(v);
+              // Special values are variant-scoped (docs/faction-2.md §6) — a
+              // value valid for the old variant is meaningless for the new
+              // one, so reset rather than carry it over.
+              setSpecial(0);
+            }}
             className={inputClass}
             style={inputStyle}
           />
@@ -357,7 +365,19 @@ function MapPlacementsEditor({
 
   const [showEditor, setShowEditor] = useState(false);
 
-  const rosterItems: FleetShipListItemData[] = configs.map((c) => ({
+  // 50 configs now (25 variant-1 + 25 variant-2, per docs/faction-2.md §8) —
+  // a variant filter keeps the roster scannable when placing a fleet for a
+  // specific faction.
+  const [rosterVariantFilter, setRosterVariantFilter] = useState<"all" | number>("all");
+  const filteredConfigs = useMemo(
+    () =>
+      rosterVariantFilter === "all"
+        ? configs
+        : configs.filter((c) => c.traits.variant === rosterVariantFilter),
+    [configs, rosterVariantFilter],
+  );
+
+  const rosterItems: FleetShipListItemData[] = filteredConfigs.map((c) => ({
     key: c.id.toString(),
     canSelect: true,
     isPending: armedConfigId === c.id,
@@ -458,7 +478,20 @@ function MapPlacementsEditor({
             </p>
 
             <div className="flex gap-4 flex-1 min-h-0">
-              <FleetShipListPanel widthClass="w-1/4" items={rosterItems} />
+              <div className="w-1/4 flex flex-col gap-2 min-h-0">
+                <select
+                  value={rosterVariantFilter}
+                  onChange={(e) =>
+                    setRosterVariantFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+                  }
+                  className="w-full border border-gunmetal bg-black/60 px-2 py-1 text-xs text-cyan"
+                >
+                  <option value="all">All factions</option>
+                  <option value={1}>Faction 1</option>
+                  <option value={2}>Faction 2</option>
+                </select>
+                <FleetShipListPanel widthClass="w-full" items={rosterItems} />
+              </div>
               <div className="w-3/4 h-full flex items-center justify-center">
                 <MapDisplay
                   mapId={Number(mapId)}

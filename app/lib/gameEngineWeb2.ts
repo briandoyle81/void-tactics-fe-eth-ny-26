@@ -10,6 +10,9 @@ import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import { GamePhase } from "../generated/prisma";
 import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
 import { resolveTournamentMatchIfApplicable } from "./resolveTournamentMatchIfApplicable";
+import { resolveCampaignNodeIfApplicable } from "./resolveCampaignNodeIfApplicable";
+import { resolveRoguelikeRunIfApplicable } from "./resolveRoguelikeRunIfApplicable";
+import { AI_USER_ID } from "../config/aiUser";
 
 // Server-side turn-processing engine — ported from `explore-traditional`'s
 // `app/api/games/[id]/action/route.ts` (human-vs-human logic only; the
@@ -633,16 +636,22 @@ export async function applyGameAction(
       },
     });
 
-    // Award kill reward and increment shipsDestroyed on attacking ship
+    // Award kill reward and increment shipsDestroyed on attacking ship.
+    // Currency depends only on the *victim's* ownership (docs/faction-2.md
+    // §1) — destroying the AI opponent pays DEC, destroying a human
+    // opponent (PvP) pays UTC, never both and never based on ship variant.
     if (killCount > 0) {
       const attacker = await tx.user.findUnique({
         where: { id: userId },
         select: { purchasedShipCount: true },
       });
       if ((attacker?.purchasedShipCount ?? 0) >= economy.purchaseThresholdForRewards) {
+        const opponentIsAI = game.player1Id === AI_USER_ID || game.player2Id === AI_USER_ID;
         await tx.user.update({
           where: { id: userId },
-          data: { creditBalance: { increment: killCount * economy.killRewardUtc } },
+          data: opponentIsAI
+            ? { decBalance: { increment: killCount * economy.killRewardDec } }
+            : { creditBalance: { increment: killCount * economy.killRewardUtc } },
         });
       }
       await tx.ship.update({
@@ -691,6 +700,8 @@ export async function applyGameAction(
   // stats-skip above.
   if (finalPhase === GamePhase.COMPLETED && finalWinnerId && finalWinnerId !== game.winnerId && finalWinnerId !== WEB2_TIE_SENTINEL) {
     await resolveTournamentMatchIfApplicable(game.lobbyId, finalWinnerId);
+    await resolveCampaignNodeIfApplicable(game.lobbyId, finalWinnerId);
+    await resolveRoguelikeRunIfApplicable(game.lobbyId, finalWinnerId);
   }
 
   return finalState;

@@ -10,6 +10,7 @@ import {
 } from "../hooks/useUtcPurchaseWeb2";
 import { MockPurchaseConfirmModal } from "./MockPurchaseConfirmModal";
 import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
+import { UTCPurchaseTierCardContent } from "./UTCPurchaseTierCardContent";
 import { getTierColors } from "../utils/shipPurchaseTierDisplay";
 
 interface UTCPurchaseModalWeb2Props {
@@ -49,24 +50,11 @@ function TierButton({
       disabled={disabled}
       className={`relative min-h-0 px-4 py-4 rounded-none border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-left`}
     >
-      <div className="flex flex-col gap-3">
-        <div className="text-base font-extrabold leading-tight">
-          {tierPreview.utcAmount} UTC
-        </div>
-        <div className="grid grid-cols-1 gap-2 text-[12px] sm:grid-cols-2">
-          <div className="border border-solid border-current/30 bg-black/20 px-2 py-1.5">
-            <div className="opacity-75 text-[10px] uppercase tracking-wide">You pay</div>
-            <div className="font-bold">{priceLabel}</div>
-          </div>
-          <div className="border border-solid border-current/30 bg-black/20 px-2 py-1.5">
-            <div className="opacity-75 text-[10px] uppercase tracking-wide">You receive</div>
-            <div className="font-bold">{tierPreview.utcAmount} UTC</div>
-          </div>
-        </div>
-        <div className="text-[10px] uppercase tracking-[0.08em] opacity-80">
-          {isPurchasing ? "[Purchasing…]" : "[Click to buy]"}
-        </div>
-      </div>
+      <UTCPurchaseTierCardContent
+        utcAmountLabel={`${tierPreview.utcAmount} UTC`}
+        payLabel={priceLabel}
+        footerLabel={isPurchasing ? "[Purchasing…]" : "[Click to buy]"}
+      />
     </button>
   );
 }

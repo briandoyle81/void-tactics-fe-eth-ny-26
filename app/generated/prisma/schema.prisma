@@ -14,6 +14,17 @@ model User {
   email               String    @unique
   username            String?
   creditBalance       Int       @default(0)
+  // Drone Energy Cores — web2 counterpart to the on-chain DroneEnergyCores
+  // ERC20 (docs/faction-2.md §2-3). Earned only from destroying AI-owned
+  // ships (see gameEngineWeb2.ts's kill-reward branch), spent at the Drone
+  // Storefront for a permanent droneCoreTier bump. Unlike web3, not a
+  // separate transferable token — a plain per-user balance, since web2 has
+  // no peer-to-peer transfer surface for any of its currencies today.
+  decBalance          Int       @default(0)
+  // Drone Storefront tier (docs/faction-2.md §3) — permanent, cumulative;
+  // adds droneCoreTier extra ships to every free-ship claim
+  // (see /api/ships/claim-free/route.ts).
+  droneCoreTier       Int       @default(0)
   purchasedShipCount  Int       @default(0)
   lobbiesCreatedCount Int       @default(0) // total lobby creations; first freeGamesPerAddress are free
   kickCount           Int       @default(0) // cumulative times timed out/kicked from lobbies
@@ -23,17 +34,19 @@ model User {
   createdAt           DateTime  @default(now())
 
   ships                   Ship[]
-  lobbiesCreated          Lobby[]                @relation("LobbyCreator")
-  lobbiesJoined           Lobby[]                @relation("LobbyJoiner")
-  lobbiesReserved         Lobby[]                @relation("LobbyReservedJoiner")
-  gamesAsPlayer1          Game[]                 @relation("GamePlayer1")
-  gamesAsPlayer2          Game[]                 @relation("GamePlayer2")
+  lobbiesCreated          Lobby[]                  @relation("LobbyCreator")
+  lobbiesJoined           Lobby[]                  @relation("LobbyJoiner")
+  lobbiesReserved         Lobby[]                  @relation("LobbyReservedJoiner")
+  gamesAsPlayer1          Game[]                   @relation("GamePlayer1")
+  gamesAsPlayer2          Game[]                   @relation("GamePlayer2")
   fleets                  Fleet[]
   stats                   PlayerStats?
-  tournamentsCreated      Tournament[]           @relation("TournamentCreator")
+  tournamentsCreated      Tournament[]             @relation("TournamentCreator")
   tournamentRegistrations TournamentRegistrant[]
-  tournamentMatchesAsP1   TournamentMatch[]      @relation("TournamentMatchPlayer1")
-  tournamentMatchesAsP2   TournamentMatch[]      @relation("TournamentMatchPlayer2")
+  tournamentMatchesAsP1   TournamentMatch[]        @relation("TournamentMatchPlayer1")
+  tournamentMatchesAsP2   TournamentMatch[]        @relation("TournamentMatchPlayer2")
+  campaignNodeCompletions CampaignNodeCompletion[]
+  roguelikeRuns           RoguelikeRun[]
 }
 
 // ── Ships ──────────────────────────────────────────────────────────────────────
@@ -58,6 +71,8 @@ model Ship {
   shipsDestroyed Int       @default(0)
   destroyedAt    DateTime?
   createdAt      DateTime  @default(now())
+
+  roguelikeRosterEntries RoguelikeRosterShip[]
 
   @@index([ownerId])
   @@index([ownerId, destroyed])
@@ -108,6 +123,11 @@ model Lobby {
   joinedAt         DateTime?
   joinerFleetSetAt DateTime? // when joiner submitted their fleet (for quitWithPenalty check)
 
+  campaignNodeId Int?
+  campaignNode   CampaignNode? @relation(fields: [campaignNodeId], references: [id])
+  roguelikeRunId Int?
+  roguelikeRun   RoguelikeRun? @relation(fields: [roguelikeRunId], references: [id])
+
   fleets          Fleet[]
   game            Game?
   tournamentMatch TournamentMatch?
@@ -116,6 +136,8 @@ model Lobby {
   @@index([joinerId])
   @@index([status])
   @@index([reservedJoinerId])
+  @@index([campaignNodeId])
+  @@index([roguelikeRunId])
 }
 
 enum LobbyStatus {
@@ -185,10 +207,16 @@ model Map {
   blockedTiles Json     @default("[]")
   // [{ row, col, points, onlyOnce }]
   scoringTiles Json     @default("[]")
+  // 0=PvP, 1=PvE, 2=Both — mirrors web3's Maps.mapMode/MapMode enum. Defaults
+  // to Both, same as Maps.tsx's createMode default (valid for every picker
+  // until an admin narrows it deliberately).
+  mode         Int      @default(2)
   createdAt    DateTime @default(now())
 
-  lobbies      Lobby[]
-  aiPlacements AIMapPlacement[]
+  lobbies        Lobby[]
+  aiPlacements   AIMapPlacement[]
+  campaignNodes  CampaignNode[]
+  roguelikeNodes RoguelikeNode[]
 }
 
 // ── AI Encounters (web2 counterpart to the on-chain AIEncounters contract) ──────
@@ -232,6 +260,161 @@ model AIFleetShip {
   shipId    Int @id
   configId  Int
   archetype Int
+}
+
+// ── Campaign (web2 counterpart to the on-chain NodeMap/SinglePlayerMatch) ───────
+// Mirrors NodeMap's graph shape 1:1: nodes grouped into campaigns, ANY-of
+// `prerequisites` unlock (computed at read time from CampaignNodeCompletion,
+// not stored — matches NodeMap.isNodeUnlocked). `enemyThreat` is
+// deliberately absent, same as the current on-chain shape — derive it from
+// AIMapPlacement/AIShipConfig the same way the web3 CampaignNodePreview does
+// (useMapEnemyThreat), not stored here either.
+
+model Campaign {
+  id              Int      @id @default(autoincrement())
+  requiredVariant Int      @default(0) // 0 = unrestricted, matches NodeMap.campaignRequiredVariant
+  createdAt       DateTime @default(now())
+
+  nodes CampaignNode[]
+}
+
+model CampaignNode {
+  id               Int      @id @default(autoincrement())
+  campaignId       Int
+  campaign         Campaign @relation(fields: [campaignId], references: [id])
+  mapId            Int
+  map              Map      @relation(fields: [mapId], references: [id])
+  prerequisites    Int[] // CampaignNode ids; ANY-of unlock
+  costLimit        Int
+  turnTimeSeconds  Int
+  maxScore         Int
+  creatorGoesFirst Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  completions CampaignNodeCompletion[]
+  lobbies     Lobby[]
+
+  @@index([campaignId])
+}
+
+model CampaignNodeCompletion {
+  id          Int          @id @default(autoincrement())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  nodeId      Int
+  node        CampaignNode @relation(fields: [nodeId], references: [id])
+  completedAt DateTime     @default(now())
+
+  @@unique([userId, nodeId])
+  @@index([userId])
+}
+
+// ── Roguelike (web2 counterpart to RoguelikeNodeMap/RoguelikeRun/RoguelikeMatch/RoguelikeResupply) ──
+// Run-based, persistent roster/HP, branching children-with-lockout graph —
+// structurally distinct from the plain-prerequisites Campaign model above,
+// matching how the two on-chain systems are also genuinely different data
+// models (see RoguelikeGraph.tsx's doc-comment). One active run per player
+// is app-enforced (status = ACTIVE, matches the contract's RunAlreadyActive
+// revert); `generation` increments per new run for the same player so old
+// runs stay distinguishable, matching the on-chain struct field.
+
+model RoguelikeCampaign {
+  id              Int      @id @default(autoincrement())
+  requiredVariant Int      @default(0)
+  autoHealPercent Int      @default(0)
+  initialCostCap  Int
+  rootNodeId      Int?
+  createdAt       DateTime @default(now())
+
+  nodes RoguelikeNode[]
+  runs  RoguelikeRun[]
+}
+
+model RoguelikeNode {
+  id               Int               @id @default(autoincrement())
+  campaignId       Int
+  campaign         RoguelikeCampaign @relation(fields: [campaignId], references: [id])
+  kind             Int // Combat=0, Resupply=1
+  mapId            Int?
+  map              Map?              @relation(fields: [mapId], references: [id])
+  turnTimeSeconds  Int?
+  maxScore         Int?
+  creatorGoesFirst Boolean?
+  costCapOverride  Int?
+  createdAt        DateTime          @default(now())
+
+  childEdges  RoguelikeEdge[]       @relation("RoguelikeEdgeParent")
+  parentEdges RoguelikeEdge[]       @relation("RoguelikeEdgeChild")
+  defeats     RoguelikeNodeDefeat[]
+
+  @@index([campaignId])
+}
+
+model RoguelikeEdge {
+  id       Int           @id @default(autoincrement())
+  parentId Int
+  parent   RoguelikeNode @relation("RoguelikeEdgeParent", fields: [parentId], references: [id])
+  childId  Int
+  child    RoguelikeNode @relation("RoguelikeEdgeChild", fields: [childId], references: [id])
+  twoWay   Boolean       @default(false)
+
+  @@unique([parentId, childId])
+  @@index([parentId])
+}
+
+model RoguelikeRun {
+  id             Int                @id @default(autoincrement())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id])
+  generation     Int                @default(1)
+  status         RoguelikeRunStatus @default(ACTIVE)
+  campaignId     Int
+  campaign       RoguelikeCampaign  @relation(fields: [campaignId], references: [id])
+  currentNodeId  Int
+  currentCostCap Int
+  activeLobbyId  Int?
+  createdAt      DateTime           @default(now())
+  endedAt        DateTime?
+
+  roster  RoguelikeRosterShip[]
+  defeats RoguelikeNodeDefeat[]
+  lobbies Lobby[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+enum RoguelikeRunStatus {
+  ACTIVE
+  WON
+  ENDED
+}
+
+model RoguelikeRosterShip {
+  id     Int          @id @default(autoincrement())
+  runId  Int
+  run    RoguelikeRun @relation(fields: [runId], references: [id])
+  shipId Int
+  ship   Ship         @relation(fields: [shipId], references: [id])
+  // 0 = undamaged/full, NOT literally zero HP — matches the on-chain
+  // getShipHP convention exactly (see useRoguelikeRosterHP's doc-comment).
+  hp     Int          @default(0)
+
+  @@unique([runId, shipId])
+  @@index([runId])
+}
+
+// Gates re-entry via a twoWay back-edge into a Combat node already cleared
+// earlier this run — matches RoguelikeRun.isNodeDefeated/setNodeDefeated.
+model RoguelikeNodeDefeat {
+  id     Int           @id @default(autoincrement())
+  runId  Int
+  run    RoguelikeRun  @relation(fields: [runId], references: [id])
+  nodeId Int
+  node   RoguelikeNode @relation(fields: [nodeId], references: [id])
+
+  @@unique([runId, nodeId])
+  @@index([runId])
 }
 
 // ── System Config ──────────────────────────────────────────────────────────────

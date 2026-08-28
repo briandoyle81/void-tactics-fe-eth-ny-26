@@ -1,17 +1,23 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { usePublicClient } from "wagmi";
+import type { Abi } from "viem";
 import { renderShip } from "../utils/shipRenderer";
 import { Ship, Attributes } from "../types/types";
 import { calculateShipRank } from "../utils/shipLevel";
 import { toShipVisual } from "../utils/toShipVisual";
 import { SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
+import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
+import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import {
   getMainWeaponName,
   getArmorName,
   getShieldName,
   getSpecialName,
 } from "../types/types";
+
+const DRONE_NAMES_ABI = CONTRACT_ABIS.DRONE_NAMES as Abi;
 
 // Random ship names for hero showcase
 const SHIP_NAMES = [
@@ -69,8 +75,12 @@ const SHIP_NAMES = [
 
 import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 
-// Generate a random ship
-function generateRandomShip(index: number): Ship {
+// Generate a random ship. `name` is variant-1-style (mock real-world-style
+// name) by default — variant-2 ships get their real DroneNames-generated
+// name patched in asynchronously afterward (see fetchDroneName below), since
+// that generation lives on-chain and this function stays synchronous to
+// avoid a hydration mismatch (see the mount-only effect that calls it).
+function generateRandomShip(index: number, variant: number): Ship {
   const name = SHIP_NAMES[Math.floor(Math.random() * SHIP_NAMES.length)];
 
   // Every 5th ship gets rank 3-5
@@ -101,7 +111,6 @@ function generateRandomShip(index: number): Ship {
   const accuracy = Math.floor(Math.random() * 3);
   const hull = Math.floor(Math.random() * 3);
   const speed = Math.floor(Math.random() * 3);
-  const variant = Math.floor(Math.random() * 10);
 
   // Random colors
   const h1 = Math.floor(Math.random() * 360);
@@ -153,29 +162,50 @@ function generateRandomShip(index: number): Ship {
 
 type HeroShipShowcaseAlign = "start" | "center" | "end";
 
+// Non-cryptographic 32-byte hex, just to vary DroneNames' deterministic
+// output between rotations — no on-chain identity backs these mock ships.
+function randomBytes32(): `0x${string}` {
+  let hex = "0x";
+  for (let i = 0; i < 64; i++) {
+    hex += Math.floor(Math.random() * 16).toString(16);
+  }
+  return hex as `0x${string}`;
+}
+
 export const HeroShipShowcase: React.FC<{
   seedOffset?: number;
   intervalMs?: number;
   align?: HeroShipShowcaseAlign;
   side?: "allied" | "enemy";
   flipLayout?: boolean;
+  /** Pin the mock ship to a specific variant (1 or 2) instead of picking one
+   * at random — e.g. the Info page's Intel section always shows variant 1
+   * on the left and variant 2 on the right. */
+  forcedVariant?: number;
 }> = ({
   seedOffset = 0,
   intervalMs = 10000,
   align = "end",
   side = "allied",
   flipLayout = false,
+  forcedVariant,
 }) => {
   // Rotate ships every N milliseconds
   const [shipIndex, setShipIndex] = useState(seedOffset);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setShipIndex((prev) => prev + 1);
-    }, intervalMs);
+  const advanceShip = React.useCallback(() => {
+    setShipIndex((prev) => prev + 1);
+  }, []);
 
+  // Depending on shipIndex (not just intervalMs) restarts the countdown
+  // from zero whenever the ship changes for any reason — including a
+  // manual click via advanceShip below — so clicking to switch ships also
+  // resets the auto-rotation timer instead of leaving the old countdown
+  // running and immediately re-advancing a moment later.
+  useEffect(() => {
+    const interval = setInterval(advanceShip, intervalMs);
     return () => clearInterval(interval);
-  }, [intervalMs]);
+  }, [intervalMs, shipIndex, advanceShip]);
 
   // Generate current hero ship client-side only, after mount. `generateRandomShip`
   // uses Math.random(), so computing it during render (e.g. via useMemo) would give
@@ -184,9 +214,46 @@ export const HeroShipShowcase: React.FC<{
   // placeholder below; the real ship appears once this effect runs.
   const [heroShip, setHeroShip] = useState<Ship | null>(null);
 
+  const activeChainId = useSelectedChainId();
+  const contractAddresses = getContractAddresses(activeChainId);
+  const publicClient = usePublicClient({ chainId: activeChainId });
+
   useEffect(() => {
-    setHeroShip(generateRandomShip(shipIndex));
-  }, [shipIndex]);
+    const variant = forcedVariant ?? Math.floor(Math.random() * 10);
+    const ship = generateRandomShip(shipIndex, variant);
+    setHeroShip(ship);
+
+    // Variant 2 ("Drone" faction) names come from DroneNames.getRandomDroneName
+    // on-chain instead of the variant-1-style SHIP_NAMES mock — pure/no gas,
+    // called once per rotation. Patched in once resolved rather than
+    // blocking the initial render, so art/stats appear immediately.
+    if (variant !== 2 || !publicClient) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const droneName = await publicClient.readContract({
+          address: contractAddresses.DRONE_NAMES as `0x${string}`,
+          abi: DRONE_NAMES_ABI,
+          functionName: "getRandomDroneName",
+          args: [randomBytes32(), ship.equipment.mainWeapon],
+        });
+        if (!cancelled) {
+          setHeroShip((prev) =>
+            prev && prev.id === ship.id
+              ? { ...prev, name: droneName as string }
+              : prev,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch drone name:", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shipIndex, forcedVariant, publicClient, contractAddresses]);
 
   // Calculate attributes for the ship
   const shipAttributes = useMemo<Attributes | null>(
@@ -237,7 +304,17 @@ export const HeroShipShowcase: React.FC<{
 
   return (
     <div
-      className={`grid w-full min-w-0 items-stretch gap-2 sm:gap-3 ${intelGridCols} ${gridPlacementClass}`}
+      role="button"
+      tabIndex={0}
+      onClick={advanceShip}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          advanceShip();
+        }
+      }}
+      aria-label="Switch to next ship"
+      className={`grid w-full min-w-0 cursor-pointer items-stretch gap-2 sm:gap-3 ${intelGridCols} ${gridPlacementClass}`}
     >
       {/* Stats panel (left when not flipLayout; right when enemy flipLayout) */}
       <div
@@ -250,14 +327,20 @@ export const HeroShipShowcase: React.FC<{
             "--bracket-color": accent,
           } as React.CSSProperties}
         >
-          {/* Ship name */}
+          {/* Ship name — wraps to two lines instead of truncating; minHeight
+              reserves that two-line slot unconditionally (in em, so it
+              tracks the responsive text-size classes below) so a short
+              one-line name on one side of the Intel showcase doesn't leave
+              this card shorter than a sibling whose name wrapped. */}
           <div className="mb-1.5 md:mb-2">
             <h3
-              className="truncate text-lg font-bold sm:text-xl md:text-2xl lg:text-3xl"
+              className="break-words text-lg font-bold sm:text-xl md:text-2xl lg:text-3xl"
               style={{
                 fontFamily:
                   "var(--font-rajdhani), 'Arial Black', sans-serif",
                 color: accent,
+                lineHeight: 1.2,
+                minHeight: "2.4em",
               }}
             >
               {heroShip?.name ?? " "}
@@ -275,7 +358,7 @@ export const HeroShipShowcase: React.FC<{
               <div className="flex min-w-0 justify-between gap-2">
                 <span className="shrink-0 opacity-60">Weapon:</span>
                 <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon) : " "}
+                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon, heroShip.traits.variant) : " "}
                 </span>
               </div>
               <div className="flex min-w-0 justify-between gap-2">
@@ -298,7 +381,7 @@ export const HeroShipShowcase: React.FC<{
                   {!heroShip
                     ? " "
                     : heroShip.equipment.special > 0
-                      ? getSpecialName(heroShip.equipment.special)
+                      ? getSpecialName(heroShip.equipment.special, heroShip.traits.variant)
                       : "None"}
                 </span>
               </div>
@@ -355,42 +438,49 @@ export const HeroShipShowcase: React.FC<{
               "--bracket-color": accent,
             } as React.CSSProperties}
           >
-            {/* Flip wrapper matches ShipCard tooltip: art + rank stars + glow mirror together */}
-            <div
-              className="relative h-full w-full min-h-0 flex-1 [container-type:size]"
-              style={flipSprite ? { transform: "scaleX(-1)" } : undefined}
-            >
-              <img
-                src={heroShipImage}
-                alt={heroShip.name}
-                className="h-full w-full object-contain"
-                style={{
-                  imageRendering: "pixelated",
-                  filter: `drop-shadow(0 0 20px ${accentGlow})`,
-                }}
-              />
+            {/* Flip wrapper matches ShipCard tooltip: art + rank stars + glow
+                mirror together. container-type:size lives on this OUTER,
+                untransformed div — putting it on the same element as the
+                scaleX(-1) transform below made the rank stars' cqmin-based
+                SHIP_IMAGE_RANK_STAR_BOX size compute near-zero on flipped
+                (allied-side) ships instead of matching the unflipped side. */}
+            <div className="relative h-full w-full min-h-0 flex-1 [container-type:size]">
               <div
-                className="pointer-events-none absolute inset-0 z-[1]"
-                style={{
-                  boxShadow: `inset 0 0 60px ${accentInset}`,
-                }}
-              />
-              {heroShip.shipData.constructed && (
-                <div
-                  className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
+                className="relative h-full w-full"
+                style={flipSprite ? { transform: "scaleX(-1)" } : undefined}
+              >
+                <img
+                  src={heroShipImage}
+                  alt={heroShip.name}
+                  className="h-full w-full object-contain"
                   style={{
-                    fontSize: SHIP_IMAGE_RANK_STAR_BOX,
+                    imageRendering: "pixelated",
+                    filter: `drop-shadow(0 0 20px ${accentGlow})`,
                   }}
-                  role="img"
-                  aria-label={`Combat rank ${shipRank.rank} of 6`}
-                >
-                  {Array.from({ length: shipRank.rank }, (_, i) => (
-                    <span key={i} aria-hidden>
-                      ⭐
-                    </span>
-                  ))}
-                </div>
-              )}
+                />
+                <div
+                  className="pointer-events-none absolute inset-0 z-[1]"
+                  style={{
+                    boxShadow: `inset 0 0 60px ${accentInset}`,
+                  }}
+                />
+                {heroShip.shipData.constructed && (
+                  <div
+                    className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
+                    style={{
+                      fontSize: SHIP_IMAGE_RANK_STAR_BOX,
+                    }}
+                    role="img"
+                    aria-label={`Combat rank ${shipRank.rank} of 6`}
+                  >
+                    {Array.from({ length: shipRank.rank }, (_, i) => (
+                      <span key={i} aria-hidden>
+                        ⭐
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (

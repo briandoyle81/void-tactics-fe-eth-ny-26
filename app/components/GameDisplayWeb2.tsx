@@ -19,17 +19,19 @@ import { useMapWeb2 } from "../hooks/useMapWeb2";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
 import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { RoundStartModal } from "./RoundStartModal";
-import { GameResultModal } from "./GameResultModal";
+import { GameResultModal, type MissionLossReason } from "./GameResultModal";
 import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import {
   useGameViewChromeLayout,
   GAME_VIEW_SIDE_ROOT_CLASS,
 } from "../hooks/useGameViewChromeLayout";
+import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import {
   useGameplayInteraction,
   type GameplayShip,
 } from "../hooks/useGameplayInteraction";
 import { apiMutate } from "../lib/apiMutate";
+import { apiFetch } from "../lib/apiFetch";
 import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
 import { AI_USER_ID } from "../config/aiUser";
 import { useAITurnLoopWeb2 } from "../hooks/useAITurnLoopWeb2";
@@ -47,10 +49,12 @@ import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
 import { GameTooltipShipCard } from "./GameTooltipShipCard";
 import { gameFleetPanelLabel } from "../utils/gameFleetPanelLabel";
 import {
+  GameEvents,
   type GameEventsLastMove,
   type GameEventsShipInfo,
 } from "./GameEvents";
 import { GameLastMovePanel } from "./GameLastMovePanel";
+import { GameReplayControls, GameReplayBanner } from "./GameReplayControls";
 import { toGameScoreDataWeb2, toGameWinnerResultWeb2 } from "../utils/gameDisplayDataWeb2";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
@@ -94,12 +98,89 @@ export default function GameDisplayWeb2({
 
   const gameViewRootRef = React.useRef<HTMLDivElement | null>(null);
   const gridContainerRef = React.useRef<HTMLDivElement | null>(null);
-  useGameViewChromeLayout(gameViewRootRef, gridContainerRef);
+  const chromeLayout = useGameViewChromeLayout(gameViewRootRef, gridContainerRef);
+  const chromeOnSide = chromeLayout === "side";
+  const { isLandscapeMobile, requiresLandscapeMode } = useLandscapeMode();
+  const useSideLayout = chromeOnSide && !isLandscapeMobile;
+  const [isMobileFleeOpen, setIsMobileFleeOpen] = useState(false);
+  // Mirrors GameDisplay.tsx's mobileLeftPanelTab — landscape-mobile's narrow
+  // left column switches between these instead of showing everything at
+  // once (there's no room). No "actions" tab: unlike web3, web2's move/
+  // weapon-selection/confirm flow lives entirely inline on <GameGrid> itself
+  // (see showConfirmWidget/onConfirmMove below), so there's no separate
+  // action panel to switch to.
+  const [mobileLeftPanelTab, setMobileLeftPanelTab] = useState<"status" | "events">("status");
 
   const gameId = Number(initialGame.metadata.gameId);
 
   const { data: gameData, refetch: refetchGame } = useGetGame(gameId);
   const game = gameData || initialGame;
+
+  // ── Replay ──────────────────────────────────────────────────────────────
+  // Server-authoritative Prisma GameTurn history (vs. GameDisplay.tsx's
+  // client-only localStorage GameRecord) — the one genuinely different data
+  // source, per GameReplayControls.tsx's doc comment. Step/autoplay state
+  // and the replaySnapshotGame -> displayGame -> aliveShipPositions swap
+  // below all mirror GameDisplay.tsx's own replayStep/replaySnapshotGame/
+  // displayGame exactly, so replayed ship positions actually show on the
+  // grid instead of only a text summary.
+  const [replayData, setReplayData] = useState<{
+    initialState: Web2GameDataView;
+    turns: Array<{ id: number; round: number; snapshot: Web2GameDataView | null }>;
+  } | null>(null);
+  const [replayStep, setReplayStep] = useState<number | null>(null);
+  const [replayAutoPlay, setReplayAutoPlay] = useState(false);
+  const replayAutoPlayRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!showReplay) {
+      setReplayData(null);
+      setReplayStep(null);
+      setReplayAutoPlay(false);
+      return;
+    }
+    let cancelled = false;
+    apiFetch<typeof replayData>(`/api/games/${gameId}/replay`).then((res) => {
+      if (cancelled) return;
+      setReplayData(res);
+      if (res && res.turns.length > 0) setReplayStep(-1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showReplay, gameId]);
+
+  React.useEffect(() => {
+    replayAutoPlayRef.current = replayAutoPlay;
+  }, [replayAutoPlay]);
+  React.useEffect(() => {
+    if (!replayAutoPlay || !replayData || replayStep === null) return;
+    const total = replayData.turns.length;
+    const timer = setInterval(() => {
+      if (!replayAutoPlayRef.current) {
+        clearInterval(timer);
+        return;
+      }
+      setReplayStep((s) => {
+        if (s === null) return s;
+        if (s >= total - 1) {
+          replayAutoPlayRef.current = false;
+          setReplayAutoPlay(false);
+          return s;
+        }
+        return s + 1;
+      });
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [replayAutoPlay, replayData, replayStep]);
+
+  const isReplaying = replayStep !== null && !!replayData && replayData.turns.length > 0;
+  const replaySnapshotGame: Web2GameDataView | null = isReplaying
+    ? replayStep! < 0
+      ? replayData!.initialState
+      : (replayData!.turns[replayStep!]?.snapshot ?? null)
+    : null;
+  const displayGame = replaySnapshotGame ?? game;
 
   useGameStreamWeb2(gameId, !readOnly);
 
@@ -158,19 +239,27 @@ export default function GameDisplayWeb2({
   }, [game.creatorMovedShipIds, game.joinerMovedShipIds]);
 
   const aliveShipPositions = useMemo(
-    () => game.shipPositions.filter((p) => (p.status ?? 0) === 0),
-    [game.shipPositions],
+    () => displayGame.shipPositions.filter((p) => (p.status ?? 0) === 0),
+    [displayGame.shipPositions],
   );
 
   const isCurrentPlayerTurn = !readOnly && game.turnState.currentTurn === userId;
   const gameWinnerResult = toGameWinnerResultWeb2(game.metadata.winner, userId);
   const isGameOver = gameWinnerResult !== null;
 
-  // Single-player games are regular Game rows where the joiner is the AI
-  // sentinel user — same read shape as PvP, just a different currentTurn id
-  // to watch for. Mirrors GameDisplay.tsx's isSinglePlayerGame/isAITurn.
-  const isSinglePlayerGame = game.metadata.joiner === AI_USER_ID;
-  const isAITurn = isSinglePlayerGame && game.turnState.currentTurn === AI_USER_ID;
+  // Vs-AI games are regular Game rows where the joiner is the AI sentinel
+  // user — same read shape as PvP, just a different currentTurn id to watch
+  // for. Mirrors GameDisplay.tsx's isVsAIGame/isAITurn. A Campaign mission or
+  // Roguelike combat node is a *subset* of this (see isSinglePlayerGame/
+  // isRoguelikeGame below) — a plain vs-AI skirmish lobby is neither.
+  const isVsAIGame = game.metadata.joiner === AI_USER_ID;
+  const isAITurn = isVsAIGame && game.turnState.currentTurn === AI_USER_ID;
+  // Mirrors GameDisplay.tsx's isSinglePlayerGame/isRoguelikeGame split (there
+  // driven by which orchestrator contract owns the match; here driven by
+  // which Lobby field the game's originating lobby was tagged with) — only
+  // used to route GameResultModal's "Return to X" CTA and mission copy.
+  const isSinglePlayerGame = isVsAIGame && game.metadata.campaignNodeId != null;
+  const isRoguelikeGame = isVsAIGame && game.metadata.roguelikeRunId != null;
 
   const aiTurnLoop = useAITurnLoopWeb2({
     gameId,
@@ -185,7 +274,7 @@ export default function GameDisplayWeb2({
   // (move count ticking up) replace the same toast instead of stacking.
   const aiTurnToastId = `ai-turn-${gameId}`;
   React.useEffect(() => {
-    if (!isSinglePlayerGame) return;
+    if (!isVsAIGame) return;
     if (aiTurnLoop.error) {
       toast.error(aiTurnLoop.error, { id: aiTurnToastId });
       return;
@@ -201,7 +290,7 @@ export default function GameDisplayWeb2({
       toast.dismiss(aiTurnToastId);
     }
   }, [
-    isSinglePlayerGame,
+    isVsAIGame,
     aiTurnLoop.isAIThinking,
     aiTurnLoop.moveCount,
     aiTurnLoop.error,
@@ -354,6 +443,21 @@ export default function GameDisplayWeb2({
     onMoveTileHover,
   } = interaction;
 
+  // Escape deselects/cancels the current move — mirrors GameDisplay.tsx's
+  // window keydown handler (mouse/tap deselect via handleGridRightClickDeselect
+  // is shared, but the keyboard path itself needs its own listener per file).
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleCancelMove();
+        setDraggedShipId(null);
+        setDragOverCell(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleCancelMove, setDragOverCell]);
+
   const calculateDamageForShip = useDamageCalculationWeb2({
     selectedShipId,
     getShipAttributes,
@@ -479,7 +583,7 @@ export default function GameDisplayWeb2({
     }
   }, [optimisticLastMoveWeb2, game.lastMove, game.turnState.currentTurn, userId, readOnly]);
 
-  const lastMove = optimisticLastMoveWeb2 ?? game.lastMove;
+  const lastMove = isReplaying ? (replaySnapshotGame?.lastMove ?? undefined) : (optimisticLastMoveWeb2 ?? game.lastMove);
   const lastMoveShipId = lastMove?.shipId ?? null;
   const lastMoveOldPosition = lastMove ? { row: lastMove.oldRow, col: lastMove.oldCol } : null;
   const lastMoveNewPosition = lastMove ? { row: lastMove.newRow, col: lastMove.newCol } : null;
@@ -514,11 +618,60 @@ export default function GameDisplayWeb2({
   const { myScore, opponentScore, maxScore } = gameScoreData;
 
   // End-of-game result screen (GameResultModal) — mirrors GameDisplay.tsx's
-  // own isGameResultDismissed. Web2 has no campaign/mission mode, so unlike
-  // web3 this always uses the plain PvP copy path (no nodeId/
-  // missionLossReason) — but it does need to cover web2's tie outcome
-  // (WEB2_TIE_SENTINEL), which web3's Game.sol can't produce at all.
+  // own isGameResultDismissed/missionLossReason/nodeId routing (isSinglePlayerGame/
+  // isRoguelikeGame above). Also covers web2's tie outcome (WEB2_TIE_SENTINEL),
+  // which web3's Game.sol can't produce at all.
   const [isGameResultDismissed, setIsGameResultDismissed] = useState(false);
+  const missionLossReason: MissionLossReason | undefined =
+    isVsAIGame && gameWinnerResult === "opponent"
+      ? opponentScore >= maxScore
+        ? "enemyScore"
+        : "fleetDestroyed"
+      : undefined;
+  const nodeIdForGame = game.metadata.campaignNodeId;
+  const gameResultModalNode = isGameOver && !isGameResultDismissed && (
+    <GameResultModal
+      isVictory={gameWinnerResult === "me"}
+      isTie={gameWinnerResult === "tie"}
+      myScore={myScore}
+      opponentScore={opponentScore}
+      maxScore={maxScore}
+      missionLossReason={missionLossReason}
+      nodeId={
+        isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0
+          ? BigInt(nodeIdForGame)
+          : undefined
+      }
+      onClose={() => setIsGameResultDismissed(true)}
+      primaryActionLabel={
+        isRoguelikeGame ? "Return to Run" : isSinglePlayerGame ? "Return to Campaign" : "Back to Games"
+      }
+      onPrimaryAction={() => {
+        if (isRoguelikeGame) {
+          window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+          document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+        } else if (isSinglePlayerGame) {
+          window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+          document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+        }
+        onBack();
+      }}
+    />
+  );
+
+  const roundStartModalNode = roundStartInfo && !isGameOver && (
+    <RoundStartModal
+      key={roundStartInfo.round.toString()}
+      round={roundStartInfo.round}
+      isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+      myRoundScore={roundStartInfo.myRoundScore}
+      opponentRoundScore={roundStartInfo.opponentRoundScore}
+      myScore={roundStartInfo.myScore}
+      opponentScore={roundStartInfo.opponentScore}
+      maxScore={roundStartInfo.maxScore}
+      onClose={() => setRoundStartInfo(null)}
+    />
+  );
 
   const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
     game.turnState.turnTime,
@@ -586,19 +739,423 @@ export default function GameDisplayWeb2({
     );
   };
 
+  // Shared between the desktop/portrait render and the landscape-mobile
+  // early return below — same grid, same props, only the surrounding layout
+  // (side rail vs. narrow tabbed column) differs.
+  const gameGridNode = (
+    <GameGrid
+      grid={displayGrid}
+      allShipPositions={game.shipPositions}
+      shipMap={shipMap}
+      selectedShipId={selectedShipId}
+      previewPosition={previewPosition}
+      targetShipId={targetShipId}
+      selectedWeaponType={selectedWeaponType}
+      hoveredCell={hoveredCell}
+      draggedShipId={draggedShipId}
+      dragOverCell={dragOverCell}
+      movementRange={movementRange}
+      shootingRange={shootingRange}
+      validTargets={validTargets}
+      labelTargets={labelTargets}
+      assistableTargets={assistableTargets}
+      assistableTargetsFromStart={assistableTargetsFromStart}
+      dragShootingRange={dragShootingRange}
+      dragValidTargets={dragValidTargets}
+      hoverShootingRange={hoverShootingRange}
+      hoverValidTargets={hoverValidTargets}
+      onMoveTileHover={onMoveTileHover}
+      isCurrentPlayerTurn={isCurrentPlayerTurn}
+      isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
+      movedShipIdsSet={movedShipIdsSet}
+      specialType={specialType}
+      blockedGrid={blockedGrid}
+      scoringGrid={scoringGrid}
+      onlyOnceGrid={onlyOnceGrid}
+      calculateDamage={calculateDamageForShip}
+      getShipAttributes={getShipAttributes}
+      disableTooltips={false}
+      address={userId ?? undefined}
+      currentTurn={game.turnState.currentTurn}
+      lastMoveShipId={lastMoveShipId}
+      lastMoveOldPosition={lastMoveOldPosition}
+      lastMoveNewPosition={lastMoveNewPosition}
+      lastMoveActionType={lastMoveActionType}
+      lastMoveTargetShipId={lastMoveTargetShipId}
+      lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
+      isRammingMovePreview={isRammingMovePreview}
+      retreatPrepShipId={retreatPrepShipId}
+      retreatPrepIsCreator={retreatPrepIsCreator}
+      onGridRightClickDeselect={handleGridRightClickDeselect}
+      setSelectedShipId={setSelectedShipId}
+      setPreviewPosition={setPreviewPosition}
+      setTargetShipId={setTargetShipId}
+      setSelectedWeaponType={setSelectedWeaponType}
+      setHoveredCell={setHoveredCell}
+      setDraggedShipId={setDraggedShipId}
+      setDragOverCell={setDragOverCell}
+      showConfirmWidget={showConfirmWidget}
+      confirmWidgetLabel={confirmWidgetLabel}
+      onConfirmMove={handleSubmitMove}
+      onCancelMove={handleCancelMove}
+      renderShipCard={renderShipCard}
+    />
+  );
+
+  // Battle-menu flee button overlaid on the grid corner — shown on its own
+  // in landscape-mobile (no side header rail there to hold the flee switch)
+  // and only when stacked/portrait in the main render (desktop side layout
+  // already has FleeSafetySwitch in the header rail instead).
+  const fleeMenuNode = !readOnly && !gameWinnerResult && (
+    <div className="pointer-events-none absolute right-1 top-1 z-[230]">
+      <div className="pointer-events-auto relative">
+        <button
+          type="button"
+          onClick={() => setIsMobileFleeOpen((prev) => !prev)}
+          className="flex h-7 w-7 items-center justify-center border border-solid text-xs font-bold"
+          style={{
+            borderColor: "var(--color-warning-red)",
+            color: "var(--color-warning-red)",
+            backgroundColor: "color-mix(in srgb, var(--color-near-black) 92%, transparent)",
+            borderRadius: 0,
+          }}
+          title="Battle menu"
+          aria-label="Open battle menu"
+        >
+          ⚑
+        </button>
+        {isMobileFleeOpen && (
+          <div
+            className="absolute right-0 top-[calc(100%+6px)] w-[13.25rem] border border-solid p-1"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--color-near-black) 98%, transparent)",
+              borderColor: "var(--color-warning-red)",
+              borderRadius: 0,
+            }}
+          >
+            <FleeSafetySwitch
+              onFlee={() => {
+                setIsMobileFleeOpen(false);
+                refetchGame();
+                refetch?.();
+              }}
+              renderConfirmButton={(onSuccess) => (
+                <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
+              )}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const isCreatorMe = game.metadata.creator === userId;
   const myIds = isCreatorMe ? game.creatorActiveShipIds : game.joinerActiveShipIds;
   const enemyIds = isCreatorMe ? game.joinerActiveShipIds : game.creatorActiveShipIds;
 
+  const fleetDetailsModalNode = showFleetModal && (() => {
+    const buildFleetDetailCards = (
+      shipIds: readonly number[],
+      isCurrentPlayerShip: boolean,
+      flipShip: boolean,
+    ) =>
+      shipIds.map((shipId) => {
+        const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
+        const attrs = getShipAttributes(shipId);
+        const ship = shipMap.get(shipId);
+        if (!shipPosition || !attrs || !ship) return null;
+        return (
+          <GameFleetDetailShipCard
+            key={shipId}
+            shipId={String(shipId)}
+            ship={toShipCardDataWeb2(ship)}
+            shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
+            attributes={attrs}
+            isCurrentPlayerShip={isCurrentPlayerShip}
+            flipShip={flipShip}
+            hasMoved={movedShipIdsSet.has(shipId)}
+          />
+        );
+      });
+
+    return (
+      <GameFleetDetailsModal
+        show={true}
+        onClose={() => setShowFleetModal(false)}
+        myFleetLabel={gameFleetPanelLabel({
+          isMine: true,
+          sideIsCreator: isCreatorMe,
+          readOnly,
+        })}
+        enemyFleetLabel={gameFleetPanelLabel({
+          isMine: false,
+          sideIsCreator: !isCreatorMe,
+          readOnly,
+        })}
+        myFleetCards={buildFleetDetailCards(myIds, true, isCreatorMe)}
+        enemyFleetCards={buildFleetDetailCards(enemyIds, false, !isCreatorMe)}
+      />
+    );
+  })();
+
+  // Mirrors GameDisplay.tsx's rotate-to-landscape gate — this battle view
+  // needs landscape space on a phone-sized viewport to be usable at all.
+  if (requiresLandscapeMode) {
+    return (
+      <div
+        className="fixed inset-0 z-[500] flex items-center justify-center p-4"
+        style={{ backgroundColor: "var(--color-near-black)" }}
+      >
+        <div
+          className="border-2 bg-near-black/85 p-4 text-center sm:p-5"
+          style={{ width: "min(90vw, 22rem)", borderColor: "var(--color-cyan)" }}
+        >
+          <div className="flex justify-center mb-4">
+            <div
+              className="animate-phone-rotate"
+              style={{
+                width: "2rem",
+                height: "3.4rem",
+                border: "2px solid var(--color-cyan)",
+                borderRadius: "4px",
+                position: "relative",
+                opacity: 0.8,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: "4px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: "0.6rem",
+                  height: "2px",
+                  backgroundColor: "var(--color-cyan)",
+                  borderRadius: "1px",
+                }}
+              />
+            </div>
+          </div>
+          <h2 className="text-lg font-bold uppercase tracking-wider text-cyan sm:text-xl" style={STYLE_LABEL}>
+            Rotate to Landscape
+          </h2>
+          <p className="mt-2 text-sm text-text-secondary sm:mt-3">
+            This battle view requires landscape mode on mobile. Rotate your device to continue.
+          </p>
+          <button
+            type="button"
+            onClick={onBack}
+            className="mt-4 border border-steel px-4 py-2 text-sm font-semibold uppercase tracking-wider text-text-primary transition-colors hover:border-cyan hover:text-cyan sm:mt-5"
+            style={{ borderRadius: 0 }}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const mobileTurnLabel = gameWinnerResult
+    ? gameWinnerResult === "tie"
+      ? "Tie"
+      : gameWinnerResult === "me"
+        ? "Victory"
+        : "Defeat"
+    : isCurrentPlayerTurn
+      ? "Your turn"
+      : "Opponent turn";
+  const formatSeconds = (total: number): string => {
+    const m = Math.floor(total / 60).toString().padStart(2, "0");
+    const s = Math.floor(total % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+  const mobileTurnTime = formatSeconds(Math.max(0, turnSecondsLeft));
+  const mobileTurnPct = Math.max(0, Math.min(100, turnPercentRemaining));
+
+  // Mirrors GameDisplay.tsx's own isLandscapeMobile early return: a narrow
+  // scrollable left column (compact header + status/events tabs + Fleets
+  // button) next to the grid, rather than the sticky-full-header layout the
+  // unified render below uses for wider/portrait viewports. Landscape phones
+  // don't have room for both a tall header rail and the grid at once.
+  if (isLandscapeMobile) {
+    return (
+      <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
+        <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
+          <div className="flex h-full min-h-0 min-w-0 flex-1 items-center justify-center">
+            <div className="relative flex h-[min(100%,39rem)] min-h-0 w-full max-w-[18rem] flex-col pl-1 pr-2 py-2">
+              <div
+                className="mb-2 border border-solid px-1.5 py-1"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--color-near-black) 96%, transparent)",
+                  borderColor: "var(--color-gunmetal)",
+                  borderTopColor: "var(--color-steel)",
+                  borderLeftColor: "var(--color-steel)",
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={onBack}
+                    className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-gunmetal)", color: "var(--color-text-secondary)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                  >
+                    Back
+                  </button>
+                  <div className="min-w-0 flex-1 text-center">
+                    <p className="truncate text-[10px] uppercase tracking-wider text-text-secondary">
+                      Game {game.metadata.gameId} | Round {game.turnState.currentRound}
+                    </p>
+                    <p
+                      className="truncate text-[10px] uppercase tracking-wider"
+                      style={{ color: isCurrentPlayerTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}
+                    >
+                      {mobileTurnLabel} | {mobileTurnTime}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refetchGame()}
+                    className="shrink-0 px-1.5 py-0.5 border border-solid text-[10px] uppercase font-semibold tracking-wider"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-cyan)", color: "var(--color-cyan)", backgroundColor: "var(--color-near-black)", borderRadius: 0 }}
+                  >
+                    Sync
+                  </button>
+                </div>
+                <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+                  <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${mobileTurnPct}%`, backgroundColor: "var(--color-warning-red)" }} />
+                </div>
+              </div>
+
+              <div className="mb-2 grid grid-cols-3 gap-1">
+                {(["status", "events"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setMobileLeftPanelTab(tab)}
+                    className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
+                    style={{
+                      ...STYLE_LABEL,
+                      borderColor: mobileLeftPanelTab === tab ? "var(--color-cyan)" : "var(--color-gunmetal)",
+                      color: mobileLeftPanelTab === tab ? "var(--color-cyan)" : "var(--color-text-secondary)",
+                      backgroundColor: mobileLeftPanelTab === tab ? "color-mix(in srgb, var(--color-cyan) 12%, transparent)" : "var(--color-steel)",
+                      borderRadius: 0,
+                    }}
+                  >
+                    {tab}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowFleetModal(true)}
+                  className="px-1 py-2 text-xs min-h-[2.75rem] uppercase tracking-wider border border-solid"
+                  style={{ ...STYLE_LABEL, borderColor: "var(--color-phosphor-green)", color: "var(--color-phosphor-green)", backgroundColor: "var(--color-steel)", borderRadius: 0 }}
+                >
+                  Fleets
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {mobileLeftPanelTab === "status" ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                        <span className="text-text-muted">Me </span>
+                        <span className="font-mono text-white">{myScore}/{maxScore}</span>
+                      </div>
+                      <div className="border border-solid px-1.5 py-1 text-xs" style={{ borderColor: "var(--color-gunmetal)", backgroundColor: "var(--color-near-black)" }}>
+                        <span className="text-text-muted">Opp </span>
+                        <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
+                      </div>
+                    </div>
+                    {selectedShipId != null && isShipOwnedByCurrentPlayer(selectedShipId) && computedActionType !== ActionType.Retreat && (
+                      <button
+                        type="button"
+                        onClick={handleRetreatClick}
+                        className="w-full px-3 py-1.5 text-xs uppercase font-bold tracking-wider border-2 border-solid"
+                        style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+                      >
+                        Retreat
+                      </button>
+                    )}
+                    {computedActionType === ActionType.Retreat && selectedShipId != null && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSubmitMove}
+                          disabled={isSubmitting}
+                          className="flex-1 px-3 py-1.5 text-xs uppercase font-bold tracking-wider border-2 border-solid"
+                          style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "color-mix(in srgb, var(--color-warning-red) 10%, transparent)", borderRadius: 0 }}
+                        >
+                          Confirm Retreat
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelMove}
+                          className="px-3 py-1.5 text-xs uppercase font-bold tracking-wider border-2 border-solid"
+                          style={{ ...STYLE_LABEL, borderColor: "var(--color-gunmetal)", color: "var(--color-text-secondary)", borderRadius: 0 }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                {mobileLeftPanelTab === "events" ? (
+                  <GameEvents
+                    lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
+                    shipMap={gameEventsShipMap}
+                    address={userId ?? undefined}
+                    appendDestroyedText={appendDestroyedTextToLastMove}
+                  />
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative h-full min-h-0 shrink-0 overflow-hidden"
+            style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}`, paddingRight: "2px", paddingTop: "2px" }}
+          >
+            <div className="h-full max-h-full" style={{ height: "calc(100% - 2px)", width: "auto", aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
+              <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove}>
+                <div className="relative h-full [contain:layout]" style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
+                  <div className="absolute inset-0 min-h-0 overflow-hidden">
+                    {gameGridNode}
+                  </div>
+                  {fleeMenuNode}
+                </div>
+              </GameBoardLayout>
+            </div>
+          </div>
+        </div>
+
+        {fleetDetailsModalNode}
+        {roundStartModalNode}
+        {gameResultModalNode}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={gameViewRootRef}
-      className={`flex flex-col gap-6 ${GAME_VIEW_SIDE_ROOT_CLASS}`}
-      style={{ marginLeft: "8px" }}
+      className={`flex flex-col gap-6 ${useSideLayout ? GAME_VIEW_SIDE_ROOT_CLASS : "mx-auto w-full"}`}
+      style={useSideLayout ? { marginLeft: "8px" } : undefined}
     >
-      <div className="flex min-h-0 min-w-0 flex-row items-stretch gap-4 pt-3">
-        {/* Header rail */}
-        <div className="flex min-h-0 self-stretch w-[min(18rem,34vw)] max-w-[20rem] shrink-0 flex-col gap-3 overflow-hidden pl-2 pr-1">
+      <div
+        className={
+          useSideLayout
+            ? "flex min-h-0 min-w-0 flex-row items-stretch gap-4 pt-3"
+            : "flex flex-col gap-4 pt-3"
+        }
+      >
+        {/* Header rail (side layout) / header block (stacked mobile layout) — landscape-mobile never reaches here, see the early return above. */}
+        <div
+          className={
+            useSideLayout
+              ? "flex min-h-0 self-stretch w-[min(18rem,34vw)] max-w-[20rem] shrink-0 flex-col gap-3 overflow-hidden pl-2 pr-1"
+              : "flex flex-col gap-3 px-2"
+          }
+        >
           <div className="flex shrink-0 flex-col items-stretch gap-3">
             <button
               type="button"
@@ -614,17 +1171,17 @@ export default function GameDisplayWeb2({
             </h1>
             {!isGameOver && (() => {
               const isParticipant = !readOnly && (isCreatorMe || game.metadata.joiner === userId);
-              // No timeout-claim for single-player: the AI turn loop is
-              // still actively driving moves server-side even if it runs
-              // long, and racing a forfeit-claim against an in-flight
-              // ai-turn call isn't worth the complexity (mirrors
-              // GameDisplay.tsx's isSinglePlayerGame exclusion).
+              // No timeout-claim vs AI: the AI turn loop is still actively
+              // driving moves server-side even if it runs long, and racing a
+              // forfeit-claim against an in-flight ai-turn call isn't worth
+              // the complexity (mirrors GameDisplay.tsx's isVsAIGame
+              // exclusion).
               const canSeizeTurn =
-                !isCurrentPlayerTurn && !isSinglePlayerGame && isParticipant && turnSecondsLeft <= 0;
+                !isCurrentPlayerTurn && !isVsAIGame && isParticipant && turnSecondsLeft <= 0;
               // Mirrors GameDisplay.tsx: vs-AI turns are unlimited, so don't
               // show the "opponent can claim victory" warning for them.
               const hasExceededTime =
-                isCurrentPlayerTurn && isParticipant && !isSinglePlayerGame && turnSecondsLeft <= 0;
+                isCurrentPlayerTurn && isParticipant && !isVsAIGame && turnSecondsLeft <= 0;
               return (
                 <GameTurnTimerPanel
                   hasExceededTime={hasExceededTime}
@@ -722,6 +1279,19 @@ export default function GameDisplayWeb2({
               </>
             }
           />
+
+          {/* Fuller "Last Move" description — GameDisplay.tsx only surfaces
+              this on mobile (a desktop-side-rail user has GameLastMovePanel's
+              compact overlay instead); mirrored here the same way, gated on
+              the stacked mobile layout. */}
+          {!useSideLayout && (
+            <GameEvents
+              lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
+              shipMap={gameEventsShipMap}
+              address={userId ?? undefined}
+              appendDestroyedText={appendDestroyedTextToLastMove}
+            />
+          )}
         </div>
 
         {/* Game grid */}
@@ -729,64 +1299,9 @@ export default function GameDisplayWeb2({
           <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove}>
             <div className="relative w-full [contain:layout]" style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
               <div className="absolute inset-0 min-h-0 overflow-hidden">
-                <GameGrid
-                  grid={displayGrid}
-                  allShipPositions={game.shipPositions}
-                  shipMap={shipMap}
-                  selectedShipId={selectedShipId}
-                  previewPosition={previewPosition}
-                  targetShipId={targetShipId}
-                  selectedWeaponType={selectedWeaponType}
-                  hoveredCell={hoveredCell}
-                  draggedShipId={draggedShipId}
-                  dragOverCell={dragOverCell}
-                  movementRange={movementRange}
-                  shootingRange={shootingRange}
-                  validTargets={validTargets}
-                  labelTargets={labelTargets}
-                  assistableTargets={assistableTargets}
-                  assistableTargetsFromStart={assistableTargetsFromStart}
-                  dragShootingRange={dragShootingRange}
-                  dragValidTargets={dragValidTargets}
-                  hoverShootingRange={hoverShootingRange}
-                  hoverValidTargets={hoverValidTargets}
-                  onMoveTileHover={onMoveTileHover}
-                  isCurrentPlayerTurn={isCurrentPlayerTurn}
-                  isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
-                  movedShipIdsSet={movedShipIdsSet}
-                  specialType={specialType}
-                  blockedGrid={blockedGrid}
-                  scoringGrid={scoringGrid}
-                  onlyOnceGrid={onlyOnceGrid}
-                  calculateDamage={calculateDamageForShip}
-                  getShipAttributes={getShipAttributes}
-                  disableTooltips={false}
-                  address={userId ?? undefined}
-                  currentTurn={game.turnState.currentTurn}
-                  lastMoveShipId={lastMoveShipId}
-                  lastMoveOldPosition={lastMoveOldPosition}
-                  lastMoveNewPosition={lastMoveNewPosition}
-                  lastMoveActionType={lastMoveActionType}
-                  lastMoveTargetShipId={lastMoveTargetShipId}
-                  lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
-                  isRammingMovePreview={isRammingMovePreview}
-                  retreatPrepShipId={retreatPrepShipId}
-                  retreatPrepIsCreator={retreatPrepIsCreator}
-                  onGridRightClickDeselect={handleGridRightClickDeselect}
-                  setSelectedShipId={setSelectedShipId}
-                  setPreviewPosition={setPreviewPosition}
-                  setTargetShipId={setTargetShipId}
-                  setSelectedWeaponType={setSelectedWeaponType}
-                  setHoveredCell={setHoveredCell}
-                  setDraggedShipId={setDraggedShipId}
-                  setDragOverCell={setDragOverCell}
-                  showConfirmWidget={showConfirmWidget}
-                  confirmWidgetLabel={confirmWidgetLabel}
-                  onConfirmMove={handleSubmitMove}
-                  onCancelMove={handleCancelMove}
-                  renderShipCard={renderShipCard}
-                />
+                {gameGridNode}
               </div>
+              {!useSideLayout && fleeMenuNode}
             </div>
           </GameBoardLayout>
           <GameLastMovePanel
@@ -798,245 +1313,81 @@ export default function GameDisplayWeb2({
             address={userId ?? undefined}
             appendDestroyedText={appendDestroyedTextToLastMove}
           />
+          {isReplaying && (
+            <GameReplayBanner
+              label={replayStep! < 0 ? "Replay · Start" : `Replay · Move ${replayStep! + 1}/${replayData!.turns.length}`}
+            />
+          )}
           {showReplay && (
             <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
               <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
-                <GameReplayViewerWeb2 gameId={gameId} onClose={() => setShowReplay(false)} />
+                {!replayData ? (
+                  <div
+                    className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs"
+                    style={{
+                      ...STYLE_LABEL,
+                      borderColor: "var(--color-steel)",
+                      color: "var(--color-text-secondary)",
+                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                      borderRadius: 0,
+                    }}
+                  >
+                    Loading replay…
+                  </div>
+                ) : replayData.turns.length === 0 ? (
+                  <div
+                    className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
+                    style={{
+                      ...STYLE_LABEL,
+                      borderColor: "var(--color-warning-red)",
+                      color: "var(--color-warning-red)",
+                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                      borderRadius: 0,
+                    }}
+                  >
+                    <span>No moves recorded yet.</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowReplay(false)}
+                      className="px-1.5 py-0.5 border border-solid"
+                      style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <GameReplayControls
+                    stepLabel={
+                      replayStep! < 0
+                        ? "Start"
+                        : `Move ${replayStep! + 1}/${replayData.turns.length} · Rd ${replayData.turns[replayStep!]?.round ?? ""}`
+                    }
+                    onPrev={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                    canPrev={(replayStep ?? -1) > -1}
+                    onNext={() => setReplayStep((s) => (s === null ? null : Math.min(replayData.turns.length - 1, s + 1)))}
+                    canNext={(replayStep ?? -1) < replayData.turns.length - 1}
+                    isPlaying={replayAutoPlay}
+                    onTogglePlay={() => setReplayAutoPlay((p) => !p)}
+                    onExit={() => setShowReplay(false)}
+                    extraInfo={
+                      replaySnapshotGame && (
+                        <div className="w-full font-mono text-xs text-text-muted">
+                          Score: {replaySnapshotGame.creatorScore} — {replaySnapshotGame.joinerScore} · Round{" "}
+                          {replaySnapshotGame.turnState.currentRound}
+                        </div>
+                      )
+                    }
+                  />
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {showFleetModal && (() => {
-        const buildFleetDetailCards = (
-          shipIds: readonly number[],
-          isCurrentPlayerShip: boolean,
-          flipShip: boolean,
-        ) =>
-          shipIds.map((shipId) => {
-            const shipPosition = game.shipPositions.find((sp) => sp.shipId === shipId);
-            const attrs = getShipAttributes(shipId);
-            const ship = shipMap.get(shipId);
-            if (!shipPosition || !attrs || !ship) return null;
-            return (
-              <GameFleetDetailShipCard
-                key={shipId}
-                shipId={String(shipId)}
-                ship={toShipCardDataWeb2(ship)}
-                shipImage={<ShipImageWeb2 ship={ship} className="h-full w-full" />}
-                attributes={attrs}
-                isCurrentPlayerShip={isCurrentPlayerShip}
-                flipShip={flipShip}
-                hasMoved={movedShipIdsSet.has(shipId)}
-              />
-            );
-          });
-
-        return (
-          <GameFleetDetailsModal
-            show={true}
-            onClose={() => setShowFleetModal(false)}
-            myFleetLabel={gameFleetPanelLabel({
-              isMine: true,
-              sideIsCreator: isCreatorMe,
-              readOnly,
-            })}
-            enemyFleetLabel={gameFleetPanelLabel({
-              isMine: false,
-              sideIsCreator: !isCreatorMe,
-              readOnly,
-            })}
-            myFleetCards={buildFleetDetailCards(myIds, true, isCreatorMe)}
-            enemyFleetCards={buildFleetDetailCards(enemyIds, false, !isCreatorMe)}
-          />
-        );
-      })()}
-      {roundStartInfo && !isGameOver && (
-        <RoundStartModal
-          key={roundStartInfo.round.toString()}
-          round={roundStartInfo.round}
-          isMyTurnFirst={roundStartInfo.isMyTurnFirst}
-          myRoundScore={roundStartInfo.myRoundScore}
-          opponentRoundScore={roundStartInfo.opponentRoundScore}
-          myScore={roundStartInfo.myScore}
-          opponentScore={roundStartInfo.opponentScore}
-          maxScore={roundStartInfo.maxScore}
-          onClose={() => setRoundStartInfo(null)}
-        />
-      )}
-      {isGameOver && !isGameResultDismissed && (
-        <GameResultModal
-          isVictory={gameWinnerResult === "me"}
-          isTie={gameWinnerResult === "tie"}
-          myScore={myScore}
-          opponentScore={opponentScore}
-          maxScore={maxScore}
-          onClose={() => setIsGameResultDismissed(true)}
-          primaryActionLabel="Back to Games"
-          onPrimaryAction={onBack}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * Replay viewer — fetches server-persisted turns and steps through
- * snapshots. Chrome (buttons/labels/auto-play) matches GameDisplay.tsx's
- * in-grid replay controls; the data source is genuinely different (web3:
- * client-only localStorage bigint snapshots; web2: server-authoritative
- * Prisma GameTurn history via this API route) so this stays its own
- * component rather than a shared one — see the Phase 6 plan's replay note.
- */
-function GameReplayViewerWeb2({ gameId, onClose }: { gameId: number; onClose: () => void }) {
-  const [step, setStep] = useState(-1);
-  const [autoPlay, setAutoPlay] = useState(false);
-  const autoPlayRef = React.useRef(false);
-  const [data, setData] = useState<{
-    initialState: Web2GameDataView | null;
-    turns: Array<{ id: number; round: number; snapshot: Web2GameDataView | null }>;
-  } | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    import("../lib/apiFetch").then(({ apiFetch }) => {
-      apiFetch<typeof data>(`/api/games/${gameId}/replay`).then((res) => {
-        if (!cancelled) setData(res);
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId]);
-
-  React.useEffect(() => {
-    autoPlayRef.current = autoPlay;
-  }, [autoPlay]);
-
-  React.useEffect(() => {
-    if (!autoPlay || !data) return;
-    const timer = setInterval(() => {
-      if (!autoPlayRef.current) {
-        clearInterval(timer);
-        return;
-      }
-      setStep((s) => {
-        if (s >= data.turns.length - 1) {
-          autoPlayRef.current = false;
-          setAutoPlay(false);
-          return s;
-        }
-        return s + 1;
-      });
-    }, 1200);
-    return () => clearInterval(timer);
-  }, [autoPlay, data]);
-
-  if (!data) {
-    return (
-      <div
-        className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs"
-        style={{
-          ...STYLE_LABEL,
-          borderColor: "var(--color-steel)",
-          color: "var(--color-text-secondary)",
-          backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-          borderRadius: 0,
-        }}
-      >
-        Loading replay…
-      </div>
-    );
-  }
-
-  if (data.turns.length === 0) {
-    return (
-      <div
-        className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
-        style={{
-          ...STYLE_LABEL,
-          borderColor: "var(--color-warning-red)",
-          color: "var(--color-warning-red)",
-          backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-          borderRadius: 0,
-        }}
-      >
-        <span>No moves recorded yet.</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-1.5 py-0.5 border border-solid"
-          style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  const currentSnapshot = step < 0 ? data.initialState : data.turns[step]?.snapshot;
-
-  return (
-    <div
-      className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
-      style={{
-        borderColor: "var(--color-steel)",
-        backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-        borderRadius: 0,
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setStep((s) => Math.max(-1, s - 1))}
-        disabled={step <= -1}
-        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-        style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-      >
-        ◀ Prev
-      </button>
-      <span className="text-[11px] font-mono text-text-muted min-w-[8rem] text-center">
-        {step < 0
-          ? "Start"
-          : `Move ${step + 1}/${data.turns.length} · Rd ${data.turns[step]?.round ?? ""}`}
-      </span>
-      <button
-        type="button"
-        onClick={() => setStep((s) => Math.min(data.turns.length - 1, s + 1))}
-        disabled={step >= data.turns.length - 1}
-        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-        style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-      >
-        Next ▶
-      </button>
-      <button
-        type="button"
-        onClick={() => setAutoPlay((p) => !p)}
-        disabled={step >= data.turns.length - 1}
-        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-        style={{
-          ...STYLE_LABEL,
-          borderColor: autoPlay ? "var(--color-cyan)" : "var(--color-steel)",
-          color: autoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
-          backgroundColor: "transparent",
-          borderRadius: 0,
-        }}
-      >
-        {autoPlay ? "⏸ Pause" : "▶▶ Play"}
-      </button>
-      <button
-        type="button"
-        onClick={onClose}
-        className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-        style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-      >
-        ✕ Exit
-      </button>
-      {currentSnapshot && (
-        <div className="w-full font-mono text-xs text-text-muted">
-          Score: {currentSnapshot.creatorScore} — {currentSnapshot.joinerScore} · Round {currentSnapshot.turnState.currentRound}
-        </div>
-      )}
+      {fleetDetailsModalNode}
+      {roundStartModalNode}
+      {gameResultModalNode}
     </div>
   );
 }

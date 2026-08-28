@@ -77,7 +77,7 @@ What's new since the last version of this doc, in order of how much it affects y
    }
    ```
 
-   One `takeAITurn` call moves exactly one AI ship. The turn can stay with the AI across several consecutive calls if it has more unmoved ships than the human did that round (same alternation rule as PvP). Bound the loop defensively (~10 iterations is plenty — `AIEncounters.MAX_PLACEMENTS_PER_MAP = 8`).
+   One `takeAITurn` call moves exactly one AI ship. The turn can stay with the AI across several consecutive calls if it has more unmoved ships than the human did that round (same alternation rule as PvP). Bound the loop defensively, comfortably above the live `AIEncounters.maxPlacementsPerMap` (an owner-tunable value, default raised from 8 to 14 — don't hardcode the old constant).
 
    Permissionless, like before. Reverts `NotAITurn`/`GameEnded` — check `currentTurn`/`ended` rather than relying on catching those. Listen for `AITurnTaken(gameId, shipId, actionType, targetShipId)` to animate what happened.
 

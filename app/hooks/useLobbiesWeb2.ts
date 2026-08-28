@@ -40,6 +40,7 @@ interface PlayerLobbyStateWeb2 {
   lobbyCreationCostUtc: number;
   reservationFeeUtc: number;
   paused: boolean;
+  staleLobbyThresholdDays: number;
 }
 
 async function fetchPlayerState(): Promise<PlayerLobbyStateWeb2> {
@@ -157,10 +158,16 @@ export function useLobbiesWeb2() {
     }
   }, [invalidateLobbies]);
 
+  const pruneLobby = useCallback(async (lobbyId: number) => {
+    await apiMutate(`/api/lobbies/${lobbyId}/prune`, "POST");
+    await invalidateLobbies();
+  }, [invalidateLobbies]);
+
   const freeGamesPerAddress = playerStateData?.freeGamesPerAddress ?? 1;
   const lobbyCreationCostUtc = playerStateData?.lobbyCreationCostUtc ?? 0;
   const reservationFeeUtc = playerStateData?.reservationFeeUtc ?? 0;
   const paused = playerStateData?.paused ?? false;
+  const staleLobbyThresholdDays = playerStateData?.staleLobbyThresholdDays ?? null;
   const kickTimeoutUntilMs = playerStateData?.kickTimeoutUntil
     ? new Date(playerStateData.kickTimeoutUntil).getTime()
     : 0;
@@ -179,6 +186,8 @@ export function useLobbiesWeb2() {
     rejectGame,
     timeoutJoiner,
     quitWithPenalty,
+    pruneLobby,
+    staleLobbyThresholdDays,
     playerState: {
       kickCount: playerStateData?.kickCount ?? 0,
       kickTimeoutUntil: kickTimeoutUntilMs,

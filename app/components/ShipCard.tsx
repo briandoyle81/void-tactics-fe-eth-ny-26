@@ -229,7 +229,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
 
   return (
     <div
-      className={`${
+      className={`h-full ${
         hideOuterFrame ? "" : "border border-solid p-4"
       } ${
         selectionMode && canSelect
@@ -600,7 +600,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <div className="flex justify-between">
                       <span className="opacity-60">Weapon:</span>
                       <span className="ml-2">
-                        {getMainWeaponName(data.equipment.mainWeapon)}
+                        {getMainWeaponName(data.equipment.mainWeapon, data.traits.variant)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -635,7 +635,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                     <div className="flex justify-between">
                       <span className="opacity-60">Special:</span>
                       <span className="ml-2">
-                        {getSpecialName(data.equipment.special)}
+                        {getSpecialName(data.equipment.special, data.traits.variant)}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 col-span-full">
@@ -693,7 +693,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                 <div className="flex justify-between">
                   <span className="opacity-60">Wpn:</span>
                   <span className="ml-2">
-                    {getMainWeaponName(data.equipment.mainWeapon)}
+                    {getMainWeaponName(data.equipment.mainWeapon, data.traits.variant)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -709,7 +709,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
                 <div className="flex justify-between">
                   <span className="opacity-60">Spc:</span>
                   <span className="ml-2">
-                    {getSpecialName(data.equipment.special)}
+                    {getSpecialName(data.equipment.special, data.traits.variant)}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 col-span-full">

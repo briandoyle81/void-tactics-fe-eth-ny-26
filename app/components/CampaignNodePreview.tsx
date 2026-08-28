@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useAccount } from "wagmi";
-import type { CampaignGraphNode } from "../hooks/useNodeMap";
+import { useCampaignRequiredVariant, type CampaignGraphNode } from "../hooks/useNodeMap";
 import { getNodeContent } from "../config/campaignNodes";
 import {
   useGetAllAIShipConfigs,
@@ -38,6 +38,7 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
   const [hoveredShip, setHoveredShip] = React.useState<HoveredShip | null>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const content = getNodeContent(node.id);
+  const { data: requiredVariant } = useCampaignRequiredVariant(node.campaignId);
 
   const { data: placements, isLoading: placementsLoading } = useGetMapPlacements(
     node.mapId,
@@ -77,10 +78,12 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
           <span>
             Player cost limit: <span className="text-cyan">{node.costLimit.toString()}</span>
           </span>
-          <span>
-            Difficulty rating: <span className="text-amber">{node.enemyThreat.toString()}</span>
-          </span>
         </div>
+        {!!requiredVariant && (
+          <div className="mt-2 inline-flex w-fit items-center gap-1.5 border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber">
+            Requires Faction {requiredVariant} fleet
+          </div>
+        )}
         <button
           type="button"
           onClick={() => {

@@ -9,13 +9,17 @@ import ShipCard from "./ShipCard";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { MapDisplayWeb2 } from "./MapDisplayWeb2";
-import { findNextDeploymentPosition } from "../utils/mapGridUtils";
-import { GRID_DIMENSIONS } from "../types/types";
 import { useFleetViewWeb2 } from "../hooks/useFleetViewWeb2";
 import { FleetViewModal } from "./FleetViewModal";
 import { FleetSelectionModal } from "./FleetSelectionModal";
 import { LobbyCreateSection } from "./LobbyCreateSection";
-import { type FleetFilters, DEFAULT_FLEET_FILTERS, matchesFleetFilters } from "../utils/fleetFilters";
+import { useFleetPlacementWeb2 } from "../hooks/useFleetPlacementWeb2";
+import { buildFleetShipListItemsWeb2 } from "../utils/buildFleetShipListItemsWeb2";
+import {
+  readFleetDraftsWeb2,
+  writeFleetDraftWeb2,
+  removeFleetDraftWeb2,
+} from "../utils/fleetSelectionDraftStorageWeb2";
 import { LoadFleetMenu, type FleetLoadPlan } from "./LoadFleetMenu";
 import { readFleetCompositionPersisted, type FleetComposition } from "../utils/fleetCompositionStorage";
 import { Web2LobbyStatus } from "../types/web2Lobby";
@@ -34,6 +38,7 @@ import {
 } from "./LobbyCreateForm";
 import { AI_USER_ID } from "../config/aiUser";
 import { useAIEncounterMapsWeb2 } from "../hooks/useAIEncounterMapsWeb2";
+import { usePvpMapsWeb2 } from "../hooks/usePvpMapsWeb2";
 import {
   SKIRMISH_THREAT_LIMIT,
   BATTLE_THREAT_LIMIT,
@@ -97,6 +102,8 @@ const LobbiesWeb2: React.FC = () => {
     rejectGame,
     timeoutJoiner,
     quitWithPenalty,
+    pruneLobby,
+    staleLobbyThresholdDays,
     playerState,
     freeGamesPerAddress,
     lobbyCreationCostUtc,
@@ -123,6 +130,14 @@ const LobbiesWeb2: React.FC = () => {
   const [opponentMode, setOpponentMode] = useState<"pvp" | "ai">("pvp");
   const [aiMapId, setAiMapId] = useState<number | null>(null);
   const { mapIds: aiMapIds, isLoading: aiMapsLoading } = useAIEncounterMapsWeb2();
+  const { pvpEligibleMapIds, mapOptions: pvpMapOptions } = usePvpMapsWeb2();
+  const [pvpMapId, setPvpMapId] = useState<number | null>(null);
+  // Once the eligible list loads, snap the form off the not-yet-loaded
+  // placeholder onto a map that's actually valid to submit — mirrors
+  // Lobbies.tsx's own pvpEligibleMapIds-loaded effect.
+  useEffect(() => {
+    if (pvpMapId === null && pvpEligibleMapIds.length > 0) setPvpMapId(pvpEligibleMapIds[0]);
+  }, [pvpMapId, pvpEligibleMapIds]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [costLimit, setCostLimit] = useState(SKIRMISH_THREAT_LIMIT);
   const [turnTimeSeconds, setTurnTimeSeconds] = useState(IMMEDIATE_GAME_TURN_SECONDS);
@@ -133,17 +148,62 @@ const LobbiesWeb2: React.FC = () => {
   const [viewingFleet, setViewingFleet] = useState<{ lobbyId: number; fleetId: number } | null>(null);
   const fleetView = useFleetViewWeb2(viewingFleet?.lobbyId ?? null, viewingFleet?.fleetId ?? null);
 
-  // Fleet-selection ship placement — mirrors Lobbies.tsx's shipPositions/
-  // selectedShipId/drag-and-drop/tap-to-place state so web2 fleets carry
-  // real starting positions instead of leaving them for the server default.
-  const [shipPositions, setShipPositions] = useState<Array<{ shipId: number; row: number; col: number }>>([]);
-  const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
-  const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
-  const [dragOverPosition, setDragOverPosition] = useState<{ row: number; col: number } | null>(null);
-  const lastDragOverPositionRef = useRef<{ row: number; col: number } | null>(null);
+  const selectedLobby = useMemo(
+    () => lobbyList.lobbies.find((l) => l.basic.id === selectedLobbyId) ?? null,
+    [lobbyList.lobbies, selectedLobbyId],
+  );
+
+  // Opponent's already-placed fleet, for the grid-preview overlay while
+  // positioning your own — mirrors Lobbies.tsx's opponentFleetIdForGrid.
+  // Hook called unconditionally at top level (Rules of Hooks); args are
+  // null until there's actually an opponent fleet to preview.
+  const opponentFleetIdForPreview = useMemo(() => {
+    if (!selectedLobby) return null;
+    const isCreator = selectedLobby.basic.creator === userId;
+    const fid = isCreator ? selectedLobby.players.joinerFleetId : selectedLobby.players.creatorFleetId;
+    return fid > 0 ? fid : null;
+  }, [selectedLobby, userId]);
+  const opponentFleetPreview = useFleetViewWeb2(
+    selectedLobby ? selectedLobby.basic.id : null,
+    opponentFleetIdForPreview,
+  );
+
+  // Shared fleet-picking core (selection state, drag/move handlers, cost
+  // calculations) — same hook single-player's node/roguelike combat modals
+  // use, parameterized here for whichever side of whichever lobby is
+  // currently selected. Mirrors Lobbies.tsx's own useFleetPlacement usage —
+  // this used to be hand-rolled separately here (see feedback_no_parallel_
+  // components memory).
+  const isCreatorForSelected = selectedLobby?.basic.creator === userId;
+  const costLimitForSelected = selectedLobby ? selectedLobby.basic.costLimit : 1000;
+  const fleet = useFleetPlacementWeb2({
+    ships,
+    costLimit: costLimitForSelected,
+    costsVersion: null,
+    isCreatorSide: isCreatorForSelected,
+  });
+  const {
+    selectedShips,
+    shipPositions,
+    setShipPositions,
+    selectedShipId,
+    setSelectedShipId,
+    draggedShipId,
+    setDraggedShipId,
+    dragOverPosition,
+    setDragOverPosition,
+    filteredShips,
+    fleetFilters,
+    setFleetFilters,
+    addShip: addShipToFleet,
+    removeShip: removeShipFromFleet,
+    moveShip,
+    findNextPosition,
+    clearSelection: clearFleetSelectionState,
+  } = fleet;
+
   const [tapPendingShipId, setTapPendingShipId] = useState<number | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [fleetFilters, setFleetFilters] = useState<FleetFilters>(DEFAULT_FLEET_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [showLoadFleetMenu, setShowLoadFleetMenu] = useState(false);
   const [showFleetConfirmation, setShowFleetConfirmation] = useState(false);
@@ -157,40 +217,7 @@ const LobbiesWeb2: React.FC = () => {
     setIsTouchDevice(window.matchMedia("(hover: none) and (pointer: coarse)").matches);
   }, []);
 
-  const selectedShipIds = useMemo(
-    () => new Set(shipPositions.map((p) => p.shipId)),
-    [shipPositions],
-  );
-
-  // Selected ships bypass filters (so you don't lose sight of ships you've
-  // already picked while adjusting filter criteria), matching Lobbies.tsx's
-  // filteredShips. Lifted to component scope (rather than computed inline in
-  // the fleet-selection modal's render) so its ship ids can feed the
-  // in-game-attributes hook below, which — being a hook — can't live inside
-  // the modal's render-time IIFE.
-  const filteredShips = useMemo(
-    () =>
-      ships.filter((s) => {
-        if (selectedShipIds.has(s.id)) return true;
-        return matchesFleetFilters(
-          {
-            cost: s.shipData.cost,
-            isShiny: s.shipData.shiny,
-            accuracy: s.traits.accuracy,
-            hull: s.traits.hull,
-            speed: s.traits.speed,
-            isConstructed: s.shipData.constructed,
-            isDestroyed: s.shipData.timestampDestroyed > 0,
-            inFleet: s.shipData.inFleet,
-            mainWeapon: s.equipment.mainWeapon,
-            shields: s.equipment.shields,
-            special: s.equipment.special,
-          },
-          fleetFilters,
-        );
-      }),
-    [ships, selectedShipIds, fleetFilters],
-  );
+  const selectedShipIds = useMemo(() => new Set(selectedShips), [selectedShips]);
 
   const filteredShipIds = useMemo(
     () => (selectedLobbyId ? filteredShips.map((s) => s.id) : []),
@@ -259,15 +286,12 @@ const LobbiesWeb2: React.FC = () => {
         toast.success("Match against AI created");
         return;
       }
-      // Matches web3's Lobbies.tsx, which also has no real map picker (its
-      // "Map" field is a locked input hardcoded to map 1) — this keeps both
-      // modes on the same fixed map rather than leaving mapId unset (which
-      // left games with no blocked/scoring tiles).
+      if (pvpMapId === null) return;
       await createLobby({
         costLimit,
         turnTimeSeconds,
         maxScore,
-        selectedMapId: 1,
+        selectedMapId: pvpMapId,
         reservedJoinerEmail: reservedJoinerEmail.trim() || undefined,
       });
       setReservedJoinerEmail("");
@@ -311,14 +335,11 @@ const LobbiesWeb2: React.FC = () => {
   const handleQuitWithPenalty = (lobbyId: number) =>
     run("quit with penalty", () => quitWithPenalty(lobbyId));
 
-  const selectedCost = ships
-    .filter((s) => selectedShipIds.has(s.id))
-    .reduce((sum, s) => sum + s.shipData.cost, 0);
-
-  const selectedLobby = useMemo(
-    () => lobbyList.lobbies.find((l) => l.basic.id === selectedLobbyId) ?? null,
-    [lobbyList.lobbies, selectedLobbyId],
-  );
+  const handlePrune = (lobbyId: number) =>
+    run("prune lobby", async () => {
+      await pruneLobby(lobbyId);
+      toast.success("Stale lobby pruned.");
+    });
 
   // While the fleet-selection modal is open and waiting on the opponent's
   // fleet, poll faster than the list's normal background interval — mirrors
@@ -335,61 +356,64 @@ const LobbiesWeb2: React.FC = () => {
     return () => clearInterval(interval);
   }, [selectedLobbyId, isWaitingForOtherFleet, loadLobbies]);
 
-  // Function to add ship to fleet with a default position
-  const addShipToFleet = (shipId: number, isCreator: boolean) => {
-    const existingPositions = shipPositions.map((pos) => ({ row: pos.row, col: pos.col }));
-    const position = findNextDeploymentPosition(isCreator, existingPositions);
-    if (position) {
-      setShipPositions((prev) => [...prev, { shipId, row: position.row, col: position.col }]);
-    }
-  };
+  // My own fleet already submitted for the selected lobby — once true, stop
+  // tracking a draft for it (nothing left to draft).
+  const selectedLobbyPlayerHasFleet =
+    !!selectedLobby &&
+    (selectedLobby.basic.creator === userId
+      ? selectedLobby.players.creatorFleetId > 0
+      : selectedLobby.players.joinerFleetId > 0);
 
-  const removeShipFromFleet = (shipId: number) => {
-    setShipPositions((prev) => prev.filter((pos) => pos.shipId !== shipId));
-    if (selectedShipId === shipId) setSelectedShipId(null);
-  };
+  // In-progress fleet selection (ship picks + positions) persisted to
+  // localStorage per lobby, so a reload or closing the modal without
+  // submitting doesn't lose the draft — mirrors Lobbies.tsx's
+  // readFleetDrafts/writeFleetDraft/removeFleetDraft usage.
+  const lastHydratedDraftLobbyRef = useRef<number | null>(null);
+  const skipNextDraftPersistRef = useRef(false);
 
-  const handleShipSelect = (shipId: number) => {
-    setSelectedShipId(shipId);
-    setTapPendingShipId(null);
-  };
+  useEffect(() => {
+    if (!selectedLobbyId) lastHydratedDraftLobbyRef.current = null;
+  }, [selectedLobbyId]);
 
-  const handleShipMove = (shipId: number, row: number, col: number, isCreator: boolean) => {
-    const inDeploymentZone = isCreator ? col >= 0 && col <= 3 : col >= 13 && col <= 16;
-    const isValidPosition =
-      row >= 0 && row < GRID_DIMENSIONS.HEIGHT && col >= 0 && col < GRID_DIMENSIONS.WIDTH && inDeploymentZone;
-    if (!isValidPosition) return;
-
-    const existingPosition = shipPositions.find((pos) => pos.row === row && pos.col === col);
-    if (existingPosition) return;
-
-    if (!shipPositions.some((pos) => pos.shipId === shipId)) {
-      setShipPositions((prev) => [...prev, { shipId, row, col }]);
-      setTapPendingShipId(null);
+  useEffect(() => {
+    if (!selectedLobbyId || !userId || !selectedLobby || selectedLobbyPlayerHasFleet) {
+      if (selectedLobbyId && selectedLobbyPlayerHasFleet) {
+        lastHydratedDraftLobbyRef.current = selectedLobbyId;
+      }
       return;
     }
+    if (lastHydratedDraftLobbyRef.current === selectedLobbyId) return;
 
-    setShipPositions((prev) => prev.map((pos) => (pos.shipId === shipId ? { ...pos, row, col } : pos)));
-    setSelectedShipId(null);
-    setTapPendingShipId(null);
-  };
-
-  const handleDragStart = (shipId: number) => setDraggedShipId(shipId);
-  const handleDragEnd = () => {
-    setDraggedShipId(null);
-    setDragOverPosition(null);
-    lastDragOverPositionRef.current = null;
-  };
-  const handleDragOver = (row: number, col: number, e: React.DragEvent) => {
-    e.preventDefault();
-    const newPosition = { row, col };
-    const lastPosition = lastDragOverPositionRef.current;
-    if (!lastPosition || lastPosition.row !== row || lastPosition.col !== col) {
-      lastDragOverPositionRef.current = newPosition;
-      setDragOverPosition(newPosition);
+    const drafts = readFleetDraftsWeb2(userId);
+    const raw = drafts[selectedLobbyId.toString()];
+    skipNextDraftPersistRef.current = true;
+    if (raw?.shipIds?.length) {
+      fleet.setSelectedShips(raw.shipIds);
+      setShipPositions(raw.positions ?? []);
+    } else {
+      fleet.setSelectedShips([]);
+      setShipPositions([]);
     }
-  };
-  const handleDrop = (row: number, col: number, e: React.DragEvent | undefined, isCreator: boolean) => {
+    setSelectedShipId(null);
+    lastHydratedDraftLobbyRef.current = selectedLobbyId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLobbyId, userId, selectedLobby, selectedLobbyPlayerHasFleet]);
+
+  useEffect(() => {
+    if (!selectedLobbyId || !userId || !selectedLobby || selectedLobbyPlayerHasFleet) {
+      if (selectedLobbyId && userId && selectedLobbyPlayerHasFleet) {
+        removeFleetDraftWeb2(userId, selectedLobbyId);
+      }
+      return;
+    }
+    if (skipNextDraftPersistRef.current) {
+      skipNextDraftPersistRef.current = false;
+      return;
+    }
+    writeFleetDraftWeb2(userId, selectedLobbyId, selectedShips, shipPositions);
+  }, [selectedLobbyId, userId, selectedLobby, selectedLobbyPlayerHasFleet, selectedShips, shipPositions]);
+
+  const handleDrop = (row: number, col: number, e: React.DragEvent | undefined) => {
     let shipIdToMove = draggedShipId;
     if (!shipIdToMove && e) {
       const data = e.dataTransfer.getData("text/plain");
@@ -399,29 +423,30 @@ const LobbiesWeb2: React.FC = () => {
       }
     }
     if (shipIdToMove === null) return;
-    handleShipMove(shipIdToMove, row, col, isCreator);
+    moveShip(shipIdToMove, row, col);
+    setTapPendingShipId(null);
     setDraggedShipId(null);
     setDragOverPosition(null);
-    lastDragOverPositionRef.current = null;
   };
 
-  // Ship list tap handler — desktop adds immediately, touch enters pending-placement mode
-  const handleListShipTap = (shipId: number, canSelect: boolean, isCreator: boolean) => {
-    if (!canSelect) return;
-    if (selectedShipIds.has(shipId)) {
-      removeShipFromFleet(shipId);
-      setTapPendingShipId(null);
-    } else if (isTouchDevice) {
-      setTapPendingShipId((prev) => (prev === shipId ? null : shipId));
-    } else {
-      addShipToFleet(shipId, isCreator);
-    }
-  };
-
-  const resetFleetSelectionModalState = () => {
+  // Close the fleet modal but keep the in-memory (and localStorage-backed)
+  // draft selection — mirrors Lobbies.tsx's closeFleetModalOnly. Reopening
+  // the same lobby's picker (or reloading the page) restores it via the
+  // hydrate effect above.
+  const closeFleetModalOnly = () => {
     setSelectedLobbyId(null);
-    setShipPositions([]);
-    setSelectedShipId(null);
+    setFiltersExpanded(false);
+    setShowLoadFleetMenu(false);
+    setShowFleetConfirmation(false);
+  };
+
+  // Full reset, including wiping the persisted draft — only for genuine
+  // "done with this lobby" moments (a submitted fleet has nothing left to
+  // draft), not for a plain modal close.
+  const resetFleetSelectionModalState = () => {
+    if (selectedLobbyId != null && userId) removeFleetDraftWeb2(userId, selectedLobbyId);
+    setSelectedLobbyId(null);
+    clearFleetSelectionState();
     setTapPendingShipId(null);
     setDraggedShipId(null);
     setDragOverPosition(null);
@@ -431,23 +456,24 @@ const LobbiesWeb2: React.FC = () => {
   };
 
   const clearFleetDraftSelection = () => {
-    setShipPositions([]);
-    setSelectedShipId(null);
+    if (selectedLobbyId != null && userId) removeFleetDraftWeb2(userId, selectedLobbyId);
+    clearFleetSelectionState();
     setShowLoadFleetMenu(false);
   };
 
-  const applyLoadedFleetSelection = (shipIdsToLoad: number[], isCreator: boolean) => {
+  const applyLoadedFleetSelection = (shipIdsToLoad: number[]) => {
     const placedShipIds: number[] = [];
     const nextPositions: Array<{ shipId: number; row: number; col: number }> = [];
     const existingPositions: Array<{ row: number; col: number }> = [];
     for (const shipId of shipIdsToLoad) {
-      const position = findNextDeploymentPosition(isCreator, existingPositions);
+      const position = findNextPosition(existingPositions);
       if (!position) break;
       placedShipIds.push(shipId);
       nextPositions.push({ shipId, row: position.row, col: position.col });
       existingPositions.push(position);
     }
 
+    fleet.setSelectedShips(placedShipIds);
     setShipPositions(nextPositions);
     setSelectedShipId(null);
     setShowLoadFleetMenu(false);
@@ -463,11 +489,11 @@ const LobbiesWeb2: React.FC = () => {
     }
   };
 
-  const getFleetSummary = (fleet: FleetComposition) => {
+  const getFleetSummary = (composition: FleetComposition) => {
     let availableCount = 0;
     let unavailableCount = 0;
     let totalThreat = 0;
-    for (const shipIdString of fleet.shipIds) {
+    for (const shipIdString of composition.shipIds) {
       const ship = ships.find((s) => String(s.id) === shipIdString);
       if (!ship) {
         unavailableCount++;
@@ -480,13 +506,13 @@ const LobbiesWeb2: React.FC = () => {
         unavailableCount++;
       }
     }
-    return { totalShips: fleet.shipIds.length, totalThreat, availableCount, unavailableCount };
+    return { totalShips: composition.shipIds.length, totalThreat, availableCount, unavailableCount };
   };
 
-  const getFleetLoadPlan = (fleet: FleetComposition, isCreator: boolean): FleetLoadPlan => {
+  const getFleetLoadPlan = (composition: FleetComposition): FleetLoadPlan => {
     const availableShipIds: number[] = [];
     let unavailableCount = 0;
-    for (const shipIdString of fleet.shipIds) {
+    for (const shipIdString of composition.shipIds) {
       const ship = ships.find((s) => String(s.id) === shipIdString);
       if (!ship || !ship.shipData.constructed || ship.shipData.timestampDestroyed > 0 || ship.shipData.inFleet) {
         unavailableCount++;
@@ -497,7 +523,7 @@ const LobbiesWeb2: React.FC = () => {
     return {
       availableCount: availableShipIds.length,
       unavailableCount,
-      load: () => applyLoadedFleetSelection(availableShipIds, isCreator),
+      load: () => applyLoadedFleetSelection(availableShipIds),
     };
   };
 
@@ -514,6 +540,10 @@ const LobbiesWeb2: React.FC = () => {
       );
     });
 
+  // lobbyId is always selectedLobby (handleCreateFleetModal's one call
+  // site), so fleet's own totalCost/isOverLimit/isUnder90Percent — already
+  // scoped to selectedLobby's costLimit — apply directly here, mirroring
+  // Lobbies.tsx's handleCreateFleet.
   const handleCreateFleetModal = (lobbyId: number) => {
     if (shipPositions.length === 0) return;
     if (shipPositions.length > MAX_SHIPS_PER_FLEET) {
@@ -523,19 +553,14 @@ const LobbiesWeb2: React.FC = () => {
       return;
     }
 
-    const lobby = lobbyList.lobbies.find((l) => l.basic.id === lobbyId);
-    const lobbyCostLimit = lobby ? lobby.basic.costLimit : 1000;
-    const isOverLimit = lobbyCostLimit > 0 && selectedCost > lobbyCostLimit;
-    const isUnder90Percent = lobbyCostLimit > 0 && selectedCost < lobbyCostLimit * 0.9;
-
-    if (isOverLimit) {
+    if (fleet.isOverLimit) {
       toast.error(
-        `Fleet threat (${selectedCost}) exceeds this lobby limit (${lobbyCostLimit}). Remove ships or pick a different lobby.`,
+        `Fleet threat (${fleet.totalCost}) exceeds this lobby limit (${costLimitForSelected}). Remove ships or pick a different lobby.`,
       );
       return;
     }
 
-    if (isUnder90Percent) {
+    if (fleet.isUnder90Percent) {
       setShowFleetConfirmation(true);
       return;
     }
@@ -597,7 +622,9 @@ const LobbiesWeb2: React.FC = () => {
             onScoreLengthChange={(v) =>
               setMaxScore(v === "long" ? LONG_MAX_SCORE : v === "medium" ? MEDIUM_MAX_SCORE : SHORT_MAX_SCORE)
             }
-            mapIdLabel={opponentMode === "ai" ? String(aiMapId ?? "") : "1"}
+            mapIdLabel={opponentMode === "ai" ? String(aiMapId ?? "") : String(pvpMapId ?? "")}
+            mapOptions={opponentMode === "pvp" ? pvpMapOptions : undefined}
+            onMapIdChange={opponentMode === "pvp" ? (id) => setPvpMapId(Number(id)) : undefined}
             onClose={() => setShowCreateForm(false)}
             extraFields={
               <>
@@ -729,7 +756,8 @@ const LobbiesWeb2: React.FC = () => {
                     busy ||
                     (opponentMode === "ai"
                       ? aiMapId === null
-                      : !!(
+                      : pvpMapId === null ||
+                        !!(
                           reservedJoinerEmail.trim() &&
                           currentUserEmail &&
                           reservedJoinerEmail.trim().toLowerCase() === currentUserEmail.toLowerCase()
@@ -780,6 +808,14 @@ const LobbiesWeb2: React.FC = () => {
             const isFleetSelection = lobby.state.status === Web2LobbyStatus.FleetSelection;
             const myFleetId = isCreatorMe ? lobby.players.creatorFleetId : lobby.players.joinerFleetId;
             const opponentFleetId = isCreatorMe ? lobby.players.joinerFleetId : lobby.players.creatorFleetId;
+            // Matches the prune route's own not-open/not-stale-yet checks
+            // exactly, so the badge/button only appear when the call would
+            // actually succeed — mirrors Lobbies.tsx's isStale.
+            const isStale =
+              lobby.state.status === Web2LobbyStatus.Open &&
+              !lobby.players.joiner &&
+              staleLobbyThresholdDays != null &&
+              Date.now() / 1000 - lobby.basic.createdAt / 1000 >= staleLobbyThresholdDays * 86400;
             return (
               <LobbyCard
                 key={lobby.basic.id}
@@ -787,6 +823,7 @@ const LobbiesWeb2: React.FC = () => {
                 isCreatorMe={isCreatorMe}
                 statusColorClass={lobbyStatusColor(lobby.state.status)}
                 statusText={lobbyStatusLabel(lobby.state.status)}
+                isStale={isStale}
                 creatorLabel={truncateId(lobby.basic.creator)}
                 creatorStats={<CreatorStatsWeb2 userId={lobby.basic.creator} />}
                 joinerLabel={
@@ -887,6 +924,17 @@ const LobbiesWeb2: React.FC = () => {
                         LEAVE LOBBY
                       </button>
                     }
+                    pruneButton={
+                      isStale ? (
+                        <button
+                          onClick={() => handlePrune(lobby.basic.id)}
+                          disabled={busy}
+                          className="w-full px-4 py-2.5 border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          [PRUNE STALE LOBBY]
+                        </button>
+                      ) : undefined
+                    }
                     creatorExtraControls={
                       isFleetSelection ? (
                         <button
@@ -934,49 +982,37 @@ const LobbiesWeb2: React.FC = () => {
           const participantHasFleet = myFleetId > 0;
           const opponentHasFleet = opponentFleetId > 0;
           const lobbyCostLimit = lobby.basic.costLimit;
-          const isOverLimit = lobbyCostLimit > 0 && selectedCost > lobbyCostLimit;
-          const isUnder90Percent = lobbyCostLimit > 0 && selectedCost < lobbyCostLimit * 0.9;
 
-          // Same as Lobbies.tsx's hasMovedShip: require at least one ship off the
-          // default deployment column (creator: col 0, joiner: far-right column)
-          // before allowing submission, so players actually engage the placement UI.
-          const hasMovedShip =
-            shipPositions.length > 0 &&
-            shipPositions.some((pos) =>
-              isCreator ? pos.col !== 0 : pos.col !== GRID_DIMENSIONS.WIDTH - 1,
-            );
-
-          const shipListItems = filteredShips.map((s) => {
-            const canSelect = s.shipData.timestampDestroyed === 0 && s.shipData.constructed && !s.shipData.inFleet;
-            return {
-              key: String(s.id),
-              canSelect,
-              isPending: tapPendingShipId === s.id,
-              isTouchDevice,
-              onDragStart: () => handleDragStart(s.id),
-              onDragEnd: handleDragEnd,
-              card: (
-                <ShipCard
-                  ship={toShipCardDataWeb2(s)}
-                  shipImage={<ShipImageWeb2 ship={s} className="h-full w-full" />}
-                  isStarred={false}
-                  onToggleStar={() => {}}
-                  isSelected={selectedShipIds.has(s.id)}
-                  onToggleSelection={() => handleListShipTap(s.id, canSelect, isCreator)}
-                  onRecycleClick={() => {}}
-                  showInGameProperties={showInGameProperties}
-                  inGameAttributes={attributesByShipId.get(s.id)}
-                  attributesLoading={attributesLoading}
-                  selectionMode
-                  hideRecycle
-                  hideCheckbox
-                  onCardClick={() => handleListShipTap(s.id, canSelect, isCreator)}
-                  canSelect={canSelect}
-                  flipShip={isCreator}
-                />
-              ),
-            };
+          const shipListItems = buildFleetShipListItemsWeb2({
+            ships: filteredShips,
+            selectedShips,
+            addShip: addShipToFleet,
+            removeShip: removeShipFromFleet,
+            setDraggedShipId,
+            setDragOverPosition,
+            attributesMap: attributesByShipId,
+            attributesLoading,
+            showInGameProperties,
+            flipShips: isCreator,
+            tapPendingShipId,
+            setTapPendingShipId,
+            isTouchDevice,
           });
+
+          // Overlay the opponent's already-placed fleet on the grid while
+          // positioning your own — mirrors Lobbies.tsx's opponentFleetIdForGrid/
+          // combinedPositions/combinedShips. Cached indefinitely by
+          // useFleetViewWeb2 (a submitted fleet's roster/positions never change).
+          const combinedShipPositions = [...shipPositions, ...opponentFleetPreview.positions];
+          const combinedShips = [
+            ...ships.filter((s) => selectedShipIds.has(s.id)),
+            ...opponentFleetPreview.ships,
+          ];
+          // Whichever side is the creator gets its sprites flipped (base sprite
+          // faces left; the creator's ships face right toward the joiner).
+          const flippedShipIds = isCreator
+            ? shipPositions.map((p) => p.shipId)
+            : opponentFleetPreview.positions.map((p) => p.shipId);
 
           const mapDisplay = (
             <MapDisplayWeb2
@@ -987,15 +1023,25 @@ const LobbiesWeb2: React.FC = () => {
               pendingPlacementShipId={tapPendingShipId}
               isCreator={isCreator}
               isCreatorViewer={isCreator}
-              shipPositions={shipPositions}
-              ships={ships.filter((s) => selectedShipIds.has(s.id))}
+              shipPositions={combinedShipPositions}
+              ships={combinedShips}
               selectedShipId={selectedShipId}
-              onShipSelect={handleShipSelect}
-              onShipMove={(shipId, row, col) => handleShipMove(shipId, row, col, isCreator)}
+              onShipSelect={(id) => {
+                setSelectedShipId(id);
+                setTapPendingShipId(null);
+              }}
+              onShipMove={(shipId, row, col) => {
+                moveShip(shipId, row, col);
+                setTapPendingShipId(null);
+              }}
               allowSelection
               selectableShipIds={Array.from(selectedShipIds)}
-              onDragOver={handleDragOver}
-              onDrop={(row, col, e) => handleDrop(row, col, e, isCreator)}
+              flippedShipIds={flippedShipIds}
+              onDragOver={(row, col, e) => {
+                e.preventDefault();
+                setDragOverPosition({ row, col });
+              }}
+              onDrop={handleDrop}
               dragOverPosition={dragOverPosition}
             />
           );
@@ -1013,14 +1059,14 @@ const LobbiesWeb2: React.FC = () => {
                 busyLabel: "CREATING FLEET...",
                 selectedCount: selectedShipIds.size,
                 maxShips: MAX_SHIPS_PER_FLEET,
-                isOverLimit,
+                isOverLimit: fleet.isOverLimit,
                 costLimit: lobbyCostLimit,
-                isUnder90Percent,
-                hasMovedShip,
+                isUnder90Percent: fleet.isUnder90Percent,
+                hasMovedShip: fleet.hasMovedShip,
                 hasStaleCosts: false,
               }}
               onCreateFleet={() => handleCreateFleetModal(lobby.basic.id)}
-              onCancel={resetFleetSelectionModalState}
+              onCancel={closeFleetModalOnly}
               filtersExpanded={filtersExpanded}
               onToggleFilters={() => setFiltersExpanded(!filtersExpanded)}
               loadFleetMenu={
@@ -1030,15 +1076,15 @@ const LobbiesWeb2: React.FC = () => {
                   onToggleOpen={() => setShowLoadFleetMenu((prev) => !prev)}
                   onClose={() => setShowLoadFleetMenu(false)}
                   getSummary={getFleetSummary}
-                  getLoadPlan={(fleet) => getFleetLoadPlan(fleet, isCreator)}
+                  getLoadPlan={getFleetLoadPlan}
                 />
               }
               onClearFleetSelection={clearFleetDraftSelection}
               isBusy={busy}
-              totalCost={selectedCost}
+              totalCost={fleet.totalCost}
               costLimit={lobbyCostLimit}
-              isOverLimit={isOverLimit}
-              isUnder90Percent={isUnder90Percent}
+              isOverLimit={fleet.isOverLimit}
+              isUnder90Percent={fleet.isUnder90Percent}
               leaveButton={
                 <button
                   type="button"
@@ -1049,7 +1095,7 @@ const LobbiesWeb2: React.FC = () => {
                   LEAVE LOBBY
                 </button>
               }
-              onClose={resetFleetSelectionModalState}
+              onClose={closeFleetModalOnly}
               showFirstFleetHint={!participantHasFleet}
               fleetFilters={fleetFilters}
               onFleetFiltersChange={setFleetFilters}
@@ -1078,9 +1124,9 @@ const LobbiesWeb2: React.FC = () => {
               <div className="text-amber text-2xl font-mono font-bold mb-4 tracking-widest">[!]</div>
               <h3 className="text-xl font-bold text-amber mb-4">FLEET THREAT WARNING</h3>
               <p className="text-text-secondary mb-6">
-                Your fleet threat ({selectedCost}) is less than 90% of the maximum (
+                Your fleet threat ({fleet.totalCost}) is less than 90% of the maximum (
                 {selectedLobby.basic.costLimit}). You&apos;re only using{" "}
-                {Math.round((selectedCost / selectedLobby.basic.costLimit) * 100)}% of your available
+                {Math.round((fleet.totalCost / selectedLobby.basic.costLimit) * 100)}% of your available
                 budget.
               </p>
               <p className="text-sm text-text-muted mb-6">

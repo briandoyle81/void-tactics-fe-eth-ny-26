@@ -22,6 +22,7 @@ export function toShipCardDataWeb2(ship: Web2Ship): ShipCardData {
       special: ship.equipment.special,
     },
     traits: {
+      variant: ship.traits.variant,
       accuracy: ship.traits.accuracy,
       hull: ship.traits.hull,
       speed: ship.traits.speed,

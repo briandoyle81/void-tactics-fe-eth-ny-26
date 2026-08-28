@@ -16,6 +16,15 @@ export interface FleetPlacementParams {
   costsVersion: number | null;
   /** Creator deploys cols 0-3 (search left-to-right); joiner deploys cols 13-16 (search right-to-left). Single-player is always the creator side. */
   isCreatorSide: boolean;
+  /**
+   * When set (e.g. a campaign's `campaignRequiredVariant`), only ships of
+   * this variant are selectable at all — `Fleets.createFleet` now reverts
+   * `MixedVariantFleet` otherwise, and some campaigns additionally require
+   * a specific variant (`WrongCampaignVariant`). When unset, the fleet
+   * locks to whichever variant the player picks first instead (still
+   * single-variant, just not predetermined).
+   */
+  requiredVariant?: number;
 }
 
 const CREATOR_ZONE = { colMin: 0, colMax: 3 } as const;
@@ -32,6 +41,7 @@ export function useFleetPlacement({
   costLimit,
   costsVersion,
   isCreatorSide,
+  requiredVariant,
 }: FleetPlacementParams) {
   const zone = isCreatorSide ? CREATOR_ZONE : JOINER_ZONE;
 
@@ -73,8 +83,25 @@ export function useFleetPlacement({
     [isCreatorSide, zone],
   );
 
+  // `Fleets.createFleet` reverts `MixedVariantFleet` if selected ships don't
+  // all share one `traits.variant`; some campaigns additionally require a
+  // specific variant (`campaignRequiredVariant`/`WrongCampaignVariant`).
+  // `lockedVariant` is the single variant this fleet is currently
+  // restricted to — either the caller-supplied requirement, or (once at
+  // least one ship is picked) whichever variant that first ship is.
+  const lockedVariant = useMemo(() => {
+    if (requiredVariant != null && requiredVariant > 0) return requiredVariant;
+    if (selectedShips.length === 0) return null;
+    const firstShip = ships.find((s) => s.id === selectedShips[0]);
+    return firstShip?.traits.variant ?? null;
+  }, [requiredVariant, selectedShips, ships]);
+
   const addShip = useCallback(
     (shipId: bigint) => {
+      const ship = ships.find((s) => s.id === shipId);
+      if (lockedVariant != null && ship && ship.traits.variant !== lockedVariant) {
+        return;
+      }
       const position = findNextPosition(shipPositions);
       if (!position) return;
       setSelectedShips((prev) => [...prev, shipId]);
@@ -83,7 +110,7 @@ export function useFleetPlacement({
         { shipId, row: position.row, col: position.col },
       ]);
     },
-    [shipPositions, findNextPosition],
+    [shipPositions, findNextPosition, ships, lockedVariant],
   );
 
   const removeShip = useCallback((shipId: bigint) => {
@@ -138,6 +165,9 @@ export function useFleetPlacement({
 
         if (selectedShips.includes(ship.id)) return costsVersionOk;
         if (!costsVersionOk) return false;
+        if (lockedVariant != null && ship.traits.variant !== lockedVariant) {
+          return false;
+        }
 
         return matchesFleetFilters(
           {
@@ -156,7 +186,7 @@ export function useFleetPlacement({
           fleetFilters,
         );
       }),
-    [ships, fleetFilters, costsVersion, selectedShips],
+    [ships, fleetFilters, costsVersion, selectedShips, lockedVariant],
   );
 
   const hasStaleCostsVersion = useMemo(() => {
@@ -205,6 +235,7 @@ export function useFleetPlacement({
     findNextPosition,
     clearSelection,
     filteredShips,
+    lockedVariant,
     totalCost,
     isOverLimit,
     isUnder90Percent,

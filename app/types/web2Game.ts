@@ -16,6 +16,25 @@ export interface Web2GameMetadata {
   creatorGoesFirst: boolean;
   startedAt: number;
   winner: string;
+  /**
+   * Display labels for `creator`/`joiner` (username, falling back to an
+   * email-local-part or a short id) — attached at read time by
+   * GET /api/games, never persisted into the stored `state` JSON, so a
+   * later username change is reflected without a backfill. Web2 counterpart
+   * to web3 Profile.tsx/Games.tsx's truncated-address opponent display,
+   * since a raw web2 user id isn't meaningful to show.
+   */
+  creatorLabel?: string;
+  joinerLabel?: string;
+  /**
+   * Set when this game originated from a Campaign mission / Roguelike combat
+   * node (via Lobby.campaignNodeId/roguelikeRunId) — attached at read time
+   * by GET /api/games/[id], mirrors web3's useGameIdToNodeId lookup so
+   * GameDisplayWeb2's end-of-game screen can route back to the right place
+   * instead of always falling back to plain PvP copy.
+   */
+  campaignNodeId?: number | null;
+  roguelikeRunId?: number | null;
 }
 
 export interface Web2GameTurnState {

@@ -4,6 +4,10 @@ import { createTtlCache } from "./ttlCache";
 export type EconomyConfig = {
   recycleRewardUtc: number;
   killRewardUtc: number;
+  // DEC paid per kill when the destroyed ship belongs to the AI opponent
+  // (docs/faction-2.md §1 — currency depends on the *victim's* ownership,
+  // never the ship's variant). PvP kills still pay killRewardUtc.
+  killRewardDec: number;
   lobbyCreationCostUtc: number;
   reservationFeeUtc: number; // extra UTC charged when reserving a lobby for a specific player — matches web3's fixed 1 UTC reservation fee
   purchaseThresholdForRewards: number;
@@ -13,6 +17,7 @@ export type EconomyConfig = {
 export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   recycleRewardUtc: 1,
   killRewardUtc: 1,
+  killRewardDec: 1,
   lobbyCreationCostUtc: 1,
   reservationFeeUtc: 1,
   purchaseThresholdForRewards: 10,

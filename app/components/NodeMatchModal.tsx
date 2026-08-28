@@ -19,7 +19,7 @@ import {
 import type { AIShipConfig, Ship } from "../types/types";
 import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { CONTRACT_ABIS } from "../config/contracts";
-import type { CampaignGraphNode } from "../hooks/useNodeMap";
+import { useCampaignRequiredVariant, type CampaignGraphNode } from "../hooks/useNodeMap";
 import { navigateToGame } from "../utils/navigateToGame";
 
 // AIShipConfig ids and the player's own owned-ship ids are separate
@@ -55,7 +55,8 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
 
   const costLimit = Number(node.costLimit);
-  const fleet = useNodeFleetSelection(costLimit);
+  const { data: requiredVariant } = useCampaignRequiredVariant(node.campaignId);
+  const fleet = useNodeFleetSelection(costLimit, requiredVariant);
 
   // Enemy fleet placement is deterministic per-map data (unlike PvP, there's
   // no opponent to keep it secret from), so show it already on the board
@@ -143,6 +144,12 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         toast.error("This mission has no enemy fleet configured yet.");
       } else if (message.includes("InvalidFleetCost")) {
         toast.error(`Fleet threat exceeds this mission's ${costLimit} limit.`);
+      } else if (message.includes("WrongCampaignVariant")) {
+        toast.error("This campaign requires a different faction's fleet.");
+      } else if (message.includes("MixedVariantFleet")) {
+        toast.error(
+          "A fleet can't mix ships from different factions — select ships of one faction only.",
+        );
       } else if (message.includes("User rejected") || message.includes("User denied")) {
         toast.error("Transaction declined by user");
       } else {

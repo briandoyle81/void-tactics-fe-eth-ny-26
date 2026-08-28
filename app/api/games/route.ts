@@ -29,6 +29,25 @@ export async function GET() {
     }
     return state;
   });
+
+  const playerIds = new Set<string>();
+  gameViews.forEach((v) => {
+    if (v.metadata?.creator) playerIds.add(v.metadata.creator);
+    if (v.metadata?.joiner) playerIds.add(v.metadata.joiner);
+  });
+  const users = await prisma.user.findMany({
+    where: { id: { in: Array.from(playerIds) } },
+    select: { id: true, username: true, email: true },
+  });
+  const labelById = new Map(
+    users.map((u) => [u.id, u.username || u.email.split("@")[0] || `Player #${u.id.slice(0, 8)}`]),
+  );
+  gameViews.forEach((v) => {
+    if (!v.metadata) return;
+    v.metadata.creatorLabel = labelById.get(v.metadata.creator) ?? v.metadata.creator;
+    v.metadata.joinerLabel = labelById.get(v.metadata.joiner) ?? v.metadata.joiner;
+  });
+
   return new NextResponse(stringifyWithBigint(gameViews), {
     headers: { "Content-Type": "application/json" },
   });

@@ -18,6 +18,8 @@ import { getVariantForChainId } from "../config/networks";
 import { useSelectedChainId } from "./useSelectedChainId";
 import { useSwitchToSelectedChainIfNeeded } from "./useSwitchToSelectedChainIfNeeded";
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 // Cache expiration time (24 hours) - only for unclaimed addresses
 const CACHE_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
@@ -52,8 +54,22 @@ export function useFreeShipClaiming() {
   const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
   const contractAddresses = getContractAddresses(activeChainId);
 
-  // `claimFreeShips` requires a chain-specific variant expected by the contract.
-  const freeShipVariant = getVariantForChainId(activeChainId);
+  // `claimFreeShips` takes an explicit `_variant` per docs/faction-2.md §5 —
+  // the player picks their faction per-claim now (see `VariantPicker.tsx`),
+  // rather than it being implied by the connected chain. Defaults to the
+  // chain's historical default so existing callers that don't render a
+  // picker keep their current behavior.
+  const [selectedVariant, setSelectedVariant] = useState(
+    () => getVariantForChainId(activeChainId),
+  );
+  const freeShipVariant = selectedVariant;
+
+  // `claimFreeShips` moved off `Ships` onto its own `FreeShipClaim` contract
+  // (see docs/faction-2.md §4) — only deployed on Base Sepolia so far.
+  const freeShipClaimAddress = contractAddresses.FREE_SHIP_CLAIM as `0x${string}`;
+  const isFreeShipClaimDeployed =
+    !!freeShipClaimAddress &&
+    freeShipClaimAddress.toLowerCase() !== ZERO_ADDRESS;
 
   // Cache for eligibility status and countdown (lastClaim + cooldown for "next claim in")
   const [eligibilityCache, setEligibilityCache] = useState<{
@@ -76,13 +92,14 @@ export function useFreeShipClaiming() {
   // Check if user can claim free ships (using lastClaimTimestamp)
   const lastClaimTimestampConfig = useMemo(
     () => ({
-      address: contractAddresses.SHIPS as `0x${string}`,
-      abi: CONTRACT_ABIS.SHIPS as Abi,
+      address: freeShipClaimAddress,
+      abi: CONTRACT_ABIS.FREE_SHIP_CLAIM as Abi,
       functionName: "lastClaimTimestamp" as const,
       args: address ? [address] : undefined,
       chainId: activeChainId,
+      query: { enabled: isFreeShipClaimDeployed },
     }),
-    [address, activeChainId, contractAddresses.SHIPS],
+    [address, activeChainId, freeShipClaimAddress, isFreeShipClaimDeployed],
   );
 
   const {
@@ -95,12 +112,13 @@ export function useFreeShipClaiming() {
   // Cooldown period from contract (seconds)
   const claimCooldownPeriodConfig = useMemo(
     () => ({
-      address: contractAddresses.SHIPS as `0x${string}`,
-      abi: CONTRACT_ABIS.SHIPS as Abi,
+      address: freeShipClaimAddress,
+      abi: CONTRACT_ABIS.FREE_SHIP_CLAIM as Abi,
       functionName: "claimCooldownPeriod" as const,
       chainId: activeChainId,
+      query: { enabled: isFreeShipClaimDeployed },
     }),
-    [activeChainId, contractAddresses.SHIPS],
+    [activeChainId, freeShipClaimAddress, isFreeShipClaimDeployed],
   );
 
   const { data: claimCooldownPeriod } = useReadContract(
@@ -138,6 +156,8 @@ export function useFreeShipClaiming() {
         errorMessage.includes("rejected")
       ) {
         toast.error("Transaction declined by user");
+      } else if (errorMessage.includes("GateRequirementNotMet")) {
+        toast.error("You need the Shattered Hive medal for this faction");
       } else {
         toast.error("Transaction failed: " + errorMessage);
       }
@@ -358,6 +378,11 @@ export function useFreeShipClaiming() {
       return;
     }
 
+    if (!isFreeShipClaimDeployed) {
+      toast.error("Free ship claiming isn't available on this network yet");
+      return;
+    }
+
     if (!isEligible) {
       toast.error(
         "You are not eligible for free ships or have already claimed them"
@@ -372,8 +397,8 @@ export function useFreeShipClaiming() {
       await switchToSelectedChainIfNeeded();
       // Call the smart contract to claim free ships (with variant parameter)
       await writeContract({
-        address: contractAddresses.SHIPS as `0x${string}`,
-        abi: CONTRACT_ABIS.SHIPS as Abi,
+        address: freeShipClaimAddress,
+        abi: CONTRACT_ABIS.FREE_SHIP_CLAIM as Abi,
         functionName: "claimFreeShips",
         args: [freeShipVariant], // `_variant` expects a chain expectation
         chainId: activeChainId,
@@ -408,6 +433,9 @@ export function useFreeShipClaiming() {
     isEligible,
     hasCheckedEligibility,
     hasClaimed: !isEligible,
+    isFreeShipClaimDeployed,
+    selectedVariant,
+    setSelectedVariant,
 
     // Next claim countdown (when has claimed)
     secondsUntilNextClaim,

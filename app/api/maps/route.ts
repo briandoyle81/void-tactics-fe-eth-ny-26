@@ -17,6 +17,7 @@ export async function GET() {
       gridHeight: map.gridHeight,
       blockedTiles: map.blockedTiles,
       scoringTiles: map.scoringTiles,
+      mode: map.mode,
     })),
   );
 }
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { name, gridWidth, gridHeight, blockedTiles, scoringTiles } = body;
+  const { name, gridWidth, gridHeight, blockedTiles, scoringTiles, mode } = body;
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       gridHeight: typeof gridHeight === "number" ? gridHeight : undefined,
       blockedTiles: blockedTiles ?? [],
       scoringTiles: scoringTiles ?? [],
+      mode: [0, 1, 2].includes(mode) ? mode : undefined,
     },
   });
 

@@ -5,10 +5,12 @@ import { usePublicClient } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import { useSinglePlayerMatch } from "./useSinglePlayerMatch";
 
-// Defensive cap on consecutive takeAITurn calls for a single AI turn — per
-// the contracts doc, this should never actually run that long since
-// AIEncounters.MAX_PLACEMENTS_PER_MAP = 8.
-const MAX_ITERATIONS = 10;
+// Defensive cap on consecutive takeAITurn calls for a single AI turn.
+// `maxPlacementsPerMap` is a live, owner-tunable value (default raised from
+// 8 to 14 — the hardest campaign nodes, e.g. bastion, now field 14 AI
+// ships) — keep this comfortably above the live max, not hardcoded to the
+// old default.
+const MAX_ITERATIONS = 20;
 
 // Deliberate pause before each takeAITurn call so the player has time to
 // actually see the previous move (ship position, shot animation, etc.)

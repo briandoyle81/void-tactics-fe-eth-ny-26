@@ -19,7 +19,6 @@ export function useNodeMapAdmin() {
       turnTime: bigint,
       maxScore: bigint,
       creatorGoesFirst: boolean,
-      enemyThreat: bigint,
     ) => {
       const hash = await writeContractAsync({
         ...contract,
@@ -32,7 +31,6 @@ export function useNodeMapAdmin() {
           turnTime,
           maxScore,
           creatorGoesFirst,
-          enemyThreat,
         ],
       });
       await publicClient!.waitForTransactionReceipt({ hash });
@@ -51,7 +49,6 @@ export function useNodeMapAdmin() {
       turnTime: bigint,
       maxScore: bigint,
       creatorGoesFirst: boolean,
-      enemyThreat: bigint,
     ) => {
       const hash = await writeContractAsync({
         ...contract,
@@ -65,7 +62,6 @@ export function useNodeMapAdmin() {
           turnTime,
           maxScore,
           creatorGoesFirst,
-          enemyThreat,
         ],
       });
       await publicClient!.waitForTransactionReceipt({ hash });

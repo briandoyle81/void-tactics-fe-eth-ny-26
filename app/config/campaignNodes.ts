@@ -158,6 +158,9 @@ export const DEFAULT_NODE_CONTENT: CampaignNodeContent = {
   description: "No briefing available for this node yet.",
 };
 
-export function getNodeContent(nodeId: bigint): CampaignNodeContent {
+// Accepts bigint (web3 node ids) or number (web2 node ids) — this file is
+// pure data/config with no chain dependency, shared verbatim between
+// CampaignGraph.tsx and CampaignGraphWeb2.tsx.
+export function getNodeContent(nodeId: bigint | number): CampaignNodeContent {
   return CAMPAIGN_NODE_CONTENT[Number(nodeId)] ?? DEFAULT_NODE_CONTENT;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount } from "wagmi";
 import { MAP_ADMIN_ADDRESS } from "../config/alpha";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
 import { useIsNodeMapEditor } from "../hooks/useIsNodeMapEditor";
@@ -9,7 +9,7 @@ import {
   useGetAllAIShipConfigs,
   useGetAllMapPlacements,
 } from "../hooks/useAIEncountersContract";
-import { useNodeMapContract, type CampaignGraphNode } from "../hooks/useNodeMap";
+import { useAllCampaignNodes } from "../hooks/useNodeMap";
 import type { PresetMap, CampaignNode } from "../types/types";
 
 function downloadJson(filename: string, data: unknown) {
@@ -50,12 +50,7 @@ export function AdminSettingsExport({ maps }: Props) {
   const mapIds = useMemo(() => maps.map((m) => m.id), [maps]);
   const { data: aiShipConfigs } = useGetAllAIShipConfigs();
   const { data: mapPlacements } = useGetAllMapPlacements(mapIds);
-  const nodeMapContract = useNodeMapContract();
-  const { data: rawNodes } = useReadContract({
-    ...nodeMapContract,
-    functionName: "getAllNodes",
-  });
-  const campaignNodes = (rawNodes as CampaignGraphNode[] | undefined) ?? [];
+  const { data: campaignNodes } = useAllCampaignNodes();
 
   const [exporting, setExporting] = useState(false);
 
@@ -92,7 +87,6 @@ export function AdminSettingsExport({ maps }: Props) {
           turnTime: n.turnTime,
           maxScore: n.maxScore,
           creatorGoesFirst: n.creatorGoesFirst,
-          enemyThreat: n.enemyThreat,
         })),
       };
       downloadJson(`void-tactics-admin-settings-${Date.now()}.json`, exportData);

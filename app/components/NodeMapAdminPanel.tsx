@@ -1,11 +1,22 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useAccount } from "wagmi";
 import { useIsNodeMapEditor } from "../hooks/useIsNodeMapEditor";
 import { useNodeMapAdmin } from "../hooks/useNodeMapAdmin";
-import { useCampaignGraph, type CampaignGraphNode } from "../hooks/useNodeMap";
+import { useAllCampaignNodes } from "../hooks/useNodeMap";
 import { getNodeContent } from "../config/campaignNodes";
+import { useMapEnemyThreat } from "../hooks/useAIEncountersContract";
+import type { CampaignNode } from "../types/types";
+
+// enemyThreat is no longer a stored NodeMap field (removed from
+// createNode/updateNode/getNode) — this derives the same "total AI fleet
+// cost" number from the map's actual placements instead. Its own component
+// instance per row so the hook call is valid (mirrors RoguelikeChildCard's
+// per-item hook pattern in RoguelikeGraph.tsx).
+function NodeThreatLabel({ mapId }: { mapId: bigint }) {
+  const { totalThreat } = useMapEnemyThreat(mapId);
+  return <>threat {totalThreat}</>;
+}
 
 const inputClass =
   "w-full px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan";
@@ -29,7 +40,6 @@ interface NodeFormState {
   turnTime: string;
   maxScore: string;
   creatorGoesFirst: boolean;
-  enemyThreat: string;
 }
 
 // Only campaign 1 exists today (see docs/Frontend_Update_Guide_Campaigns_Maps.md
@@ -45,10 +55,9 @@ const EMPTY_FORM: NodeFormState = {
   turnTime: "",
   maxScore: "",
   creatorGoesFirst: true,
-  enemyThreat: "",
 };
 
-function nodeToForm(node: CampaignGraphNode): NodeFormState {
+function nodeToForm(node: CampaignNode): NodeFormState {
   return {
     campaignId: node.campaignId.toString(),
     mapId: node.mapId.toString(),
@@ -57,7 +66,6 @@ function nodeToForm(node: CampaignGraphNode): NodeFormState {
     turnTime: node.turnTime.toString(),
     maxScore: node.maxScore.toString(),
     creatorGoesFirst: node.creatorGoesFirst,
-    enemyThreat: node.enemyThreat.toString(),
   };
 }
 
@@ -79,8 +87,7 @@ function NodeForm({
     form.mapId.trim() !== "" &&
     form.costLimit.trim() !== "" &&
     form.turnTime.trim() !== "" &&
-    form.maxScore.trim() !== "" &&
-    form.enemyThreat.trim() !== "";
+    form.maxScore.trim() !== "";
 
   return (
     <div className="space-y-3 border border-gunmetal bg-black/40 p-3">
@@ -140,19 +147,6 @@ function NodeForm({
             style={inputStyle}
           />
         </div>
-        <div>
-          <label className="block text-xs text-cyan mb-1">
-            Enemy Threat <span className="text-text-muted normal-case">(descriptive only)</span>
-          </label>
-          <input
-            type="number"
-            min={0}
-            value={form.enemyThreat}
-            onChange={(e) => onChange({ ...form, enemyThreat: e.target.value })}
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
       </div>
       <div>
         <label className="block text-xs text-cyan mb-1">
@@ -189,10 +183,9 @@ function NodeForm({
 
 /** Gated on NodeMap.isNodeEditor — separate permission domain from MAP_ADMIN_ADDRESS and AIEncounters.isEncounterEditor. */
 export function NodeMapAdminPanel() {
-  const { address } = useAccount();
   const { isEditor, isLoading } = useIsNodeMapEditor();
   const admin = useNodeMapAdmin();
-  const { nodes, refetch } = useCampaignGraph(address);
+  const { data: nodes, refetch } = useAllCampaignNodes();
 
   const [createForm, setCreateForm] = useState<NodeFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -230,7 +223,6 @@ export function NodeMapAdminPanel() {
         BigInt(createForm.turnTime),
         BigInt(createForm.maxScore),
         createForm.creatorGoesFirst,
-        BigInt(createForm.enemyThreat),
       );
       setCreateForm(EMPTY_FORM);
       await refetch();
@@ -254,7 +246,6 @@ export function NodeMapAdminPanel() {
         BigInt(updateForm.turnTime),
         BigInt(updateForm.maxScore),
         updateForm.creatorGoesFirst,
-        BigInt(updateForm.enemyThreat),
       );
       await refetch();
     } catch (error) {
@@ -294,7 +285,9 @@ export function NodeMapAdminPanel() {
                   #{n.id.toString()} {getNodeContent(n.id).title} (map {n.mapId.toString()})
                 </span>
                 <span className="text-cyan">
-                  campaign {n.campaignId.toString()} / cost {n.costLimit.toString()} / turn {n.turnTime.toString()}s / score {n.maxScore.toString()} / threat {n.enemyThreat.toString()}
+                  campaign {n.campaignId.toString()} / cost {n.costLimit.toString()} / turn {n.turnTime.toString()}s / score {n.maxScore.toString()}
+                  {" / "}
+                  <NodeThreatLabel mapId={n.mapId} />
                   {n.prerequisites.length > 0 &&
                     ` / requires ${n.prerequisites.map((p) => p.toString()).join(" or ")}`}
                 </span>

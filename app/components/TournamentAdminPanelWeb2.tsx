@@ -5,13 +5,12 @@ import { useTournamentAdminWeb2 } from "../hooks/useTournamentAdminWeb2";
 import { Web2TournamentState, type Web2TournamentSummary, type Web2TournamentMatch } from "../types/web2Tournament";
 import { AdminPanelShell, AdminMatchRow, type AdminMatchRowData } from "./AdminPanelShell";
 
-// Web2-mode counterpart to `TournamentAdminPanel.tsx`. One deliberate
-// difference from web3's "Resolve as Draw" (which force-resolves a stuck
-// match with no winner selection): the API here requires an explicit
-// winner, so the stuck-match fallback is two "X wins" buttons instead of
-// one "resolve as draw" button — a single-elimination bracket needs
-// someone to advance either way, and letting the creator just pick is
-// simpler than reproducing web3's unclear "draw" semantics.
+// Web2-mode counterpart to `TournamentAdminPanel.tsx`, including its
+// "Resolve as Draw" stuck-match fallback — despite the label, web3's
+// resolveDraw doesn't void the match, it deterministically awards it to
+// whichever player registered first (docs/tournament.md §O-8), so this
+// button offers no winner choice either, matching that behavior exactly
+// (see the resolve route's doc comment for the tiebreak logic).
 function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
 }
@@ -79,12 +78,9 @@ export function TournamentAdminPanelWeb2({ tournamentId, currentUserId, summary,
             onCreateLobby={() => admin.createMatchLobby(tournamentId, m.id)}
             stuckActions={[
               {
-                label: `${truncateId(m.player1Id!)} wins`,
-                onClick: () => admin.resolveMatch(tournamentId, m.id, m.player1Id!),
-              },
-              {
-                label: `${truncateId(m.player2Id!)} wins`,
-                onClick: () => admin.resolveMatch(tournamentId, m.id, m.player2Id!),
+                label: "Resolve as Draw",
+                pendingLabel: "Resolving…",
+                onClick: () => admin.resolveStuckMatch(tournamentId, m.id),
               },
             ]}
           />

@@ -43,6 +43,11 @@ function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id;
 }
 
+// Matches web3's config/tournament.ts CHAMPION_SHARE_PCT/RUNNER_UP_SHARE_PCT
+// (60/40) and the finalize route's own local copy of the same constants.
+const CHAMPION_SHARE_PCT = 60;
+const RUNNER_UP_SHARE_PCT = 40;
+
 // ─── Detail view ─────────────────────────────────────────────────────────────
 
 function TournamentDetail({ tournamentId, onBack }: { tournamentId: number; onBack: () => void }) {
@@ -155,6 +160,38 @@ function TournamentDetail({ tournamentId, onBack }: { tournamentId: number; onBa
           {summary.runnerUpId && (
             <div className="text-xs text-text-muted mt-1">Runner-up: {truncateId(summary.runnerUpId)}</div>
           )}
+        </div>
+      )}
+
+      {/* Prize payout acknowledgment — web2 credits the winners' balances
+          automatically on finalize (see the finalize route), so there's no
+          claim step; this just confirms it happened, mirroring the amount
+          shown by web3's "Claim Prize" banner. */}
+      {summary.state === Web2TournamentState.Complete &&
+        userId &&
+        (userId === summary.championId || userId === summary.runnerUpId) &&
+        summary.prizePool > 0 && (
+          <div className="mb-4 mt-4 border border-phosphor-green/30 bg-phosphor-green/5 p-4">
+            <div className="text-xs text-phosphor-green font-bold">
+              You won{" "}
+              {Math.floor(
+                (summary.prizePool * (userId === summary.championId ? CHAMPION_SHARE_PCT : RUNNER_UP_SHARE_PCT)) /
+                  100,
+              )}{" "}
+              credits — already added to your balance.
+            </div>
+          </div>
+        )}
+
+      {/* Refund acknowledgment — web2 refunds all registrants' entry fees
+          automatically on cancel (see the cancel route), so there's no claim
+          step; this just confirms it happened. */}
+      {summary.state === Web2TournamentState.Cancelled && isRegistered && (
+        <div className="mb-4 mt-4 border border-gunmetal/60 p-4">
+          <div className="text-xs text-text-muted">
+            Tournament was cancelled.
+            {config.entryFee > 0 && ` Your ${config.entryFee}-credit entry fee was refunded automatically.`}
+          </div>
         </div>
       )}
 

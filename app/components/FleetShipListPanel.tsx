@@ -36,9 +36,21 @@ interface FleetShipListPanelProps {
    * dropped back onto this list — the drop-to-unplace gesture. Omit to
    * leave this panel a drag source only, same as before. */
   onDropShip?: (shipId: string) => void;
+  /** Grid column + gap classes for the card list (must include its own
+   * `gap-*`, not just columns). Defaults to a single column — right for
+   * the narrow sidebar this panel was built for (Lobbies.tsx/
+   * NodeMatchModal.tsx, next to a map). A full-width picker with no map
+   * alongside it (e.g. RoguelikeRunStart.tsx) should pass Manage Navy's
+   * responsive columns instead (`grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3`). */
+  gridColsClassName?: string;
 }
 
-export function FleetShipListPanel({ widthClass, items, onDropShip }: FleetShipListPanelProps) {
+export function FleetShipListPanel({
+  widthClass,
+  items,
+  onDropShip,
+  gridColsClassName = "grid-cols-1 gap-4",
+}: FleetShipListPanelProps) {
   return (
     <div
       className={`${widthClass} h-full`}
@@ -54,7 +66,7 @@ export function FleetShipListPanel({ widthClass, items, onDropShip }: FleetShipL
         if (shipId) onDropShip(shipId);
       }}
     >
-      <div className="grid grid-cols-1 gap-4 mb-6 overflow-y-auto content-start max-h-[80vh]">
+      <div className={`grid ${gridColsClassName} mb-6 overflow-y-auto content-start max-h-[80vh]`}>
         {items.map((item) => (
           <div
             key={item.key}
@@ -74,7 +86,7 @@ export function FleetShipListPanel({ widthClass, items, onDropShip }: FleetShipL
               }
             }}
             onDragEnd={item.onDragEnd}
-            className={`${item.canSelect && !item.isTouchDevice ? "cursor-move" : ""} ${item.isPending ? "outline outline-2 outline-amber" : ""}`}
+            className={`h-full ${item.canSelect && !item.isTouchDevice ? "cursor-move" : ""} ${item.isPending ? "outline outline-2 outline-amber" : ""}`}
           >
             {item.card}
           </div>

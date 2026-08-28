@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "decBalance" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "droneCoreTier" INTEGER NOT NULL DEFAULT 0;

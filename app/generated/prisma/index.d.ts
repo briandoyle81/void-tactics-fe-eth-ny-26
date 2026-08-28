@@ -64,6 +64,51 @@ export type AIMapPlacement = $Result.DefaultSelection<Prisma.$AIMapPlacementPayl
  */
 export type AIFleetShip = $Result.DefaultSelection<Prisma.$AIFleetShipPayload>
 /**
+ * Model Campaign
+ * 
+ */
+export type Campaign = $Result.DefaultSelection<Prisma.$CampaignPayload>
+/**
+ * Model CampaignNode
+ * 
+ */
+export type CampaignNode = $Result.DefaultSelection<Prisma.$CampaignNodePayload>
+/**
+ * Model CampaignNodeCompletion
+ * 
+ */
+export type CampaignNodeCompletion = $Result.DefaultSelection<Prisma.$CampaignNodeCompletionPayload>
+/**
+ * Model RoguelikeCampaign
+ * 
+ */
+export type RoguelikeCampaign = $Result.DefaultSelection<Prisma.$RoguelikeCampaignPayload>
+/**
+ * Model RoguelikeNode
+ * 
+ */
+export type RoguelikeNode = $Result.DefaultSelection<Prisma.$RoguelikeNodePayload>
+/**
+ * Model RoguelikeEdge
+ * 
+ */
+export type RoguelikeEdge = $Result.DefaultSelection<Prisma.$RoguelikeEdgePayload>
+/**
+ * Model RoguelikeRun
+ * 
+ */
+export type RoguelikeRun = $Result.DefaultSelection<Prisma.$RoguelikeRunPayload>
+/**
+ * Model RoguelikeRosterShip
+ * 
+ */
+export type RoguelikeRosterShip = $Result.DefaultSelection<Prisma.$RoguelikeRosterShipPayload>
+/**
+ * Model RoguelikeNodeDefeat
+ * 
+ */
+export type RoguelikeNodeDefeat = $Result.DefaultSelection<Prisma.$RoguelikeNodeDefeatPayload>
+/**
  * Model Config
  * 
  */
@@ -114,6 +159,15 @@ export const GamePhase: {
 export type GamePhase = (typeof GamePhase)[keyof typeof GamePhase]
 
 
+export const RoguelikeRunStatus: {
+  ACTIVE: 'ACTIVE',
+  WON: 'WON',
+  ENDED: 'ENDED'
+};
+
+export type RoguelikeRunStatus = (typeof RoguelikeRunStatus)[keyof typeof RoguelikeRunStatus]
+
+
 export const TournamentState: {
   REGISTRATION: 'REGISTRATION',
   ACTIVE: 'ACTIVE',
@@ -132,6 +186,10 @@ export const LobbyStatus: typeof $Enums.LobbyStatus
 export type GamePhase = $Enums.GamePhase
 
 export const GamePhase: typeof $Enums.GamePhase
+
+export type RoguelikeRunStatus = $Enums.RoguelikeRunStatus
+
+export const RoguelikeRunStatus: typeof $Enums.RoguelikeRunStatus
 
 export type TournamentState = $Enums.TournamentState
 
@@ -357,6 +415,96 @@ export class PrismaClient<
     * ```
     */
   get aIFleetShip(): Prisma.AIFleetShipDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.campaign`: Exposes CRUD operations for the **Campaign** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Campaigns
+    * const campaigns = await prisma.campaign.findMany()
+    * ```
+    */
+  get campaign(): Prisma.CampaignDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.campaignNode`: Exposes CRUD operations for the **CampaignNode** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CampaignNodes
+    * const campaignNodes = await prisma.campaignNode.findMany()
+    * ```
+    */
+  get campaignNode(): Prisma.CampaignNodeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.campaignNodeCompletion`: Exposes CRUD operations for the **CampaignNodeCompletion** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CampaignNodeCompletions
+    * const campaignNodeCompletions = await prisma.campaignNodeCompletion.findMany()
+    * ```
+    */
+  get campaignNodeCompletion(): Prisma.CampaignNodeCompletionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeCampaign`: Exposes CRUD operations for the **RoguelikeCampaign** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeCampaigns
+    * const roguelikeCampaigns = await prisma.roguelikeCampaign.findMany()
+    * ```
+    */
+  get roguelikeCampaign(): Prisma.RoguelikeCampaignDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeNode`: Exposes CRUD operations for the **RoguelikeNode** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeNodes
+    * const roguelikeNodes = await prisma.roguelikeNode.findMany()
+    * ```
+    */
+  get roguelikeNode(): Prisma.RoguelikeNodeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeEdge`: Exposes CRUD operations for the **RoguelikeEdge** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeEdges
+    * const roguelikeEdges = await prisma.roguelikeEdge.findMany()
+    * ```
+    */
+  get roguelikeEdge(): Prisma.RoguelikeEdgeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeRun`: Exposes CRUD operations for the **RoguelikeRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeRuns
+    * const roguelikeRuns = await prisma.roguelikeRun.findMany()
+    * ```
+    */
+  get roguelikeRun(): Prisma.RoguelikeRunDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeRosterShip`: Exposes CRUD operations for the **RoguelikeRosterShip** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeRosterShips
+    * const roguelikeRosterShips = await prisma.roguelikeRosterShip.findMany()
+    * ```
+    */
+  get roguelikeRosterShip(): Prisma.RoguelikeRosterShipDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.roguelikeNodeDefeat`: Exposes CRUD operations for the **RoguelikeNodeDefeat** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RoguelikeNodeDefeats
+    * const roguelikeNodeDefeats = await prisma.roguelikeNodeDefeat.findMany()
+    * ```
+    */
+  get roguelikeNodeDefeat(): Prisma.RoguelikeNodeDefeatDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.config`: Exposes CRUD operations for the **Config** model.
@@ -851,6 +999,15 @@ export namespace Prisma {
     AIShipConfig: 'AIShipConfig',
     AIMapPlacement: 'AIMapPlacement',
     AIFleetShip: 'AIFleetShip',
+    Campaign: 'Campaign',
+    CampaignNode: 'CampaignNode',
+    CampaignNodeCompletion: 'CampaignNodeCompletion',
+    RoguelikeCampaign: 'RoguelikeCampaign',
+    RoguelikeNode: 'RoguelikeNode',
+    RoguelikeEdge: 'RoguelikeEdge',
+    RoguelikeRun: 'RoguelikeRun',
+    RoguelikeRosterShip: 'RoguelikeRosterShip',
+    RoguelikeNodeDefeat: 'RoguelikeNodeDefeat',
     Config: 'Config',
     PlayerStats: 'PlayerStats',
     Tournament: 'Tournament',
@@ -871,7 +1028,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "aIShipConfig" | "aIMapPlacement" | "aIFleetShip" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch"
+      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "aIShipConfig" | "aIMapPlacement" | "aIFleetShip" | "campaign" | "campaignNode" | "campaignNodeCompletion" | "roguelikeCampaign" | "roguelikeNode" | "roguelikeEdge" | "roguelikeRun" | "roguelikeRosterShip" | "roguelikeNodeDefeat" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1615,6 +1772,672 @@ export namespace Prisma {
           }
         }
       }
+      Campaign: {
+        payload: Prisma.$CampaignPayload<ExtArgs>
+        fields: Prisma.CampaignFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CampaignFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CampaignFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          findFirst: {
+            args: Prisma.CampaignFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CampaignFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          findMany: {
+            args: Prisma.CampaignFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>[]
+          }
+          create: {
+            args: Prisma.CampaignCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          createMany: {
+            args: Prisma.CampaignCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CampaignCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>[]
+          }
+          delete: {
+            args: Prisma.CampaignDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          update: {
+            args: Prisma.CampaignUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          deleteMany: {
+            args: Prisma.CampaignDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CampaignUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CampaignUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>[]
+          }
+          upsert: {
+            args: Prisma.CampaignUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignPayload>
+          }
+          aggregate: {
+            args: Prisma.CampaignAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCampaign>
+          }
+          groupBy: {
+            args: Prisma.CampaignGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CampaignGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CampaignCountArgs<ExtArgs>
+            result: $Utils.Optional<CampaignCountAggregateOutputType> | number
+          }
+        }
+      }
+      CampaignNode: {
+        payload: Prisma.$CampaignNodePayload<ExtArgs>
+        fields: Prisma.CampaignNodeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CampaignNodeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CampaignNodeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          findFirst: {
+            args: Prisma.CampaignNodeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CampaignNodeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          findMany: {
+            args: Prisma.CampaignNodeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>[]
+          }
+          create: {
+            args: Prisma.CampaignNodeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          createMany: {
+            args: Prisma.CampaignNodeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CampaignNodeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>[]
+          }
+          delete: {
+            args: Prisma.CampaignNodeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          update: {
+            args: Prisma.CampaignNodeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          deleteMany: {
+            args: Prisma.CampaignNodeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CampaignNodeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CampaignNodeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>[]
+          }
+          upsert: {
+            args: Prisma.CampaignNodeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodePayload>
+          }
+          aggregate: {
+            args: Prisma.CampaignNodeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCampaignNode>
+          }
+          groupBy: {
+            args: Prisma.CampaignNodeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CampaignNodeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CampaignNodeCountArgs<ExtArgs>
+            result: $Utils.Optional<CampaignNodeCountAggregateOutputType> | number
+          }
+        }
+      }
+      CampaignNodeCompletion: {
+        payload: Prisma.$CampaignNodeCompletionPayload<ExtArgs>
+        fields: Prisma.CampaignNodeCompletionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CampaignNodeCompletionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CampaignNodeCompletionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          findFirst: {
+            args: Prisma.CampaignNodeCompletionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CampaignNodeCompletionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          findMany: {
+            args: Prisma.CampaignNodeCompletionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>[]
+          }
+          create: {
+            args: Prisma.CampaignNodeCompletionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          createMany: {
+            args: Prisma.CampaignNodeCompletionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CampaignNodeCompletionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>[]
+          }
+          delete: {
+            args: Prisma.CampaignNodeCompletionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          update: {
+            args: Prisma.CampaignNodeCompletionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          deleteMany: {
+            args: Prisma.CampaignNodeCompletionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CampaignNodeCompletionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CampaignNodeCompletionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>[]
+          }
+          upsert: {
+            args: Prisma.CampaignNodeCompletionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CampaignNodeCompletionPayload>
+          }
+          aggregate: {
+            args: Prisma.CampaignNodeCompletionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCampaignNodeCompletion>
+          }
+          groupBy: {
+            args: Prisma.CampaignNodeCompletionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CampaignNodeCompletionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CampaignNodeCompletionCountArgs<ExtArgs>
+            result: $Utils.Optional<CampaignNodeCompletionCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeCampaign: {
+        payload: Prisma.$RoguelikeCampaignPayload<ExtArgs>
+        fields: Prisma.RoguelikeCampaignFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeCampaignFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeCampaignFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeCampaignFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeCampaignFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeCampaignFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeCampaignCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeCampaignCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeCampaignCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeCampaignDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          update: {
+            args: Prisma.RoguelikeCampaignUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeCampaignDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeCampaignUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeCampaignUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeCampaignUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeCampaignPayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeCampaignAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeCampaign>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeCampaignGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeCampaignGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeCampaignCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeCampaignCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeNode: {
+        payload: Prisma.$RoguelikeNodePayload<ExtArgs>
+        fields: Prisma.RoguelikeNodeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeNodeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeNodeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeNodeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeNodeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeNodeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeNodeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeNodeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeNodeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeNodeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          update: {
+            args: Prisma.RoguelikeNodeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeNodeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeNodeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeNodeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeNodeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodePayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeNodeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeNode>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeNodeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeNodeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeNodeCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeNodeCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeEdge: {
+        payload: Prisma.$RoguelikeEdgePayload<ExtArgs>
+        fields: Prisma.RoguelikeEdgeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeEdgeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeEdgeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeEdgeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeEdgeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeEdgeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeEdgeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeEdgeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeEdgeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeEdgeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          update: {
+            args: Prisma.RoguelikeEdgeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeEdgeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeEdgeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeEdgeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeEdgeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeEdgePayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeEdgeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeEdge>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeEdgeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeEdgeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeEdgeCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeEdgeCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeRun: {
+        payload: Prisma.$RoguelikeRunPayload<ExtArgs>
+        fields: Prisma.RoguelikeRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          update: {
+            args: Prisma.RoguelikeRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeRunUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRunPayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeRun>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeRunCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeRunCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeRosterShip: {
+        payload: Prisma.$RoguelikeRosterShipPayload<ExtArgs>
+        fields: Prisma.RoguelikeRosterShipFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeRosterShipFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeRosterShipFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeRosterShipFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeRosterShipFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeRosterShipFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeRosterShipCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeRosterShipCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeRosterShipCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeRosterShipDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          update: {
+            args: Prisma.RoguelikeRosterShipUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeRosterShipDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeRosterShipUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeRosterShipUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeRosterShipUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeRosterShipPayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeRosterShipAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeRosterShip>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeRosterShipGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeRosterShipGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeRosterShipCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeRosterShipCountAggregateOutputType> | number
+          }
+        }
+      }
+      RoguelikeNodeDefeat: {
+        payload: Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>
+        fields: Prisma.RoguelikeNodeDefeatFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RoguelikeNodeDefeatFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RoguelikeNodeDefeatFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          findFirst: {
+            args: Prisma.RoguelikeNodeDefeatFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RoguelikeNodeDefeatFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          findMany: {
+            args: Prisma.RoguelikeNodeDefeatFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>[]
+          }
+          create: {
+            args: Prisma.RoguelikeNodeDefeatCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          createMany: {
+            args: Prisma.RoguelikeNodeDefeatCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RoguelikeNodeDefeatCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>[]
+          }
+          delete: {
+            args: Prisma.RoguelikeNodeDefeatDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          update: {
+            args: Prisma.RoguelikeNodeDefeatUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          deleteMany: {
+            args: Prisma.RoguelikeNodeDefeatDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RoguelikeNodeDefeatUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RoguelikeNodeDefeatUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>[]
+          }
+          upsert: {
+            args: Prisma.RoguelikeNodeDefeatUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RoguelikeNodeDefeatPayload>
+          }
+          aggregate: {
+            args: Prisma.RoguelikeNodeDefeatAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRoguelikeNodeDefeat>
+          }
+          groupBy: {
+            args: Prisma.RoguelikeNodeDefeatGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeNodeDefeatGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RoguelikeNodeDefeatCountArgs<ExtArgs>
+            result: $Utils.Optional<RoguelikeNodeDefeatCountAggregateOutputType> | number
+          }
+        }
+      }
       Config: {
         payload: Prisma.$ConfigPayload<ExtArgs>
         fields: Prisma.ConfigFieldRefs
@@ -2103,6 +2926,15 @@ export namespace Prisma {
     aIShipConfig?: AIShipConfigOmit
     aIMapPlacement?: AIMapPlacementOmit
     aIFleetShip?: AIFleetShipOmit
+    campaign?: CampaignOmit
+    campaignNode?: CampaignNodeOmit
+    campaignNodeCompletion?: CampaignNodeCompletionOmit
+    roguelikeCampaign?: RoguelikeCampaignOmit
+    roguelikeNode?: RoguelikeNodeOmit
+    roguelikeEdge?: RoguelikeEdgeOmit
+    roguelikeRun?: RoguelikeRunOmit
+    roguelikeRosterShip?: RoguelikeRosterShipOmit
+    roguelikeNodeDefeat?: RoguelikeNodeDefeatOmit
     config?: ConfigOmit
     playerStats?: PlayerStatsOmit
     tournament?: TournamentOmit
@@ -2199,6 +3031,8 @@ export namespace Prisma {
     tournamentRegistrations: number
     tournamentMatchesAsP1: number
     tournamentMatchesAsP2: number
+    campaignNodeCompletions: number
+    roguelikeRuns: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2213,6 +3047,8 @@ export namespace Prisma {
     tournamentRegistrations?: boolean | UserCountOutputTypeCountTournamentRegistrationsArgs
     tournamentMatchesAsP1?: boolean | UserCountOutputTypeCountTournamentMatchesAsP1Args
     tournamentMatchesAsP2?: boolean | UserCountOutputTypeCountTournamentMatchesAsP2Args
+    campaignNodeCompletions?: boolean | UserCountOutputTypeCountCampaignNodeCompletionsArgs
+    roguelikeRuns?: boolean | UserCountOutputTypeCountRoguelikeRunsArgs
   }
 
   // Custom InputTypes
@@ -2303,6 +3139,51 @@ export namespace Prisma {
     where?: TournamentMatchWhereInput
   }
 
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountCampaignNodeCompletionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeCompletionWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountRoguelikeRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRunWhereInput
+  }
+
+
+  /**
+   * Count Type ShipCountOutputType
+   */
+
+  export type ShipCountOutputType = {
+    roguelikeRosterEntries: number
+  }
+
+  export type ShipCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    roguelikeRosterEntries?: boolean | ShipCountOutputTypeCountRoguelikeRosterEntriesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ShipCountOutputType without action
+   */
+  export type ShipCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ShipCountOutputType
+     */
+    select?: ShipCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ShipCountOutputType without action
+   */
+  export type ShipCountOutputTypeCountRoguelikeRosterEntriesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRosterShipWhereInput
+  }
+
 
   /**
    * Count Type LobbyCountOutputType
@@ -2373,11 +3254,15 @@ export namespace Prisma {
   export type MapCountOutputType = {
     lobbies: number
     aiPlacements: number
+    campaignNodes: number
+    roguelikeNodes: number
   }
 
   export type MapCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lobbies?: boolean | MapCountOutputTypeCountLobbiesArgs
     aiPlacements?: boolean | MapCountOutputTypeCountAiPlacementsArgs
+    campaignNodes?: boolean | MapCountOutputTypeCountCampaignNodesArgs
+    roguelikeNodes?: boolean | MapCountOutputTypeCountRoguelikeNodesArgs
   }
 
   // Custom InputTypes
@@ -2403,6 +3288,20 @@ export namespace Prisma {
    */
   export type MapCountOutputTypeCountAiPlacementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AIMapPlacementWhereInput
+  }
+
+  /**
+   * MapCountOutputType without action
+   */
+  export type MapCountOutputTypeCountCampaignNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeWhereInput
+  }
+
+  /**
+   * MapCountOutputType without action
+   */
+  export type MapCountOutputTypeCountRoguelikeNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeWhereInput
   }
 
 
@@ -2434,6 +3333,215 @@ export namespace Prisma {
    */
   export type AIShipConfigCountOutputTypeCountPlacementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AIMapPlacementWhereInput
+  }
+
+
+  /**
+   * Count Type CampaignCountOutputType
+   */
+
+  export type CampaignCountOutputType = {
+    nodes: number
+  }
+
+  export type CampaignCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    nodes?: boolean | CampaignCountOutputTypeCountNodesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * CampaignCountOutputType without action
+   */
+  export type CampaignCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignCountOutputType
+     */
+    select?: CampaignCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CampaignCountOutputType without action
+   */
+  export type CampaignCountOutputTypeCountNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeWhereInput
+  }
+
+
+  /**
+   * Count Type CampaignNodeCountOutputType
+   */
+
+  export type CampaignNodeCountOutputType = {
+    completions: number
+    lobbies: number
+  }
+
+  export type CampaignNodeCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    completions?: boolean | CampaignNodeCountOutputTypeCountCompletionsArgs
+    lobbies?: boolean | CampaignNodeCountOutputTypeCountLobbiesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * CampaignNodeCountOutputType without action
+   */
+  export type CampaignNodeCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCountOutputType
+     */
+    select?: CampaignNodeCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CampaignNodeCountOutputType without action
+   */
+  export type CampaignNodeCountOutputTypeCountCompletionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeCompletionWhereInput
+  }
+
+  /**
+   * CampaignNodeCountOutputType without action
+   */
+  export type CampaignNodeCountOutputTypeCountLobbiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: LobbyWhereInput
+  }
+
+
+  /**
+   * Count Type RoguelikeCampaignCountOutputType
+   */
+
+  export type RoguelikeCampaignCountOutputType = {
+    nodes: number
+    runs: number
+  }
+
+  export type RoguelikeCampaignCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    nodes?: boolean | RoguelikeCampaignCountOutputTypeCountNodesArgs
+    runs?: boolean | RoguelikeCampaignCountOutputTypeCountRunsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RoguelikeCampaignCountOutputType without action
+   */
+  export type RoguelikeCampaignCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaignCountOutputType
+     */
+    select?: RoguelikeCampaignCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeCampaignCountOutputType without action
+   */
+  export type RoguelikeCampaignCountOutputTypeCountNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeWhereInput
+  }
+
+  /**
+   * RoguelikeCampaignCountOutputType without action
+   */
+  export type RoguelikeCampaignCountOutputTypeCountRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRunWhereInput
+  }
+
+
+  /**
+   * Count Type RoguelikeNodeCountOutputType
+   */
+
+  export type RoguelikeNodeCountOutputType = {
+    childEdges: number
+    parentEdges: number
+    defeats: number
+  }
+
+  export type RoguelikeNodeCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    childEdges?: boolean | RoguelikeNodeCountOutputTypeCountChildEdgesArgs
+    parentEdges?: boolean | RoguelikeNodeCountOutputTypeCountParentEdgesArgs
+    defeats?: boolean | RoguelikeNodeCountOutputTypeCountDefeatsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RoguelikeNodeCountOutputType without action
+   */
+  export type RoguelikeNodeCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeCountOutputType
+     */
+    select?: RoguelikeNodeCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeNodeCountOutputType without action
+   */
+  export type RoguelikeNodeCountOutputTypeCountChildEdgesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeEdgeWhereInput
+  }
+
+  /**
+   * RoguelikeNodeCountOutputType without action
+   */
+  export type RoguelikeNodeCountOutputTypeCountParentEdgesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeEdgeWhereInput
+  }
+
+  /**
+   * RoguelikeNodeCountOutputType without action
+   */
+  export type RoguelikeNodeCountOutputTypeCountDefeatsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeDefeatWhereInput
+  }
+
+
+  /**
+   * Count Type RoguelikeRunCountOutputType
+   */
+
+  export type RoguelikeRunCountOutputType = {
+    roster: number
+    defeats: number
+    lobbies: number
+  }
+
+  export type RoguelikeRunCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    roster?: boolean | RoguelikeRunCountOutputTypeCountRosterArgs
+    defeats?: boolean | RoguelikeRunCountOutputTypeCountDefeatsArgs
+    lobbies?: boolean | RoguelikeRunCountOutputTypeCountLobbiesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RoguelikeRunCountOutputType without action
+   */
+  export type RoguelikeRunCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRunCountOutputType
+     */
+    select?: RoguelikeRunCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeRunCountOutputType without action
+   */
+  export type RoguelikeRunCountOutputTypeCountRosterArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRosterShipWhereInput
+  }
+
+  /**
+   * RoguelikeRunCountOutputType without action
+   */
+  export type RoguelikeRunCountOutputTypeCountDefeatsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeDefeatWhereInput
+  }
+
+  /**
+   * RoguelikeRunCountOutputType without action
+   */
+  export type RoguelikeRunCountOutputTypeCountLobbiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: LobbyWhereInput
   }
 
 
@@ -2495,6 +3603,8 @@ export namespace Prisma {
 
   export type UserAvgAggregateOutputType = {
     creditBalance: number | null
+    decBalance: number | null
+    droneCoreTier: number | null
     purchasedShipCount: number | null
     lobbiesCreatedCount: number | null
     kickCount: number | null
@@ -2502,6 +3612,8 @@ export namespace Prisma {
 
   export type UserSumAggregateOutputType = {
     creditBalance: number | null
+    decBalance: number | null
+    droneCoreTier: number | null
     purchasedShipCount: number | null
     lobbiesCreatedCount: number | null
     kickCount: number | null
@@ -2512,6 +3624,8 @@ export namespace Prisma {
     email: string | null
     username: string | null
     creditBalance: number | null
+    decBalance: number | null
+    droneCoreTier: number | null
     purchasedShipCount: number | null
     lobbiesCreatedCount: number | null
     kickCount: number | null
@@ -2526,6 +3640,8 @@ export namespace Prisma {
     email: string | null
     username: string | null
     creditBalance: number | null
+    decBalance: number | null
+    droneCoreTier: number | null
     purchasedShipCount: number | null
     lobbiesCreatedCount: number | null
     kickCount: number | null
@@ -2540,6 +3656,8 @@ export namespace Prisma {
     email: number
     username: number
     creditBalance: number
+    decBalance: number
+    droneCoreTier: number
     purchasedShipCount: number
     lobbiesCreatedCount: number
     kickCount: number
@@ -2553,6 +3671,8 @@ export namespace Prisma {
 
   export type UserAvgAggregateInputType = {
     creditBalance?: true
+    decBalance?: true
+    droneCoreTier?: true
     purchasedShipCount?: true
     lobbiesCreatedCount?: true
     kickCount?: true
@@ -2560,6 +3680,8 @@ export namespace Prisma {
 
   export type UserSumAggregateInputType = {
     creditBalance?: true
+    decBalance?: true
+    droneCoreTier?: true
     purchasedShipCount?: true
     lobbiesCreatedCount?: true
     kickCount?: true
@@ -2570,6 +3692,8 @@ export namespace Prisma {
     email?: true
     username?: true
     creditBalance?: true
+    decBalance?: true
+    droneCoreTier?: true
     purchasedShipCount?: true
     lobbiesCreatedCount?: true
     kickCount?: true
@@ -2584,6 +3708,8 @@ export namespace Prisma {
     email?: true
     username?: true
     creditBalance?: true
+    decBalance?: true
+    droneCoreTier?: true
     purchasedShipCount?: true
     lobbiesCreatedCount?: true
     kickCount?: true
@@ -2598,6 +3724,8 @@ export namespace Prisma {
     email?: true
     username?: true
     creditBalance?: true
+    decBalance?: true
+    droneCoreTier?: true
     purchasedShipCount?: true
     lobbiesCreatedCount?: true
     kickCount?: true
@@ -2699,6 +3827,8 @@ export namespace Prisma {
     email: string
     username: string | null
     creditBalance: number
+    decBalance: number
+    droneCoreTier: number
     purchasedShipCount: number
     lobbiesCreatedCount: number
     kickCount: number
@@ -2732,6 +3862,8 @@ export namespace Prisma {
     email?: boolean
     username?: boolean
     creditBalance?: boolean
+    decBalance?: boolean
+    droneCoreTier?: boolean
     purchasedShipCount?: boolean
     lobbiesCreatedCount?: boolean
     kickCount?: boolean
@@ -2751,6 +3883,8 @@ export namespace Prisma {
     tournamentRegistrations?: boolean | User$tournamentRegistrationsArgs<ExtArgs>
     tournamentMatchesAsP1?: boolean | User$tournamentMatchesAsP1Args<ExtArgs>
     tournamentMatchesAsP2?: boolean | User$tournamentMatchesAsP2Args<ExtArgs>
+    campaignNodeCompletions?: boolean | User$campaignNodeCompletionsArgs<ExtArgs>
+    roguelikeRuns?: boolean | User$roguelikeRunsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -2759,6 +3893,8 @@ export namespace Prisma {
     email?: boolean
     username?: boolean
     creditBalance?: boolean
+    decBalance?: boolean
+    droneCoreTier?: boolean
     purchasedShipCount?: boolean
     lobbiesCreatedCount?: boolean
     kickCount?: boolean
@@ -2773,6 +3909,8 @@ export namespace Prisma {
     email?: boolean
     username?: boolean
     creditBalance?: boolean
+    decBalance?: boolean
+    droneCoreTier?: boolean
     purchasedShipCount?: boolean
     lobbiesCreatedCount?: boolean
     kickCount?: boolean
@@ -2787,6 +3925,8 @@ export namespace Prisma {
     email?: boolean
     username?: boolean
     creditBalance?: boolean
+    decBalance?: boolean
+    droneCoreTier?: boolean
     purchasedShipCount?: boolean
     lobbiesCreatedCount?: boolean
     kickCount?: boolean
@@ -2796,7 +3936,7 @@ export namespace Prisma {
     createdAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "username" | "creditBalance" | "purchasedShipCount" | "lobbiesCreatedCount" | "kickCount" | "kickTimeoutUntil" | "tutorialCompleted" | "tutorialPath" | "createdAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "username" | "creditBalance" | "decBalance" | "droneCoreTier" | "purchasedShipCount" | "lobbiesCreatedCount" | "kickCount" | "kickTimeoutUntil" | "tutorialCompleted" | "tutorialPath" | "createdAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     ships?: boolean | User$shipsArgs<ExtArgs>
     lobbiesCreated?: boolean | User$lobbiesCreatedArgs<ExtArgs>
@@ -2810,6 +3950,8 @@ export namespace Prisma {
     tournamentRegistrations?: boolean | User$tournamentRegistrationsArgs<ExtArgs>
     tournamentMatchesAsP1?: boolean | User$tournamentMatchesAsP1Args<ExtArgs>
     tournamentMatchesAsP2?: boolean | User$tournamentMatchesAsP2Args<ExtArgs>
+    campaignNodeCompletions?: boolean | User$campaignNodeCompletionsArgs<ExtArgs>
+    roguelikeRuns?: boolean | User$roguelikeRunsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2830,12 +3972,16 @@ export namespace Prisma {
       tournamentRegistrations: Prisma.$TournamentRegistrantPayload<ExtArgs>[]
       tournamentMatchesAsP1: Prisma.$TournamentMatchPayload<ExtArgs>[]
       tournamentMatchesAsP2: Prisma.$TournamentMatchPayload<ExtArgs>[]
+      campaignNodeCompletions: Prisma.$CampaignNodeCompletionPayload<ExtArgs>[]
+      roguelikeRuns: Prisma.$RoguelikeRunPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       email: string
       username: string | null
       creditBalance: number
+      decBalance: number
+      droneCoreTier: number
       purchasedShipCount: number
       lobbiesCreatedCount: number
       kickCount: number
@@ -3249,6 +4395,8 @@ export namespace Prisma {
     tournamentRegistrations<T extends User$tournamentRegistrationsArgs<ExtArgs> = {}>(args?: Subset<T, User$tournamentRegistrationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TournamentRegistrantPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     tournamentMatchesAsP1<T extends User$tournamentMatchesAsP1Args<ExtArgs> = {}>(args?: Subset<T, User$tournamentMatchesAsP1Args<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TournamentMatchPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     tournamentMatchesAsP2<T extends User$tournamentMatchesAsP2Args<ExtArgs> = {}>(args?: Subset<T, User$tournamentMatchesAsP2Args<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TournamentMatchPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    campaignNodeCompletions<T extends User$campaignNodeCompletionsArgs<ExtArgs> = {}>(args?: Subset<T, User$campaignNodeCompletionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    roguelikeRuns<T extends User$roguelikeRunsArgs<ExtArgs> = {}>(args?: Subset<T, User$roguelikeRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3282,6 +4430,8 @@ export namespace Prisma {
     readonly email: FieldRef<"User", 'String'>
     readonly username: FieldRef<"User", 'String'>
     readonly creditBalance: FieldRef<"User", 'Int'>
+    readonly decBalance: FieldRef<"User", 'Int'>
+    readonly droneCoreTier: FieldRef<"User", 'Int'>
     readonly purchasedShipCount: FieldRef<"User", 'Int'>
     readonly lobbiesCreatedCount: FieldRef<"User", 'Int'>
     readonly kickCount: FieldRef<"User", 'Int'>
@@ -3965,6 +5115,54 @@ export namespace Prisma {
   }
 
   /**
+   * User.campaignNodeCompletions
+   */
+  export type User$campaignNodeCompletionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    where?: CampaignNodeCompletionWhereInput
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CampaignNodeCompletionScalarFieldEnum | CampaignNodeCompletionScalarFieldEnum[]
+  }
+
+  /**
+   * User.roguelikeRuns
+   */
+  export type User$roguelikeRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    where?: RoguelikeRunWhereInput
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    cursor?: RoguelikeRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeRunScalarFieldEnum | RoguelikeRunScalarFieldEnum[]
+  }
+
+  /**
    * User without action
    */
   export type UserDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4278,6 +5476,8 @@ export namespace Prisma {
     destroyedAt?: boolean
     createdAt?: boolean
     owner?: boolean | UserDefaultArgs<ExtArgs>
+    roguelikeRosterEntries?: boolean | Ship$roguelikeRosterEntriesArgs<ExtArgs>
+    _count?: boolean | ShipCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["ship"]>
 
   export type ShipSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -4342,6 +5542,8 @@ export namespace Prisma {
   export type ShipOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "ownerId" | "name" | "equipment" | "traits" | "cost" | "costsVersion" | "isFree" | "modifiedCount" | "shiny" | "constructed" | "inFleet" | "destroyed" | "shipsDestroyed" | "destroyedAt" | "createdAt", ExtArgs["result"]["ship"]>
   export type ShipInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     owner?: boolean | UserDefaultArgs<ExtArgs>
+    roguelikeRosterEntries?: boolean | Ship$roguelikeRosterEntriesArgs<ExtArgs>
+    _count?: boolean | ShipCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ShipIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     owner?: boolean | UserDefaultArgs<ExtArgs>
@@ -4354,6 +5556,7 @@ export namespace Prisma {
     name: "Ship"
     objects: {
       owner: Prisma.$UserPayload<ExtArgs>
+      roguelikeRosterEntries: Prisma.$RoguelikeRosterShipPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -4767,6 +5970,7 @@ export namespace Prisma {
   export interface Prisma__ShipClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     owner<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    roguelikeRosterEntries<T extends Ship$roguelikeRosterEntriesArgs<ExtArgs> = {}>(args?: Subset<T, Ship$roguelikeRosterEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5210,6 +6414,30 @@ export namespace Prisma {
      * Limit how many Ships to delete.
      */
     limit?: number
+  }
+
+  /**
+   * Ship.roguelikeRosterEntries
+   */
+  export type Ship$roguelikeRosterEntriesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    where?: RoguelikeRosterShipWhereInput
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeRosterShipScalarFieldEnum | RoguelikeRosterShipScalarFieldEnum[]
   }
 
   /**
@@ -6397,6 +7625,8 @@ export namespace Prisma {
     costLimit: number | null
     turnTimeSeconds: number | null
     maxScore: number | null
+    campaignNodeId: number | null
+    roguelikeRunId: number | null
   }
 
   export type LobbySumAggregateOutputType = {
@@ -6405,6 +7635,8 @@ export namespace Prisma {
     costLimit: number | null
     turnTimeSeconds: number | null
     maxScore: number | null
+    campaignNodeId: number | null
+    roguelikeRunId: number | null
   }
 
   export type LobbyMinAggregateOutputType = {
@@ -6423,6 +7655,8 @@ export namespace Prisma {
     createdAt: Date | null
     joinedAt: Date | null
     joinerFleetSetAt: Date | null
+    campaignNodeId: number | null
+    roguelikeRunId: number | null
   }
 
   export type LobbyMaxAggregateOutputType = {
@@ -6441,6 +7675,8 @@ export namespace Prisma {
     createdAt: Date | null
     joinedAt: Date | null
     joinerFleetSetAt: Date | null
+    campaignNodeId: number | null
+    roguelikeRunId: number | null
   }
 
   export type LobbyCountAggregateOutputType = {
@@ -6459,6 +7695,8 @@ export namespace Prisma {
     createdAt: number
     joinedAt: number
     joinerFleetSetAt: number
+    campaignNodeId: number
+    roguelikeRunId: number
     _all: number
   }
 
@@ -6469,6 +7707,8 @@ export namespace Prisma {
     costLimit?: true
     turnTimeSeconds?: true
     maxScore?: true
+    campaignNodeId?: true
+    roguelikeRunId?: true
   }
 
   export type LobbySumAggregateInputType = {
@@ -6477,6 +7717,8 @@ export namespace Prisma {
     costLimit?: true
     turnTimeSeconds?: true
     maxScore?: true
+    campaignNodeId?: true
+    roguelikeRunId?: true
   }
 
   export type LobbyMinAggregateInputType = {
@@ -6495,6 +7737,8 @@ export namespace Prisma {
     createdAt?: true
     joinedAt?: true
     joinerFleetSetAt?: true
+    campaignNodeId?: true
+    roguelikeRunId?: true
   }
 
   export type LobbyMaxAggregateInputType = {
@@ -6513,6 +7757,8 @@ export namespace Prisma {
     createdAt?: true
     joinedAt?: true
     joinerFleetSetAt?: true
+    campaignNodeId?: true
+    roguelikeRunId?: true
   }
 
   export type LobbyCountAggregateInputType = {
@@ -6531,6 +7777,8 @@ export namespace Prisma {
     createdAt?: true
     joinedAt?: true
     joinerFleetSetAt?: true
+    campaignNodeId?: true
+    roguelikeRunId?: true
     _all?: true
   }
 
@@ -6636,6 +7884,8 @@ export namespace Prisma {
     createdAt: Date
     joinedAt: Date | null
     joinerFleetSetAt: Date | null
+    campaignNodeId: number | null
+    roguelikeRunId: number | null
     _count: LobbyCountAggregateOutputType | null
     _avg: LobbyAvgAggregateOutputType | null
     _sum: LobbySumAggregateOutputType | null
@@ -6673,10 +7923,14 @@ export namespace Prisma {
     createdAt?: boolean
     joinedAt?: boolean
     joinerFleetSetAt?: boolean
+    campaignNodeId?: boolean
+    roguelikeRunId?: boolean
     creator?: boolean | UserDefaultArgs<ExtArgs>
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
     fleets?: boolean | Lobby$fleetsArgs<ExtArgs>
     game?: boolean | Lobby$gameArgs<ExtArgs>
     tournamentMatch?: boolean | Lobby$tournamentMatchArgs<ExtArgs>
@@ -6699,10 +7953,14 @@ export namespace Prisma {
     createdAt?: boolean
     joinedAt?: boolean
     joinerFleetSetAt?: boolean
+    campaignNodeId?: boolean
+    roguelikeRunId?: boolean
     creator?: boolean | UserDefaultArgs<ExtArgs>
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
   }, ExtArgs["result"]["lobby"]>
 
   export type LobbySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -6721,10 +7979,14 @@ export namespace Prisma {
     createdAt?: boolean
     joinedAt?: boolean
     joinerFleetSetAt?: boolean
+    campaignNodeId?: boolean
+    roguelikeRunId?: boolean
     creator?: boolean | UserDefaultArgs<ExtArgs>
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
   }, ExtArgs["result"]["lobby"]>
 
   export type LobbySelectScalar = {
@@ -6743,14 +8005,18 @@ export namespace Prisma {
     createdAt?: boolean
     joinedAt?: boolean
     joinerFleetSetAt?: boolean
+    campaignNodeId?: boolean
+    roguelikeRunId?: boolean
   }
 
-  export type LobbyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "creatorId" | "joinerId" | "reservedJoinerId" | "mapId" | "status" | "costLimit" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "isAiGame" | "aiDifficulty" | "createdAt" | "joinedAt" | "joinerFleetSetAt", ExtArgs["result"]["lobby"]>
+  export type LobbyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "creatorId" | "joinerId" | "reservedJoinerId" | "mapId" | "status" | "costLimit" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "isAiGame" | "aiDifficulty" | "createdAt" | "joinedAt" | "joinerFleetSetAt" | "campaignNodeId" | "roguelikeRunId", ExtArgs["result"]["lobby"]>
   export type LobbyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     creator?: boolean | UserDefaultArgs<ExtArgs>
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
     fleets?: boolean | Lobby$fleetsArgs<ExtArgs>
     game?: boolean | Lobby$gameArgs<ExtArgs>
     tournamentMatch?: boolean | Lobby$tournamentMatchArgs<ExtArgs>
@@ -6761,12 +8027,16 @@ export namespace Prisma {
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
   }
   export type LobbyIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     creator?: boolean | UserDefaultArgs<ExtArgs>
     joiner?: boolean | Lobby$joinerArgs<ExtArgs>
     reservedJoiner?: boolean | Lobby$reservedJoinerArgs<ExtArgs>
     map?: boolean | Lobby$mapArgs<ExtArgs>
+    campaignNode?: boolean | Lobby$campaignNodeArgs<ExtArgs>
+    roguelikeRun?: boolean | Lobby$roguelikeRunArgs<ExtArgs>
   }
 
   export type $LobbyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -6776,6 +8046,8 @@ export namespace Prisma {
       joiner: Prisma.$UserPayload<ExtArgs> | null
       reservedJoiner: Prisma.$UserPayload<ExtArgs> | null
       map: Prisma.$MapPayload<ExtArgs> | null
+      campaignNode: Prisma.$CampaignNodePayload<ExtArgs> | null
+      roguelikeRun: Prisma.$RoguelikeRunPayload<ExtArgs> | null
       fleets: Prisma.$FleetPayload<ExtArgs>[]
       game: Prisma.$GamePayload<ExtArgs> | null
       tournamentMatch: Prisma.$TournamentMatchPayload<ExtArgs> | null
@@ -6796,6 +8068,8 @@ export namespace Prisma {
       createdAt: Date
       joinedAt: Date | null
       joinerFleetSetAt: Date | null
+      campaignNodeId: number | null
+      roguelikeRunId: number | null
     }, ExtArgs["result"]["lobby"]>
     composites: {}
   }
@@ -7194,6 +8468,8 @@ export namespace Prisma {
     joiner<T extends Lobby$joinerArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$joinerArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     reservedJoiner<T extends Lobby$reservedJoinerArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$reservedJoinerArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     map<T extends Lobby$mapArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$mapArgs<ExtArgs>>): Prisma__MapClient<$Result.GetResult<Prisma.$MapPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    campaignNode<T extends Lobby$campaignNodeArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$campaignNodeArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    roguelikeRun<T extends Lobby$roguelikeRunArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$roguelikeRunArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     fleets<T extends Lobby$fleetsArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$fleetsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FleetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     game<T extends Lobby$gameArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$gameArgs<ExtArgs>>): Prisma__GameClient<$Result.GetResult<Prisma.$GamePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     tournamentMatch<T extends Lobby$tournamentMatchArgs<ExtArgs> = {}>(args?: Subset<T, Lobby$tournamentMatchArgs<ExtArgs>>): Prisma__TournamentMatchClient<$Result.GetResult<Prisma.$TournamentMatchPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -7241,6 +8517,8 @@ export namespace Prisma {
     readonly createdAt: FieldRef<"Lobby", 'DateTime'>
     readonly joinedAt: FieldRef<"Lobby", 'DateTime'>
     readonly joinerFleetSetAt: FieldRef<"Lobby", 'DateTime'>
+    readonly campaignNodeId: FieldRef<"Lobby", 'Int'>
+    readonly roguelikeRunId: FieldRef<"Lobby", 'Int'>
   }
     
 
@@ -7696,6 +8974,44 @@ export namespace Prisma {
      */
     include?: MapInclude<ExtArgs> | null
     where?: MapWhereInput
+  }
+
+  /**
+   * Lobby.campaignNode
+   */
+  export type Lobby$campaignNodeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    where?: CampaignNodeWhereInput
+  }
+
+  /**
+   * Lobby.roguelikeRun
+   */
+  export type Lobby$roguelikeRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    where?: RoguelikeRunWhereInput
   }
 
   /**
@@ -10152,12 +11468,14 @@ export namespace Prisma {
     id: number | null
     gridWidth: number | null
     gridHeight: number | null
+    mode: number | null
   }
 
   export type MapSumAggregateOutputType = {
     id: number | null
     gridWidth: number | null
     gridHeight: number | null
+    mode: number | null
   }
 
   export type MapMinAggregateOutputType = {
@@ -10165,6 +11483,7 @@ export namespace Prisma {
     name: string | null
     gridWidth: number | null
     gridHeight: number | null
+    mode: number | null
     createdAt: Date | null
   }
 
@@ -10173,6 +11492,7 @@ export namespace Prisma {
     name: string | null
     gridWidth: number | null
     gridHeight: number | null
+    mode: number | null
     createdAt: Date | null
   }
 
@@ -10183,6 +11503,7 @@ export namespace Prisma {
     gridHeight: number
     blockedTiles: number
     scoringTiles: number
+    mode: number
     createdAt: number
     _all: number
   }
@@ -10192,12 +11513,14 @@ export namespace Prisma {
     id?: true
     gridWidth?: true
     gridHeight?: true
+    mode?: true
   }
 
   export type MapSumAggregateInputType = {
     id?: true
     gridWidth?: true
     gridHeight?: true
+    mode?: true
   }
 
   export type MapMinAggregateInputType = {
@@ -10205,6 +11528,7 @@ export namespace Prisma {
     name?: true
     gridWidth?: true
     gridHeight?: true
+    mode?: true
     createdAt?: true
   }
 
@@ -10213,6 +11537,7 @@ export namespace Prisma {
     name?: true
     gridWidth?: true
     gridHeight?: true
+    mode?: true
     createdAt?: true
   }
 
@@ -10223,6 +11548,7 @@ export namespace Prisma {
     gridHeight?: true
     blockedTiles?: true
     scoringTiles?: true
+    mode?: true
     createdAt?: true
     _all?: true
   }
@@ -10320,6 +11646,7 @@ export namespace Prisma {
     gridHeight: number
     blockedTiles: JsonValue
     scoringTiles: JsonValue
+    mode: number
     createdAt: Date
     _count: MapCountAggregateOutputType | null
     _avg: MapAvgAggregateOutputType | null
@@ -10349,9 +11676,12 @@ export namespace Prisma {
     gridHeight?: boolean
     blockedTiles?: boolean
     scoringTiles?: boolean
+    mode?: boolean
     createdAt?: boolean
     lobbies?: boolean | Map$lobbiesArgs<ExtArgs>
     aiPlacements?: boolean | Map$aiPlacementsArgs<ExtArgs>
+    campaignNodes?: boolean | Map$campaignNodesArgs<ExtArgs>
+    roguelikeNodes?: boolean | Map$roguelikeNodesArgs<ExtArgs>
     _count?: boolean | MapCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["map"]>
 
@@ -10362,6 +11692,7 @@ export namespace Prisma {
     gridHeight?: boolean
     blockedTiles?: boolean
     scoringTiles?: boolean
+    mode?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["map"]>
 
@@ -10372,6 +11703,7 @@ export namespace Prisma {
     gridHeight?: boolean
     blockedTiles?: boolean
     scoringTiles?: boolean
+    mode?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["map"]>
 
@@ -10382,13 +11714,16 @@ export namespace Prisma {
     gridHeight?: boolean
     blockedTiles?: boolean
     scoringTiles?: boolean
+    mode?: boolean
     createdAt?: boolean
   }
 
-  export type MapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "gridWidth" | "gridHeight" | "blockedTiles" | "scoringTiles" | "createdAt", ExtArgs["result"]["map"]>
+  export type MapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "gridWidth" | "gridHeight" | "blockedTiles" | "scoringTiles" | "mode" | "createdAt", ExtArgs["result"]["map"]>
   export type MapInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lobbies?: boolean | Map$lobbiesArgs<ExtArgs>
     aiPlacements?: boolean | Map$aiPlacementsArgs<ExtArgs>
+    campaignNodes?: boolean | Map$campaignNodesArgs<ExtArgs>
+    roguelikeNodes?: boolean | Map$roguelikeNodesArgs<ExtArgs>
     _count?: boolean | MapCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type MapIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -10399,6 +11734,8 @@ export namespace Prisma {
     objects: {
       lobbies: Prisma.$LobbyPayload<ExtArgs>[]
       aiPlacements: Prisma.$AIMapPlacementPayload<ExtArgs>[]
+      campaignNodes: Prisma.$CampaignNodePayload<ExtArgs>[]
+      roguelikeNodes: Prisma.$RoguelikeNodePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -10407,6 +11744,7 @@ export namespace Prisma {
       gridHeight: number
       blockedTiles: Prisma.JsonValue
       scoringTiles: Prisma.JsonValue
+      mode: number
       createdAt: Date
     }, ExtArgs["result"]["map"]>
     composites: {}
@@ -10804,6 +12142,8 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     lobbies<T extends Map$lobbiesArgs<ExtArgs> = {}>(args?: Subset<T, Map$lobbiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LobbyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     aiPlacements<T extends Map$aiPlacementsArgs<ExtArgs> = {}>(args?: Subset<T, Map$aiPlacementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AIMapPlacementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    campaignNodes<T extends Map$campaignNodesArgs<ExtArgs> = {}>(args?: Subset<T, Map$campaignNodesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    roguelikeNodes<T extends Map$roguelikeNodesArgs<ExtArgs> = {}>(args?: Subset<T, Map$roguelikeNodesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -10839,6 +12179,7 @@ export namespace Prisma {
     readonly gridHeight: FieldRef<"Map", 'Int'>
     readonly blockedTiles: FieldRef<"Map", 'Json'>
     readonly scoringTiles: FieldRef<"Map", 'Json'>
+    readonly mode: FieldRef<"Map", 'Int'>
     readonly createdAt: FieldRef<"Map", 'DateTime'>
   }
     
@@ -11278,6 +12619,54 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AIMapPlacementScalarFieldEnum | AIMapPlacementScalarFieldEnum[]
+  }
+
+  /**
+   * Map.campaignNodes
+   */
+  export type Map$campaignNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    where?: CampaignNodeWhereInput
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    cursor?: CampaignNodeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CampaignNodeScalarFieldEnum | CampaignNodeScalarFieldEnum[]
+  }
+
+  /**
+   * Map.roguelikeNodes
+   */
+  export type Map$roguelikeNodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    where?: RoguelikeNodeWhereInput
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    cursor?: RoguelikeNodeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeNodeScalarFieldEnum | RoguelikeNodeScalarFieldEnum[]
   }
 
   /**
@@ -14551,6 +15940,10443 @@ export namespace Prisma {
      * Omit specific fields from the AIFleetShip
      */
     omit?: AIFleetShipOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Campaign
+   */
+
+  export type AggregateCampaign = {
+    _count: CampaignCountAggregateOutputType | null
+    _avg: CampaignAvgAggregateOutputType | null
+    _sum: CampaignSumAggregateOutputType | null
+    _min: CampaignMinAggregateOutputType | null
+    _max: CampaignMaxAggregateOutputType | null
+  }
+
+  export type CampaignAvgAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+  }
+
+  export type CampaignSumAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+  }
+
+  export type CampaignMinAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    createdAt: Date | null
+  }
+
+  export type CampaignMaxAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    createdAt: Date | null
+  }
+
+  export type CampaignCountAggregateOutputType = {
+    id: number
+    requiredVariant: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type CampaignAvgAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+  }
+
+  export type CampaignSumAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+  }
+
+  export type CampaignMinAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    createdAt?: true
+  }
+
+  export type CampaignMaxAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    createdAt?: true
+  }
+
+  export type CampaignCountAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type CampaignAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Campaign to aggregate.
+     */
+    where?: CampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Campaigns to fetch.
+     */
+    orderBy?: CampaignOrderByWithRelationInput | CampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Campaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Campaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Campaigns
+    **/
+    _count?: true | CampaignCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: CampaignAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CampaignSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CampaignMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CampaignMaxAggregateInputType
+  }
+
+  export type GetCampaignAggregateType<T extends CampaignAggregateArgs> = {
+        [P in keyof T & keyof AggregateCampaign]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCampaign[P]>
+      : GetScalarType<T[P], AggregateCampaign[P]>
+  }
+
+
+
+
+  export type CampaignGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignWhereInput
+    orderBy?: CampaignOrderByWithAggregationInput | CampaignOrderByWithAggregationInput[]
+    by: CampaignScalarFieldEnum[] | CampaignScalarFieldEnum
+    having?: CampaignScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CampaignCountAggregateInputType | true
+    _avg?: CampaignAvgAggregateInputType
+    _sum?: CampaignSumAggregateInputType
+    _min?: CampaignMinAggregateInputType
+    _max?: CampaignMaxAggregateInputType
+  }
+
+  export type CampaignGroupByOutputType = {
+    id: number
+    requiredVariant: number
+    createdAt: Date
+    _count: CampaignCountAggregateOutputType | null
+    _avg: CampaignAvgAggregateOutputType | null
+    _sum: CampaignSumAggregateOutputType | null
+    _min: CampaignMinAggregateOutputType | null
+    _max: CampaignMaxAggregateOutputType | null
+  }
+
+  type GetCampaignGroupByPayload<T extends CampaignGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CampaignGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CampaignGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CampaignGroupByOutputType[P]>
+            : GetScalarType<T[P], CampaignGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CampaignSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    createdAt?: boolean
+    nodes?: boolean | Campaign$nodesArgs<ExtArgs>
+    _count?: boolean | CampaignCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaign"]>
+
+  export type CampaignSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["campaign"]>
+
+  export type CampaignSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["campaign"]>
+
+  export type CampaignSelectScalar = {
+    id?: boolean
+    requiredVariant?: boolean
+    createdAt?: boolean
+  }
+
+  export type CampaignOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requiredVariant" | "createdAt", ExtArgs["result"]["campaign"]>
+  export type CampaignInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    nodes?: boolean | Campaign$nodesArgs<ExtArgs>
+    _count?: boolean | CampaignCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type CampaignIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type CampaignIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $CampaignPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Campaign"
+    objects: {
+      nodes: Prisma.$CampaignNodePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      requiredVariant: number
+      createdAt: Date
+    }, ExtArgs["result"]["campaign"]>
+    composites: {}
+  }
+
+  type CampaignGetPayload<S extends boolean | null | undefined | CampaignDefaultArgs> = $Result.GetResult<Prisma.$CampaignPayload, S>
+
+  type CampaignCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CampaignFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CampaignCountAggregateInputType | true
+    }
+
+  export interface CampaignDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Campaign'], meta: { name: 'Campaign' } }
+    /**
+     * Find zero or one Campaign that matches the filter.
+     * @param {CampaignFindUniqueArgs} args - Arguments to find a Campaign
+     * @example
+     * // Get one Campaign
+     * const campaign = await prisma.campaign.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CampaignFindUniqueArgs>(args: SelectSubset<T, CampaignFindUniqueArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Campaign that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CampaignFindUniqueOrThrowArgs} args - Arguments to find a Campaign
+     * @example
+     * // Get one Campaign
+     * const campaign = await prisma.campaign.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CampaignFindUniqueOrThrowArgs>(args: SelectSubset<T, CampaignFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Campaign that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignFindFirstArgs} args - Arguments to find a Campaign
+     * @example
+     * // Get one Campaign
+     * const campaign = await prisma.campaign.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CampaignFindFirstArgs>(args?: SelectSubset<T, CampaignFindFirstArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Campaign that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignFindFirstOrThrowArgs} args - Arguments to find a Campaign
+     * @example
+     * // Get one Campaign
+     * const campaign = await prisma.campaign.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CampaignFindFirstOrThrowArgs>(args?: SelectSubset<T, CampaignFindFirstOrThrowArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Campaigns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Campaigns
+     * const campaigns = await prisma.campaign.findMany()
+     * 
+     * // Get first 10 Campaigns
+     * const campaigns = await prisma.campaign.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const campaignWithIdOnly = await prisma.campaign.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CampaignFindManyArgs>(args?: SelectSubset<T, CampaignFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Campaign.
+     * @param {CampaignCreateArgs} args - Arguments to create a Campaign.
+     * @example
+     * // Create one Campaign
+     * const Campaign = await prisma.campaign.create({
+     *   data: {
+     *     // ... data to create a Campaign
+     *   }
+     * })
+     * 
+     */
+    create<T extends CampaignCreateArgs>(args: SelectSubset<T, CampaignCreateArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Campaigns.
+     * @param {CampaignCreateManyArgs} args - Arguments to create many Campaigns.
+     * @example
+     * // Create many Campaigns
+     * const campaign = await prisma.campaign.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CampaignCreateManyArgs>(args?: SelectSubset<T, CampaignCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Campaigns and returns the data saved in the database.
+     * @param {CampaignCreateManyAndReturnArgs} args - Arguments to create many Campaigns.
+     * @example
+     * // Create many Campaigns
+     * const campaign = await prisma.campaign.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Campaigns and only return the `id`
+     * const campaignWithIdOnly = await prisma.campaign.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CampaignCreateManyAndReturnArgs>(args?: SelectSubset<T, CampaignCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Campaign.
+     * @param {CampaignDeleteArgs} args - Arguments to delete one Campaign.
+     * @example
+     * // Delete one Campaign
+     * const Campaign = await prisma.campaign.delete({
+     *   where: {
+     *     // ... filter to delete one Campaign
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CampaignDeleteArgs>(args: SelectSubset<T, CampaignDeleteArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Campaign.
+     * @param {CampaignUpdateArgs} args - Arguments to update one Campaign.
+     * @example
+     * // Update one Campaign
+     * const campaign = await prisma.campaign.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CampaignUpdateArgs>(args: SelectSubset<T, CampaignUpdateArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Campaigns.
+     * @param {CampaignDeleteManyArgs} args - Arguments to filter Campaigns to delete.
+     * @example
+     * // Delete a few Campaigns
+     * const { count } = await prisma.campaign.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CampaignDeleteManyArgs>(args?: SelectSubset<T, CampaignDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Campaigns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Campaigns
+     * const campaign = await prisma.campaign.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CampaignUpdateManyArgs>(args: SelectSubset<T, CampaignUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Campaigns and returns the data updated in the database.
+     * @param {CampaignUpdateManyAndReturnArgs} args - Arguments to update many Campaigns.
+     * @example
+     * // Update many Campaigns
+     * const campaign = await prisma.campaign.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Campaigns and only return the `id`
+     * const campaignWithIdOnly = await prisma.campaign.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CampaignUpdateManyAndReturnArgs>(args: SelectSubset<T, CampaignUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Campaign.
+     * @param {CampaignUpsertArgs} args - Arguments to update or create a Campaign.
+     * @example
+     * // Update or create a Campaign
+     * const campaign = await prisma.campaign.upsert({
+     *   create: {
+     *     // ... data to create a Campaign
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Campaign we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CampaignUpsertArgs>(args: SelectSubset<T, CampaignUpsertArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Campaigns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignCountArgs} args - Arguments to filter Campaigns to count.
+     * @example
+     * // Count the number of Campaigns
+     * const count = await prisma.campaign.count({
+     *   where: {
+     *     // ... the filter for the Campaigns we want to count
+     *   }
+     * })
+    **/
+    count<T extends CampaignCountArgs>(
+      args?: Subset<T, CampaignCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CampaignCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Campaign.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CampaignAggregateArgs>(args: Subset<T, CampaignAggregateArgs>): Prisma.PrismaPromise<GetCampaignAggregateType<T>>
+
+    /**
+     * Group by Campaign.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CampaignGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CampaignGroupByArgs['orderBy'] }
+        : { orderBy?: CampaignGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CampaignGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCampaignGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Campaign model
+   */
+  readonly fields: CampaignFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Campaign.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CampaignClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    nodes<T extends Campaign$nodesArgs<ExtArgs> = {}>(args?: Subset<T, Campaign$nodesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Campaign model
+   */
+  interface CampaignFieldRefs {
+    readonly id: FieldRef<"Campaign", 'Int'>
+    readonly requiredVariant: FieldRef<"Campaign", 'Int'>
+    readonly createdAt: FieldRef<"Campaign", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Campaign findUnique
+   */
+  export type CampaignFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which Campaign to fetch.
+     */
+    where: CampaignWhereUniqueInput
+  }
+
+  /**
+   * Campaign findUniqueOrThrow
+   */
+  export type CampaignFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which Campaign to fetch.
+     */
+    where: CampaignWhereUniqueInput
+  }
+
+  /**
+   * Campaign findFirst
+   */
+  export type CampaignFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which Campaign to fetch.
+     */
+    where?: CampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Campaigns to fetch.
+     */
+    orderBy?: CampaignOrderByWithRelationInput | CampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Campaigns.
+     */
+    cursor?: CampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Campaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Campaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Campaigns.
+     */
+    distinct?: CampaignScalarFieldEnum | CampaignScalarFieldEnum[]
+  }
+
+  /**
+   * Campaign findFirstOrThrow
+   */
+  export type CampaignFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which Campaign to fetch.
+     */
+    where?: CampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Campaigns to fetch.
+     */
+    orderBy?: CampaignOrderByWithRelationInput | CampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Campaigns.
+     */
+    cursor?: CampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Campaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Campaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Campaigns.
+     */
+    distinct?: CampaignScalarFieldEnum | CampaignScalarFieldEnum[]
+  }
+
+  /**
+   * Campaign findMany
+   */
+  export type CampaignFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which Campaigns to fetch.
+     */
+    where?: CampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Campaigns to fetch.
+     */
+    orderBy?: CampaignOrderByWithRelationInput | CampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Campaigns.
+     */
+    cursor?: CampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Campaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Campaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Campaigns.
+     */
+    distinct?: CampaignScalarFieldEnum | CampaignScalarFieldEnum[]
+  }
+
+  /**
+   * Campaign create
+   */
+  export type CampaignCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Campaign.
+     */
+    data?: XOR<CampaignCreateInput, CampaignUncheckedCreateInput>
+  }
+
+  /**
+   * Campaign createMany
+   */
+  export type CampaignCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Campaigns.
+     */
+    data: CampaignCreateManyInput | CampaignCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Campaign createManyAndReturn
+   */
+  export type CampaignCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * The data used to create many Campaigns.
+     */
+    data: CampaignCreateManyInput | CampaignCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Campaign update
+   */
+  export type CampaignUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Campaign.
+     */
+    data: XOR<CampaignUpdateInput, CampaignUncheckedUpdateInput>
+    /**
+     * Choose, which Campaign to update.
+     */
+    where: CampaignWhereUniqueInput
+  }
+
+  /**
+   * Campaign updateMany
+   */
+  export type CampaignUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Campaigns.
+     */
+    data: XOR<CampaignUpdateManyMutationInput, CampaignUncheckedUpdateManyInput>
+    /**
+     * Filter which Campaigns to update
+     */
+    where?: CampaignWhereInput
+    /**
+     * Limit how many Campaigns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Campaign updateManyAndReturn
+   */
+  export type CampaignUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * The data used to update Campaigns.
+     */
+    data: XOR<CampaignUpdateManyMutationInput, CampaignUncheckedUpdateManyInput>
+    /**
+     * Filter which Campaigns to update
+     */
+    where?: CampaignWhereInput
+    /**
+     * Limit how many Campaigns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Campaign upsert
+   */
+  export type CampaignUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Campaign to update in case it exists.
+     */
+    where: CampaignWhereUniqueInput
+    /**
+     * In case the Campaign found by the `where` argument doesn't exist, create a new Campaign with this data.
+     */
+    create: XOR<CampaignCreateInput, CampaignUncheckedCreateInput>
+    /**
+     * In case the Campaign was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CampaignUpdateInput, CampaignUncheckedUpdateInput>
+  }
+
+  /**
+   * Campaign delete
+   */
+  export type CampaignDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+    /**
+     * Filter which Campaign to delete.
+     */
+    where: CampaignWhereUniqueInput
+  }
+
+  /**
+   * Campaign deleteMany
+   */
+  export type CampaignDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Campaigns to delete
+     */
+    where?: CampaignWhereInput
+    /**
+     * Limit how many Campaigns to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * Campaign.nodes
+   */
+  export type Campaign$nodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    where?: CampaignNodeWhereInput
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    cursor?: CampaignNodeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CampaignNodeScalarFieldEnum | CampaignNodeScalarFieldEnum[]
+  }
+
+  /**
+   * Campaign without action
+   */
+  export type CampaignDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Campaign
+     */
+    select?: CampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Campaign
+     */
+    omit?: CampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CampaignNode
+   */
+
+  export type AggregateCampaignNode = {
+    _count: CampaignNodeCountAggregateOutputType | null
+    _avg: CampaignNodeAvgAggregateOutputType | null
+    _sum: CampaignNodeSumAggregateOutputType | null
+    _min: CampaignNodeMinAggregateOutputType | null
+    _max: CampaignNodeMaxAggregateOutputType | null
+  }
+
+  export type CampaignNodeAvgAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    mapId: number | null
+    prerequisites: number | null
+    costLimit: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+  }
+
+  export type CampaignNodeSumAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    mapId: number | null
+    prerequisites: number[]
+    costLimit: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+  }
+
+  export type CampaignNodeMinAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    mapId: number | null
+    costLimit: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    creatorGoesFirst: boolean | null
+    createdAt: Date | null
+  }
+
+  export type CampaignNodeMaxAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    mapId: number | null
+    costLimit: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    creatorGoesFirst: boolean | null
+    createdAt: Date | null
+  }
+
+  export type CampaignNodeCountAggregateOutputType = {
+    id: number
+    campaignId: number
+    mapId: number
+    prerequisites: number
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type CampaignNodeAvgAggregateInputType = {
+    id?: true
+    campaignId?: true
+    mapId?: true
+    prerequisites?: true
+    costLimit?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+  }
+
+  export type CampaignNodeSumAggregateInputType = {
+    id?: true
+    campaignId?: true
+    mapId?: true
+    prerequisites?: true
+    costLimit?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+  }
+
+  export type CampaignNodeMinAggregateInputType = {
+    id?: true
+    campaignId?: true
+    mapId?: true
+    costLimit?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    createdAt?: true
+  }
+
+  export type CampaignNodeMaxAggregateInputType = {
+    id?: true
+    campaignId?: true
+    mapId?: true
+    costLimit?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    createdAt?: true
+  }
+
+  export type CampaignNodeCountAggregateInputType = {
+    id?: true
+    campaignId?: true
+    mapId?: true
+    prerequisites?: true
+    costLimit?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type CampaignNodeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CampaignNode to aggregate.
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodes to fetch.
+     */
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CampaignNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CampaignNodes
+    **/
+    _count?: true | CampaignNodeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: CampaignNodeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CampaignNodeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CampaignNodeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CampaignNodeMaxAggregateInputType
+  }
+
+  export type GetCampaignNodeAggregateType<T extends CampaignNodeAggregateArgs> = {
+        [P in keyof T & keyof AggregateCampaignNode]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCampaignNode[P]>
+      : GetScalarType<T[P], AggregateCampaignNode[P]>
+  }
+
+
+
+
+  export type CampaignNodeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeWhereInput
+    orderBy?: CampaignNodeOrderByWithAggregationInput | CampaignNodeOrderByWithAggregationInput[]
+    by: CampaignNodeScalarFieldEnum[] | CampaignNodeScalarFieldEnum
+    having?: CampaignNodeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CampaignNodeCountAggregateInputType | true
+    _avg?: CampaignNodeAvgAggregateInputType
+    _sum?: CampaignNodeSumAggregateInputType
+    _min?: CampaignNodeMinAggregateInputType
+    _max?: CampaignNodeMaxAggregateInputType
+  }
+
+  export type CampaignNodeGroupByOutputType = {
+    id: number
+    campaignId: number
+    mapId: number
+    prerequisites: number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst: boolean
+    createdAt: Date
+    _count: CampaignNodeCountAggregateOutputType | null
+    _avg: CampaignNodeAvgAggregateOutputType | null
+    _sum: CampaignNodeSumAggregateOutputType | null
+    _min: CampaignNodeMinAggregateOutputType | null
+    _max: CampaignNodeMaxAggregateOutputType | null
+  }
+
+  type GetCampaignNodeGroupByPayload<T extends CampaignNodeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CampaignNodeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CampaignNodeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CampaignNodeGroupByOutputType[P]>
+            : GetScalarType<T[P], CampaignNodeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CampaignNodeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    mapId?: boolean
+    prerequisites?: boolean
+    costLimit?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    createdAt?: boolean
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    completions?: boolean | CampaignNode$completionsArgs<ExtArgs>
+    lobbies?: boolean | CampaignNode$lobbiesArgs<ExtArgs>
+    _count?: boolean | CampaignNodeCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNode"]>
+
+  export type CampaignNodeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    mapId?: boolean
+    prerequisites?: boolean
+    costLimit?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    createdAt?: boolean
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNode"]>
+
+  export type CampaignNodeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    mapId?: boolean
+    prerequisites?: boolean
+    costLimit?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    createdAt?: boolean
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNode"]>
+
+  export type CampaignNodeSelectScalar = {
+    id?: boolean
+    campaignId?: boolean
+    mapId?: boolean
+    prerequisites?: boolean
+    costLimit?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    createdAt?: boolean
+  }
+
+  export type CampaignNodeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "campaignId" | "mapId" | "prerequisites" | "costLimit" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "createdAt", ExtArgs["result"]["campaignNode"]>
+  export type CampaignNodeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+    completions?: boolean | CampaignNode$completionsArgs<ExtArgs>
+    lobbies?: boolean | CampaignNode$lobbiesArgs<ExtArgs>
+    _count?: boolean | CampaignNodeCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type CampaignNodeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+  }
+  export type CampaignNodeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | CampaignDefaultArgs<ExtArgs>
+    map?: boolean | MapDefaultArgs<ExtArgs>
+  }
+
+  export type $CampaignNodePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CampaignNode"
+    objects: {
+      campaign: Prisma.$CampaignPayload<ExtArgs>
+      map: Prisma.$MapPayload<ExtArgs>
+      completions: Prisma.$CampaignNodeCompletionPayload<ExtArgs>[]
+      lobbies: Prisma.$LobbyPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      campaignId: number
+      mapId: number
+      prerequisites: number[]
+      costLimit: number
+      turnTimeSeconds: number
+      maxScore: number
+      creatorGoesFirst: boolean
+      createdAt: Date
+    }, ExtArgs["result"]["campaignNode"]>
+    composites: {}
+  }
+
+  type CampaignNodeGetPayload<S extends boolean | null | undefined | CampaignNodeDefaultArgs> = $Result.GetResult<Prisma.$CampaignNodePayload, S>
+
+  type CampaignNodeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CampaignNodeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CampaignNodeCountAggregateInputType | true
+    }
+
+  export interface CampaignNodeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CampaignNode'], meta: { name: 'CampaignNode' } }
+    /**
+     * Find zero or one CampaignNode that matches the filter.
+     * @param {CampaignNodeFindUniqueArgs} args - Arguments to find a CampaignNode
+     * @example
+     * // Get one CampaignNode
+     * const campaignNode = await prisma.campaignNode.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CampaignNodeFindUniqueArgs>(args: SelectSubset<T, CampaignNodeFindUniqueArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CampaignNode that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CampaignNodeFindUniqueOrThrowArgs} args - Arguments to find a CampaignNode
+     * @example
+     * // Get one CampaignNode
+     * const campaignNode = await prisma.campaignNode.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CampaignNodeFindUniqueOrThrowArgs>(args: SelectSubset<T, CampaignNodeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CampaignNode that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeFindFirstArgs} args - Arguments to find a CampaignNode
+     * @example
+     * // Get one CampaignNode
+     * const campaignNode = await prisma.campaignNode.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CampaignNodeFindFirstArgs>(args?: SelectSubset<T, CampaignNodeFindFirstArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CampaignNode that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeFindFirstOrThrowArgs} args - Arguments to find a CampaignNode
+     * @example
+     * // Get one CampaignNode
+     * const campaignNode = await prisma.campaignNode.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CampaignNodeFindFirstOrThrowArgs>(args?: SelectSubset<T, CampaignNodeFindFirstOrThrowArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CampaignNodes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CampaignNodes
+     * const campaignNodes = await prisma.campaignNode.findMany()
+     * 
+     * // Get first 10 CampaignNodes
+     * const campaignNodes = await prisma.campaignNode.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const campaignNodeWithIdOnly = await prisma.campaignNode.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CampaignNodeFindManyArgs>(args?: SelectSubset<T, CampaignNodeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CampaignNode.
+     * @param {CampaignNodeCreateArgs} args - Arguments to create a CampaignNode.
+     * @example
+     * // Create one CampaignNode
+     * const CampaignNode = await prisma.campaignNode.create({
+     *   data: {
+     *     // ... data to create a CampaignNode
+     *   }
+     * })
+     * 
+     */
+    create<T extends CampaignNodeCreateArgs>(args: SelectSubset<T, CampaignNodeCreateArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CampaignNodes.
+     * @param {CampaignNodeCreateManyArgs} args - Arguments to create many CampaignNodes.
+     * @example
+     * // Create many CampaignNodes
+     * const campaignNode = await prisma.campaignNode.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CampaignNodeCreateManyArgs>(args?: SelectSubset<T, CampaignNodeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CampaignNodes and returns the data saved in the database.
+     * @param {CampaignNodeCreateManyAndReturnArgs} args - Arguments to create many CampaignNodes.
+     * @example
+     * // Create many CampaignNodes
+     * const campaignNode = await prisma.campaignNode.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CampaignNodes and only return the `id`
+     * const campaignNodeWithIdOnly = await prisma.campaignNode.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CampaignNodeCreateManyAndReturnArgs>(args?: SelectSubset<T, CampaignNodeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CampaignNode.
+     * @param {CampaignNodeDeleteArgs} args - Arguments to delete one CampaignNode.
+     * @example
+     * // Delete one CampaignNode
+     * const CampaignNode = await prisma.campaignNode.delete({
+     *   where: {
+     *     // ... filter to delete one CampaignNode
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CampaignNodeDeleteArgs>(args: SelectSubset<T, CampaignNodeDeleteArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CampaignNode.
+     * @param {CampaignNodeUpdateArgs} args - Arguments to update one CampaignNode.
+     * @example
+     * // Update one CampaignNode
+     * const campaignNode = await prisma.campaignNode.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CampaignNodeUpdateArgs>(args: SelectSubset<T, CampaignNodeUpdateArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CampaignNodes.
+     * @param {CampaignNodeDeleteManyArgs} args - Arguments to filter CampaignNodes to delete.
+     * @example
+     * // Delete a few CampaignNodes
+     * const { count } = await prisma.campaignNode.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CampaignNodeDeleteManyArgs>(args?: SelectSubset<T, CampaignNodeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CampaignNodes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CampaignNodes
+     * const campaignNode = await prisma.campaignNode.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CampaignNodeUpdateManyArgs>(args: SelectSubset<T, CampaignNodeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CampaignNodes and returns the data updated in the database.
+     * @param {CampaignNodeUpdateManyAndReturnArgs} args - Arguments to update many CampaignNodes.
+     * @example
+     * // Update many CampaignNodes
+     * const campaignNode = await prisma.campaignNode.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CampaignNodes and only return the `id`
+     * const campaignNodeWithIdOnly = await prisma.campaignNode.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CampaignNodeUpdateManyAndReturnArgs>(args: SelectSubset<T, CampaignNodeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CampaignNode.
+     * @param {CampaignNodeUpsertArgs} args - Arguments to update or create a CampaignNode.
+     * @example
+     * // Update or create a CampaignNode
+     * const campaignNode = await prisma.campaignNode.upsert({
+     *   create: {
+     *     // ... data to create a CampaignNode
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CampaignNode we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CampaignNodeUpsertArgs>(args: SelectSubset<T, CampaignNodeUpsertArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CampaignNodes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCountArgs} args - Arguments to filter CampaignNodes to count.
+     * @example
+     * // Count the number of CampaignNodes
+     * const count = await prisma.campaignNode.count({
+     *   where: {
+     *     // ... the filter for the CampaignNodes we want to count
+     *   }
+     * })
+    **/
+    count<T extends CampaignNodeCountArgs>(
+      args?: Subset<T, CampaignNodeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CampaignNodeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CampaignNode.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CampaignNodeAggregateArgs>(args: Subset<T, CampaignNodeAggregateArgs>): Prisma.PrismaPromise<GetCampaignNodeAggregateType<T>>
+
+    /**
+     * Group by CampaignNode.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CampaignNodeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CampaignNodeGroupByArgs['orderBy'] }
+        : { orderBy?: CampaignNodeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CampaignNodeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCampaignNodeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CampaignNode model
+   */
+  readonly fields: CampaignNodeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CampaignNode.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CampaignNodeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    campaign<T extends CampaignDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CampaignDefaultArgs<ExtArgs>>): Prisma__CampaignClient<$Result.GetResult<Prisma.$CampaignPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    map<T extends MapDefaultArgs<ExtArgs> = {}>(args?: Subset<T, MapDefaultArgs<ExtArgs>>): Prisma__MapClient<$Result.GetResult<Prisma.$MapPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    completions<T extends CampaignNode$completionsArgs<ExtArgs> = {}>(args?: Subset<T, CampaignNode$completionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    lobbies<T extends CampaignNode$lobbiesArgs<ExtArgs> = {}>(args?: Subset<T, CampaignNode$lobbiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LobbyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CampaignNode model
+   */
+  interface CampaignNodeFieldRefs {
+    readonly id: FieldRef<"CampaignNode", 'Int'>
+    readonly campaignId: FieldRef<"CampaignNode", 'Int'>
+    readonly mapId: FieldRef<"CampaignNode", 'Int'>
+    readonly prerequisites: FieldRef<"CampaignNode", 'Int[]'>
+    readonly costLimit: FieldRef<"CampaignNode", 'Int'>
+    readonly turnTimeSeconds: FieldRef<"CampaignNode", 'Int'>
+    readonly maxScore: FieldRef<"CampaignNode", 'Int'>
+    readonly creatorGoesFirst: FieldRef<"CampaignNode", 'Boolean'>
+    readonly createdAt: FieldRef<"CampaignNode", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CampaignNode findUnique
+   */
+  export type CampaignNodeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNode to fetch.
+     */
+    where: CampaignNodeWhereUniqueInput
+  }
+
+  /**
+   * CampaignNode findUniqueOrThrow
+   */
+  export type CampaignNodeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNode to fetch.
+     */
+    where: CampaignNodeWhereUniqueInput
+  }
+
+  /**
+   * CampaignNode findFirst
+   */
+  export type CampaignNodeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNode to fetch.
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodes to fetch.
+     */
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CampaignNodes.
+     */
+    cursor?: CampaignNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodes.
+     */
+    distinct?: CampaignNodeScalarFieldEnum | CampaignNodeScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNode findFirstOrThrow
+   */
+  export type CampaignNodeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNode to fetch.
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodes to fetch.
+     */
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CampaignNodes.
+     */
+    cursor?: CampaignNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodes.
+     */
+    distinct?: CampaignNodeScalarFieldEnum | CampaignNodeScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNode findMany
+   */
+  export type CampaignNodeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodes to fetch.
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodes to fetch.
+     */
+    orderBy?: CampaignNodeOrderByWithRelationInput | CampaignNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CampaignNodes.
+     */
+    cursor?: CampaignNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodes.
+     */
+    distinct?: CampaignNodeScalarFieldEnum | CampaignNodeScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNode create
+   */
+  export type CampaignNodeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CampaignNode.
+     */
+    data: XOR<CampaignNodeCreateInput, CampaignNodeUncheckedCreateInput>
+  }
+
+  /**
+   * CampaignNode createMany
+   */
+  export type CampaignNodeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CampaignNodes.
+     */
+    data: CampaignNodeCreateManyInput | CampaignNodeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CampaignNode createManyAndReturn
+   */
+  export type CampaignNodeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * The data used to create many CampaignNodes.
+     */
+    data: CampaignNodeCreateManyInput | CampaignNodeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CampaignNode update
+   */
+  export type CampaignNodeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CampaignNode.
+     */
+    data: XOR<CampaignNodeUpdateInput, CampaignNodeUncheckedUpdateInput>
+    /**
+     * Choose, which CampaignNode to update.
+     */
+    where: CampaignNodeWhereUniqueInput
+  }
+
+  /**
+   * CampaignNode updateMany
+   */
+  export type CampaignNodeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CampaignNodes.
+     */
+    data: XOR<CampaignNodeUpdateManyMutationInput, CampaignNodeUncheckedUpdateManyInput>
+    /**
+     * Filter which CampaignNodes to update
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * Limit how many CampaignNodes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CampaignNode updateManyAndReturn
+   */
+  export type CampaignNodeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * The data used to update CampaignNodes.
+     */
+    data: XOR<CampaignNodeUpdateManyMutationInput, CampaignNodeUncheckedUpdateManyInput>
+    /**
+     * Filter which CampaignNodes to update
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * Limit how many CampaignNodes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CampaignNode upsert
+   */
+  export type CampaignNodeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CampaignNode to update in case it exists.
+     */
+    where: CampaignNodeWhereUniqueInput
+    /**
+     * In case the CampaignNode found by the `where` argument doesn't exist, create a new CampaignNode with this data.
+     */
+    create: XOR<CampaignNodeCreateInput, CampaignNodeUncheckedCreateInput>
+    /**
+     * In case the CampaignNode was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CampaignNodeUpdateInput, CampaignNodeUncheckedUpdateInput>
+  }
+
+  /**
+   * CampaignNode delete
+   */
+  export type CampaignNodeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+    /**
+     * Filter which CampaignNode to delete.
+     */
+    where: CampaignNodeWhereUniqueInput
+  }
+
+  /**
+   * CampaignNode deleteMany
+   */
+  export type CampaignNodeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CampaignNodes to delete
+     */
+    where?: CampaignNodeWhereInput
+    /**
+     * Limit how many CampaignNodes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CampaignNode.completions
+   */
+  export type CampaignNode$completionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    where?: CampaignNodeCompletionWhereInput
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CampaignNodeCompletionScalarFieldEnum | CampaignNodeCompletionScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNode.lobbies
+   */
+  export type CampaignNode$lobbiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Lobby
+     */
+    select?: LobbySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Lobby
+     */
+    omit?: LobbyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LobbyInclude<ExtArgs> | null
+    where?: LobbyWhereInput
+    orderBy?: LobbyOrderByWithRelationInput | LobbyOrderByWithRelationInput[]
+    cursor?: LobbyWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: LobbyScalarFieldEnum | LobbyScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNode without action
+   */
+  export type CampaignNodeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNode
+     */
+    select?: CampaignNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNode
+     */
+    omit?: CampaignNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CampaignNodeCompletion
+   */
+
+  export type AggregateCampaignNodeCompletion = {
+    _count: CampaignNodeCompletionCountAggregateOutputType | null
+    _avg: CampaignNodeCompletionAvgAggregateOutputType | null
+    _sum: CampaignNodeCompletionSumAggregateOutputType | null
+    _min: CampaignNodeCompletionMinAggregateOutputType | null
+    _max: CampaignNodeCompletionMaxAggregateOutputType | null
+  }
+
+  export type CampaignNodeCompletionAvgAggregateOutputType = {
+    id: number | null
+    nodeId: number | null
+  }
+
+  export type CampaignNodeCompletionSumAggregateOutputType = {
+    id: number | null
+    nodeId: number | null
+  }
+
+  export type CampaignNodeCompletionMinAggregateOutputType = {
+    id: number | null
+    userId: string | null
+    nodeId: number | null
+    completedAt: Date | null
+  }
+
+  export type CampaignNodeCompletionMaxAggregateOutputType = {
+    id: number | null
+    userId: string | null
+    nodeId: number | null
+    completedAt: Date | null
+  }
+
+  export type CampaignNodeCompletionCountAggregateOutputType = {
+    id: number
+    userId: number
+    nodeId: number
+    completedAt: number
+    _all: number
+  }
+
+
+  export type CampaignNodeCompletionAvgAggregateInputType = {
+    id?: true
+    nodeId?: true
+  }
+
+  export type CampaignNodeCompletionSumAggregateInputType = {
+    id?: true
+    nodeId?: true
+  }
+
+  export type CampaignNodeCompletionMinAggregateInputType = {
+    id?: true
+    userId?: true
+    nodeId?: true
+    completedAt?: true
+  }
+
+  export type CampaignNodeCompletionMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    nodeId?: true
+    completedAt?: true
+  }
+
+  export type CampaignNodeCompletionCountAggregateInputType = {
+    id?: true
+    userId?: true
+    nodeId?: true
+    completedAt?: true
+    _all?: true
+  }
+
+  export type CampaignNodeCompletionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CampaignNodeCompletion to aggregate.
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodeCompletions to fetch.
+     */
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodeCompletions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodeCompletions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CampaignNodeCompletions
+    **/
+    _count?: true | CampaignNodeCompletionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: CampaignNodeCompletionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CampaignNodeCompletionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CampaignNodeCompletionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CampaignNodeCompletionMaxAggregateInputType
+  }
+
+  export type GetCampaignNodeCompletionAggregateType<T extends CampaignNodeCompletionAggregateArgs> = {
+        [P in keyof T & keyof AggregateCampaignNodeCompletion]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCampaignNodeCompletion[P]>
+      : GetScalarType<T[P], AggregateCampaignNodeCompletion[P]>
+  }
+
+
+
+
+  export type CampaignNodeCompletionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CampaignNodeCompletionWhereInput
+    orderBy?: CampaignNodeCompletionOrderByWithAggregationInput | CampaignNodeCompletionOrderByWithAggregationInput[]
+    by: CampaignNodeCompletionScalarFieldEnum[] | CampaignNodeCompletionScalarFieldEnum
+    having?: CampaignNodeCompletionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CampaignNodeCompletionCountAggregateInputType | true
+    _avg?: CampaignNodeCompletionAvgAggregateInputType
+    _sum?: CampaignNodeCompletionSumAggregateInputType
+    _min?: CampaignNodeCompletionMinAggregateInputType
+    _max?: CampaignNodeCompletionMaxAggregateInputType
+  }
+
+  export type CampaignNodeCompletionGroupByOutputType = {
+    id: number
+    userId: string
+    nodeId: number
+    completedAt: Date
+    _count: CampaignNodeCompletionCountAggregateOutputType | null
+    _avg: CampaignNodeCompletionAvgAggregateOutputType | null
+    _sum: CampaignNodeCompletionSumAggregateOutputType | null
+    _min: CampaignNodeCompletionMinAggregateOutputType | null
+    _max: CampaignNodeCompletionMaxAggregateOutputType | null
+  }
+
+  type GetCampaignNodeCompletionGroupByPayload<T extends CampaignNodeCompletionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CampaignNodeCompletionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CampaignNodeCompletionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CampaignNodeCompletionGroupByOutputType[P]>
+            : GetScalarType<T[P], CampaignNodeCompletionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CampaignNodeCompletionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    nodeId?: boolean
+    completedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNodeCompletion"]>
+
+  export type CampaignNodeCompletionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    nodeId?: boolean
+    completedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNodeCompletion"]>
+
+  export type CampaignNodeCompletionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    nodeId?: boolean
+    completedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["campaignNodeCompletion"]>
+
+  export type CampaignNodeCompletionSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    nodeId?: boolean
+    completedAt?: boolean
+  }
+
+  export type CampaignNodeCompletionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "nodeId" | "completedAt", ExtArgs["result"]["campaignNodeCompletion"]>
+  export type CampaignNodeCompletionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }
+  export type CampaignNodeCompletionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }
+  export type CampaignNodeCompletionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    node?: boolean | CampaignNodeDefaultArgs<ExtArgs>
+  }
+
+  export type $CampaignNodeCompletionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CampaignNodeCompletion"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      node: Prisma.$CampaignNodePayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: string
+      nodeId: number
+      completedAt: Date
+    }, ExtArgs["result"]["campaignNodeCompletion"]>
+    composites: {}
+  }
+
+  type CampaignNodeCompletionGetPayload<S extends boolean | null | undefined | CampaignNodeCompletionDefaultArgs> = $Result.GetResult<Prisma.$CampaignNodeCompletionPayload, S>
+
+  type CampaignNodeCompletionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CampaignNodeCompletionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CampaignNodeCompletionCountAggregateInputType | true
+    }
+
+  export interface CampaignNodeCompletionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CampaignNodeCompletion'], meta: { name: 'CampaignNodeCompletion' } }
+    /**
+     * Find zero or one CampaignNodeCompletion that matches the filter.
+     * @param {CampaignNodeCompletionFindUniqueArgs} args - Arguments to find a CampaignNodeCompletion
+     * @example
+     * // Get one CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CampaignNodeCompletionFindUniqueArgs>(args: SelectSubset<T, CampaignNodeCompletionFindUniqueArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CampaignNodeCompletion that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CampaignNodeCompletionFindUniqueOrThrowArgs} args - Arguments to find a CampaignNodeCompletion
+     * @example
+     * // Get one CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CampaignNodeCompletionFindUniqueOrThrowArgs>(args: SelectSubset<T, CampaignNodeCompletionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CampaignNodeCompletion that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionFindFirstArgs} args - Arguments to find a CampaignNodeCompletion
+     * @example
+     * // Get one CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CampaignNodeCompletionFindFirstArgs>(args?: SelectSubset<T, CampaignNodeCompletionFindFirstArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CampaignNodeCompletion that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionFindFirstOrThrowArgs} args - Arguments to find a CampaignNodeCompletion
+     * @example
+     * // Get one CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CampaignNodeCompletionFindFirstOrThrowArgs>(args?: SelectSubset<T, CampaignNodeCompletionFindFirstOrThrowArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CampaignNodeCompletions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CampaignNodeCompletions
+     * const campaignNodeCompletions = await prisma.campaignNodeCompletion.findMany()
+     * 
+     * // Get first 10 CampaignNodeCompletions
+     * const campaignNodeCompletions = await prisma.campaignNodeCompletion.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const campaignNodeCompletionWithIdOnly = await prisma.campaignNodeCompletion.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CampaignNodeCompletionFindManyArgs>(args?: SelectSubset<T, CampaignNodeCompletionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CampaignNodeCompletion.
+     * @param {CampaignNodeCompletionCreateArgs} args - Arguments to create a CampaignNodeCompletion.
+     * @example
+     * // Create one CampaignNodeCompletion
+     * const CampaignNodeCompletion = await prisma.campaignNodeCompletion.create({
+     *   data: {
+     *     // ... data to create a CampaignNodeCompletion
+     *   }
+     * })
+     * 
+     */
+    create<T extends CampaignNodeCompletionCreateArgs>(args: SelectSubset<T, CampaignNodeCompletionCreateArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CampaignNodeCompletions.
+     * @param {CampaignNodeCompletionCreateManyArgs} args - Arguments to create many CampaignNodeCompletions.
+     * @example
+     * // Create many CampaignNodeCompletions
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CampaignNodeCompletionCreateManyArgs>(args?: SelectSubset<T, CampaignNodeCompletionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CampaignNodeCompletions and returns the data saved in the database.
+     * @param {CampaignNodeCompletionCreateManyAndReturnArgs} args - Arguments to create many CampaignNodeCompletions.
+     * @example
+     * // Create many CampaignNodeCompletions
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CampaignNodeCompletions and only return the `id`
+     * const campaignNodeCompletionWithIdOnly = await prisma.campaignNodeCompletion.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CampaignNodeCompletionCreateManyAndReturnArgs>(args?: SelectSubset<T, CampaignNodeCompletionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CampaignNodeCompletion.
+     * @param {CampaignNodeCompletionDeleteArgs} args - Arguments to delete one CampaignNodeCompletion.
+     * @example
+     * // Delete one CampaignNodeCompletion
+     * const CampaignNodeCompletion = await prisma.campaignNodeCompletion.delete({
+     *   where: {
+     *     // ... filter to delete one CampaignNodeCompletion
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CampaignNodeCompletionDeleteArgs>(args: SelectSubset<T, CampaignNodeCompletionDeleteArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CampaignNodeCompletion.
+     * @param {CampaignNodeCompletionUpdateArgs} args - Arguments to update one CampaignNodeCompletion.
+     * @example
+     * // Update one CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CampaignNodeCompletionUpdateArgs>(args: SelectSubset<T, CampaignNodeCompletionUpdateArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CampaignNodeCompletions.
+     * @param {CampaignNodeCompletionDeleteManyArgs} args - Arguments to filter CampaignNodeCompletions to delete.
+     * @example
+     * // Delete a few CampaignNodeCompletions
+     * const { count } = await prisma.campaignNodeCompletion.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CampaignNodeCompletionDeleteManyArgs>(args?: SelectSubset<T, CampaignNodeCompletionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CampaignNodeCompletions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CampaignNodeCompletions
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CampaignNodeCompletionUpdateManyArgs>(args: SelectSubset<T, CampaignNodeCompletionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CampaignNodeCompletions and returns the data updated in the database.
+     * @param {CampaignNodeCompletionUpdateManyAndReturnArgs} args - Arguments to update many CampaignNodeCompletions.
+     * @example
+     * // Update many CampaignNodeCompletions
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CampaignNodeCompletions and only return the `id`
+     * const campaignNodeCompletionWithIdOnly = await prisma.campaignNodeCompletion.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CampaignNodeCompletionUpdateManyAndReturnArgs>(args: SelectSubset<T, CampaignNodeCompletionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CampaignNodeCompletion.
+     * @param {CampaignNodeCompletionUpsertArgs} args - Arguments to update or create a CampaignNodeCompletion.
+     * @example
+     * // Update or create a CampaignNodeCompletion
+     * const campaignNodeCompletion = await prisma.campaignNodeCompletion.upsert({
+     *   create: {
+     *     // ... data to create a CampaignNodeCompletion
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CampaignNodeCompletion we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CampaignNodeCompletionUpsertArgs>(args: SelectSubset<T, CampaignNodeCompletionUpsertArgs<ExtArgs>>): Prisma__CampaignNodeCompletionClient<$Result.GetResult<Prisma.$CampaignNodeCompletionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CampaignNodeCompletions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionCountArgs} args - Arguments to filter CampaignNodeCompletions to count.
+     * @example
+     * // Count the number of CampaignNodeCompletions
+     * const count = await prisma.campaignNodeCompletion.count({
+     *   where: {
+     *     // ... the filter for the CampaignNodeCompletions we want to count
+     *   }
+     * })
+    **/
+    count<T extends CampaignNodeCompletionCountArgs>(
+      args?: Subset<T, CampaignNodeCompletionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CampaignNodeCompletionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CampaignNodeCompletion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CampaignNodeCompletionAggregateArgs>(args: Subset<T, CampaignNodeCompletionAggregateArgs>): Prisma.PrismaPromise<GetCampaignNodeCompletionAggregateType<T>>
+
+    /**
+     * Group by CampaignNodeCompletion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CampaignNodeCompletionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CampaignNodeCompletionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CampaignNodeCompletionGroupByArgs['orderBy'] }
+        : { orderBy?: CampaignNodeCompletionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CampaignNodeCompletionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCampaignNodeCompletionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CampaignNodeCompletion model
+   */
+  readonly fields: CampaignNodeCompletionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CampaignNodeCompletion.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CampaignNodeCompletionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    node<T extends CampaignNodeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CampaignNodeDefaultArgs<ExtArgs>>): Prisma__CampaignNodeClient<$Result.GetResult<Prisma.$CampaignNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CampaignNodeCompletion model
+   */
+  interface CampaignNodeCompletionFieldRefs {
+    readonly id: FieldRef<"CampaignNodeCompletion", 'Int'>
+    readonly userId: FieldRef<"CampaignNodeCompletion", 'String'>
+    readonly nodeId: FieldRef<"CampaignNodeCompletion", 'Int'>
+    readonly completedAt: FieldRef<"CampaignNodeCompletion", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CampaignNodeCompletion findUnique
+   */
+  export type CampaignNodeCompletionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodeCompletion to fetch.
+     */
+    where: CampaignNodeCompletionWhereUniqueInput
+  }
+
+  /**
+   * CampaignNodeCompletion findUniqueOrThrow
+   */
+  export type CampaignNodeCompletionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodeCompletion to fetch.
+     */
+    where: CampaignNodeCompletionWhereUniqueInput
+  }
+
+  /**
+   * CampaignNodeCompletion findFirst
+   */
+  export type CampaignNodeCompletionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodeCompletion to fetch.
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodeCompletions to fetch.
+     */
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CampaignNodeCompletions.
+     */
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodeCompletions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodeCompletions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodeCompletions.
+     */
+    distinct?: CampaignNodeCompletionScalarFieldEnum | CampaignNodeCompletionScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNodeCompletion findFirstOrThrow
+   */
+  export type CampaignNodeCompletionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodeCompletion to fetch.
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodeCompletions to fetch.
+     */
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CampaignNodeCompletions.
+     */
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodeCompletions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodeCompletions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodeCompletions.
+     */
+    distinct?: CampaignNodeCompletionScalarFieldEnum | CampaignNodeCompletionScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNodeCompletion findMany
+   */
+  export type CampaignNodeCompletionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter, which CampaignNodeCompletions to fetch.
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CampaignNodeCompletions to fetch.
+     */
+    orderBy?: CampaignNodeCompletionOrderByWithRelationInput | CampaignNodeCompletionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CampaignNodeCompletions.
+     */
+    cursor?: CampaignNodeCompletionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CampaignNodeCompletions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CampaignNodeCompletions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CampaignNodeCompletions.
+     */
+    distinct?: CampaignNodeCompletionScalarFieldEnum | CampaignNodeCompletionScalarFieldEnum[]
+  }
+
+  /**
+   * CampaignNodeCompletion create
+   */
+  export type CampaignNodeCompletionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CampaignNodeCompletion.
+     */
+    data: XOR<CampaignNodeCompletionCreateInput, CampaignNodeCompletionUncheckedCreateInput>
+  }
+
+  /**
+   * CampaignNodeCompletion createMany
+   */
+  export type CampaignNodeCompletionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CampaignNodeCompletions.
+     */
+    data: CampaignNodeCompletionCreateManyInput | CampaignNodeCompletionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CampaignNodeCompletion createManyAndReturn
+   */
+  export type CampaignNodeCompletionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * The data used to create many CampaignNodeCompletions.
+     */
+    data: CampaignNodeCompletionCreateManyInput | CampaignNodeCompletionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CampaignNodeCompletion update
+   */
+  export type CampaignNodeCompletionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CampaignNodeCompletion.
+     */
+    data: XOR<CampaignNodeCompletionUpdateInput, CampaignNodeCompletionUncheckedUpdateInput>
+    /**
+     * Choose, which CampaignNodeCompletion to update.
+     */
+    where: CampaignNodeCompletionWhereUniqueInput
+  }
+
+  /**
+   * CampaignNodeCompletion updateMany
+   */
+  export type CampaignNodeCompletionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CampaignNodeCompletions.
+     */
+    data: XOR<CampaignNodeCompletionUpdateManyMutationInput, CampaignNodeCompletionUncheckedUpdateManyInput>
+    /**
+     * Filter which CampaignNodeCompletions to update
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * Limit how many CampaignNodeCompletions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CampaignNodeCompletion updateManyAndReturn
+   */
+  export type CampaignNodeCompletionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * The data used to update CampaignNodeCompletions.
+     */
+    data: XOR<CampaignNodeCompletionUpdateManyMutationInput, CampaignNodeCompletionUncheckedUpdateManyInput>
+    /**
+     * Filter which CampaignNodeCompletions to update
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * Limit how many CampaignNodeCompletions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CampaignNodeCompletion upsert
+   */
+  export type CampaignNodeCompletionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CampaignNodeCompletion to update in case it exists.
+     */
+    where: CampaignNodeCompletionWhereUniqueInput
+    /**
+     * In case the CampaignNodeCompletion found by the `where` argument doesn't exist, create a new CampaignNodeCompletion with this data.
+     */
+    create: XOR<CampaignNodeCompletionCreateInput, CampaignNodeCompletionUncheckedCreateInput>
+    /**
+     * In case the CampaignNodeCompletion was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CampaignNodeCompletionUpdateInput, CampaignNodeCompletionUncheckedUpdateInput>
+  }
+
+  /**
+   * CampaignNodeCompletion delete
+   */
+  export type CampaignNodeCompletionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+    /**
+     * Filter which CampaignNodeCompletion to delete.
+     */
+    where: CampaignNodeCompletionWhereUniqueInput
+  }
+
+  /**
+   * CampaignNodeCompletion deleteMany
+   */
+  export type CampaignNodeCompletionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CampaignNodeCompletions to delete
+     */
+    where?: CampaignNodeCompletionWhereInput
+    /**
+     * Limit how many CampaignNodeCompletions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CampaignNodeCompletion without action
+   */
+  export type CampaignNodeCompletionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CampaignNodeCompletion
+     */
+    select?: CampaignNodeCompletionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CampaignNodeCompletion
+     */
+    omit?: CampaignNodeCompletionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CampaignNodeCompletionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeCampaign
+   */
+
+  export type AggregateRoguelikeCampaign = {
+    _count: RoguelikeCampaignCountAggregateOutputType | null
+    _avg: RoguelikeCampaignAvgAggregateOutputType | null
+    _sum: RoguelikeCampaignSumAggregateOutputType | null
+    _min: RoguelikeCampaignMinAggregateOutputType | null
+    _max: RoguelikeCampaignMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeCampaignAvgAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    autoHealPercent: number | null
+    initialCostCap: number | null
+    rootNodeId: number | null
+  }
+
+  export type RoguelikeCampaignSumAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    autoHealPercent: number | null
+    initialCostCap: number | null
+    rootNodeId: number | null
+  }
+
+  export type RoguelikeCampaignMinAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    autoHealPercent: number | null
+    initialCostCap: number | null
+    rootNodeId: number | null
+    createdAt: Date | null
+  }
+
+  export type RoguelikeCampaignMaxAggregateOutputType = {
+    id: number | null
+    requiredVariant: number | null
+    autoHealPercent: number | null
+    initialCostCap: number | null
+    rootNodeId: number | null
+    createdAt: Date | null
+  }
+
+  export type RoguelikeCampaignCountAggregateOutputType = {
+    id: number
+    requiredVariant: number
+    autoHealPercent: number
+    initialCostCap: number
+    rootNodeId: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type RoguelikeCampaignAvgAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    autoHealPercent?: true
+    initialCostCap?: true
+    rootNodeId?: true
+  }
+
+  export type RoguelikeCampaignSumAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    autoHealPercent?: true
+    initialCostCap?: true
+    rootNodeId?: true
+  }
+
+  export type RoguelikeCampaignMinAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    autoHealPercent?: true
+    initialCostCap?: true
+    rootNodeId?: true
+    createdAt?: true
+  }
+
+  export type RoguelikeCampaignMaxAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    autoHealPercent?: true
+    initialCostCap?: true
+    rootNodeId?: true
+    createdAt?: true
+  }
+
+  export type RoguelikeCampaignCountAggregateInputType = {
+    id?: true
+    requiredVariant?: true
+    autoHealPercent?: true
+    initialCostCap?: true
+    rootNodeId?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type RoguelikeCampaignAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeCampaign to aggregate.
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeCampaigns to fetch.
+     */
+    orderBy?: RoguelikeCampaignOrderByWithRelationInput | RoguelikeCampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeCampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeCampaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeCampaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeCampaigns
+    **/
+    _count?: true | RoguelikeCampaignCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeCampaignAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeCampaignSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeCampaignMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeCampaignMaxAggregateInputType
+  }
+
+  export type GetRoguelikeCampaignAggregateType<T extends RoguelikeCampaignAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeCampaign]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeCampaign[P]>
+      : GetScalarType<T[P], AggregateRoguelikeCampaign[P]>
+  }
+
+
+
+
+  export type RoguelikeCampaignGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeCampaignWhereInput
+    orderBy?: RoguelikeCampaignOrderByWithAggregationInput | RoguelikeCampaignOrderByWithAggregationInput[]
+    by: RoguelikeCampaignScalarFieldEnum[] | RoguelikeCampaignScalarFieldEnum
+    having?: RoguelikeCampaignScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeCampaignCountAggregateInputType | true
+    _avg?: RoguelikeCampaignAvgAggregateInputType
+    _sum?: RoguelikeCampaignSumAggregateInputType
+    _min?: RoguelikeCampaignMinAggregateInputType
+    _max?: RoguelikeCampaignMaxAggregateInputType
+  }
+
+  export type RoguelikeCampaignGroupByOutputType = {
+    id: number
+    requiredVariant: number
+    autoHealPercent: number
+    initialCostCap: number
+    rootNodeId: number | null
+    createdAt: Date
+    _count: RoguelikeCampaignCountAggregateOutputType | null
+    _avg: RoguelikeCampaignAvgAggregateOutputType | null
+    _sum: RoguelikeCampaignSumAggregateOutputType | null
+    _min: RoguelikeCampaignMinAggregateOutputType | null
+    _max: RoguelikeCampaignMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeCampaignGroupByPayload<T extends RoguelikeCampaignGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeCampaignGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeCampaignGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeCampaignGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeCampaignGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeCampaignSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    autoHealPercent?: boolean
+    initialCostCap?: boolean
+    rootNodeId?: boolean
+    createdAt?: boolean
+    nodes?: boolean | RoguelikeCampaign$nodesArgs<ExtArgs>
+    runs?: boolean | RoguelikeCampaign$runsArgs<ExtArgs>
+    _count?: boolean | RoguelikeCampaignCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeCampaign"]>
+
+  export type RoguelikeCampaignSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    autoHealPercent?: boolean
+    initialCostCap?: boolean
+    rootNodeId?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["roguelikeCampaign"]>
+
+  export type RoguelikeCampaignSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    requiredVariant?: boolean
+    autoHealPercent?: boolean
+    initialCostCap?: boolean
+    rootNodeId?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["roguelikeCampaign"]>
+
+  export type RoguelikeCampaignSelectScalar = {
+    id?: boolean
+    requiredVariant?: boolean
+    autoHealPercent?: boolean
+    initialCostCap?: boolean
+    rootNodeId?: boolean
+    createdAt?: boolean
+  }
+
+  export type RoguelikeCampaignOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requiredVariant" | "autoHealPercent" | "initialCostCap" | "rootNodeId" | "createdAt", ExtArgs["result"]["roguelikeCampaign"]>
+  export type RoguelikeCampaignInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    nodes?: boolean | RoguelikeCampaign$nodesArgs<ExtArgs>
+    runs?: boolean | RoguelikeCampaign$runsArgs<ExtArgs>
+    _count?: boolean | RoguelikeCampaignCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeCampaignIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type RoguelikeCampaignIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $RoguelikeCampaignPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeCampaign"
+    objects: {
+      nodes: Prisma.$RoguelikeNodePayload<ExtArgs>[]
+      runs: Prisma.$RoguelikeRunPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      requiredVariant: number
+      autoHealPercent: number
+      initialCostCap: number
+      rootNodeId: number | null
+      createdAt: Date
+    }, ExtArgs["result"]["roguelikeCampaign"]>
+    composites: {}
+  }
+
+  type RoguelikeCampaignGetPayload<S extends boolean | null | undefined | RoguelikeCampaignDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeCampaignPayload, S>
+
+  type RoguelikeCampaignCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeCampaignFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeCampaignCountAggregateInputType | true
+    }
+
+  export interface RoguelikeCampaignDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeCampaign'], meta: { name: 'RoguelikeCampaign' } }
+    /**
+     * Find zero or one RoguelikeCampaign that matches the filter.
+     * @param {RoguelikeCampaignFindUniqueArgs} args - Arguments to find a RoguelikeCampaign
+     * @example
+     * // Get one RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeCampaignFindUniqueArgs>(args: SelectSubset<T, RoguelikeCampaignFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeCampaign that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeCampaignFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeCampaign
+     * @example
+     * // Get one RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeCampaignFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeCampaignFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeCampaign that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignFindFirstArgs} args - Arguments to find a RoguelikeCampaign
+     * @example
+     * // Get one RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeCampaignFindFirstArgs>(args?: SelectSubset<T, RoguelikeCampaignFindFirstArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeCampaign that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignFindFirstOrThrowArgs} args - Arguments to find a RoguelikeCampaign
+     * @example
+     * // Get one RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeCampaignFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeCampaignFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeCampaigns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeCampaigns
+     * const roguelikeCampaigns = await prisma.roguelikeCampaign.findMany()
+     * 
+     * // Get first 10 RoguelikeCampaigns
+     * const roguelikeCampaigns = await prisma.roguelikeCampaign.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeCampaignWithIdOnly = await prisma.roguelikeCampaign.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeCampaignFindManyArgs>(args?: SelectSubset<T, RoguelikeCampaignFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeCampaign.
+     * @param {RoguelikeCampaignCreateArgs} args - Arguments to create a RoguelikeCampaign.
+     * @example
+     * // Create one RoguelikeCampaign
+     * const RoguelikeCampaign = await prisma.roguelikeCampaign.create({
+     *   data: {
+     *     // ... data to create a RoguelikeCampaign
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeCampaignCreateArgs>(args: SelectSubset<T, RoguelikeCampaignCreateArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeCampaigns.
+     * @param {RoguelikeCampaignCreateManyArgs} args - Arguments to create many RoguelikeCampaigns.
+     * @example
+     * // Create many RoguelikeCampaigns
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeCampaignCreateManyArgs>(args?: SelectSubset<T, RoguelikeCampaignCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeCampaigns and returns the data saved in the database.
+     * @param {RoguelikeCampaignCreateManyAndReturnArgs} args - Arguments to create many RoguelikeCampaigns.
+     * @example
+     * // Create many RoguelikeCampaigns
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeCampaigns and only return the `id`
+     * const roguelikeCampaignWithIdOnly = await prisma.roguelikeCampaign.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeCampaignCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeCampaignCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeCampaign.
+     * @param {RoguelikeCampaignDeleteArgs} args - Arguments to delete one RoguelikeCampaign.
+     * @example
+     * // Delete one RoguelikeCampaign
+     * const RoguelikeCampaign = await prisma.roguelikeCampaign.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeCampaign
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeCampaignDeleteArgs>(args: SelectSubset<T, RoguelikeCampaignDeleteArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeCampaign.
+     * @param {RoguelikeCampaignUpdateArgs} args - Arguments to update one RoguelikeCampaign.
+     * @example
+     * // Update one RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeCampaignUpdateArgs>(args: SelectSubset<T, RoguelikeCampaignUpdateArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeCampaigns.
+     * @param {RoguelikeCampaignDeleteManyArgs} args - Arguments to filter RoguelikeCampaigns to delete.
+     * @example
+     * // Delete a few RoguelikeCampaigns
+     * const { count } = await prisma.roguelikeCampaign.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeCampaignDeleteManyArgs>(args?: SelectSubset<T, RoguelikeCampaignDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeCampaigns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeCampaigns
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeCampaignUpdateManyArgs>(args: SelectSubset<T, RoguelikeCampaignUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeCampaigns and returns the data updated in the database.
+     * @param {RoguelikeCampaignUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeCampaigns.
+     * @example
+     * // Update many RoguelikeCampaigns
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeCampaigns and only return the `id`
+     * const roguelikeCampaignWithIdOnly = await prisma.roguelikeCampaign.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeCampaignUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeCampaignUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeCampaign.
+     * @param {RoguelikeCampaignUpsertArgs} args - Arguments to update or create a RoguelikeCampaign.
+     * @example
+     * // Update or create a RoguelikeCampaign
+     * const roguelikeCampaign = await prisma.roguelikeCampaign.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeCampaign
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeCampaign we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeCampaignUpsertArgs>(args: SelectSubset<T, RoguelikeCampaignUpsertArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeCampaigns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignCountArgs} args - Arguments to filter RoguelikeCampaigns to count.
+     * @example
+     * // Count the number of RoguelikeCampaigns
+     * const count = await prisma.roguelikeCampaign.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeCampaigns we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeCampaignCountArgs>(
+      args?: Subset<T, RoguelikeCampaignCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeCampaignCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeCampaign.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeCampaignAggregateArgs>(args: Subset<T, RoguelikeCampaignAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeCampaignAggregateType<T>>
+
+    /**
+     * Group by RoguelikeCampaign.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeCampaignGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeCampaignGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeCampaignGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeCampaignGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeCampaignGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeCampaignGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeCampaign model
+   */
+  readonly fields: RoguelikeCampaignFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeCampaign.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeCampaignClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    nodes<T extends RoguelikeCampaign$nodesArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeCampaign$nodesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    runs<T extends RoguelikeCampaign$runsArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeCampaign$runsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeCampaign model
+   */
+  interface RoguelikeCampaignFieldRefs {
+    readonly id: FieldRef<"RoguelikeCampaign", 'Int'>
+    readonly requiredVariant: FieldRef<"RoguelikeCampaign", 'Int'>
+    readonly autoHealPercent: FieldRef<"RoguelikeCampaign", 'Int'>
+    readonly initialCostCap: FieldRef<"RoguelikeCampaign", 'Int'>
+    readonly rootNodeId: FieldRef<"RoguelikeCampaign", 'Int'>
+    readonly createdAt: FieldRef<"RoguelikeCampaign", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeCampaign findUnique
+   */
+  export type RoguelikeCampaignFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeCampaign to fetch.
+     */
+    where: RoguelikeCampaignWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeCampaign findUniqueOrThrow
+   */
+  export type RoguelikeCampaignFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeCampaign to fetch.
+     */
+    where: RoguelikeCampaignWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeCampaign findFirst
+   */
+  export type RoguelikeCampaignFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeCampaign to fetch.
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeCampaigns to fetch.
+     */
+    orderBy?: RoguelikeCampaignOrderByWithRelationInput | RoguelikeCampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeCampaigns.
+     */
+    cursor?: RoguelikeCampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeCampaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeCampaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeCampaigns.
+     */
+    distinct?: RoguelikeCampaignScalarFieldEnum | RoguelikeCampaignScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeCampaign findFirstOrThrow
+   */
+  export type RoguelikeCampaignFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeCampaign to fetch.
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeCampaigns to fetch.
+     */
+    orderBy?: RoguelikeCampaignOrderByWithRelationInput | RoguelikeCampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeCampaigns.
+     */
+    cursor?: RoguelikeCampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeCampaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeCampaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeCampaigns.
+     */
+    distinct?: RoguelikeCampaignScalarFieldEnum | RoguelikeCampaignScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeCampaign findMany
+   */
+  export type RoguelikeCampaignFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeCampaigns to fetch.
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeCampaigns to fetch.
+     */
+    orderBy?: RoguelikeCampaignOrderByWithRelationInput | RoguelikeCampaignOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeCampaigns.
+     */
+    cursor?: RoguelikeCampaignWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeCampaigns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeCampaigns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeCampaigns.
+     */
+    distinct?: RoguelikeCampaignScalarFieldEnum | RoguelikeCampaignScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeCampaign create
+   */
+  export type RoguelikeCampaignCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeCampaign.
+     */
+    data: XOR<RoguelikeCampaignCreateInput, RoguelikeCampaignUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeCampaign createMany
+   */
+  export type RoguelikeCampaignCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeCampaigns.
+     */
+    data: RoguelikeCampaignCreateManyInput | RoguelikeCampaignCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeCampaign createManyAndReturn
+   */
+  export type RoguelikeCampaignCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeCampaigns.
+     */
+    data: RoguelikeCampaignCreateManyInput | RoguelikeCampaignCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeCampaign update
+   */
+  export type RoguelikeCampaignUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeCampaign.
+     */
+    data: XOR<RoguelikeCampaignUpdateInput, RoguelikeCampaignUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeCampaign to update.
+     */
+    where: RoguelikeCampaignWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeCampaign updateMany
+   */
+  export type RoguelikeCampaignUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeCampaigns.
+     */
+    data: XOR<RoguelikeCampaignUpdateManyMutationInput, RoguelikeCampaignUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeCampaigns to update
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * Limit how many RoguelikeCampaigns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeCampaign updateManyAndReturn
+   */
+  export type RoguelikeCampaignUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeCampaigns.
+     */
+    data: XOR<RoguelikeCampaignUpdateManyMutationInput, RoguelikeCampaignUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeCampaigns to update
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * Limit how many RoguelikeCampaigns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeCampaign upsert
+   */
+  export type RoguelikeCampaignUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeCampaign to update in case it exists.
+     */
+    where: RoguelikeCampaignWhereUniqueInput
+    /**
+     * In case the RoguelikeCampaign found by the `where` argument doesn't exist, create a new RoguelikeCampaign with this data.
+     */
+    create: XOR<RoguelikeCampaignCreateInput, RoguelikeCampaignUncheckedCreateInput>
+    /**
+     * In case the RoguelikeCampaign was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeCampaignUpdateInput, RoguelikeCampaignUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeCampaign delete
+   */
+  export type RoguelikeCampaignDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeCampaign to delete.
+     */
+    where: RoguelikeCampaignWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeCampaign deleteMany
+   */
+  export type RoguelikeCampaignDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeCampaigns to delete
+     */
+    where?: RoguelikeCampaignWhereInput
+    /**
+     * Limit how many RoguelikeCampaigns to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeCampaign.nodes
+   */
+  export type RoguelikeCampaign$nodesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    where?: RoguelikeNodeWhereInput
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    cursor?: RoguelikeNodeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeNodeScalarFieldEnum | RoguelikeNodeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeCampaign.runs
+   */
+  export type RoguelikeCampaign$runsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    where?: RoguelikeRunWhereInput
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    cursor?: RoguelikeRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeRunScalarFieldEnum | RoguelikeRunScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeCampaign without action
+   */
+  export type RoguelikeCampaignDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeCampaign
+     */
+    select?: RoguelikeCampaignSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeCampaign
+     */
+    omit?: RoguelikeCampaignOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeCampaignInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeNode
+   */
+
+  export type AggregateRoguelikeNode = {
+    _count: RoguelikeNodeCountAggregateOutputType | null
+    _avg: RoguelikeNodeAvgAggregateOutputType | null
+    _sum: RoguelikeNodeSumAggregateOutputType | null
+    _min: RoguelikeNodeMinAggregateOutputType | null
+    _max: RoguelikeNodeMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeNodeAvgAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    kind: number | null
+    mapId: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    costCapOverride: number | null
+  }
+
+  export type RoguelikeNodeSumAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    kind: number | null
+    mapId: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    costCapOverride: number | null
+  }
+
+  export type RoguelikeNodeMinAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    kind: number | null
+    mapId: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    creatorGoesFirst: boolean | null
+    costCapOverride: number | null
+    createdAt: Date | null
+  }
+
+  export type RoguelikeNodeMaxAggregateOutputType = {
+    id: number | null
+    campaignId: number | null
+    kind: number | null
+    mapId: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    creatorGoesFirst: boolean | null
+    costCapOverride: number | null
+    createdAt: Date | null
+  }
+
+  export type RoguelikeNodeCountAggregateOutputType = {
+    id: number
+    campaignId: number
+    kind: number
+    mapId: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst: number
+    costCapOverride: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type RoguelikeNodeAvgAggregateInputType = {
+    id?: true
+    campaignId?: true
+    kind?: true
+    mapId?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    costCapOverride?: true
+  }
+
+  export type RoguelikeNodeSumAggregateInputType = {
+    id?: true
+    campaignId?: true
+    kind?: true
+    mapId?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    costCapOverride?: true
+  }
+
+  export type RoguelikeNodeMinAggregateInputType = {
+    id?: true
+    campaignId?: true
+    kind?: true
+    mapId?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    costCapOverride?: true
+    createdAt?: true
+  }
+
+  export type RoguelikeNodeMaxAggregateInputType = {
+    id?: true
+    campaignId?: true
+    kind?: true
+    mapId?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    costCapOverride?: true
+    createdAt?: true
+  }
+
+  export type RoguelikeNodeCountAggregateInputType = {
+    id?: true
+    campaignId?: true
+    kind?: true
+    mapId?: true
+    turnTimeSeconds?: true
+    maxScore?: true
+    creatorGoesFirst?: true
+    costCapOverride?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type RoguelikeNodeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeNode to aggregate.
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodes to fetch.
+     */
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeNodes
+    **/
+    _count?: true | RoguelikeNodeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeNodeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeNodeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeNodeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeNodeMaxAggregateInputType
+  }
+
+  export type GetRoguelikeNodeAggregateType<T extends RoguelikeNodeAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeNode]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeNode[P]>
+      : GetScalarType<T[P], AggregateRoguelikeNode[P]>
+  }
+
+
+
+
+  export type RoguelikeNodeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeWhereInput
+    orderBy?: RoguelikeNodeOrderByWithAggregationInput | RoguelikeNodeOrderByWithAggregationInput[]
+    by: RoguelikeNodeScalarFieldEnum[] | RoguelikeNodeScalarFieldEnum
+    having?: RoguelikeNodeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeNodeCountAggregateInputType | true
+    _avg?: RoguelikeNodeAvgAggregateInputType
+    _sum?: RoguelikeNodeSumAggregateInputType
+    _min?: RoguelikeNodeMinAggregateInputType
+    _max?: RoguelikeNodeMaxAggregateInputType
+  }
+
+  export type RoguelikeNodeGroupByOutputType = {
+    id: number
+    campaignId: number
+    kind: number
+    mapId: number | null
+    turnTimeSeconds: number | null
+    maxScore: number | null
+    creatorGoesFirst: boolean | null
+    costCapOverride: number | null
+    createdAt: Date
+    _count: RoguelikeNodeCountAggregateOutputType | null
+    _avg: RoguelikeNodeAvgAggregateOutputType | null
+    _sum: RoguelikeNodeSumAggregateOutputType | null
+    _min: RoguelikeNodeMinAggregateOutputType | null
+    _max: RoguelikeNodeMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeNodeGroupByPayload<T extends RoguelikeNodeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeNodeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeNodeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeNodeGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeNodeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeNodeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    kind?: boolean
+    mapId?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    costCapOverride?: boolean
+    createdAt?: boolean
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+    childEdges?: boolean | RoguelikeNode$childEdgesArgs<ExtArgs>
+    parentEdges?: boolean | RoguelikeNode$parentEdgesArgs<ExtArgs>
+    defeats?: boolean | RoguelikeNode$defeatsArgs<ExtArgs>
+    _count?: boolean | RoguelikeNodeCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNode"]>
+
+  export type RoguelikeNodeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    kind?: boolean
+    mapId?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    costCapOverride?: boolean
+    createdAt?: boolean
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNode"]>
+
+  export type RoguelikeNodeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    campaignId?: boolean
+    kind?: boolean
+    mapId?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    costCapOverride?: boolean
+    createdAt?: boolean
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNode"]>
+
+  export type RoguelikeNodeSelectScalar = {
+    id?: boolean
+    campaignId?: boolean
+    kind?: boolean
+    mapId?: boolean
+    turnTimeSeconds?: boolean
+    maxScore?: boolean
+    creatorGoesFirst?: boolean
+    costCapOverride?: boolean
+    createdAt?: boolean
+  }
+
+  export type RoguelikeNodeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "campaignId" | "kind" | "mapId" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "costCapOverride" | "createdAt", ExtArgs["result"]["roguelikeNode"]>
+  export type RoguelikeNodeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+    childEdges?: boolean | RoguelikeNode$childEdgesArgs<ExtArgs>
+    parentEdges?: boolean | RoguelikeNode$parentEdgesArgs<ExtArgs>
+    defeats?: boolean | RoguelikeNode$defeatsArgs<ExtArgs>
+    _count?: boolean | RoguelikeNodeCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeNodeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+  }
+  export type RoguelikeNodeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
+  }
+
+  export type $RoguelikeNodePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeNode"
+    objects: {
+      campaign: Prisma.$RoguelikeCampaignPayload<ExtArgs>
+      map: Prisma.$MapPayload<ExtArgs> | null
+      childEdges: Prisma.$RoguelikeEdgePayload<ExtArgs>[]
+      parentEdges: Prisma.$RoguelikeEdgePayload<ExtArgs>[]
+      defeats: Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      campaignId: number
+      kind: number
+      mapId: number | null
+      turnTimeSeconds: number | null
+      maxScore: number | null
+      creatorGoesFirst: boolean | null
+      costCapOverride: number | null
+      createdAt: Date
+    }, ExtArgs["result"]["roguelikeNode"]>
+    composites: {}
+  }
+
+  type RoguelikeNodeGetPayload<S extends boolean | null | undefined | RoguelikeNodeDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeNodePayload, S>
+
+  type RoguelikeNodeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeNodeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeNodeCountAggregateInputType | true
+    }
+
+  export interface RoguelikeNodeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeNode'], meta: { name: 'RoguelikeNode' } }
+    /**
+     * Find zero or one RoguelikeNode that matches the filter.
+     * @param {RoguelikeNodeFindUniqueArgs} args - Arguments to find a RoguelikeNode
+     * @example
+     * // Get one RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeNodeFindUniqueArgs>(args: SelectSubset<T, RoguelikeNodeFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeNode that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeNodeFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeNode
+     * @example
+     * // Get one RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeNodeFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeNodeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeNode that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeFindFirstArgs} args - Arguments to find a RoguelikeNode
+     * @example
+     * // Get one RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeNodeFindFirstArgs>(args?: SelectSubset<T, RoguelikeNodeFindFirstArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeNode that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeFindFirstOrThrowArgs} args - Arguments to find a RoguelikeNode
+     * @example
+     * // Get one RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeNodeFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeNodeFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeNodes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeNodes
+     * const roguelikeNodes = await prisma.roguelikeNode.findMany()
+     * 
+     * // Get first 10 RoguelikeNodes
+     * const roguelikeNodes = await prisma.roguelikeNode.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeNodeWithIdOnly = await prisma.roguelikeNode.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeNodeFindManyArgs>(args?: SelectSubset<T, RoguelikeNodeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeNode.
+     * @param {RoguelikeNodeCreateArgs} args - Arguments to create a RoguelikeNode.
+     * @example
+     * // Create one RoguelikeNode
+     * const RoguelikeNode = await prisma.roguelikeNode.create({
+     *   data: {
+     *     // ... data to create a RoguelikeNode
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeNodeCreateArgs>(args: SelectSubset<T, RoguelikeNodeCreateArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeNodes.
+     * @param {RoguelikeNodeCreateManyArgs} args - Arguments to create many RoguelikeNodes.
+     * @example
+     * // Create many RoguelikeNodes
+     * const roguelikeNode = await prisma.roguelikeNode.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeNodeCreateManyArgs>(args?: SelectSubset<T, RoguelikeNodeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeNodes and returns the data saved in the database.
+     * @param {RoguelikeNodeCreateManyAndReturnArgs} args - Arguments to create many RoguelikeNodes.
+     * @example
+     * // Create many RoguelikeNodes
+     * const roguelikeNode = await prisma.roguelikeNode.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeNodes and only return the `id`
+     * const roguelikeNodeWithIdOnly = await prisma.roguelikeNode.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeNodeCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeNodeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeNode.
+     * @param {RoguelikeNodeDeleteArgs} args - Arguments to delete one RoguelikeNode.
+     * @example
+     * // Delete one RoguelikeNode
+     * const RoguelikeNode = await prisma.roguelikeNode.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeNode
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeNodeDeleteArgs>(args: SelectSubset<T, RoguelikeNodeDeleteArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeNode.
+     * @param {RoguelikeNodeUpdateArgs} args - Arguments to update one RoguelikeNode.
+     * @example
+     * // Update one RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeNodeUpdateArgs>(args: SelectSubset<T, RoguelikeNodeUpdateArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeNodes.
+     * @param {RoguelikeNodeDeleteManyArgs} args - Arguments to filter RoguelikeNodes to delete.
+     * @example
+     * // Delete a few RoguelikeNodes
+     * const { count } = await prisma.roguelikeNode.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeNodeDeleteManyArgs>(args?: SelectSubset<T, RoguelikeNodeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeNodes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeNodes
+     * const roguelikeNode = await prisma.roguelikeNode.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeNodeUpdateManyArgs>(args: SelectSubset<T, RoguelikeNodeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeNodes and returns the data updated in the database.
+     * @param {RoguelikeNodeUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeNodes.
+     * @example
+     * // Update many RoguelikeNodes
+     * const roguelikeNode = await prisma.roguelikeNode.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeNodes and only return the `id`
+     * const roguelikeNodeWithIdOnly = await prisma.roguelikeNode.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeNodeUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeNodeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeNode.
+     * @param {RoguelikeNodeUpsertArgs} args - Arguments to update or create a RoguelikeNode.
+     * @example
+     * // Update or create a RoguelikeNode
+     * const roguelikeNode = await prisma.roguelikeNode.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeNode
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeNode we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeNodeUpsertArgs>(args: SelectSubset<T, RoguelikeNodeUpsertArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeNodes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeCountArgs} args - Arguments to filter RoguelikeNodes to count.
+     * @example
+     * // Count the number of RoguelikeNodes
+     * const count = await prisma.roguelikeNode.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeNodes we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeNodeCountArgs>(
+      args?: Subset<T, RoguelikeNodeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeNodeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeNode.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeNodeAggregateArgs>(args: Subset<T, RoguelikeNodeAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeNodeAggregateType<T>>
+
+    /**
+     * Group by RoguelikeNode.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeNodeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeNodeGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeNodeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeNodeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeNodeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeNode model
+   */
+  readonly fields: RoguelikeNodeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeNode.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeNodeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    campaign<T extends RoguelikeCampaignDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeCampaignDefaultArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    map<T extends RoguelikeNode$mapArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNode$mapArgs<ExtArgs>>): Prisma__MapClient<$Result.GetResult<Prisma.$MapPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    childEdges<T extends RoguelikeNode$childEdgesArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNode$childEdgesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    parentEdges<T extends RoguelikeNode$parentEdgesArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNode$parentEdgesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    defeats<T extends RoguelikeNode$defeatsArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNode$defeatsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeNode model
+   */
+  interface RoguelikeNodeFieldRefs {
+    readonly id: FieldRef<"RoguelikeNode", 'Int'>
+    readonly campaignId: FieldRef<"RoguelikeNode", 'Int'>
+    readonly kind: FieldRef<"RoguelikeNode", 'Int'>
+    readonly mapId: FieldRef<"RoguelikeNode", 'Int'>
+    readonly turnTimeSeconds: FieldRef<"RoguelikeNode", 'Int'>
+    readonly maxScore: FieldRef<"RoguelikeNode", 'Int'>
+    readonly creatorGoesFirst: FieldRef<"RoguelikeNode", 'Boolean'>
+    readonly costCapOverride: FieldRef<"RoguelikeNode", 'Int'>
+    readonly createdAt: FieldRef<"RoguelikeNode", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeNode findUnique
+   */
+  export type RoguelikeNodeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNode to fetch.
+     */
+    where: RoguelikeNodeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNode findUniqueOrThrow
+   */
+  export type RoguelikeNodeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNode to fetch.
+     */
+    where: RoguelikeNodeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNode findFirst
+   */
+  export type RoguelikeNodeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNode to fetch.
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodes to fetch.
+     */
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeNodes.
+     */
+    cursor?: RoguelikeNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodes.
+     */
+    distinct?: RoguelikeNodeScalarFieldEnum | RoguelikeNodeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode findFirstOrThrow
+   */
+  export type RoguelikeNodeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNode to fetch.
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodes to fetch.
+     */
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeNodes.
+     */
+    cursor?: RoguelikeNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodes.
+     */
+    distinct?: RoguelikeNodeScalarFieldEnum | RoguelikeNodeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode findMany
+   */
+  export type RoguelikeNodeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodes to fetch.
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodes to fetch.
+     */
+    orderBy?: RoguelikeNodeOrderByWithRelationInput | RoguelikeNodeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeNodes.
+     */
+    cursor?: RoguelikeNodeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodes.
+     */
+    distinct?: RoguelikeNodeScalarFieldEnum | RoguelikeNodeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode create
+   */
+  export type RoguelikeNodeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeNode.
+     */
+    data: XOR<RoguelikeNodeCreateInput, RoguelikeNodeUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeNode createMany
+   */
+  export type RoguelikeNodeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeNodes.
+     */
+    data: RoguelikeNodeCreateManyInput | RoguelikeNodeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeNode createManyAndReturn
+   */
+  export type RoguelikeNodeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeNodes.
+     */
+    data: RoguelikeNodeCreateManyInput | RoguelikeNodeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeNode update
+   */
+  export type RoguelikeNodeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeNode.
+     */
+    data: XOR<RoguelikeNodeUpdateInput, RoguelikeNodeUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeNode to update.
+     */
+    where: RoguelikeNodeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNode updateMany
+   */
+  export type RoguelikeNodeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeNodes.
+     */
+    data: XOR<RoguelikeNodeUpdateManyMutationInput, RoguelikeNodeUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeNodes to update
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * Limit how many RoguelikeNodes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeNode updateManyAndReturn
+   */
+  export type RoguelikeNodeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeNodes.
+     */
+    data: XOR<RoguelikeNodeUpdateManyMutationInput, RoguelikeNodeUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeNodes to update
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * Limit how many RoguelikeNodes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeNode upsert
+   */
+  export type RoguelikeNodeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeNode to update in case it exists.
+     */
+    where: RoguelikeNodeWhereUniqueInput
+    /**
+     * In case the RoguelikeNode found by the `where` argument doesn't exist, create a new RoguelikeNode with this data.
+     */
+    create: XOR<RoguelikeNodeCreateInput, RoguelikeNodeUncheckedCreateInput>
+    /**
+     * In case the RoguelikeNode was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeNodeUpdateInput, RoguelikeNodeUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeNode delete
+   */
+  export type RoguelikeNodeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeNode to delete.
+     */
+    where: RoguelikeNodeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNode deleteMany
+   */
+  export type RoguelikeNodeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeNodes to delete
+     */
+    where?: RoguelikeNodeWhereInput
+    /**
+     * Limit how many RoguelikeNodes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeNode.map
+   */
+  export type RoguelikeNode$mapArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Map
+     */
+    select?: MapSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Map
+     */
+    omit?: MapOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MapInclude<ExtArgs> | null
+    where?: MapWhereInput
+  }
+
+  /**
+   * RoguelikeNode.childEdges
+   */
+  export type RoguelikeNode$childEdgesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    where?: RoguelikeEdgeWhereInput
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeEdgeScalarFieldEnum | RoguelikeEdgeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode.parentEdges
+   */
+  export type RoguelikeNode$parentEdgesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    where?: RoguelikeEdgeWhereInput
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeEdgeScalarFieldEnum | RoguelikeEdgeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode.defeats
+   */
+  export type RoguelikeNode$defeatsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    where?: RoguelikeNodeDefeatWhereInput
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeNodeDefeatScalarFieldEnum | RoguelikeNodeDefeatScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNode without action
+   */
+  export type RoguelikeNodeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNode
+     */
+    select?: RoguelikeNodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNode
+     */
+    omit?: RoguelikeNodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeEdge
+   */
+
+  export type AggregateRoguelikeEdge = {
+    _count: RoguelikeEdgeCountAggregateOutputType | null
+    _avg: RoguelikeEdgeAvgAggregateOutputType | null
+    _sum: RoguelikeEdgeSumAggregateOutputType | null
+    _min: RoguelikeEdgeMinAggregateOutputType | null
+    _max: RoguelikeEdgeMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeEdgeAvgAggregateOutputType = {
+    id: number | null
+    parentId: number | null
+    childId: number | null
+  }
+
+  export type RoguelikeEdgeSumAggregateOutputType = {
+    id: number | null
+    parentId: number | null
+    childId: number | null
+  }
+
+  export type RoguelikeEdgeMinAggregateOutputType = {
+    id: number | null
+    parentId: number | null
+    childId: number | null
+    twoWay: boolean | null
+  }
+
+  export type RoguelikeEdgeMaxAggregateOutputType = {
+    id: number | null
+    parentId: number | null
+    childId: number | null
+    twoWay: boolean | null
+  }
+
+  export type RoguelikeEdgeCountAggregateOutputType = {
+    id: number
+    parentId: number
+    childId: number
+    twoWay: number
+    _all: number
+  }
+
+
+  export type RoguelikeEdgeAvgAggregateInputType = {
+    id?: true
+    parentId?: true
+    childId?: true
+  }
+
+  export type RoguelikeEdgeSumAggregateInputType = {
+    id?: true
+    parentId?: true
+    childId?: true
+  }
+
+  export type RoguelikeEdgeMinAggregateInputType = {
+    id?: true
+    parentId?: true
+    childId?: true
+    twoWay?: true
+  }
+
+  export type RoguelikeEdgeMaxAggregateInputType = {
+    id?: true
+    parentId?: true
+    childId?: true
+    twoWay?: true
+  }
+
+  export type RoguelikeEdgeCountAggregateInputType = {
+    id?: true
+    parentId?: true
+    childId?: true
+    twoWay?: true
+    _all?: true
+  }
+
+  export type RoguelikeEdgeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeEdge to aggregate.
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeEdges to fetch.
+     */
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeEdges from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeEdges.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeEdges
+    **/
+    _count?: true | RoguelikeEdgeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeEdgeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeEdgeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeEdgeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeEdgeMaxAggregateInputType
+  }
+
+  export type GetRoguelikeEdgeAggregateType<T extends RoguelikeEdgeAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeEdge]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeEdge[P]>
+      : GetScalarType<T[P], AggregateRoguelikeEdge[P]>
+  }
+
+
+
+
+  export type RoguelikeEdgeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeEdgeWhereInput
+    orderBy?: RoguelikeEdgeOrderByWithAggregationInput | RoguelikeEdgeOrderByWithAggregationInput[]
+    by: RoguelikeEdgeScalarFieldEnum[] | RoguelikeEdgeScalarFieldEnum
+    having?: RoguelikeEdgeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeEdgeCountAggregateInputType | true
+    _avg?: RoguelikeEdgeAvgAggregateInputType
+    _sum?: RoguelikeEdgeSumAggregateInputType
+    _min?: RoguelikeEdgeMinAggregateInputType
+    _max?: RoguelikeEdgeMaxAggregateInputType
+  }
+
+  export type RoguelikeEdgeGroupByOutputType = {
+    id: number
+    parentId: number
+    childId: number
+    twoWay: boolean
+    _count: RoguelikeEdgeCountAggregateOutputType | null
+    _avg: RoguelikeEdgeAvgAggregateOutputType | null
+    _sum: RoguelikeEdgeSumAggregateOutputType | null
+    _min: RoguelikeEdgeMinAggregateOutputType | null
+    _max: RoguelikeEdgeMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeEdgeGroupByPayload<T extends RoguelikeEdgeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeEdgeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeEdgeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeEdgeGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeEdgeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeEdgeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    parentId?: boolean
+    childId?: boolean
+    twoWay?: boolean
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeEdge"]>
+
+  export type RoguelikeEdgeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    parentId?: boolean
+    childId?: boolean
+    twoWay?: boolean
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeEdge"]>
+
+  export type RoguelikeEdgeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    parentId?: boolean
+    childId?: boolean
+    twoWay?: boolean
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeEdge"]>
+
+  export type RoguelikeEdgeSelectScalar = {
+    id?: boolean
+    parentId?: boolean
+    childId?: boolean
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "parentId" | "childId" | "twoWay", ExtArgs["result"]["roguelikeEdge"]>
+  export type RoguelikeEdgeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeEdgeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeEdgeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+    child?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+
+  export type $RoguelikeEdgePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeEdge"
+    objects: {
+      parent: Prisma.$RoguelikeNodePayload<ExtArgs>
+      child: Prisma.$RoguelikeNodePayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      parentId: number
+      childId: number
+      twoWay: boolean
+    }, ExtArgs["result"]["roguelikeEdge"]>
+    composites: {}
+  }
+
+  type RoguelikeEdgeGetPayload<S extends boolean | null | undefined | RoguelikeEdgeDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeEdgePayload, S>
+
+  type RoguelikeEdgeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeEdgeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeEdgeCountAggregateInputType | true
+    }
+
+  export interface RoguelikeEdgeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeEdge'], meta: { name: 'RoguelikeEdge' } }
+    /**
+     * Find zero or one RoguelikeEdge that matches the filter.
+     * @param {RoguelikeEdgeFindUniqueArgs} args - Arguments to find a RoguelikeEdge
+     * @example
+     * // Get one RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeEdgeFindUniqueArgs>(args: SelectSubset<T, RoguelikeEdgeFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeEdge that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeEdgeFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeEdge
+     * @example
+     * // Get one RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeEdgeFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeEdgeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeEdge that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeFindFirstArgs} args - Arguments to find a RoguelikeEdge
+     * @example
+     * // Get one RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeEdgeFindFirstArgs>(args?: SelectSubset<T, RoguelikeEdgeFindFirstArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeEdge that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeFindFirstOrThrowArgs} args - Arguments to find a RoguelikeEdge
+     * @example
+     * // Get one RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeEdgeFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeEdgeFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeEdges that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeEdges
+     * const roguelikeEdges = await prisma.roguelikeEdge.findMany()
+     * 
+     * // Get first 10 RoguelikeEdges
+     * const roguelikeEdges = await prisma.roguelikeEdge.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeEdgeWithIdOnly = await prisma.roguelikeEdge.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeEdgeFindManyArgs>(args?: SelectSubset<T, RoguelikeEdgeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeEdge.
+     * @param {RoguelikeEdgeCreateArgs} args - Arguments to create a RoguelikeEdge.
+     * @example
+     * // Create one RoguelikeEdge
+     * const RoguelikeEdge = await prisma.roguelikeEdge.create({
+     *   data: {
+     *     // ... data to create a RoguelikeEdge
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeEdgeCreateArgs>(args: SelectSubset<T, RoguelikeEdgeCreateArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeEdges.
+     * @param {RoguelikeEdgeCreateManyArgs} args - Arguments to create many RoguelikeEdges.
+     * @example
+     * // Create many RoguelikeEdges
+     * const roguelikeEdge = await prisma.roguelikeEdge.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeEdgeCreateManyArgs>(args?: SelectSubset<T, RoguelikeEdgeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeEdges and returns the data saved in the database.
+     * @param {RoguelikeEdgeCreateManyAndReturnArgs} args - Arguments to create many RoguelikeEdges.
+     * @example
+     * // Create many RoguelikeEdges
+     * const roguelikeEdge = await prisma.roguelikeEdge.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeEdges and only return the `id`
+     * const roguelikeEdgeWithIdOnly = await prisma.roguelikeEdge.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeEdgeCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeEdgeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeEdge.
+     * @param {RoguelikeEdgeDeleteArgs} args - Arguments to delete one RoguelikeEdge.
+     * @example
+     * // Delete one RoguelikeEdge
+     * const RoguelikeEdge = await prisma.roguelikeEdge.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeEdge
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeEdgeDeleteArgs>(args: SelectSubset<T, RoguelikeEdgeDeleteArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeEdge.
+     * @param {RoguelikeEdgeUpdateArgs} args - Arguments to update one RoguelikeEdge.
+     * @example
+     * // Update one RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeEdgeUpdateArgs>(args: SelectSubset<T, RoguelikeEdgeUpdateArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeEdges.
+     * @param {RoguelikeEdgeDeleteManyArgs} args - Arguments to filter RoguelikeEdges to delete.
+     * @example
+     * // Delete a few RoguelikeEdges
+     * const { count } = await prisma.roguelikeEdge.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeEdgeDeleteManyArgs>(args?: SelectSubset<T, RoguelikeEdgeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeEdges.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeEdges
+     * const roguelikeEdge = await prisma.roguelikeEdge.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeEdgeUpdateManyArgs>(args: SelectSubset<T, RoguelikeEdgeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeEdges and returns the data updated in the database.
+     * @param {RoguelikeEdgeUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeEdges.
+     * @example
+     * // Update many RoguelikeEdges
+     * const roguelikeEdge = await prisma.roguelikeEdge.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeEdges and only return the `id`
+     * const roguelikeEdgeWithIdOnly = await prisma.roguelikeEdge.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeEdgeUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeEdgeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeEdge.
+     * @param {RoguelikeEdgeUpsertArgs} args - Arguments to update or create a RoguelikeEdge.
+     * @example
+     * // Update or create a RoguelikeEdge
+     * const roguelikeEdge = await prisma.roguelikeEdge.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeEdge
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeEdge we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeEdgeUpsertArgs>(args: SelectSubset<T, RoguelikeEdgeUpsertArgs<ExtArgs>>): Prisma__RoguelikeEdgeClient<$Result.GetResult<Prisma.$RoguelikeEdgePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeEdges.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeCountArgs} args - Arguments to filter RoguelikeEdges to count.
+     * @example
+     * // Count the number of RoguelikeEdges
+     * const count = await prisma.roguelikeEdge.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeEdges we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeEdgeCountArgs>(
+      args?: Subset<T, RoguelikeEdgeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeEdgeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeEdge.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeEdgeAggregateArgs>(args: Subset<T, RoguelikeEdgeAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeEdgeAggregateType<T>>
+
+    /**
+     * Group by RoguelikeEdge.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeEdgeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeEdgeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeEdgeGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeEdgeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeEdgeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeEdgeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeEdge model
+   */
+  readonly fields: RoguelikeEdgeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeEdge.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeEdgeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    parent<T extends RoguelikeNodeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNodeDefaultArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    child<T extends RoguelikeNodeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNodeDefaultArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeEdge model
+   */
+  interface RoguelikeEdgeFieldRefs {
+    readonly id: FieldRef<"RoguelikeEdge", 'Int'>
+    readonly parentId: FieldRef<"RoguelikeEdge", 'Int'>
+    readonly childId: FieldRef<"RoguelikeEdge", 'Int'>
+    readonly twoWay: FieldRef<"RoguelikeEdge", 'Boolean'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeEdge findUnique
+   */
+  export type RoguelikeEdgeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeEdge to fetch.
+     */
+    where: RoguelikeEdgeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeEdge findUniqueOrThrow
+   */
+  export type RoguelikeEdgeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeEdge to fetch.
+     */
+    where: RoguelikeEdgeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeEdge findFirst
+   */
+  export type RoguelikeEdgeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeEdge to fetch.
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeEdges to fetch.
+     */
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeEdges.
+     */
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeEdges from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeEdges.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeEdges.
+     */
+    distinct?: RoguelikeEdgeScalarFieldEnum | RoguelikeEdgeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeEdge findFirstOrThrow
+   */
+  export type RoguelikeEdgeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeEdge to fetch.
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeEdges to fetch.
+     */
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeEdges.
+     */
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeEdges from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeEdges.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeEdges.
+     */
+    distinct?: RoguelikeEdgeScalarFieldEnum | RoguelikeEdgeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeEdge findMany
+   */
+  export type RoguelikeEdgeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeEdges to fetch.
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeEdges to fetch.
+     */
+    orderBy?: RoguelikeEdgeOrderByWithRelationInput | RoguelikeEdgeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeEdges.
+     */
+    cursor?: RoguelikeEdgeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeEdges from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeEdges.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeEdges.
+     */
+    distinct?: RoguelikeEdgeScalarFieldEnum | RoguelikeEdgeScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeEdge create
+   */
+  export type RoguelikeEdgeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeEdge.
+     */
+    data: XOR<RoguelikeEdgeCreateInput, RoguelikeEdgeUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeEdge createMany
+   */
+  export type RoguelikeEdgeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeEdges.
+     */
+    data: RoguelikeEdgeCreateManyInput | RoguelikeEdgeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeEdge createManyAndReturn
+   */
+  export type RoguelikeEdgeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeEdges.
+     */
+    data: RoguelikeEdgeCreateManyInput | RoguelikeEdgeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeEdge update
+   */
+  export type RoguelikeEdgeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeEdge.
+     */
+    data: XOR<RoguelikeEdgeUpdateInput, RoguelikeEdgeUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeEdge to update.
+     */
+    where: RoguelikeEdgeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeEdge updateMany
+   */
+  export type RoguelikeEdgeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeEdges.
+     */
+    data: XOR<RoguelikeEdgeUpdateManyMutationInput, RoguelikeEdgeUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeEdges to update
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * Limit how many RoguelikeEdges to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeEdge updateManyAndReturn
+   */
+  export type RoguelikeEdgeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeEdges.
+     */
+    data: XOR<RoguelikeEdgeUpdateManyMutationInput, RoguelikeEdgeUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeEdges to update
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * Limit how many RoguelikeEdges to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeEdge upsert
+   */
+  export type RoguelikeEdgeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeEdge to update in case it exists.
+     */
+    where: RoguelikeEdgeWhereUniqueInput
+    /**
+     * In case the RoguelikeEdge found by the `where` argument doesn't exist, create a new RoguelikeEdge with this data.
+     */
+    create: XOR<RoguelikeEdgeCreateInput, RoguelikeEdgeUncheckedCreateInput>
+    /**
+     * In case the RoguelikeEdge was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeEdgeUpdateInput, RoguelikeEdgeUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeEdge delete
+   */
+  export type RoguelikeEdgeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeEdge to delete.
+     */
+    where: RoguelikeEdgeWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeEdge deleteMany
+   */
+  export type RoguelikeEdgeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeEdges to delete
+     */
+    where?: RoguelikeEdgeWhereInput
+    /**
+     * Limit how many RoguelikeEdges to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeEdge without action
+   */
+  export type RoguelikeEdgeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeEdge
+     */
+    select?: RoguelikeEdgeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeEdge
+     */
+    omit?: RoguelikeEdgeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeEdgeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeRun
+   */
+
+  export type AggregateRoguelikeRun = {
+    _count: RoguelikeRunCountAggregateOutputType | null
+    _avg: RoguelikeRunAvgAggregateOutputType | null
+    _sum: RoguelikeRunSumAggregateOutputType | null
+    _min: RoguelikeRunMinAggregateOutputType | null
+    _max: RoguelikeRunMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeRunAvgAggregateOutputType = {
+    id: number | null
+    generation: number | null
+    campaignId: number | null
+    currentNodeId: number | null
+    currentCostCap: number | null
+    activeLobbyId: number | null
+  }
+
+  export type RoguelikeRunSumAggregateOutputType = {
+    id: number | null
+    generation: number | null
+    campaignId: number | null
+    currentNodeId: number | null
+    currentCostCap: number | null
+    activeLobbyId: number | null
+  }
+
+  export type RoguelikeRunMinAggregateOutputType = {
+    id: number | null
+    userId: string | null
+    generation: number | null
+    status: $Enums.RoguelikeRunStatus | null
+    campaignId: number | null
+    currentNodeId: number | null
+    currentCostCap: number | null
+    activeLobbyId: number | null
+    createdAt: Date | null
+    endedAt: Date | null
+  }
+
+  export type RoguelikeRunMaxAggregateOutputType = {
+    id: number | null
+    userId: string | null
+    generation: number | null
+    status: $Enums.RoguelikeRunStatus | null
+    campaignId: number | null
+    currentNodeId: number | null
+    currentCostCap: number | null
+    activeLobbyId: number | null
+    createdAt: Date | null
+    endedAt: Date | null
+  }
+
+  export type RoguelikeRunCountAggregateOutputType = {
+    id: number
+    userId: number
+    generation: number
+    status: number
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId: number
+    createdAt: number
+    endedAt: number
+    _all: number
+  }
+
+
+  export type RoguelikeRunAvgAggregateInputType = {
+    id?: true
+    generation?: true
+    campaignId?: true
+    currentNodeId?: true
+    currentCostCap?: true
+    activeLobbyId?: true
+  }
+
+  export type RoguelikeRunSumAggregateInputType = {
+    id?: true
+    generation?: true
+    campaignId?: true
+    currentNodeId?: true
+    currentCostCap?: true
+    activeLobbyId?: true
+  }
+
+  export type RoguelikeRunMinAggregateInputType = {
+    id?: true
+    userId?: true
+    generation?: true
+    status?: true
+    campaignId?: true
+    currentNodeId?: true
+    currentCostCap?: true
+    activeLobbyId?: true
+    createdAt?: true
+    endedAt?: true
+  }
+
+  export type RoguelikeRunMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    generation?: true
+    status?: true
+    campaignId?: true
+    currentNodeId?: true
+    currentCostCap?: true
+    activeLobbyId?: true
+    createdAt?: true
+    endedAt?: true
+  }
+
+  export type RoguelikeRunCountAggregateInputType = {
+    id?: true
+    userId?: true
+    generation?: true
+    status?: true
+    campaignId?: true
+    currentNodeId?: true
+    currentCostCap?: true
+    activeLobbyId?: true
+    createdAt?: true
+    endedAt?: true
+    _all?: true
+  }
+
+  export type RoguelikeRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeRun to aggregate.
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRuns to fetch.
+     */
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeRuns
+    **/
+    _count?: true | RoguelikeRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeRunMaxAggregateInputType
+  }
+
+  export type GetRoguelikeRunAggregateType<T extends RoguelikeRunAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeRun[P]>
+      : GetScalarType<T[P], AggregateRoguelikeRun[P]>
+  }
+
+
+
+
+  export type RoguelikeRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRunWhereInput
+    orderBy?: RoguelikeRunOrderByWithAggregationInput | RoguelikeRunOrderByWithAggregationInput[]
+    by: RoguelikeRunScalarFieldEnum[] | RoguelikeRunScalarFieldEnum
+    having?: RoguelikeRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeRunCountAggregateInputType | true
+    _avg?: RoguelikeRunAvgAggregateInputType
+    _sum?: RoguelikeRunSumAggregateInputType
+    _min?: RoguelikeRunMinAggregateInputType
+    _max?: RoguelikeRunMaxAggregateInputType
+  }
+
+  export type RoguelikeRunGroupByOutputType = {
+    id: number
+    userId: string
+    generation: number
+    status: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId: number | null
+    createdAt: Date
+    endedAt: Date | null
+    _count: RoguelikeRunCountAggregateOutputType | null
+    _avg: RoguelikeRunAvgAggregateOutputType | null
+    _sum: RoguelikeRunSumAggregateOutputType | null
+    _min: RoguelikeRunMinAggregateOutputType | null
+    _max: RoguelikeRunMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeRunGroupByPayload<T extends RoguelikeRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeRunGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    generation?: boolean
+    status?: boolean
+    campaignId?: boolean
+    currentNodeId?: boolean
+    currentCostCap?: boolean
+    activeLobbyId?: boolean
+    createdAt?: boolean
+    endedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    roster?: boolean | RoguelikeRun$rosterArgs<ExtArgs>
+    defeats?: boolean | RoguelikeRun$defeatsArgs<ExtArgs>
+    lobbies?: boolean | RoguelikeRun$lobbiesArgs<ExtArgs>
+    _count?: boolean | RoguelikeRunCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRun"]>
+
+  export type RoguelikeRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    generation?: boolean
+    status?: boolean
+    campaignId?: boolean
+    currentNodeId?: boolean
+    currentCostCap?: boolean
+    activeLobbyId?: boolean
+    createdAt?: boolean
+    endedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRun"]>
+
+  export type RoguelikeRunSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    generation?: boolean
+    status?: boolean
+    campaignId?: boolean
+    currentNodeId?: boolean
+    currentCostCap?: boolean
+    activeLobbyId?: boolean
+    createdAt?: boolean
+    endedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRun"]>
+
+  export type RoguelikeRunSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    generation?: boolean
+    status?: boolean
+    campaignId?: boolean
+    currentNodeId?: boolean
+    currentCostCap?: boolean
+    activeLobbyId?: boolean
+    createdAt?: boolean
+    endedAt?: boolean
+  }
+
+  export type RoguelikeRunOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "generation" | "status" | "campaignId" | "currentNodeId" | "currentCostCap" | "activeLobbyId" | "createdAt" | "endedAt", ExtArgs["result"]["roguelikeRun"]>
+  export type RoguelikeRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+    roster?: boolean | RoguelikeRun$rosterArgs<ExtArgs>
+    defeats?: boolean | RoguelikeRun$defeatsArgs<ExtArgs>
+    lobbies?: boolean | RoguelikeRun$lobbiesArgs<ExtArgs>
+    _count?: boolean | RoguelikeRunCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeRunIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeRunIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
+  }
+
+  export type $RoguelikeRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeRun"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      campaign: Prisma.$RoguelikeCampaignPayload<ExtArgs>
+      roster: Prisma.$RoguelikeRosterShipPayload<ExtArgs>[]
+      defeats: Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>[]
+      lobbies: Prisma.$LobbyPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: string
+      generation: number
+      status: $Enums.RoguelikeRunStatus
+      campaignId: number
+      currentNodeId: number
+      currentCostCap: number
+      activeLobbyId: number | null
+      createdAt: Date
+      endedAt: Date | null
+    }, ExtArgs["result"]["roguelikeRun"]>
+    composites: {}
+  }
+
+  type RoguelikeRunGetPayload<S extends boolean | null | undefined | RoguelikeRunDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeRunPayload, S>
+
+  type RoguelikeRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeRunFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeRunCountAggregateInputType | true
+    }
+
+  export interface RoguelikeRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeRun'], meta: { name: 'RoguelikeRun' } }
+    /**
+     * Find zero or one RoguelikeRun that matches the filter.
+     * @param {RoguelikeRunFindUniqueArgs} args - Arguments to find a RoguelikeRun
+     * @example
+     * // Get one RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeRunFindUniqueArgs>(args: SelectSubset<T, RoguelikeRunFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeRun that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeRunFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeRun
+     * @example
+     * // Get one RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeRunFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunFindFirstArgs} args - Arguments to find a RoguelikeRun
+     * @example
+     * // Get one RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeRunFindFirstArgs>(args?: SelectSubset<T, RoguelikeRunFindFirstArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunFindFirstOrThrowArgs} args - Arguments to find a RoguelikeRun
+     * @example
+     * // Get one RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeRunFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeRuns
+     * const roguelikeRuns = await prisma.roguelikeRun.findMany()
+     * 
+     * // Get first 10 RoguelikeRuns
+     * const roguelikeRuns = await prisma.roguelikeRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeRunWithIdOnly = await prisma.roguelikeRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeRunFindManyArgs>(args?: SelectSubset<T, RoguelikeRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeRun.
+     * @param {RoguelikeRunCreateArgs} args - Arguments to create a RoguelikeRun.
+     * @example
+     * // Create one RoguelikeRun
+     * const RoguelikeRun = await prisma.roguelikeRun.create({
+     *   data: {
+     *     // ... data to create a RoguelikeRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeRunCreateArgs>(args: SelectSubset<T, RoguelikeRunCreateArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeRuns.
+     * @param {RoguelikeRunCreateManyArgs} args - Arguments to create many RoguelikeRuns.
+     * @example
+     * // Create many RoguelikeRuns
+     * const roguelikeRun = await prisma.roguelikeRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeRunCreateManyArgs>(args?: SelectSubset<T, RoguelikeRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeRuns and returns the data saved in the database.
+     * @param {RoguelikeRunCreateManyAndReturnArgs} args - Arguments to create many RoguelikeRuns.
+     * @example
+     * // Create many RoguelikeRuns
+     * const roguelikeRun = await prisma.roguelikeRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeRuns and only return the `id`
+     * const roguelikeRunWithIdOnly = await prisma.roguelikeRun.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeRunCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeRun.
+     * @param {RoguelikeRunDeleteArgs} args - Arguments to delete one RoguelikeRun.
+     * @example
+     * // Delete one RoguelikeRun
+     * const RoguelikeRun = await prisma.roguelikeRun.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeRunDeleteArgs>(args: SelectSubset<T, RoguelikeRunDeleteArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeRun.
+     * @param {RoguelikeRunUpdateArgs} args - Arguments to update one RoguelikeRun.
+     * @example
+     * // Update one RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeRunUpdateArgs>(args: SelectSubset<T, RoguelikeRunUpdateArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeRuns.
+     * @param {RoguelikeRunDeleteManyArgs} args - Arguments to filter RoguelikeRuns to delete.
+     * @example
+     * // Delete a few RoguelikeRuns
+     * const { count } = await prisma.roguelikeRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeRunDeleteManyArgs>(args?: SelectSubset<T, RoguelikeRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeRuns
+     * const roguelikeRun = await prisma.roguelikeRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeRunUpdateManyArgs>(args: SelectSubset<T, RoguelikeRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeRuns and returns the data updated in the database.
+     * @param {RoguelikeRunUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeRuns.
+     * @example
+     * // Update many RoguelikeRuns
+     * const roguelikeRun = await prisma.roguelikeRun.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeRuns and only return the `id`
+     * const roguelikeRunWithIdOnly = await prisma.roguelikeRun.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeRunUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeRunUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeRun.
+     * @param {RoguelikeRunUpsertArgs} args - Arguments to update or create a RoguelikeRun.
+     * @example
+     * // Update or create a RoguelikeRun
+     * const roguelikeRun = await prisma.roguelikeRun.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeRunUpsertArgs>(args: SelectSubset<T, RoguelikeRunUpsertArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunCountArgs} args - Arguments to filter RoguelikeRuns to count.
+     * @example
+     * // Count the number of RoguelikeRuns
+     * const count = await prisma.roguelikeRun.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeRunCountArgs>(
+      args?: Subset<T, RoguelikeRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeRunAggregateArgs>(args: Subset<T, RoguelikeRunAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeRunAggregateType<T>>
+
+    /**
+     * Group by RoguelikeRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeRunGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeRun model
+   */
+  readonly fields: RoguelikeRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    campaign<T extends RoguelikeCampaignDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeCampaignDefaultArgs<ExtArgs>>): Prisma__RoguelikeCampaignClient<$Result.GetResult<Prisma.$RoguelikeCampaignPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    roster<T extends RoguelikeRun$rosterArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeRun$rosterArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    defeats<T extends RoguelikeRun$defeatsArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeRun$defeatsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    lobbies<T extends RoguelikeRun$lobbiesArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeRun$lobbiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LobbyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeRun model
+   */
+  interface RoguelikeRunFieldRefs {
+    readonly id: FieldRef<"RoguelikeRun", 'Int'>
+    readonly userId: FieldRef<"RoguelikeRun", 'String'>
+    readonly generation: FieldRef<"RoguelikeRun", 'Int'>
+    readonly status: FieldRef<"RoguelikeRun", 'RoguelikeRunStatus'>
+    readonly campaignId: FieldRef<"RoguelikeRun", 'Int'>
+    readonly currentNodeId: FieldRef<"RoguelikeRun", 'Int'>
+    readonly currentCostCap: FieldRef<"RoguelikeRun", 'Int'>
+    readonly activeLobbyId: FieldRef<"RoguelikeRun", 'Int'>
+    readonly createdAt: FieldRef<"RoguelikeRun", 'DateTime'>
+    readonly endedAt: FieldRef<"RoguelikeRun", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeRun findUnique
+   */
+  export type RoguelikeRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRun to fetch.
+     */
+    where: RoguelikeRunWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRun findUniqueOrThrow
+   */
+  export type RoguelikeRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRun to fetch.
+     */
+    where: RoguelikeRunWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRun findFirst
+   */
+  export type RoguelikeRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRun to fetch.
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRuns to fetch.
+     */
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeRuns.
+     */
+    cursor?: RoguelikeRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRuns.
+     */
+    distinct?: RoguelikeRunScalarFieldEnum | RoguelikeRunScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun findFirstOrThrow
+   */
+  export type RoguelikeRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRun to fetch.
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRuns to fetch.
+     */
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeRuns.
+     */
+    cursor?: RoguelikeRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRuns.
+     */
+    distinct?: RoguelikeRunScalarFieldEnum | RoguelikeRunScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun findMany
+   */
+  export type RoguelikeRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRuns to fetch.
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRuns to fetch.
+     */
+    orderBy?: RoguelikeRunOrderByWithRelationInput | RoguelikeRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeRuns.
+     */
+    cursor?: RoguelikeRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRuns.
+     */
+    distinct?: RoguelikeRunScalarFieldEnum | RoguelikeRunScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun create
+   */
+  export type RoguelikeRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeRun.
+     */
+    data: XOR<RoguelikeRunCreateInput, RoguelikeRunUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeRun createMany
+   */
+  export type RoguelikeRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeRuns.
+     */
+    data: RoguelikeRunCreateManyInput | RoguelikeRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeRun createManyAndReturn
+   */
+  export type RoguelikeRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeRuns.
+     */
+    data: RoguelikeRunCreateManyInput | RoguelikeRunCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeRun update
+   */
+  export type RoguelikeRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeRun.
+     */
+    data: XOR<RoguelikeRunUpdateInput, RoguelikeRunUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeRun to update.
+     */
+    where: RoguelikeRunWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRun updateMany
+   */
+  export type RoguelikeRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeRuns.
+     */
+    data: XOR<RoguelikeRunUpdateManyMutationInput, RoguelikeRunUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeRuns to update
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * Limit how many RoguelikeRuns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeRun updateManyAndReturn
+   */
+  export type RoguelikeRunUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeRuns.
+     */
+    data: XOR<RoguelikeRunUpdateManyMutationInput, RoguelikeRunUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeRuns to update
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * Limit how many RoguelikeRuns to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeRun upsert
+   */
+  export type RoguelikeRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeRun to update in case it exists.
+     */
+    where: RoguelikeRunWhereUniqueInput
+    /**
+     * In case the RoguelikeRun found by the `where` argument doesn't exist, create a new RoguelikeRun with this data.
+     */
+    create: XOR<RoguelikeRunCreateInput, RoguelikeRunUncheckedCreateInput>
+    /**
+     * In case the RoguelikeRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeRunUpdateInput, RoguelikeRunUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeRun delete
+   */
+  export type RoguelikeRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeRun to delete.
+     */
+    where: RoguelikeRunWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRun deleteMany
+   */
+  export type RoguelikeRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeRuns to delete
+     */
+    where?: RoguelikeRunWhereInput
+    /**
+     * Limit how many RoguelikeRuns to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeRun.roster
+   */
+  export type RoguelikeRun$rosterArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    where?: RoguelikeRosterShipWhereInput
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeRosterShipScalarFieldEnum | RoguelikeRosterShipScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun.defeats
+   */
+  export type RoguelikeRun$defeatsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    where?: RoguelikeNodeDefeatWhereInput
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RoguelikeNodeDefeatScalarFieldEnum | RoguelikeNodeDefeatScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun.lobbies
+   */
+  export type RoguelikeRun$lobbiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Lobby
+     */
+    select?: LobbySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Lobby
+     */
+    omit?: LobbyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LobbyInclude<ExtArgs> | null
+    where?: LobbyWhereInput
+    orderBy?: LobbyOrderByWithRelationInput | LobbyOrderByWithRelationInput[]
+    cursor?: LobbyWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: LobbyScalarFieldEnum | LobbyScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRun without action
+   */
+  export type RoguelikeRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRun
+     */
+    select?: RoguelikeRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRun
+     */
+    omit?: RoguelikeRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRunInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeRosterShip
+   */
+
+  export type AggregateRoguelikeRosterShip = {
+    _count: RoguelikeRosterShipCountAggregateOutputType | null
+    _avg: RoguelikeRosterShipAvgAggregateOutputType | null
+    _sum: RoguelikeRosterShipSumAggregateOutputType | null
+    _min: RoguelikeRosterShipMinAggregateOutputType | null
+    _max: RoguelikeRosterShipMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeRosterShipAvgAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    shipId: number | null
+    hp: number | null
+  }
+
+  export type RoguelikeRosterShipSumAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    shipId: number | null
+    hp: number | null
+  }
+
+  export type RoguelikeRosterShipMinAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    shipId: number | null
+    hp: number | null
+  }
+
+  export type RoguelikeRosterShipMaxAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    shipId: number | null
+    hp: number | null
+  }
+
+  export type RoguelikeRosterShipCountAggregateOutputType = {
+    id: number
+    runId: number
+    shipId: number
+    hp: number
+    _all: number
+  }
+
+
+  export type RoguelikeRosterShipAvgAggregateInputType = {
+    id?: true
+    runId?: true
+    shipId?: true
+    hp?: true
+  }
+
+  export type RoguelikeRosterShipSumAggregateInputType = {
+    id?: true
+    runId?: true
+    shipId?: true
+    hp?: true
+  }
+
+  export type RoguelikeRosterShipMinAggregateInputType = {
+    id?: true
+    runId?: true
+    shipId?: true
+    hp?: true
+  }
+
+  export type RoguelikeRosterShipMaxAggregateInputType = {
+    id?: true
+    runId?: true
+    shipId?: true
+    hp?: true
+  }
+
+  export type RoguelikeRosterShipCountAggregateInputType = {
+    id?: true
+    runId?: true
+    shipId?: true
+    hp?: true
+    _all?: true
+  }
+
+  export type RoguelikeRosterShipAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeRosterShip to aggregate.
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRosterShips to fetch.
+     */
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRosterShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRosterShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeRosterShips
+    **/
+    _count?: true | RoguelikeRosterShipCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeRosterShipAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeRosterShipSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeRosterShipMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeRosterShipMaxAggregateInputType
+  }
+
+  export type GetRoguelikeRosterShipAggregateType<T extends RoguelikeRosterShipAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeRosterShip]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeRosterShip[P]>
+      : GetScalarType<T[P], AggregateRoguelikeRosterShip[P]>
+  }
+
+
+
+
+  export type RoguelikeRosterShipGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeRosterShipWhereInput
+    orderBy?: RoguelikeRosterShipOrderByWithAggregationInput | RoguelikeRosterShipOrderByWithAggregationInput[]
+    by: RoguelikeRosterShipScalarFieldEnum[] | RoguelikeRosterShipScalarFieldEnum
+    having?: RoguelikeRosterShipScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeRosterShipCountAggregateInputType | true
+    _avg?: RoguelikeRosterShipAvgAggregateInputType
+    _sum?: RoguelikeRosterShipSumAggregateInputType
+    _min?: RoguelikeRosterShipMinAggregateInputType
+    _max?: RoguelikeRosterShipMaxAggregateInputType
+  }
+
+  export type RoguelikeRosterShipGroupByOutputType = {
+    id: number
+    runId: number
+    shipId: number
+    hp: number
+    _count: RoguelikeRosterShipCountAggregateOutputType | null
+    _avg: RoguelikeRosterShipAvgAggregateOutputType | null
+    _sum: RoguelikeRosterShipSumAggregateOutputType | null
+    _min: RoguelikeRosterShipMinAggregateOutputType | null
+    _max: RoguelikeRosterShipMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeRosterShipGroupByPayload<T extends RoguelikeRosterShipGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeRosterShipGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeRosterShipGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeRosterShipGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeRosterShipGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeRosterShipSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    shipId?: boolean
+    hp?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRosterShip"]>
+
+  export type RoguelikeRosterShipSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    shipId?: boolean
+    hp?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRosterShip"]>
+
+  export type RoguelikeRosterShipSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    shipId?: boolean
+    hp?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeRosterShip"]>
+
+  export type RoguelikeRosterShipSelectScalar = {
+    id?: boolean
+    runId?: boolean
+    shipId?: boolean
+    hp?: boolean
+  }
+
+  export type RoguelikeRosterShipOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "runId" | "shipId" | "hp", ExtArgs["result"]["roguelikeRosterShip"]>
+  export type RoguelikeRosterShipInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeRosterShipIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeRosterShipIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    ship?: boolean | ShipDefaultArgs<ExtArgs>
+  }
+
+  export type $RoguelikeRosterShipPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeRosterShip"
+    objects: {
+      run: Prisma.$RoguelikeRunPayload<ExtArgs>
+      ship: Prisma.$ShipPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      runId: number
+      shipId: number
+      hp: number
+    }, ExtArgs["result"]["roguelikeRosterShip"]>
+    composites: {}
+  }
+
+  type RoguelikeRosterShipGetPayload<S extends boolean | null | undefined | RoguelikeRosterShipDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeRosterShipPayload, S>
+
+  type RoguelikeRosterShipCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeRosterShipFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeRosterShipCountAggregateInputType | true
+    }
+
+  export interface RoguelikeRosterShipDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeRosterShip'], meta: { name: 'RoguelikeRosterShip' } }
+    /**
+     * Find zero or one RoguelikeRosterShip that matches the filter.
+     * @param {RoguelikeRosterShipFindUniqueArgs} args - Arguments to find a RoguelikeRosterShip
+     * @example
+     * // Get one RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeRosterShipFindUniqueArgs>(args: SelectSubset<T, RoguelikeRosterShipFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeRosterShip that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeRosterShipFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeRosterShip
+     * @example
+     * // Get one RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeRosterShipFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeRosterShipFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeRosterShip that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipFindFirstArgs} args - Arguments to find a RoguelikeRosterShip
+     * @example
+     * // Get one RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeRosterShipFindFirstArgs>(args?: SelectSubset<T, RoguelikeRosterShipFindFirstArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeRosterShip that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipFindFirstOrThrowArgs} args - Arguments to find a RoguelikeRosterShip
+     * @example
+     * // Get one RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeRosterShipFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeRosterShipFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeRosterShips that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeRosterShips
+     * const roguelikeRosterShips = await prisma.roguelikeRosterShip.findMany()
+     * 
+     * // Get first 10 RoguelikeRosterShips
+     * const roguelikeRosterShips = await prisma.roguelikeRosterShip.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeRosterShipWithIdOnly = await prisma.roguelikeRosterShip.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeRosterShipFindManyArgs>(args?: SelectSubset<T, RoguelikeRosterShipFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeRosterShip.
+     * @param {RoguelikeRosterShipCreateArgs} args - Arguments to create a RoguelikeRosterShip.
+     * @example
+     * // Create one RoguelikeRosterShip
+     * const RoguelikeRosterShip = await prisma.roguelikeRosterShip.create({
+     *   data: {
+     *     // ... data to create a RoguelikeRosterShip
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeRosterShipCreateArgs>(args: SelectSubset<T, RoguelikeRosterShipCreateArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeRosterShips.
+     * @param {RoguelikeRosterShipCreateManyArgs} args - Arguments to create many RoguelikeRosterShips.
+     * @example
+     * // Create many RoguelikeRosterShips
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeRosterShipCreateManyArgs>(args?: SelectSubset<T, RoguelikeRosterShipCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeRosterShips and returns the data saved in the database.
+     * @param {RoguelikeRosterShipCreateManyAndReturnArgs} args - Arguments to create many RoguelikeRosterShips.
+     * @example
+     * // Create many RoguelikeRosterShips
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeRosterShips and only return the `id`
+     * const roguelikeRosterShipWithIdOnly = await prisma.roguelikeRosterShip.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeRosterShipCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeRosterShipCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeRosterShip.
+     * @param {RoguelikeRosterShipDeleteArgs} args - Arguments to delete one RoguelikeRosterShip.
+     * @example
+     * // Delete one RoguelikeRosterShip
+     * const RoguelikeRosterShip = await prisma.roguelikeRosterShip.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeRosterShip
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeRosterShipDeleteArgs>(args: SelectSubset<T, RoguelikeRosterShipDeleteArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeRosterShip.
+     * @param {RoguelikeRosterShipUpdateArgs} args - Arguments to update one RoguelikeRosterShip.
+     * @example
+     * // Update one RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeRosterShipUpdateArgs>(args: SelectSubset<T, RoguelikeRosterShipUpdateArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeRosterShips.
+     * @param {RoguelikeRosterShipDeleteManyArgs} args - Arguments to filter RoguelikeRosterShips to delete.
+     * @example
+     * // Delete a few RoguelikeRosterShips
+     * const { count } = await prisma.roguelikeRosterShip.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeRosterShipDeleteManyArgs>(args?: SelectSubset<T, RoguelikeRosterShipDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeRosterShips.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeRosterShips
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeRosterShipUpdateManyArgs>(args: SelectSubset<T, RoguelikeRosterShipUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeRosterShips and returns the data updated in the database.
+     * @param {RoguelikeRosterShipUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeRosterShips.
+     * @example
+     * // Update many RoguelikeRosterShips
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeRosterShips and only return the `id`
+     * const roguelikeRosterShipWithIdOnly = await prisma.roguelikeRosterShip.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeRosterShipUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeRosterShipUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeRosterShip.
+     * @param {RoguelikeRosterShipUpsertArgs} args - Arguments to update or create a RoguelikeRosterShip.
+     * @example
+     * // Update or create a RoguelikeRosterShip
+     * const roguelikeRosterShip = await prisma.roguelikeRosterShip.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeRosterShip
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeRosterShip we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeRosterShipUpsertArgs>(args: SelectSubset<T, RoguelikeRosterShipUpsertArgs<ExtArgs>>): Prisma__RoguelikeRosterShipClient<$Result.GetResult<Prisma.$RoguelikeRosterShipPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeRosterShips.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipCountArgs} args - Arguments to filter RoguelikeRosterShips to count.
+     * @example
+     * // Count the number of RoguelikeRosterShips
+     * const count = await prisma.roguelikeRosterShip.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeRosterShips we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeRosterShipCountArgs>(
+      args?: Subset<T, RoguelikeRosterShipCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeRosterShipCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeRosterShip.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeRosterShipAggregateArgs>(args: Subset<T, RoguelikeRosterShipAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeRosterShipAggregateType<T>>
+
+    /**
+     * Group by RoguelikeRosterShip.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeRosterShipGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeRosterShipGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeRosterShipGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeRosterShipGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeRosterShipGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeRosterShipGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeRosterShip model
+   */
+  readonly fields: RoguelikeRosterShipFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeRosterShip.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeRosterShipClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    run<T extends RoguelikeRunDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeRunDefaultArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    ship<T extends ShipDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ShipDefaultArgs<ExtArgs>>): Prisma__ShipClient<$Result.GetResult<Prisma.$ShipPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeRosterShip model
+   */
+  interface RoguelikeRosterShipFieldRefs {
+    readonly id: FieldRef<"RoguelikeRosterShip", 'Int'>
+    readonly runId: FieldRef<"RoguelikeRosterShip", 'Int'>
+    readonly shipId: FieldRef<"RoguelikeRosterShip", 'Int'>
+    readonly hp: FieldRef<"RoguelikeRosterShip", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeRosterShip findUnique
+   */
+  export type RoguelikeRosterShipFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRosterShip to fetch.
+     */
+    where: RoguelikeRosterShipWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRosterShip findUniqueOrThrow
+   */
+  export type RoguelikeRosterShipFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRosterShip to fetch.
+     */
+    where: RoguelikeRosterShipWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRosterShip findFirst
+   */
+  export type RoguelikeRosterShipFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRosterShip to fetch.
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRosterShips to fetch.
+     */
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeRosterShips.
+     */
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRosterShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRosterShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRosterShips.
+     */
+    distinct?: RoguelikeRosterShipScalarFieldEnum | RoguelikeRosterShipScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRosterShip findFirstOrThrow
+   */
+  export type RoguelikeRosterShipFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRosterShip to fetch.
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRosterShips to fetch.
+     */
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeRosterShips.
+     */
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRosterShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRosterShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRosterShips.
+     */
+    distinct?: RoguelikeRosterShipScalarFieldEnum | RoguelikeRosterShipScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRosterShip findMany
+   */
+  export type RoguelikeRosterShipFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeRosterShips to fetch.
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeRosterShips to fetch.
+     */
+    orderBy?: RoguelikeRosterShipOrderByWithRelationInput | RoguelikeRosterShipOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeRosterShips.
+     */
+    cursor?: RoguelikeRosterShipWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeRosterShips from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeRosterShips.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeRosterShips.
+     */
+    distinct?: RoguelikeRosterShipScalarFieldEnum | RoguelikeRosterShipScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeRosterShip create
+   */
+  export type RoguelikeRosterShipCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeRosterShip.
+     */
+    data: XOR<RoguelikeRosterShipCreateInput, RoguelikeRosterShipUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeRosterShip createMany
+   */
+  export type RoguelikeRosterShipCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeRosterShips.
+     */
+    data: RoguelikeRosterShipCreateManyInput | RoguelikeRosterShipCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeRosterShip createManyAndReturn
+   */
+  export type RoguelikeRosterShipCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeRosterShips.
+     */
+    data: RoguelikeRosterShipCreateManyInput | RoguelikeRosterShipCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeRosterShip update
+   */
+  export type RoguelikeRosterShipUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeRosterShip.
+     */
+    data: XOR<RoguelikeRosterShipUpdateInput, RoguelikeRosterShipUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeRosterShip to update.
+     */
+    where: RoguelikeRosterShipWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRosterShip updateMany
+   */
+  export type RoguelikeRosterShipUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeRosterShips.
+     */
+    data: XOR<RoguelikeRosterShipUpdateManyMutationInput, RoguelikeRosterShipUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeRosterShips to update
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * Limit how many RoguelikeRosterShips to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeRosterShip updateManyAndReturn
+   */
+  export type RoguelikeRosterShipUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeRosterShips.
+     */
+    data: XOR<RoguelikeRosterShipUpdateManyMutationInput, RoguelikeRosterShipUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeRosterShips to update
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * Limit how many RoguelikeRosterShips to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeRosterShip upsert
+   */
+  export type RoguelikeRosterShipUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeRosterShip to update in case it exists.
+     */
+    where: RoguelikeRosterShipWhereUniqueInput
+    /**
+     * In case the RoguelikeRosterShip found by the `where` argument doesn't exist, create a new RoguelikeRosterShip with this data.
+     */
+    create: XOR<RoguelikeRosterShipCreateInput, RoguelikeRosterShipUncheckedCreateInput>
+    /**
+     * In case the RoguelikeRosterShip was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeRosterShipUpdateInput, RoguelikeRosterShipUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeRosterShip delete
+   */
+  export type RoguelikeRosterShipDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeRosterShip to delete.
+     */
+    where: RoguelikeRosterShipWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeRosterShip deleteMany
+   */
+  export type RoguelikeRosterShipDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeRosterShips to delete
+     */
+    where?: RoguelikeRosterShipWhereInput
+    /**
+     * Limit how many RoguelikeRosterShips to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeRosterShip without action
+   */
+  export type RoguelikeRosterShipDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeRosterShip
+     */
+    select?: RoguelikeRosterShipSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeRosterShip
+     */
+    omit?: RoguelikeRosterShipOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeRosterShipInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RoguelikeNodeDefeat
+   */
+
+  export type AggregateRoguelikeNodeDefeat = {
+    _count: RoguelikeNodeDefeatCountAggregateOutputType | null
+    _avg: RoguelikeNodeDefeatAvgAggregateOutputType | null
+    _sum: RoguelikeNodeDefeatSumAggregateOutputType | null
+    _min: RoguelikeNodeDefeatMinAggregateOutputType | null
+    _max: RoguelikeNodeDefeatMaxAggregateOutputType | null
+  }
+
+  export type RoguelikeNodeDefeatAvgAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    nodeId: number | null
+  }
+
+  export type RoguelikeNodeDefeatSumAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    nodeId: number | null
+  }
+
+  export type RoguelikeNodeDefeatMinAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    nodeId: number | null
+  }
+
+  export type RoguelikeNodeDefeatMaxAggregateOutputType = {
+    id: number | null
+    runId: number | null
+    nodeId: number | null
+  }
+
+  export type RoguelikeNodeDefeatCountAggregateOutputType = {
+    id: number
+    runId: number
+    nodeId: number
+    _all: number
+  }
+
+
+  export type RoguelikeNodeDefeatAvgAggregateInputType = {
+    id?: true
+    runId?: true
+    nodeId?: true
+  }
+
+  export type RoguelikeNodeDefeatSumAggregateInputType = {
+    id?: true
+    runId?: true
+    nodeId?: true
+  }
+
+  export type RoguelikeNodeDefeatMinAggregateInputType = {
+    id?: true
+    runId?: true
+    nodeId?: true
+  }
+
+  export type RoguelikeNodeDefeatMaxAggregateInputType = {
+    id?: true
+    runId?: true
+    nodeId?: true
+  }
+
+  export type RoguelikeNodeDefeatCountAggregateInputType = {
+    id?: true
+    runId?: true
+    nodeId?: true
+    _all?: true
+  }
+
+  export type RoguelikeNodeDefeatAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeNodeDefeat to aggregate.
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodeDefeats to fetch.
+     */
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodeDefeats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodeDefeats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RoguelikeNodeDefeats
+    **/
+    _count?: true | RoguelikeNodeDefeatCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RoguelikeNodeDefeatAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RoguelikeNodeDefeatSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RoguelikeNodeDefeatMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RoguelikeNodeDefeatMaxAggregateInputType
+  }
+
+  export type GetRoguelikeNodeDefeatAggregateType<T extends RoguelikeNodeDefeatAggregateArgs> = {
+        [P in keyof T & keyof AggregateRoguelikeNodeDefeat]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRoguelikeNodeDefeat[P]>
+      : GetScalarType<T[P], AggregateRoguelikeNodeDefeat[P]>
+  }
+
+
+
+
+  export type RoguelikeNodeDefeatGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RoguelikeNodeDefeatWhereInput
+    orderBy?: RoguelikeNodeDefeatOrderByWithAggregationInput | RoguelikeNodeDefeatOrderByWithAggregationInput[]
+    by: RoguelikeNodeDefeatScalarFieldEnum[] | RoguelikeNodeDefeatScalarFieldEnum
+    having?: RoguelikeNodeDefeatScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RoguelikeNodeDefeatCountAggregateInputType | true
+    _avg?: RoguelikeNodeDefeatAvgAggregateInputType
+    _sum?: RoguelikeNodeDefeatSumAggregateInputType
+    _min?: RoguelikeNodeDefeatMinAggregateInputType
+    _max?: RoguelikeNodeDefeatMaxAggregateInputType
+  }
+
+  export type RoguelikeNodeDefeatGroupByOutputType = {
+    id: number
+    runId: number
+    nodeId: number
+    _count: RoguelikeNodeDefeatCountAggregateOutputType | null
+    _avg: RoguelikeNodeDefeatAvgAggregateOutputType | null
+    _sum: RoguelikeNodeDefeatSumAggregateOutputType | null
+    _min: RoguelikeNodeDefeatMinAggregateOutputType | null
+    _max: RoguelikeNodeDefeatMaxAggregateOutputType | null
+  }
+
+  type GetRoguelikeNodeDefeatGroupByPayload<T extends RoguelikeNodeDefeatGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RoguelikeNodeDefeatGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RoguelikeNodeDefeatGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RoguelikeNodeDefeatGroupByOutputType[P]>
+            : GetScalarType<T[P], RoguelikeNodeDefeatGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RoguelikeNodeDefeatSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    nodeId?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNodeDefeat"]>
+
+  export type RoguelikeNodeDefeatSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    nodeId?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNodeDefeat"]>
+
+  export type RoguelikeNodeDefeatSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    nodeId?: boolean
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["roguelikeNodeDefeat"]>
+
+  export type RoguelikeNodeDefeatSelectScalar = {
+    id?: boolean
+    runId?: boolean
+    nodeId?: boolean
+  }
+
+  export type RoguelikeNodeDefeatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "runId" | "nodeId", ExtArgs["result"]["roguelikeNodeDefeat"]>
+  export type RoguelikeNodeDefeatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeNodeDefeatIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+  export type RoguelikeNodeDefeatIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | RoguelikeRunDefaultArgs<ExtArgs>
+    node?: boolean | RoguelikeNodeDefaultArgs<ExtArgs>
+  }
+
+  export type $RoguelikeNodeDefeatPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RoguelikeNodeDefeat"
+    objects: {
+      run: Prisma.$RoguelikeRunPayload<ExtArgs>
+      node: Prisma.$RoguelikeNodePayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      runId: number
+      nodeId: number
+    }, ExtArgs["result"]["roguelikeNodeDefeat"]>
+    composites: {}
+  }
+
+  type RoguelikeNodeDefeatGetPayload<S extends boolean | null | undefined | RoguelikeNodeDefeatDefaultArgs> = $Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload, S>
+
+  type RoguelikeNodeDefeatCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RoguelikeNodeDefeatFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RoguelikeNodeDefeatCountAggregateInputType | true
+    }
+
+  export interface RoguelikeNodeDefeatDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RoguelikeNodeDefeat'], meta: { name: 'RoguelikeNodeDefeat' } }
+    /**
+     * Find zero or one RoguelikeNodeDefeat that matches the filter.
+     * @param {RoguelikeNodeDefeatFindUniqueArgs} args - Arguments to find a RoguelikeNodeDefeat
+     * @example
+     * // Get one RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RoguelikeNodeDefeatFindUniqueArgs>(args: SelectSubset<T, RoguelikeNodeDefeatFindUniqueArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RoguelikeNodeDefeat that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RoguelikeNodeDefeatFindUniqueOrThrowArgs} args - Arguments to find a RoguelikeNodeDefeat
+     * @example
+     * // Get one RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RoguelikeNodeDefeatFindUniqueOrThrowArgs>(args: SelectSubset<T, RoguelikeNodeDefeatFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeNodeDefeat that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatFindFirstArgs} args - Arguments to find a RoguelikeNodeDefeat
+     * @example
+     * // Get one RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RoguelikeNodeDefeatFindFirstArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatFindFirstArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RoguelikeNodeDefeat that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatFindFirstOrThrowArgs} args - Arguments to find a RoguelikeNodeDefeat
+     * @example
+     * // Get one RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RoguelikeNodeDefeatFindFirstOrThrowArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatFindFirstOrThrowArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RoguelikeNodeDefeats that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RoguelikeNodeDefeats
+     * const roguelikeNodeDefeats = await prisma.roguelikeNodeDefeat.findMany()
+     * 
+     * // Get first 10 RoguelikeNodeDefeats
+     * const roguelikeNodeDefeats = await prisma.roguelikeNodeDefeat.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const roguelikeNodeDefeatWithIdOnly = await prisma.roguelikeNodeDefeat.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RoguelikeNodeDefeatFindManyArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RoguelikeNodeDefeat.
+     * @param {RoguelikeNodeDefeatCreateArgs} args - Arguments to create a RoguelikeNodeDefeat.
+     * @example
+     * // Create one RoguelikeNodeDefeat
+     * const RoguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.create({
+     *   data: {
+     *     // ... data to create a RoguelikeNodeDefeat
+     *   }
+     * })
+     * 
+     */
+    create<T extends RoguelikeNodeDefeatCreateArgs>(args: SelectSubset<T, RoguelikeNodeDefeatCreateArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RoguelikeNodeDefeats.
+     * @param {RoguelikeNodeDefeatCreateManyArgs} args - Arguments to create many RoguelikeNodeDefeats.
+     * @example
+     * // Create many RoguelikeNodeDefeats
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RoguelikeNodeDefeatCreateManyArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RoguelikeNodeDefeats and returns the data saved in the database.
+     * @param {RoguelikeNodeDefeatCreateManyAndReturnArgs} args - Arguments to create many RoguelikeNodeDefeats.
+     * @example
+     * // Create many RoguelikeNodeDefeats
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RoguelikeNodeDefeats and only return the `id`
+     * const roguelikeNodeDefeatWithIdOnly = await prisma.roguelikeNodeDefeat.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RoguelikeNodeDefeatCreateManyAndReturnArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RoguelikeNodeDefeat.
+     * @param {RoguelikeNodeDefeatDeleteArgs} args - Arguments to delete one RoguelikeNodeDefeat.
+     * @example
+     * // Delete one RoguelikeNodeDefeat
+     * const RoguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.delete({
+     *   where: {
+     *     // ... filter to delete one RoguelikeNodeDefeat
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RoguelikeNodeDefeatDeleteArgs>(args: SelectSubset<T, RoguelikeNodeDefeatDeleteArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RoguelikeNodeDefeat.
+     * @param {RoguelikeNodeDefeatUpdateArgs} args - Arguments to update one RoguelikeNodeDefeat.
+     * @example
+     * // Update one RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RoguelikeNodeDefeatUpdateArgs>(args: SelectSubset<T, RoguelikeNodeDefeatUpdateArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RoguelikeNodeDefeats.
+     * @param {RoguelikeNodeDefeatDeleteManyArgs} args - Arguments to filter RoguelikeNodeDefeats to delete.
+     * @example
+     * // Delete a few RoguelikeNodeDefeats
+     * const { count } = await prisma.roguelikeNodeDefeat.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RoguelikeNodeDefeatDeleteManyArgs>(args?: SelectSubset<T, RoguelikeNodeDefeatDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeNodeDefeats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RoguelikeNodeDefeats
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RoguelikeNodeDefeatUpdateManyArgs>(args: SelectSubset<T, RoguelikeNodeDefeatUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RoguelikeNodeDefeats and returns the data updated in the database.
+     * @param {RoguelikeNodeDefeatUpdateManyAndReturnArgs} args - Arguments to update many RoguelikeNodeDefeats.
+     * @example
+     * // Update many RoguelikeNodeDefeats
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RoguelikeNodeDefeats and only return the `id`
+     * const roguelikeNodeDefeatWithIdOnly = await prisma.roguelikeNodeDefeat.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RoguelikeNodeDefeatUpdateManyAndReturnArgs>(args: SelectSubset<T, RoguelikeNodeDefeatUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RoguelikeNodeDefeat.
+     * @param {RoguelikeNodeDefeatUpsertArgs} args - Arguments to update or create a RoguelikeNodeDefeat.
+     * @example
+     * // Update or create a RoguelikeNodeDefeat
+     * const roguelikeNodeDefeat = await prisma.roguelikeNodeDefeat.upsert({
+     *   create: {
+     *     // ... data to create a RoguelikeNodeDefeat
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RoguelikeNodeDefeat we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RoguelikeNodeDefeatUpsertArgs>(args: SelectSubset<T, RoguelikeNodeDefeatUpsertArgs<ExtArgs>>): Prisma__RoguelikeNodeDefeatClient<$Result.GetResult<Prisma.$RoguelikeNodeDefeatPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RoguelikeNodeDefeats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatCountArgs} args - Arguments to filter RoguelikeNodeDefeats to count.
+     * @example
+     * // Count the number of RoguelikeNodeDefeats
+     * const count = await prisma.roguelikeNodeDefeat.count({
+     *   where: {
+     *     // ... the filter for the RoguelikeNodeDefeats we want to count
+     *   }
+     * })
+    **/
+    count<T extends RoguelikeNodeDefeatCountArgs>(
+      args?: Subset<T, RoguelikeNodeDefeatCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RoguelikeNodeDefeatCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RoguelikeNodeDefeat.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RoguelikeNodeDefeatAggregateArgs>(args: Subset<T, RoguelikeNodeDefeatAggregateArgs>): Prisma.PrismaPromise<GetRoguelikeNodeDefeatAggregateType<T>>
+
+    /**
+     * Group by RoguelikeNodeDefeat.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RoguelikeNodeDefeatGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RoguelikeNodeDefeatGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RoguelikeNodeDefeatGroupByArgs['orderBy'] }
+        : { orderBy?: RoguelikeNodeDefeatGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RoguelikeNodeDefeatGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRoguelikeNodeDefeatGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RoguelikeNodeDefeat model
+   */
+  readonly fields: RoguelikeNodeDefeatFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RoguelikeNodeDefeat.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RoguelikeNodeDefeatClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    run<T extends RoguelikeRunDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeRunDefaultArgs<ExtArgs>>): Prisma__RoguelikeRunClient<$Result.GetResult<Prisma.$RoguelikeRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    node<T extends RoguelikeNodeDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RoguelikeNodeDefaultArgs<ExtArgs>>): Prisma__RoguelikeNodeClient<$Result.GetResult<Prisma.$RoguelikeNodePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RoguelikeNodeDefeat model
+   */
+  interface RoguelikeNodeDefeatFieldRefs {
+    readonly id: FieldRef<"RoguelikeNodeDefeat", 'Int'>
+    readonly runId: FieldRef<"RoguelikeNodeDefeat", 'Int'>
+    readonly nodeId: FieldRef<"RoguelikeNodeDefeat", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RoguelikeNodeDefeat findUnique
+   */
+  export type RoguelikeNodeDefeatFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodeDefeat to fetch.
+     */
+    where: RoguelikeNodeDefeatWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNodeDefeat findUniqueOrThrow
+   */
+  export type RoguelikeNodeDefeatFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodeDefeat to fetch.
+     */
+    where: RoguelikeNodeDefeatWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNodeDefeat findFirst
+   */
+  export type RoguelikeNodeDefeatFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodeDefeat to fetch.
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodeDefeats to fetch.
+     */
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeNodeDefeats.
+     */
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodeDefeats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodeDefeats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodeDefeats.
+     */
+    distinct?: RoguelikeNodeDefeatScalarFieldEnum | RoguelikeNodeDefeatScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNodeDefeat findFirstOrThrow
+   */
+  export type RoguelikeNodeDefeatFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodeDefeat to fetch.
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodeDefeats to fetch.
+     */
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RoguelikeNodeDefeats.
+     */
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodeDefeats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodeDefeats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodeDefeats.
+     */
+    distinct?: RoguelikeNodeDefeatScalarFieldEnum | RoguelikeNodeDefeatScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNodeDefeat findMany
+   */
+  export type RoguelikeNodeDefeatFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter, which RoguelikeNodeDefeats to fetch.
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RoguelikeNodeDefeats to fetch.
+     */
+    orderBy?: RoguelikeNodeDefeatOrderByWithRelationInput | RoguelikeNodeDefeatOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RoguelikeNodeDefeats.
+     */
+    cursor?: RoguelikeNodeDefeatWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RoguelikeNodeDefeats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RoguelikeNodeDefeats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RoguelikeNodeDefeats.
+     */
+    distinct?: RoguelikeNodeDefeatScalarFieldEnum | RoguelikeNodeDefeatScalarFieldEnum[]
+  }
+
+  /**
+   * RoguelikeNodeDefeat create
+   */
+  export type RoguelikeNodeDefeatCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RoguelikeNodeDefeat.
+     */
+    data: XOR<RoguelikeNodeDefeatCreateInput, RoguelikeNodeDefeatUncheckedCreateInput>
+  }
+
+  /**
+   * RoguelikeNodeDefeat createMany
+   */
+  export type RoguelikeNodeDefeatCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RoguelikeNodeDefeats.
+     */
+    data: RoguelikeNodeDefeatCreateManyInput | RoguelikeNodeDefeatCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RoguelikeNodeDefeat createManyAndReturn
+   */
+  export type RoguelikeNodeDefeatCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * The data used to create many RoguelikeNodeDefeats.
+     */
+    data: RoguelikeNodeDefeatCreateManyInput | RoguelikeNodeDefeatCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeNodeDefeat update
+   */
+  export type RoguelikeNodeDefeatUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RoguelikeNodeDefeat.
+     */
+    data: XOR<RoguelikeNodeDefeatUpdateInput, RoguelikeNodeDefeatUncheckedUpdateInput>
+    /**
+     * Choose, which RoguelikeNodeDefeat to update.
+     */
+    where: RoguelikeNodeDefeatWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNodeDefeat updateMany
+   */
+  export type RoguelikeNodeDefeatUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RoguelikeNodeDefeats.
+     */
+    data: XOR<RoguelikeNodeDefeatUpdateManyMutationInput, RoguelikeNodeDefeatUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeNodeDefeats to update
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * Limit how many RoguelikeNodeDefeats to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeNodeDefeat updateManyAndReturn
+   */
+  export type RoguelikeNodeDefeatUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * The data used to update RoguelikeNodeDefeats.
+     */
+    data: XOR<RoguelikeNodeDefeatUpdateManyMutationInput, RoguelikeNodeDefeatUncheckedUpdateManyInput>
+    /**
+     * Filter which RoguelikeNodeDefeats to update
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * Limit how many RoguelikeNodeDefeats to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RoguelikeNodeDefeat upsert
+   */
+  export type RoguelikeNodeDefeatUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RoguelikeNodeDefeat to update in case it exists.
+     */
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    /**
+     * In case the RoguelikeNodeDefeat found by the `where` argument doesn't exist, create a new RoguelikeNodeDefeat with this data.
+     */
+    create: XOR<RoguelikeNodeDefeatCreateInput, RoguelikeNodeDefeatUncheckedCreateInput>
+    /**
+     * In case the RoguelikeNodeDefeat was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RoguelikeNodeDefeatUpdateInput, RoguelikeNodeDefeatUncheckedUpdateInput>
+  }
+
+  /**
+   * RoguelikeNodeDefeat delete
+   */
+  export type RoguelikeNodeDefeatDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
+    /**
+     * Filter which RoguelikeNodeDefeat to delete.
+     */
+    where: RoguelikeNodeDefeatWhereUniqueInput
+  }
+
+  /**
+   * RoguelikeNodeDefeat deleteMany
+   */
+  export type RoguelikeNodeDefeatDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RoguelikeNodeDefeats to delete
+     */
+    where?: RoguelikeNodeDefeatWhereInput
+    /**
+     * Limit how many RoguelikeNodeDefeats to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RoguelikeNodeDefeat without action
+   */
+  export type RoguelikeNodeDefeatDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RoguelikeNodeDefeat
+     */
+    select?: RoguelikeNodeDefeatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RoguelikeNodeDefeat
+     */
+    omit?: RoguelikeNodeDefeatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RoguelikeNodeDefeatInclude<ExtArgs> | null
   }
 
 
@@ -20380,6 +32206,8 @@ export namespace Prisma {
     email: 'email',
     username: 'username',
     creditBalance: 'creditBalance',
+    decBalance: 'decBalance',
+    droneCoreTier: 'droneCoreTier',
     purchasedShipCount: 'purchasedShipCount',
     lobbiesCreatedCount: 'lobbiesCreatedCount',
     kickCount: 'kickCount',
@@ -20443,7 +32271,9 @@ export namespace Prisma {
     aiDifficulty: 'aiDifficulty',
     createdAt: 'createdAt',
     joinedAt: 'joinedAt',
-    joinerFleetSetAt: 'joinerFleetSetAt'
+    joinerFleetSetAt: 'joinerFleetSetAt',
+    campaignNodeId: 'campaignNodeId',
+    roguelikeRunId: 'roguelikeRunId'
   };
 
   export type LobbyScalarFieldEnum = (typeof LobbyScalarFieldEnum)[keyof typeof LobbyScalarFieldEnum]
@@ -20487,6 +32317,7 @@ export namespace Prisma {
     gridHeight: 'gridHeight',
     blockedTiles: 'blockedTiles',
     scoringTiles: 'scoringTiles',
+    mode: 'mode',
     createdAt: 'createdAt'
   };
 
@@ -20523,6 +32354,112 @@ export namespace Prisma {
   };
 
   export type AIFleetShipScalarFieldEnum = (typeof AIFleetShipScalarFieldEnum)[keyof typeof AIFleetShipScalarFieldEnum]
+
+
+  export const CampaignScalarFieldEnum: {
+    id: 'id',
+    requiredVariant: 'requiredVariant',
+    createdAt: 'createdAt'
+  };
+
+  export type CampaignScalarFieldEnum = (typeof CampaignScalarFieldEnum)[keyof typeof CampaignScalarFieldEnum]
+
+
+  export const CampaignNodeScalarFieldEnum: {
+    id: 'id',
+    campaignId: 'campaignId',
+    mapId: 'mapId',
+    prerequisites: 'prerequisites',
+    costLimit: 'costLimit',
+    turnTimeSeconds: 'turnTimeSeconds',
+    maxScore: 'maxScore',
+    creatorGoesFirst: 'creatorGoesFirst',
+    createdAt: 'createdAt'
+  };
+
+  export type CampaignNodeScalarFieldEnum = (typeof CampaignNodeScalarFieldEnum)[keyof typeof CampaignNodeScalarFieldEnum]
+
+
+  export const CampaignNodeCompletionScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    nodeId: 'nodeId',
+    completedAt: 'completedAt'
+  };
+
+  export type CampaignNodeCompletionScalarFieldEnum = (typeof CampaignNodeCompletionScalarFieldEnum)[keyof typeof CampaignNodeCompletionScalarFieldEnum]
+
+
+  export const RoguelikeCampaignScalarFieldEnum: {
+    id: 'id',
+    requiredVariant: 'requiredVariant',
+    autoHealPercent: 'autoHealPercent',
+    initialCostCap: 'initialCostCap',
+    rootNodeId: 'rootNodeId',
+    createdAt: 'createdAt'
+  };
+
+  export type RoguelikeCampaignScalarFieldEnum = (typeof RoguelikeCampaignScalarFieldEnum)[keyof typeof RoguelikeCampaignScalarFieldEnum]
+
+
+  export const RoguelikeNodeScalarFieldEnum: {
+    id: 'id',
+    campaignId: 'campaignId',
+    kind: 'kind',
+    mapId: 'mapId',
+    turnTimeSeconds: 'turnTimeSeconds',
+    maxScore: 'maxScore',
+    creatorGoesFirst: 'creatorGoesFirst',
+    costCapOverride: 'costCapOverride',
+    createdAt: 'createdAt'
+  };
+
+  export type RoguelikeNodeScalarFieldEnum = (typeof RoguelikeNodeScalarFieldEnum)[keyof typeof RoguelikeNodeScalarFieldEnum]
+
+
+  export const RoguelikeEdgeScalarFieldEnum: {
+    id: 'id',
+    parentId: 'parentId',
+    childId: 'childId',
+    twoWay: 'twoWay'
+  };
+
+  export type RoguelikeEdgeScalarFieldEnum = (typeof RoguelikeEdgeScalarFieldEnum)[keyof typeof RoguelikeEdgeScalarFieldEnum]
+
+
+  export const RoguelikeRunScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    generation: 'generation',
+    status: 'status',
+    campaignId: 'campaignId',
+    currentNodeId: 'currentNodeId',
+    currentCostCap: 'currentCostCap',
+    activeLobbyId: 'activeLobbyId',
+    createdAt: 'createdAt',
+    endedAt: 'endedAt'
+  };
+
+  export type RoguelikeRunScalarFieldEnum = (typeof RoguelikeRunScalarFieldEnum)[keyof typeof RoguelikeRunScalarFieldEnum]
+
+
+  export const RoguelikeRosterShipScalarFieldEnum: {
+    id: 'id',
+    runId: 'runId',
+    shipId: 'shipId',
+    hp: 'hp'
+  };
+
+  export type RoguelikeRosterShipScalarFieldEnum = (typeof RoguelikeRosterShipScalarFieldEnum)[keyof typeof RoguelikeRosterShipScalarFieldEnum]
+
+
+  export const RoguelikeNodeDefeatScalarFieldEnum: {
+    id: 'id',
+    runId: 'runId',
+    nodeId: 'nodeId'
+  };
+
+  export type RoguelikeNodeDefeatScalarFieldEnum = (typeof RoguelikeNodeDefeatScalarFieldEnum)[keyof typeof RoguelikeNodeDefeatScalarFieldEnum]
 
 
   export const ConfigScalarFieldEnum: {
@@ -20741,6 +32678,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'RoguelikeRunStatus'
+   */
+  export type EnumRoguelikeRunStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RoguelikeRunStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'RoguelikeRunStatus[]'
+   */
+  export type ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RoguelikeRunStatus[]'>
+    
+
+
+  /**
    * Reference to a field of type 'TournamentState'
    */
   export type EnumTournamentStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TournamentState'>
@@ -20779,6 +32730,8 @@ export namespace Prisma {
     email?: StringFilter<"User"> | string
     username?: StringNullableFilter<"User"> | string | null
     creditBalance?: IntFilter<"User"> | number
+    decBalance?: IntFilter<"User"> | number
+    droneCoreTier?: IntFilter<"User"> | number
     purchasedShipCount?: IntFilter<"User"> | number
     lobbiesCreatedCount?: IntFilter<"User"> | number
     kickCount?: IntFilter<"User"> | number
@@ -20798,6 +32751,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantListRelationFilter
     tournamentMatchesAsP1?: TournamentMatchListRelationFilter
     tournamentMatchesAsP2?: TournamentMatchListRelationFilter
+    campaignNodeCompletions?: CampaignNodeCompletionListRelationFilter
+    roguelikeRuns?: RoguelikeRunListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -20805,6 +32760,8 @@ export namespace Prisma {
     email?: SortOrder
     username?: SortOrderInput | SortOrder
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -20824,6 +32781,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantOrderByRelationAggregateInput
     tournamentMatchesAsP1?: TournamentMatchOrderByRelationAggregateInput
     tournamentMatchesAsP2?: TournamentMatchOrderByRelationAggregateInput
+    campaignNodeCompletions?: CampaignNodeCompletionOrderByRelationAggregateInput
+    roguelikeRuns?: RoguelikeRunOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -20834,6 +32793,8 @@ export namespace Prisma {
     NOT?: UserWhereInput | UserWhereInput[]
     username?: StringNullableFilter<"User"> | string | null
     creditBalance?: IntFilter<"User"> | number
+    decBalance?: IntFilter<"User"> | number
+    droneCoreTier?: IntFilter<"User"> | number
     purchasedShipCount?: IntFilter<"User"> | number
     lobbiesCreatedCount?: IntFilter<"User"> | number
     kickCount?: IntFilter<"User"> | number
@@ -20853,6 +32814,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantListRelationFilter
     tournamentMatchesAsP1?: TournamentMatchListRelationFilter
     tournamentMatchesAsP2?: TournamentMatchListRelationFilter
+    campaignNodeCompletions?: CampaignNodeCompletionListRelationFilter
+    roguelikeRuns?: RoguelikeRunListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -20860,6 +32823,8 @@ export namespace Prisma {
     email?: SortOrder
     username?: SortOrderInput | SortOrder
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -20882,6 +32847,8 @@ export namespace Prisma {
     email?: StringWithAggregatesFilter<"User"> | string
     username?: StringNullableWithAggregatesFilter<"User"> | string | null
     creditBalance?: IntWithAggregatesFilter<"User"> | number
+    decBalance?: IntWithAggregatesFilter<"User"> | number
+    droneCoreTier?: IntWithAggregatesFilter<"User"> | number
     purchasedShipCount?: IntWithAggregatesFilter<"User"> | number
     lobbiesCreatedCount?: IntWithAggregatesFilter<"User"> | number
     kickCount?: IntWithAggregatesFilter<"User"> | number
@@ -20912,6 +32879,7 @@ export namespace Prisma {
     destroyedAt?: DateTimeNullableFilter<"Ship"> | Date | string | null
     createdAt?: DateTimeFilter<"Ship"> | Date | string
     owner?: XOR<UserScalarRelationFilter, UserWhereInput>
+    roguelikeRosterEntries?: RoguelikeRosterShipListRelationFilter
   }
 
   export type ShipOrderByWithRelationInput = {
@@ -20932,6 +32900,7 @@ export namespace Prisma {
     destroyedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     owner?: UserOrderByWithRelationInput
+    roguelikeRosterEntries?: RoguelikeRosterShipOrderByRelationAggregateInput
   }
 
   export type ShipWhereUniqueInput = Prisma.AtLeast<{
@@ -20955,6 +32924,7 @@ export namespace Prisma {
     destroyedAt?: DateTimeNullableFilter<"Ship"> | Date | string | null
     createdAt?: DateTimeFilter<"Ship"> | Date | string
     owner?: XOR<UserScalarRelationFilter, UserWhereInput>
+    roguelikeRosterEntries?: RoguelikeRosterShipListRelationFilter
   }, "id">
 
   export type ShipOrderByWithAggregationInput = {
@@ -21097,10 +33067,14 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Lobby"> | Date | string
     joinedAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
     joinerFleetSetAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
+    campaignNodeId?: IntNullableFilter<"Lobby"> | number | null
+    roguelikeRunId?: IntNullableFilter<"Lobby"> | number | null
     creator?: XOR<UserScalarRelationFilter, UserWhereInput>
     joiner?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     reservedJoiner?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
+    campaignNode?: XOR<CampaignNodeNullableScalarRelationFilter, CampaignNodeWhereInput> | null
+    roguelikeRun?: XOR<RoguelikeRunNullableScalarRelationFilter, RoguelikeRunWhereInput> | null
     fleets?: FleetListRelationFilter
     game?: XOR<GameNullableScalarRelationFilter, GameWhereInput> | null
     tournamentMatch?: XOR<TournamentMatchNullableScalarRelationFilter, TournamentMatchWhereInput> | null
@@ -21122,10 +33096,14 @@ export namespace Prisma {
     createdAt?: SortOrder
     joinedAt?: SortOrderInput | SortOrder
     joinerFleetSetAt?: SortOrderInput | SortOrder
+    campaignNodeId?: SortOrderInput | SortOrder
+    roguelikeRunId?: SortOrderInput | SortOrder
     creator?: UserOrderByWithRelationInput
     joiner?: UserOrderByWithRelationInput
     reservedJoiner?: UserOrderByWithRelationInput
     map?: MapOrderByWithRelationInput
+    campaignNode?: CampaignNodeOrderByWithRelationInput
+    roguelikeRun?: RoguelikeRunOrderByWithRelationInput
     fleets?: FleetOrderByRelationAggregateInput
     game?: GameOrderByWithRelationInput
     tournamentMatch?: TournamentMatchOrderByWithRelationInput
@@ -21150,10 +33128,14 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Lobby"> | Date | string
     joinedAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
     joinerFleetSetAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
+    campaignNodeId?: IntNullableFilter<"Lobby"> | number | null
+    roguelikeRunId?: IntNullableFilter<"Lobby"> | number | null
     creator?: XOR<UserScalarRelationFilter, UserWhereInput>
     joiner?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     reservedJoiner?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
+    campaignNode?: XOR<CampaignNodeNullableScalarRelationFilter, CampaignNodeWhereInput> | null
+    roguelikeRun?: XOR<RoguelikeRunNullableScalarRelationFilter, RoguelikeRunWhereInput> | null
     fleets?: FleetListRelationFilter
     game?: XOR<GameNullableScalarRelationFilter, GameWhereInput> | null
     tournamentMatch?: XOR<TournamentMatchNullableScalarRelationFilter, TournamentMatchWhereInput> | null
@@ -21175,6 +33157,8 @@ export namespace Prisma {
     createdAt?: SortOrder
     joinedAt?: SortOrderInput | SortOrder
     joinerFleetSetAt?: SortOrderInput | SortOrder
+    campaignNodeId?: SortOrderInput | SortOrder
+    roguelikeRunId?: SortOrderInput | SortOrder
     _count?: LobbyCountOrderByAggregateInput
     _avg?: LobbyAvgOrderByAggregateInput
     _max?: LobbyMaxOrderByAggregateInput
@@ -21201,6 +33185,8 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"Lobby"> | Date | string
     joinedAt?: DateTimeNullableWithAggregatesFilter<"Lobby"> | Date | string | null
     joinerFleetSetAt?: DateTimeNullableWithAggregatesFilter<"Lobby"> | Date | string | null
+    campaignNodeId?: IntNullableWithAggregatesFilter<"Lobby"> | number | null
+    roguelikeRunId?: IntNullableWithAggregatesFilter<"Lobby"> | number | null
   }
 
   export type GameWhereInput = {
@@ -21381,9 +33367,12 @@ export namespace Prisma {
     gridHeight?: IntFilter<"Map"> | number
     blockedTiles?: JsonFilter<"Map">
     scoringTiles?: JsonFilter<"Map">
+    mode?: IntFilter<"Map"> | number
     createdAt?: DateTimeFilter<"Map"> | Date | string
     lobbies?: LobbyListRelationFilter
     aiPlacements?: AIMapPlacementListRelationFilter
+    campaignNodes?: CampaignNodeListRelationFilter
+    roguelikeNodes?: RoguelikeNodeListRelationFilter
   }
 
   export type MapOrderByWithRelationInput = {
@@ -21393,9 +33382,12 @@ export namespace Prisma {
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
     scoringTiles?: SortOrder
+    mode?: SortOrder
     createdAt?: SortOrder
     lobbies?: LobbyOrderByRelationAggregateInput
     aiPlacements?: AIMapPlacementOrderByRelationAggregateInput
+    campaignNodes?: CampaignNodeOrderByRelationAggregateInput
+    roguelikeNodes?: RoguelikeNodeOrderByRelationAggregateInput
   }
 
   export type MapWhereUniqueInput = Prisma.AtLeast<{
@@ -21408,9 +33400,12 @@ export namespace Prisma {
     gridHeight?: IntFilter<"Map"> | number
     blockedTiles?: JsonFilter<"Map">
     scoringTiles?: JsonFilter<"Map">
+    mode?: IntFilter<"Map"> | number
     createdAt?: DateTimeFilter<"Map"> | Date | string
     lobbies?: LobbyListRelationFilter
     aiPlacements?: AIMapPlacementListRelationFilter
+    campaignNodes?: CampaignNodeListRelationFilter
+    roguelikeNodes?: RoguelikeNodeListRelationFilter
   }, "id">
 
   export type MapOrderByWithAggregationInput = {
@@ -21420,6 +33415,7 @@ export namespace Prisma {
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
     scoringTiles?: SortOrder
+    mode?: SortOrder
     createdAt?: SortOrder
     _count?: MapCountOrderByAggregateInput
     _avg?: MapAvgOrderByAggregateInput
@@ -21438,6 +33434,7 @@ export namespace Prisma {
     gridHeight?: IntWithAggregatesFilter<"Map"> | number
     blockedTiles?: JsonWithAggregatesFilter<"Map">
     scoringTiles?: JsonWithAggregatesFilter<"Map">
+    mode?: IntWithAggregatesFilter<"Map"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Map"> | Date | string
   }
 
@@ -21606,6 +33603,606 @@ export namespace Prisma {
     shipId?: IntWithAggregatesFilter<"AIFleetShip"> | number
     configId?: IntWithAggregatesFilter<"AIFleetShip"> | number
     archetype?: IntWithAggregatesFilter<"AIFleetShip"> | number
+  }
+
+  export type CampaignWhereInput = {
+    AND?: CampaignWhereInput | CampaignWhereInput[]
+    OR?: CampaignWhereInput[]
+    NOT?: CampaignWhereInput | CampaignWhereInput[]
+    id?: IntFilter<"Campaign"> | number
+    requiredVariant?: IntFilter<"Campaign"> | number
+    createdAt?: DateTimeFilter<"Campaign"> | Date | string
+    nodes?: CampaignNodeListRelationFilter
+  }
+
+  export type CampaignOrderByWithRelationInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    createdAt?: SortOrder
+    nodes?: CampaignNodeOrderByRelationAggregateInput
+  }
+
+  export type CampaignWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: CampaignWhereInput | CampaignWhereInput[]
+    OR?: CampaignWhereInput[]
+    NOT?: CampaignWhereInput | CampaignWhereInput[]
+    requiredVariant?: IntFilter<"Campaign"> | number
+    createdAt?: DateTimeFilter<"Campaign"> | Date | string
+    nodes?: CampaignNodeListRelationFilter
+  }, "id">
+
+  export type CampaignOrderByWithAggregationInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    createdAt?: SortOrder
+    _count?: CampaignCountOrderByAggregateInput
+    _avg?: CampaignAvgOrderByAggregateInput
+    _max?: CampaignMaxOrderByAggregateInput
+    _min?: CampaignMinOrderByAggregateInput
+    _sum?: CampaignSumOrderByAggregateInput
+  }
+
+  export type CampaignScalarWhereWithAggregatesInput = {
+    AND?: CampaignScalarWhereWithAggregatesInput | CampaignScalarWhereWithAggregatesInput[]
+    OR?: CampaignScalarWhereWithAggregatesInput[]
+    NOT?: CampaignScalarWhereWithAggregatesInput | CampaignScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"Campaign"> | number
+    requiredVariant?: IntWithAggregatesFilter<"Campaign"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"Campaign"> | Date | string
+  }
+
+  export type CampaignNodeWhereInput = {
+    AND?: CampaignNodeWhereInput | CampaignNodeWhereInput[]
+    OR?: CampaignNodeWhereInput[]
+    NOT?: CampaignNodeWhereInput | CampaignNodeWhereInput[]
+    id?: IntFilter<"CampaignNode"> | number
+    campaignId?: IntFilter<"CampaignNode"> | number
+    mapId?: IntFilter<"CampaignNode"> | number
+    prerequisites?: IntNullableListFilter<"CampaignNode">
+    costLimit?: IntFilter<"CampaignNode"> | number
+    turnTimeSeconds?: IntFilter<"CampaignNode"> | number
+    maxScore?: IntFilter<"CampaignNode"> | number
+    creatorGoesFirst?: BoolFilter<"CampaignNode"> | boolean
+    createdAt?: DateTimeFilter<"CampaignNode"> | Date | string
+    campaign?: XOR<CampaignScalarRelationFilter, CampaignWhereInput>
+    map?: XOR<MapScalarRelationFilter, MapWhereInput>
+    completions?: CampaignNodeCompletionListRelationFilter
+    lobbies?: LobbyListRelationFilter
+  }
+
+  export type CampaignNodeOrderByWithRelationInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    prerequisites?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    createdAt?: SortOrder
+    campaign?: CampaignOrderByWithRelationInput
+    map?: MapOrderByWithRelationInput
+    completions?: CampaignNodeCompletionOrderByRelationAggregateInput
+    lobbies?: LobbyOrderByRelationAggregateInput
+  }
+
+  export type CampaignNodeWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: CampaignNodeWhereInput | CampaignNodeWhereInput[]
+    OR?: CampaignNodeWhereInput[]
+    NOT?: CampaignNodeWhereInput | CampaignNodeWhereInput[]
+    campaignId?: IntFilter<"CampaignNode"> | number
+    mapId?: IntFilter<"CampaignNode"> | number
+    prerequisites?: IntNullableListFilter<"CampaignNode">
+    costLimit?: IntFilter<"CampaignNode"> | number
+    turnTimeSeconds?: IntFilter<"CampaignNode"> | number
+    maxScore?: IntFilter<"CampaignNode"> | number
+    creatorGoesFirst?: BoolFilter<"CampaignNode"> | boolean
+    createdAt?: DateTimeFilter<"CampaignNode"> | Date | string
+    campaign?: XOR<CampaignScalarRelationFilter, CampaignWhereInput>
+    map?: XOR<MapScalarRelationFilter, MapWhereInput>
+    completions?: CampaignNodeCompletionListRelationFilter
+    lobbies?: LobbyListRelationFilter
+  }, "id">
+
+  export type CampaignNodeOrderByWithAggregationInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    prerequisites?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    createdAt?: SortOrder
+    _count?: CampaignNodeCountOrderByAggregateInput
+    _avg?: CampaignNodeAvgOrderByAggregateInput
+    _max?: CampaignNodeMaxOrderByAggregateInput
+    _min?: CampaignNodeMinOrderByAggregateInput
+    _sum?: CampaignNodeSumOrderByAggregateInput
+  }
+
+  export type CampaignNodeScalarWhereWithAggregatesInput = {
+    AND?: CampaignNodeScalarWhereWithAggregatesInput | CampaignNodeScalarWhereWithAggregatesInput[]
+    OR?: CampaignNodeScalarWhereWithAggregatesInput[]
+    NOT?: CampaignNodeScalarWhereWithAggregatesInput | CampaignNodeScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"CampaignNode"> | number
+    campaignId?: IntWithAggregatesFilter<"CampaignNode"> | number
+    mapId?: IntWithAggregatesFilter<"CampaignNode"> | number
+    prerequisites?: IntNullableListFilter<"CampaignNode">
+    costLimit?: IntWithAggregatesFilter<"CampaignNode"> | number
+    turnTimeSeconds?: IntWithAggregatesFilter<"CampaignNode"> | number
+    maxScore?: IntWithAggregatesFilter<"CampaignNode"> | number
+    creatorGoesFirst?: BoolWithAggregatesFilter<"CampaignNode"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"CampaignNode"> | Date | string
+  }
+
+  export type CampaignNodeCompletionWhereInput = {
+    AND?: CampaignNodeCompletionWhereInput | CampaignNodeCompletionWhereInput[]
+    OR?: CampaignNodeCompletionWhereInput[]
+    NOT?: CampaignNodeCompletionWhereInput | CampaignNodeCompletionWhereInput[]
+    id?: IntFilter<"CampaignNodeCompletion"> | number
+    userId?: StringFilter<"CampaignNodeCompletion"> | string
+    nodeId?: IntFilter<"CampaignNodeCompletion"> | number
+    completedAt?: DateTimeFilter<"CampaignNodeCompletion"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    node?: XOR<CampaignNodeScalarRelationFilter, CampaignNodeWhereInput>
+  }
+
+  export type CampaignNodeCompletionOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    nodeId?: SortOrder
+    completedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    node?: CampaignNodeOrderByWithRelationInput
+  }
+
+  export type CampaignNodeCompletionWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    userId_nodeId?: CampaignNodeCompletionUserIdNodeIdCompoundUniqueInput
+    AND?: CampaignNodeCompletionWhereInput | CampaignNodeCompletionWhereInput[]
+    OR?: CampaignNodeCompletionWhereInput[]
+    NOT?: CampaignNodeCompletionWhereInput | CampaignNodeCompletionWhereInput[]
+    userId?: StringFilter<"CampaignNodeCompletion"> | string
+    nodeId?: IntFilter<"CampaignNodeCompletion"> | number
+    completedAt?: DateTimeFilter<"CampaignNodeCompletion"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    node?: XOR<CampaignNodeScalarRelationFilter, CampaignNodeWhereInput>
+  }, "id" | "userId_nodeId">
+
+  export type CampaignNodeCompletionOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    nodeId?: SortOrder
+    completedAt?: SortOrder
+    _count?: CampaignNodeCompletionCountOrderByAggregateInput
+    _avg?: CampaignNodeCompletionAvgOrderByAggregateInput
+    _max?: CampaignNodeCompletionMaxOrderByAggregateInput
+    _min?: CampaignNodeCompletionMinOrderByAggregateInput
+    _sum?: CampaignNodeCompletionSumOrderByAggregateInput
+  }
+
+  export type CampaignNodeCompletionScalarWhereWithAggregatesInput = {
+    AND?: CampaignNodeCompletionScalarWhereWithAggregatesInput | CampaignNodeCompletionScalarWhereWithAggregatesInput[]
+    OR?: CampaignNodeCompletionScalarWhereWithAggregatesInput[]
+    NOT?: CampaignNodeCompletionScalarWhereWithAggregatesInput | CampaignNodeCompletionScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"CampaignNodeCompletion"> | number
+    userId?: StringWithAggregatesFilter<"CampaignNodeCompletion"> | string
+    nodeId?: IntWithAggregatesFilter<"CampaignNodeCompletion"> | number
+    completedAt?: DateTimeWithAggregatesFilter<"CampaignNodeCompletion"> | Date | string
+  }
+
+  export type RoguelikeCampaignWhereInput = {
+    AND?: RoguelikeCampaignWhereInput | RoguelikeCampaignWhereInput[]
+    OR?: RoguelikeCampaignWhereInput[]
+    NOT?: RoguelikeCampaignWhereInput | RoguelikeCampaignWhereInput[]
+    id?: IntFilter<"RoguelikeCampaign"> | number
+    requiredVariant?: IntFilter<"RoguelikeCampaign"> | number
+    autoHealPercent?: IntFilter<"RoguelikeCampaign"> | number
+    initialCostCap?: IntFilter<"RoguelikeCampaign"> | number
+    rootNodeId?: IntNullableFilter<"RoguelikeCampaign"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeCampaign"> | Date | string
+    nodes?: RoguelikeNodeListRelationFilter
+    runs?: RoguelikeRunListRelationFilter
+  }
+
+  export type RoguelikeCampaignOrderByWithRelationInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    nodes?: RoguelikeNodeOrderByRelationAggregateInput
+    runs?: RoguelikeRunOrderByRelationAggregateInput
+  }
+
+  export type RoguelikeCampaignWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: RoguelikeCampaignWhereInput | RoguelikeCampaignWhereInput[]
+    OR?: RoguelikeCampaignWhereInput[]
+    NOT?: RoguelikeCampaignWhereInput | RoguelikeCampaignWhereInput[]
+    requiredVariant?: IntFilter<"RoguelikeCampaign"> | number
+    autoHealPercent?: IntFilter<"RoguelikeCampaign"> | number
+    initialCostCap?: IntFilter<"RoguelikeCampaign"> | number
+    rootNodeId?: IntNullableFilter<"RoguelikeCampaign"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeCampaign"> | Date | string
+    nodes?: RoguelikeNodeListRelationFilter
+    runs?: RoguelikeRunListRelationFilter
+  }, "id">
+
+  export type RoguelikeCampaignOrderByWithAggregationInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: RoguelikeCampaignCountOrderByAggregateInput
+    _avg?: RoguelikeCampaignAvgOrderByAggregateInput
+    _max?: RoguelikeCampaignMaxOrderByAggregateInput
+    _min?: RoguelikeCampaignMinOrderByAggregateInput
+    _sum?: RoguelikeCampaignSumOrderByAggregateInput
+  }
+
+  export type RoguelikeCampaignScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeCampaignScalarWhereWithAggregatesInput | RoguelikeCampaignScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeCampaignScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeCampaignScalarWhereWithAggregatesInput | RoguelikeCampaignScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeCampaign"> | number
+    requiredVariant?: IntWithAggregatesFilter<"RoguelikeCampaign"> | number
+    autoHealPercent?: IntWithAggregatesFilter<"RoguelikeCampaign"> | number
+    initialCostCap?: IntWithAggregatesFilter<"RoguelikeCampaign"> | number
+    rootNodeId?: IntNullableWithAggregatesFilter<"RoguelikeCampaign"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"RoguelikeCampaign"> | Date | string
+  }
+
+  export type RoguelikeNodeWhereInput = {
+    AND?: RoguelikeNodeWhereInput | RoguelikeNodeWhereInput[]
+    OR?: RoguelikeNodeWhereInput[]
+    NOT?: RoguelikeNodeWhereInput | RoguelikeNodeWhereInput[]
+    id?: IntFilter<"RoguelikeNode"> | number
+    campaignId?: IntFilter<"RoguelikeNode"> | number
+    kind?: IntFilter<"RoguelikeNode"> | number
+    mapId?: IntNullableFilter<"RoguelikeNode"> | number | null
+    turnTimeSeconds?: IntNullableFilter<"RoguelikeNode"> | number | null
+    maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
+    creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
+    costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
+    campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
+    map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
+    childEdges?: RoguelikeEdgeListRelationFilter
+    parentEdges?: RoguelikeEdgeListRelationFilter
+    defeats?: RoguelikeNodeDefeatListRelationFilter
+  }
+
+  export type RoguelikeNodeOrderByWithRelationInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrderInput | SortOrder
+    turnTimeSeconds?: SortOrderInput | SortOrder
+    maxScore?: SortOrderInput | SortOrder
+    creatorGoesFirst?: SortOrderInput | SortOrder
+    costCapOverride?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    campaign?: RoguelikeCampaignOrderByWithRelationInput
+    map?: MapOrderByWithRelationInput
+    childEdges?: RoguelikeEdgeOrderByRelationAggregateInput
+    parentEdges?: RoguelikeEdgeOrderByRelationAggregateInput
+    defeats?: RoguelikeNodeDefeatOrderByRelationAggregateInput
+  }
+
+  export type RoguelikeNodeWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: RoguelikeNodeWhereInput | RoguelikeNodeWhereInput[]
+    OR?: RoguelikeNodeWhereInput[]
+    NOT?: RoguelikeNodeWhereInput | RoguelikeNodeWhereInput[]
+    campaignId?: IntFilter<"RoguelikeNode"> | number
+    kind?: IntFilter<"RoguelikeNode"> | number
+    mapId?: IntNullableFilter<"RoguelikeNode"> | number | null
+    turnTimeSeconds?: IntNullableFilter<"RoguelikeNode"> | number | null
+    maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
+    creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
+    costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
+    campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
+    map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
+    childEdges?: RoguelikeEdgeListRelationFilter
+    parentEdges?: RoguelikeEdgeListRelationFilter
+    defeats?: RoguelikeNodeDefeatListRelationFilter
+  }, "id">
+
+  export type RoguelikeNodeOrderByWithAggregationInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrderInput | SortOrder
+    turnTimeSeconds?: SortOrderInput | SortOrder
+    maxScore?: SortOrderInput | SortOrder
+    creatorGoesFirst?: SortOrderInput | SortOrder
+    costCapOverride?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: RoguelikeNodeCountOrderByAggregateInput
+    _avg?: RoguelikeNodeAvgOrderByAggregateInput
+    _max?: RoguelikeNodeMaxOrderByAggregateInput
+    _min?: RoguelikeNodeMinOrderByAggregateInput
+    _sum?: RoguelikeNodeSumOrderByAggregateInput
+  }
+
+  export type RoguelikeNodeScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeNodeScalarWhereWithAggregatesInput | RoguelikeNodeScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeNodeScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeNodeScalarWhereWithAggregatesInput | RoguelikeNodeScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeNode"> | number
+    campaignId?: IntWithAggregatesFilter<"RoguelikeNode"> | number
+    kind?: IntWithAggregatesFilter<"RoguelikeNode"> | number
+    mapId?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
+    turnTimeSeconds?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
+    maxScore?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
+    creatorGoesFirst?: BoolNullableWithAggregatesFilter<"RoguelikeNode"> | boolean | null
+    costCapOverride?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"RoguelikeNode"> | Date | string
+  }
+
+  export type RoguelikeEdgeWhereInput = {
+    AND?: RoguelikeEdgeWhereInput | RoguelikeEdgeWhereInput[]
+    OR?: RoguelikeEdgeWhereInput[]
+    NOT?: RoguelikeEdgeWhereInput | RoguelikeEdgeWhereInput[]
+    id?: IntFilter<"RoguelikeEdge"> | number
+    parentId?: IntFilter<"RoguelikeEdge"> | number
+    childId?: IntFilter<"RoguelikeEdge"> | number
+    twoWay?: BoolFilter<"RoguelikeEdge"> | boolean
+    parent?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+    child?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+  }
+
+  export type RoguelikeEdgeOrderByWithRelationInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+    twoWay?: SortOrder
+    parent?: RoguelikeNodeOrderByWithRelationInput
+    child?: RoguelikeNodeOrderByWithRelationInput
+  }
+
+  export type RoguelikeEdgeWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    parentId_childId?: RoguelikeEdgeParentIdChildIdCompoundUniqueInput
+    AND?: RoguelikeEdgeWhereInput | RoguelikeEdgeWhereInput[]
+    OR?: RoguelikeEdgeWhereInput[]
+    NOT?: RoguelikeEdgeWhereInput | RoguelikeEdgeWhereInput[]
+    parentId?: IntFilter<"RoguelikeEdge"> | number
+    childId?: IntFilter<"RoguelikeEdge"> | number
+    twoWay?: BoolFilter<"RoguelikeEdge"> | boolean
+    parent?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+    child?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+  }, "id" | "parentId_childId">
+
+  export type RoguelikeEdgeOrderByWithAggregationInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+    twoWay?: SortOrder
+    _count?: RoguelikeEdgeCountOrderByAggregateInput
+    _avg?: RoguelikeEdgeAvgOrderByAggregateInput
+    _max?: RoguelikeEdgeMaxOrderByAggregateInput
+    _min?: RoguelikeEdgeMinOrderByAggregateInput
+    _sum?: RoguelikeEdgeSumOrderByAggregateInput
+  }
+
+  export type RoguelikeEdgeScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeEdgeScalarWhereWithAggregatesInput | RoguelikeEdgeScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeEdgeScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeEdgeScalarWhereWithAggregatesInput | RoguelikeEdgeScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeEdge"> | number
+    parentId?: IntWithAggregatesFilter<"RoguelikeEdge"> | number
+    childId?: IntWithAggregatesFilter<"RoguelikeEdge"> | number
+    twoWay?: BoolWithAggregatesFilter<"RoguelikeEdge"> | boolean
+  }
+
+  export type RoguelikeRunWhereInput = {
+    AND?: RoguelikeRunWhereInput | RoguelikeRunWhereInput[]
+    OR?: RoguelikeRunWhereInput[]
+    NOT?: RoguelikeRunWhereInput | RoguelikeRunWhereInput[]
+    id?: IntFilter<"RoguelikeRun"> | number
+    userId?: StringFilter<"RoguelikeRun"> | string
+    generation?: IntFilter<"RoguelikeRun"> | number
+    status?: EnumRoguelikeRunStatusFilter<"RoguelikeRun"> | $Enums.RoguelikeRunStatus
+    campaignId?: IntFilter<"RoguelikeRun"> | number
+    currentNodeId?: IntFilter<"RoguelikeRun"> | number
+    currentCostCap?: IntFilter<"RoguelikeRun"> | number
+    activeLobbyId?: IntNullableFilter<"RoguelikeRun"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeRun"> | Date | string
+    endedAt?: DateTimeNullableFilter<"RoguelikeRun"> | Date | string | null
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
+    roster?: RoguelikeRosterShipListRelationFilter
+    defeats?: RoguelikeNodeDefeatListRelationFilter
+    lobbies?: LobbyListRelationFilter
+  }
+
+  export type RoguelikeRunOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    generation?: SortOrder
+    status?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    user?: UserOrderByWithRelationInput
+    campaign?: RoguelikeCampaignOrderByWithRelationInput
+    roster?: RoguelikeRosterShipOrderByRelationAggregateInput
+    defeats?: RoguelikeNodeDefeatOrderByRelationAggregateInput
+    lobbies?: LobbyOrderByRelationAggregateInput
+  }
+
+  export type RoguelikeRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: RoguelikeRunWhereInput | RoguelikeRunWhereInput[]
+    OR?: RoguelikeRunWhereInput[]
+    NOT?: RoguelikeRunWhereInput | RoguelikeRunWhereInput[]
+    userId?: StringFilter<"RoguelikeRun"> | string
+    generation?: IntFilter<"RoguelikeRun"> | number
+    status?: EnumRoguelikeRunStatusFilter<"RoguelikeRun"> | $Enums.RoguelikeRunStatus
+    campaignId?: IntFilter<"RoguelikeRun"> | number
+    currentNodeId?: IntFilter<"RoguelikeRun"> | number
+    currentCostCap?: IntFilter<"RoguelikeRun"> | number
+    activeLobbyId?: IntNullableFilter<"RoguelikeRun"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeRun"> | Date | string
+    endedAt?: DateTimeNullableFilter<"RoguelikeRun"> | Date | string | null
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
+    roster?: RoguelikeRosterShipListRelationFilter
+    defeats?: RoguelikeNodeDefeatListRelationFilter
+    lobbies?: LobbyListRelationFilter
+  }, "id">
+
+  export type RoguelikeRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    generation?: SortOrder
+    status?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    _count?: RoguelikeRunCountOrderByAggregateInput
+    _avg?: RoguelikeRunAvgOrderByAggregateInput
+    _max?: RoguelikeRunMaxOrderByAggregateInput
+    _min?: RoguelikeRunMinOrderByAggregateInput
+    _sum?: RoguelikeRunSumOrderByAggregateInput
+  }
+
+  export type RoguelikeRunScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeRunScalarWhereWithAggregatesInput | RoguelikeRunScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeRunScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeRunScalarWhereWithAggregatesInput | RoguelikeRunScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeRun"> | number
+    userId?: StringWithAggregatesFilter<"RoguelikeRun"> | string
+    generation?: IntWithAggregatesFilter<"RoguelikeRun"> | number
+    status?: EnumRoguelikeRunStatusWithAggregatesFilter<"RoguelikeRun"> | $Enums.RoguelikeRunStatus
+    campaignId?: IntWithAggregatesFilter<"RoguelikeRun"> | number
+    currentNodeId?: IntWithAggregatesFilter<"RoguelikeRun"> | number
+    currentCostCap?: IntWithAggregatesFilter<"RoguelikeRun"> | number
+    activeLobbyId?: IntNullableWithAggregatesFilter<"RoguelikeRun"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"RoguelikeRun"> | Date | string
+    endedAt?: DateTimeNullableWithAggregatesFilter<"RoguelikeRun"> | Date | string | null
+  }
+
+  export type RoguelikeRosterShipWhereInput = {
+    AND?: RoguelikeRosterShipWhereInput | RoguelikeRosterShipWhereInput[]
+    OR?: RoguelikeRosterShipWhereInput[]
+    NOT?: RoguelikeRosterShipWhereInput | RoguelikeRosterShipWhereInput[]
+    id?: IntFilter<"RoguelikeRosterShip"> | number
+    runId?: IntFilter<"RoguelikeRosterShip"> | number
+    shipId?: IntFilter<"RoguelikeRosterShip"> | number
+    hp?: IntFilter<"RoguelikeRosterShip"> | number
+    run?: XOR<RoguelikeRunScalarRelationFilter, RoguelikeRunWhereInput>
+    ship?: XOR<ShipScalarRelationFilter, ShipWhereInput>
+  }
+
+  export type RoguelikeRosterShipOrderByWithRelationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+    run?: RoguelikeRunOrderByWithRelationInput
+    ship?: ShipOrderByWithRelationInput
+  }
+
+  export type RoguelikeRosterShipWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    runId_shipId?: RoguelikeRosterShipRunIdShipIdCompoundUniqueInput
+    AND?: RoguelikeRosterShipWhereInput | RoguelikeRosterShipWhereInput[]
+    OR?: RoguelikeRosterShipWhereInput[]
+    NOT?: RoguelikeRosterShipWhereInput | RoguelikeRosterShipWhereInput[]
+    runId?: IntFilter<"RoguelikeRosterShip"> | number
+    shipId?: IntFilter<"RoguelikeRosterShip"> | number
+    hp?: IntFilter<"RoguelikeRosterShip"> | number
+    run?: XOR<RoguelikeRunScalarRelationFilter, RoguelikeRunWhereInput>
+    ship?: XOR<ShipScalarRelationFilter, ShipWhereInput>
+  }, "id" | "runId_shipId">
+
+  export type RoguelikeRosterShipOrderByWithAggregationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+    _count?: RoguelikeRosterShipCountOrderByAggregateInput
+    _avg?: RoguelikeRosterShipAvgOrderByAggregateInput
+    _max?: RoguelikeRosterShipMaxOrderByAggregateInput
+    _min?: RoguelikeRosterShipMinOrderByAggregateInput
+    _sum?: RoguelikeRosterShipSumOrderByAggregateInput
+  }
+
+  export type RoguelikeRosterShipScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeRosterShipScalarWhereWithAggregatesInput | RoguelikeRosterShipScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeRosterShipScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeRosterShipScalarWhereWithAggregatesInput | RoguelikeRosterShipScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeRosterShip"> | number
+    runId?: IntWithAggregatesFilter<"RoguelikeRosterShip"> | number
+    shipId?: IntWithAggregatesFilter<"RoguelikeRosterShip"> | number
+    hp?: IntWithAggregatesFilter<"RoguelikeRosterShip"> | number
+  }
+
+  export type RoguelikeNodeDefeatWhereInput = {
+    AND?: RoguelikeNodeDefeatWhereInput | RoguelikeNodeDefeatWhereInput[]
+    OR?: RoguelikeNodeDefeatWhereInput[]
+    NOT?: RoguelikeNodeDefeatWhereInput | RoguelikeNodeDefeatWhereInput[]
+    id?: IntFilter<"RoguelikeNodeDefeat"> | number
+    runId?: IntFilter<"RoguelikeNodeDefeat"> | number
+    nodeId?: IntFilter<"RoguelikeNodeDefeat"> | number
+    run?: XOR<RoguelikeRunScalarRelationFilter, RoguelikeRunWhereInput>
+    node?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+  }
+
+  export type RoguelikeNodeDefeatOrderByWithRelationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+    run?: RoguelikeRunOrderByWithRelationInput
+    node?: RoguelikeNodeOrderByWithRelationInput
+  }
+
+  export type RoguelikeNodeDefeatWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    runId_nodeId?: RoguelikeNodeDefeatRunIdNodeIdCompoundUniqueInput
+    AND?: RoguelikeNodeDefeatWhereInput | RoguelikeNodeDefeatWhereInput[]
+    OR?: RoguelikeNodeDefeatWhereInput[]
+    NOT?: RoguelikeNodeDefeatWhereInput | RoguelikeNodeDefeatWhereInput[]
+    runId?: IntFilter<"RoguelikeNodeDefeat"> | number
+    nodeId?: IntFilter<"RoguelikeNodeDefeat"> | number
+    run?: XOR<RoguelikeRunScalarRelationFilter, RoguelikeRunWhereInput>
+    node?: XOR<RoguelikeNodeScalarRelationFilter, RoguelikeNodeWhereInput>
+  }, "id" | "runId_nodeId">
+
+  export type RoguelikeNodeDefeatOrderByWithAggregationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+    _count?: RoguelikeNodeDefeatCountOrderByAggregateInput
+    _avg?: RoguelikeNodeDefeatAvgOrderByAggregateInput
+    _max?: RoguelikeNodeDefeatMaxOrderByAggregateInput
+    _min?: RoguelikeNodeDefeatMinOrderByAggregateInput
+    _sum?: RoguelikeNodeDefeatSumOrderByAggregateInput
+  }
+
+  export type RoguelikeNodeDefeatScalarWhereWithAggregatesInput = {
+    AND?: RoguelikeNodeDefeatScalarWhereWithAggregatesInput | RoguelikeNodeDefeatScalarWhereWithAggregatesInput[]
+    OR?: RoguelikeNodeDefeatScalarWhereWithAggregatesInput[]
+    NOT?: RoguelikeNodeDefeatScalarWhereWithAggregatesInput | RoguelikeNodeDefeatScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RoguelikeNodeDefeat"> | number
+    runId?: IntWithAggregatesFilter<"RoguelikeNodeDefeat"> | number
+    nodeId?: IntWithAggregatesFilter<"RoguelikeNodeDefeat"> | number
   }
 
   export type ConfigWhereInput = {
@@ -21992,6 +34589,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -22011,6 +34610,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -22018,6 +34619,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -22037,6 +34640,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -22044,6 +34649,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -22063,6 +34670,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -22070,6 +34679,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -22089,6 +34700,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -22096,6 +34709,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -22110,6 +34725,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -22124,6 +34741,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -22149,6 +34768,7 @@ export namespace Prisma {
     destroyedAt?: Date | string | null
     createdAt?: Date | string
     owner: UserCreateNestedOneWithoutShipsInput
+    roguelikeRosterEntries?: RoguelikeRosterShipCreateNestedManyWithoutShipInput
   }
 
   export type ShipUncheckedCreateInput = {
@@ -22168,6 +34788,7 @@ export namespace Prisma {
     shipsDestroyed?: number
     destroyedAt?: Date | string | null
     createdAt?: Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutShipInput
   }
 
   export type ShipUpdateInput = {
@@ -22186,6 +34807,7 @@ export namespace Prisma {
     destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     owner?: UserUpdateOneRequiredWithoutShipsNestedInput
+    roguelikeRosterEntries?: RoguelikeRosterShipUpdateManyWithoutShipNestedInput
   }
 
   export type ShipUncheckedUpdateInput = {
@@ -22205,6 +34827,7 @@ export namespace Prisma {
     shipsDestroyed?: IntFieldUpdateOperationsInput | number
     destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipUncheckedUpdateManyWithoutShipNestedInput
   }
 
   export type ShipCreateManyInput = {
@@ -22349,6 +34972,8 @@ export namespace Prisma {
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
@@ -22370,6 +34995,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
@@ -22390,6 +35017,8 @@ export namespace Prisma {
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
@@ -22411,6 +35040,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
@@ -22432,6 +35063,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
   }
 
   export type LobbyUpdateManyMutationInput = {
@@ -22463,6 +35096,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type GameCreateInput = {
@@ -22640,9 +35275,12 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     lobbies?: LobbyCreateNestedManyWithoutMapInput
     aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeCreateNestedManyWithoutMapInput
   }
 
   export type MapUncheckedCreateInput = {
@@ -22652,9 +35290,12 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
     aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeUncheckedCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutMapInput
   }
 
   export type MapUpdateInput = {
@@ -22663,9 +35304,12 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUpdateManyWithoutMapNestedInput
     aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUpdateManyWithoutMapNestedInput
   }
 
   export type MapUncheckedUpdateInput = {
@@ -22675,9 +35319,12 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
     aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUncheckedUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUncheckedUpdateManyWithoutMapNestedInput
   }
 
   export type MapCreateManyInput = {
@@ -22687,6 +35334,7 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
   }
 
@@ -22696,6 +35344,7 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -22706,6 +35355,7 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -22864,6 +35514,563 @@ export namespace Prisma {
     shipId?: IntFieldUpdateOperationsInput | number
     configId?: IntFieldUpdateOperationsInput | number
     archetype?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type CampaignCreateInput = {
+    requiredVariant?: number
+    createdAt?: Date | string
+    nodes?: CampaignNodeCreateNestedManyWithoutCampaignInput
+  }
+
+  export type CampaignUncheckedCreateInput = {
+    id?: number
+    requiredVariant?: number
+    createdAt?: Date | string
+    nodes?: CampaignNodeUncheckedCreateNestedManyWithoutCampaignInput
+  }
+
+  export type CampaignUpdateInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: CampaignNodeUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type CampaignUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: CampaignNodeUncheckedUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type CampaignCreateManyInput = {
+    id?: number
+    requiredVariant?: number
+    createdAt?: Date | string
+  }
+
+  export type CampaignUpdateManyMutationInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCreateInput = {
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    campaign: CampaignCreateNestedOneWithoutNodesInput
+    map: MapCreateNestedOneWithoutCampaignNodesInput
+    completions?: CampaignNodeCompletionCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeUncheckedCreateInput = {
+    id?: number
+    campaignId: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    completions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeUpdateInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: CampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneRequiredWithoutCampaignNodesNestedInput
+    completions?: CampaignNodeCompletionUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completions?: CampaignNodeCompletionUncheckedUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeCreateManyInput = {
+    id?: number
+    campaignId: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+  }
+
+  export type CampaignNodeUpdateManyMutationInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionCreateInput = {
+    completedAt?: Date | string
+    user: UserCreateNestedOneWithoutCampaignNodeCompletionsInput
+    node: CampaignNodeCreateNestedOneWithoutCompletionsInput
+  }
+
+  export type CampaignNodeCompletionUncheckedCreateInput = {
+    id?: number
+    userId: string
+    nodeId: number
+    completedAt?: Date | string
+  }
+
+  export type CampaignNodeCompletionUpdateInput = {
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutCampaignNodeCompletionsNestedInput
+    node?: CampaignNodeUpdateOneRequiredWithoutCompletionsNestedInput
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    nodeId?: IntFieldUpdateOperationsInput | number
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionCreateManyInput = {
+    id?: number
+    userId: string
+    nodeId: number
+    completedAt?: Date | string
+  }
+
+  export type CampaignNodeCompletionUpdateManyMutationInput = {
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    nodeId?: IntFieldUpdateOperationsInput | number
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeCampaignCreateInput = {
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    nodes?: RoguelikeNodeCreateNestedManyWithoutCampaignInput
+    runs?: RoguelikeRunCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignUncheckedCreateInput = {
+    id?: number
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    nodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutCampaignInput
+    runs?: RoguelikeRunUncheckedCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignUpdateInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: RoguelikeNodeUpdateManyWithoutCampaignNestedInput
+    runs?: RoguelikeRunUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type RoguelikeCampaignUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: RoguelikeNodeUncheckedUpdateManyWithoutCampaignNestedInput
+    runs?: RoguelikeRunUncheckedUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type RoguelikeCampaignCreateManyInput = {
+    id?: number
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+  }
+
+  export type RoguelikeCampaignUpdateManyMutationInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeCampaignUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeNodeCreateInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
+    map?: MapCreateNestedOneWithoutRoguelikeNodesInput
+    childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUpdateInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
+    childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeCreateManyInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+  }
+
+  export type RoguelikeNodeUpdateManyMutationInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeNodeUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeEdgeCreateInput = {
+    twoWay?: boolean
+    parent: RoguelikeNodeCreateNestedOneWithoutChildEdgesInput
+    child: RoguelikeNodeCreateNestedOneWithoutParentEdgesInput
+  }
+
+  export type RoguelikeEdgeUncheckedCreateInput = {
+    id?: number
+    parentId: number
+    childId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeUpdateInput = {
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+    parent?: RoguelikeNodeUpdateOneRequiredWithoutChildEdgesNestedInput
+    child?: RoguelikeNodeUpdateOneRequiredWithoutParentEdgesNestedInput
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    parentId?: IntFieldUpdateOperationsInput | number
+    childId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeEdgeCreateManyInput = {
+    id?: number
+    parentId: number
+    childId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeUpdateManyMutationInput = {
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    parentId?: IntFieldUpdateOperationsInput | number
+    childId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeRunCreateInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    user: UserCreateNestedOneWithoutRoguelikeRunsInput
+    campaign: RoguelikeCampaignCreateNestedOneWithoutRunsInput
+    roster?: RoguelikeRosterShipCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutRunInput
+    lobbies?: LobbyCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    roster?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUpdateInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput
+    roster?: RoguelikeRosterShipUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roster?: RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunCreateManyInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+  }
+
+  export type RoguelikeRunUpdateManyMutationInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RoguelikeRunUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RoguelikeRosterShipCreateInput = {
+    hp?: number
+    run: RoguelikeRunCreateNestedOneWithoutRosterInput
+    ship: ShipCreateNestedOneWithoutRoguelikeRosterEntriesInput
+  }
+
+  export type RoguelikeRosterShipUncheckedCreateInput = {
+    id?: number
+    runId: number
+    shipId: number
+    hp?: number
+  }
+
+  export type RoguelikeRosterShipUpdateInput = {
+    hp?: IntFieldUpdateOperationsInput | number
+    run?: RoguelikeRunUpdateOneRequiredWithoutRosterNestedInput
+    ship?: ShipUpdateOneRequiredWithoutRoguelikeRosterEntriesNestedInput
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    shipId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeRosterShipCreateManyInput = {
+    id?: number
+    runId: number
+    shipId: number
+    hp?: number
+  }
+
+  export type RoguelikeRosterShipUpdateManyMutationInput = {
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    shipId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeNodeDefeatCreateInput = {
+    run: RoguelikeRunCreateNestedOneWithoutDefeatsInput
+    node: RoguelikeNodeCreateNestedOneWithoutDefeatsInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedCreateInput = {
+    id?: number
+    runId: number
+    nodeId: number
+  }
+
+  export type RoguelikeNodeDefeatUpdateInput = {
+    run?: RoguelikeRunUpdateOneRequiredWithoutDefeatsNestedInput
+    node?: RoguelikeNodeUpdateOneRequiredWithoutDefeatsNestedInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeNodeDefeatCreateManyInput = {
+    id?: number
+    runId: number
+    nodeId: number
+  }
+
+  export type RoguelikeNodeDefeatUpdateManyMutationInput = {
+
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
   }
 
   export type ConfigCreateInput = {
@@ -23364,6 +36571,18 @@ export namespace Prisma {
     none?: TournamentMatchWhereInput
   }
 
+  export type CampaignNodeCompletionListRelationFilter = {
+    every?: CampaignNodeCompletionWhereInput
+    some?: CampaignNodeCompletionWhereInput
+    none?: CampaignNodeCompletionWhereInput
+  }
+
+  export type RoguelikeRunListRelationFilter = {
+    every?: RoguelikeRunWhereInput
+    some?: RoguelikeRunWhereInput
+    none?: RoguelikeRunWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -23397,11 +36616,21 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
+  export type CampaignNodeCompletionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RoguelikeRunOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
     username?: SortOrder
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -23413,6 +36642,8 @@ export namespace Prisma {
 
   export type UserAvgOrderByAggregateInput = {
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -23423,6 +36654,8 @@ export namespace Prisma {
     email?: SortOrder
     username?: SortOrder
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -23437,6 +36670,8 @@ export namespace Prisma {
     email?: SortOrder
     username?: SortOrder
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -23448,6 +36683,8 @@ export namespace Prisma {
 
   export type UserSumOrderByAggregateInput = {
     creditBalance?: SortOrder
+    decBalance?: SortOrder
+    droneCoreTier?: SortOrder
     purchasedShipCount?: SortOrder
     lobbiesCreatedCount?: SortOrder
     kickCount?: SortOrder
@@ -23567,6 +36804,16 @@ export namespace Prisma {
   export type UserScalarRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
+  }
+
+  export type RoguelikeRosterShipListRelationFilter = {
+    every?: RoguelikeRosterShipWhereInput
+    some?: RoguelikeRosterShipWhereInput
+    none?: RoguelikeRosterShipWhereInput
+  }
+
+  export type RoguelikeRosterShipOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type ShipCountOrderByAggregateInput = {
@@ -23802,6 +37049,16 @@ export namespace Prisma {
     isNot?: MapWhereInput | null
   }
 
+  export type CampaignNodeNullableScalarRelationFilter = {
+    is?: CampaignNodeWhereInput | null
+    isNot?: CampaignNodeWhereInput | null
+  }
+
+  export type RoguelikeRunNullableScalarRelationFilter = {
+    is?: RoguelikeRunWhereInput | null
+    isNot?: RoguelikeRunWhereInput | null
+  }
+
   export type GameNullableScalarRelationFilter = {
     is?: GameWhereInput | null
     isNot?: GameWhereInput | null
@@ -23828,6 +37085,8 @@ export namespace Prisma {
     createdAt?: SortOrder
     joinedAt?: SortOrder
     joinerFleetSetAt?: SortOrder
+    campaignNodeId?: SortOrder
+    roguelikeRunId?: SortOrder
   }
 
   export type LobbyAvgOrderByAggregateInput = {
@@ -23836,6 +37095,8 @@ export namespace Prisma {
     costLimit?: SortOrder
     turnTimeSeconds?: SortOrder
     maxScore?: SortOrder
+    campaignNodeId?: SortOrder
+    roguelikeRunId?: SortOrder
   }
 
   export type LobbyMaxOrderByAggregateInput = {
@@ -23854,6 +37115,8 @@ export namespace Prisma {
     createdAt?: SortOrder
     joinedAt?: SortOrder
     joinerFleetSetAt?: SortOrder
+    campaignNodeId?: SortOrder
+    roguelikeRunId?: SortOrder
   }
 
   export type LobbyMinOrderByAggregateInput = {
@@ -23872,6 +37135,8 @@ export namespace Prisma {
     createdAt?: SortOrder
     joinedAt?: SortOrder
     joinerFleetSetAt?: SortOrder
+    campaignNodeId?: SortOrder
+    roguelikeRunId?: SortOrder
   }
 
   export type LobbySumOrderByAggregateInput = {
@@ -23880,6 +37145,8 @@ export namespace Prisma {
     costLimit?: SortOrder
     turnTimeSeconds?: SortOrder
     maxScore?: SortOrder
+    campaignNodeId?: SortOrder
+    roguelikeRunId?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -24045,7 +37312,27 @@ export namespace Prisma {
     none?: AIMapPlacementWhereInput
   }
 
+  export type CampaignNodeListRelationFilter = {
+    every?: CampaignNodeWhereInput
+    some?: CampaignNodeWhereInput
+    none?: CampaignNodeWhereInput
+  }
+
+  export type RoguelikeNodeListRelationFilter = {
+    every?: RoguelikeNodeWhereInput
+    some?: RoguelikeNodeWhereInput
+    none?: RoguelikeNodeWhereInput
+  }
+
   export type AIMapPlacementOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CampaignNodeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RoguelikeNodeOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -24056,6 +37343,7 @@ export namespace Prisma {
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
     scoringTiles?: SortOrder
+    mode?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -24063,6 +37351,7 @@ export namespace Prisma {
     id?: SortOrder
     gridWidth?: SortOrder
     gridHeight?: SortOrder
+    mode?: SortOrder
   }
 
   export type MapMaxOrderByAggregateInput = {
@@ -24070,6 +37359,7 @@ export namespace Prisma {
     name?: SortOrder
     gridWidth?: SortOrder
     gridHeight?: SortOrder
+    mode?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -24078,6 +37368,7 @@ export namespace Prisma {
     name?: SortOrder
     gridWidth?: SortOrder
     gridHeight?: SortOrder
+    mode?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -24085,6 +37376,7 @@ export namespace Prisma {
     id?: SortOrder
     gridWidth?: SortOrder
     gridHeight?: SortOrder
+    mode?: SortOrder
   }
 
   export type AIShipConfigCountOrderByAggregateInput = {
@@ -24204,6 +37496,460 @@ export namespace Prisma {
     shipId?: SortOrder
     configId?: SortOrder
     archetype?: SortOrder
+  }
+
+  export type CampaignCountOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignAvgOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+  }
+
+  export type CampaignMaxOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignMinOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignSumOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+  }
+
+  export type CampaignScalarRelationFilter = {
+    is?: CampaignWhereInput
+    isNot?: CampaignWhereInput
+  }
+
+  export type CampaignNodeCountOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    prerequisites?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignNodeAvgOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    prerequisites?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+  }
+
+  export type CampaignNodeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignNodeMinOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CampaignNodeSumOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    mapId?: SortOrder
+    prerequisites?: SortOrder
+    costLimit?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+  }
+
+  export type CampaignNodeScalarRelationFilter = {
+    is?: CampaignNodeWhereInput
+    isNot?: CampaignNodeWhereInput
+  }
+
+  export type CampaignNodeCompletionUserIdNodeIdCompoundUniqueInput = {
+    userId: string
+    nodeId: number
+  }
+
+  export type CampaignNodeCompletionCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    nodeId?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type CampaignNodeCompletionAvgOrderByAggregateInput = {
+    id?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type CampaignNodeCompletionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    nodeId?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type CampaignNodeCompletionMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    nodeId?: SortOrder
+    completedAt?: SortOrder
+  }
+
+  export type CampaignNodeCompletionSumOrderByAggregateInput = {
+    id?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type RoguelikeCampaignCountOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeCampaignAvgOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrder
+  }
+
+  export type RoguelikeCampaignMaxOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeCampaignMinOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeCampaignSumOrderByAggregateInput = {
+    id?: SortOrder
+    requiredVariant?: SortOrder
+    autoHealPercent?: SortOrder
+    initialCostCap?: SortOrder
+    rootNodeId?: SortOrder
+  }
+
+  export type RoguelikeCampaignScalarRelationFilter = {
+    is?: RoguelikeCampaignWhereInput
+    isNot?: RoguelikeCampaignWhereInput
+  }
+
+  export type RoguelikeEdgeListRelationFilter = {
+    every?: RoguelikeEdgeWhereInput
+    some?: RoguelikeEdgeWhereInput
+    none?: RoguelikeEdgeWhereInput
+  }
+
+  export type RoguelikeNodeDefeatListRelationFilter = {
+    every?: RoguelikeNodeDefeatWhereInput
+    some?: RoguelikeNodeDefeatWhereInput
+    none?: RoguelikeNodeDefeatWhereInput
+  }
+
+  export type RoguelikeEdgeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RoguelikeNodeCountOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    costCapOverride?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeNodeAvgOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    costCapOverride?: SortOrder
+  }
+
+  export type RoguelikeNodeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    costCapOverride?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeNodeMinOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    creatorGoesFirst?: SortOrder
+    costCapOverride?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RoguelikeNodeSumOrderByAggregateInput = {
+    id?: SortOrder
+    campaignId?: SortOrder
+    kind?: SortOrder
+    mapId?: SortOrder
+    turnTimeSeconds?: SortOrder
+    maxScore?: SortOrder
+    costCapOverride?: SortOrder
+  }
+
+  export type RoguelikeNodeScalarRelationFilter = {
+    is?: RoguelikeNodeWhereInput
+    isNot?: RoguelikeNodeWhereInput
+  }
+
+  export type RoguelikeEdgeParentIdChildIdCompoundUniqueInput = {
+    parentId: number
+    childId: number
+  }
+
+  export type RoguelikeEdgeCountOrderByAggregateInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+    twoWay?: SortOrder
+  }
+
+  export type RoguelikeEdgeAvgOrderByAggregateInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+  }
+
+  export type RoguelikeEdgeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+    twoWay?: SortOrder
+  }
+
+  export type RoguelikeEdgeMinOrderByAggregateInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+    twoWay?: SortOrder
+  }
+
+  export type RoguelikeEdgeSumOrderByAggregateInput = {
+    id?: SortOrder
+    parentId?: SortOrder
+    childId?: SortOrder
+  }
+
+  export type EnumRoguelikeRunStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.RoguelikeRunStatus | EnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel> | $Enums.RoguelikeRunStatus
+  }
+
+  export type RoguelikeRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    generation?: SortOrder
+    status?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrder
+    createdAt?: SortOrder
+    endedAt?: SortOrder
+  }
+
+  export type RoguelikeRunAvgOrderByAggregateInput = {
+    id?: SortOrder
+    generation?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrder
+  }
+
+  export type RoguelikeRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    generation?: SortOrder
+    status?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrder
+    createdAt?: SortOrder
+    endedAt?: SortOrder
+  }
+
+  export type RoguelikeRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    generation?: SortOrder
+    status?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrder
+    createdAt?: SortOrder
+    endedAt?: SortOrder
+  }
+
+  export type RoguelikeRunSumOrderByAggregateInput = {
+    id?: SortOrder
+    generation?: SortOrder
+    campaignId?: SortOrder
+    currentNodeId?: SortOrder
+    currentCostCap?: SortOrder
+    activeLobbyId?: SortOrder
+  }
+
+  export type EnumRoguelikeRunStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.RoguelikeRunStatus | EnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoguelikeRunStatusWithAggregatesFilter<$PrismaModel> | $Enums.RoguelikeRunStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel>
+    _max?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel>
+  }
+
+  export type RoguelikeRunScalarRelationFilter = {
+    is?: RoguelikeRunWhereInput
+    isNot?: RoguelikeRunWhereInput
+  }
+
+  export type ShipScalarRelationFilter = {
+    is?: ShipWhereInput
+    isNot?: ShipWhereInput
+  }
+
+  export type RoguelikeRosterShipRunIdShipIdCompoundUniqueInput = {
+    runId: number
+    shipId: number
+  }
+
+  export type RoguelikeRosterShipCountOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+  }
+
+  export type RoguelikeRosterShipAvgOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+  }
+
+  export type RoguelikeRosterShipMaxOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+  }
+
+  export type RoguelikeRosterShipMinOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+  }
+
+  export type RoguelikeRosterShipSumOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    shipId?: SortOrder
+    hp?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatRunIdNodeIdCompoundUniqueInput = {
+    runId: number
+    nodeId: number
+  }
+
+  export type RoguelikeNodeDefeatCountOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatAvgOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatMaxOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatMinOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type RoguelikeNodeDefeatSumOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    nodeId?: SortOrder
   }
 
   export type ConfigCountOrderByAggregateInput = {
@@ -24553,6 +38299,20 @@ export namespace Prisma {
     connect?: TournamentMatchWhereUniqueInput | TournamentMatchWhereUniqueInput[]
   }
 
+  export type CampaignNodeCompletionCreateNestedManyWithoutUserInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput> | CampaignNodeCompletionCreateWithoutUserInput[] | CampaignNodeCompletionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutUserInput | CampaignNodeCompletionCreateOrConnectWithoutUserInput[]
+    createMany?: CampaignNodeCompletionCreateManyUserInputEnvelope
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+  }
+
+  export type RoguelikeRunCreateNestedManyWithoutUserInput = {
+    create?: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput> | RoguelikeRunCreateWithoutUserInput[] | RoguelikeRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutUserInput | RoguelikeRunCreateOrConnectWithoutUserInput[]
+    createMany?: RoguelikeRunCreateManyUserInputEnvelope
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+  }
+
   export type ShipUncheckedCreateNestedManyWithoutOwnerInput = {
     create?: XOR<ShipCreateWithoutOwnerInput, ShipUncheckedCreateWithoutOwnerInput> | ShipCreateWithoutOwnerInput[] | ShipUncheckedCreateWithoutOwnerInput[]
     connectOrCreate?: ShipCreateOrConnectWithoutOwnerInput | ShipCreateOrConnectWithoutOwnerInput[]
@@ -24634,6 +38394,20 @@ export namespace Prisma {
     connectOrCreate?: TournamentMatchCreateOrConnectWithoutPlayer2Input | TournamentMatchCreateOrConnectWithoutPlayer2Input[]
     createMany?: TournamentMatchCreateManyPlayer2InputEnvelope
     connect?: TournamentMatchWhereUniqueInput | TournamentMatchWhereUniqueInput[]
+  }
+
+  export type CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput> | CampaignNodeCompletionCreateWithoutUserInput[] | CampaignNodeCompletionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutUserInput | CampaignNodeCompletionCreateOrConnectWithoutUserInput[]
+    createMany?: CampaignNodeCompletionCreateManyUserInputEnvelope
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+  }
+
+  export type RoguelikeRunUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput> | RoguelikeRunCreateWithoutUserInput[] | RoguelikeRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutUserInput | RoguelikeRunCreateOrConnectWithoutUserInput[]
+    createMany?: RoguelikeRunCreateManyUserInputEnvelope
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -24828,6 +38602,34 @@ export namespace Prisma {
     deleteMany?: TournamentMatchScalarWhereInput | TournamentMatchScalarWhereInput[]
   }
 
+  export type CampaignNodeCompletionUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput> | CampaignNodeCompletionCreateWithoutUserInput[] | CampaignNodeCompletionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutUserInput | CampaignNodeCompletionCreateOrConnectWithoutUserInput[]
+    upsert?: CampaignNodeCompletionUpsertWithWhereUniqueWithoutUserInput | CampaignNodeCompletionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CampaignNodeCompletionCreateManyUserInputEnvelope
+    set?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    disconnect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    delete?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    update?: CampaignNodeCompletionUpdateWithWhereUniqueWithoutUserInput | CampaignNodeCompletionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CampaignNodeCompletionUpdateManyWithWhereWithoutUserInput | CampaignNodeCompletionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+  }
+
+  export type RoguelikeRunUpdateManyWithoutUserNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput> | RoguelikeRunCreateWithoutUserInput[] | RoguelikeRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutUserInput | RoguelikeRunCreateOrConnectWithoutUserInput[]
+    upsert?: RoguelikeRunUpsertWithWhereUniqueWithoutUserInput | RoguelikeRunUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: RoguelikeRunCreateManyUserInputEnvelope
+    set?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    disconnect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    delete?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    update?: RoguelikeRunUpdateWithWhereUniqueWithoutUserInput | RoguelikeRunUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: RoguelikeRunUpdateManyWithWhereWithoutUserInput | RoguelikeRunUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+  }
+
   export type ShipUncheckedUpdateManyWithoutOwnerNestedInput = {
     create?: XOR<ShipCreateWithoutOwnerInput, ShipUncheckedCreateWithoutOwnerInput> | ShipCreateWithoutOwnerInput[] | ShipUncheckedCreateWithoutOwnerInput[]
     connectOrCreate?: ShipCreateOrConnectWithoutOwnerInput | ShipCreateOrConnectWithoutOwnerInput[]
@@ -24992,10 +38794,52 @@ export namespace Prisma {
     deleteMany?: TournamentMatchScalarWhereInput | TournamentMatchScalarWhereInput[]
   }
 
+  export type CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput> | CampaignNodeCompletionCreateWithoutUserInput[] | CampaignNodeCompletionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutUserInput | CampaignNodeCompletionCreateOrConnectWithoutUserInput[]
+    upsert?: CampaignNodeCompletionUpsertWithWhereUniqueWithoutUserInput | CampaignNodeCompletionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CampaignNodeCompletionCreateManyUserInputEnvelope
+    set?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    disconnect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    delete?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    update?: CampaignNodeCompletionUpdateWithWhereUniqueWithoutUserInput | CampaignNodeCompletionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CampaignNodeCompletionUpdateManyWithWhereWithoutUserInput | CampaignNodeCompletionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+  }
+
+  export type RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput> | RoguelikeRunCreateWithoutUserInput[] | RoguelikeRunUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutUserInput | RoguelikeRunCreateOrConnectWithoutUserInput[]
+    upsert?: RoguelikeRunUpsertWithWhereUniqueWithoutUserInput | RoguelikeRunUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: RoguelikeRunCreateManyUserInputEnvelope
+    set?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    disconnect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    delete?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    update?: RoguelikeRunUpdateWithWhereUniqueWithoutUserInput | RoguelikeRunUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: RoguelikeRunUpdateManyWithWhereWithoutUserInput | RoguelikeRunUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+  }
+
   export type UserCreateNestedOneWithoutShipsInput = {
     create?: XOR<UserCreateWithoutShipsInput, UserUncheckedCreateWithoutShipsInput>
     connectOrCreate?: UserCreateOrConnectWithoutShipsInput
     connect?: UserWhereUniqueInput
+  }
+
+  export type RoguelikeRosterShipCreateNestedManyWithoutShipInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput> | RoguelikeRosterShipCreateWithoutShipInput[] | RoguelikeRosterShipUncheckedCreateWithoutShipInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutShipInput | RoguelikeRosterShipCreateOrConnectWithoutShipInput[]
+    createMany?: RoguelikeRosterShipCreateManyShipInputEnvelope
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+  }
+
+  export type RoguelikeRosterShipUncheckedCreateNestedManyWithoutShipInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput> | RoguelikeRosterShipCreateWithoutShipInput[] | RoguelikeRosterShipUncheckedCreateWithoutShipInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutShipInput | RoguelikeRosterShipCreateOrConnectWithoutShipInput[]
+    createMany?: RoguelikeRosterShipCreateManyShipInputEnvelope
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
   }
 
   export type UserUpdateOneRequiredWithoutShipsNestedInput = {
@@ -25004,6 +38848,34 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutShipsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutShipsInput, UserUpdateWithoutShipsInput>, UserUncheckedUpdateWithoutShipsInput>
+  }
+
+  export type RoguelikeRosterShipUpdateManyWithoutShipNestedInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput> | RoguelikeRosterShipCreateWithoutShipInput[] | RoguelikeRosterShipUncheckedCreateWithoutShipInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutShipInput | RoguelikeRosterShipCreateOrConnectWithoutShipInput[]
+    upsert?: RoguelikeRosterShipUpsertWithWhereUniqueWithoutShipInput | RoguelikeRosterShipUpsertWithWhereUniqueWithoutShipInput[]
+    createMany?: RoguelikeRosterShipCreateManyShipInputEnvelope
+    set?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    disconnect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    delete?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    update?: RoguelikeRosterShipUpdateWithWhereUniqueWithoutShipInput | RoguelikeRosterShipUpdateWithWhereUniqueWithoutShipInput[]
+    updateMany?: RoguelikeRosterShipUpdateManyWithWhereWithoutShipInput | RoguelikeRosterShipUpdateManyWithWhereWithoutShipInput[]
+    deleteMany?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateManyWithoutShipNestedInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput> | RoguelikeRosterShipCreateWithoutShipInput[] | RoguelikeRosterShipUncheckedCreateWithoutShipInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutShipInput | RoguelikeRosterShipCreateOrConnectWithoutShipInput[]
+    upsert?: RoguelikeRosterShipUpsertWithWhereUniqueWithoutShipInput | RoguelikeRosterShipUpsertWithWhereUniqueWithoutShipInput[]
+    createMany?: RoguelikeRosterShipCreateManyShipInputEnvelope
+    set?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    disconnect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    delete?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    update?: RoguelikeRosterShipUpdateWithWhereUniqueWithoutShipInput | RoguelikeRosterShipUpdateWithWhereUniqueWithoutShipInput[]
+    updateMany?: RoguelikeRosterShipUpdateManyWithWhereWithoutShipInput | RoguelikeRosterShipUpdateManyWithWhereWithoutShipInput[]
+    deleteMany?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
   }
 
   export type FleetCreateshipIdsInput = {
@@ -25065,6 +38937,18 @@ export namespace Prisma {
     create?: XOR<MapCreateWithoutLobbiesInput, MapUncheckedCreateWithoutLobbiesInput>
     connectOrCreate?: MapCreateOrConnectWithoutLobbiesInput
     connect?: MapWhereUniqueInput
+  }
+
+  export type CampaignNodeCreateNestedOneWithoutLobbiesInput = {
+    create?: XOR<CampaignNodeCreateWithoutLobbiesInput, CampaignNodeUncheckedCreateWithoutLobbiesInput>
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutLobbiesInput
+    connect?: CampaignNodeWhereUniqueInput
+  }
+
+  export type RoguelikeRunCreateNestedOneWithoutLobbiesInput = {
+    create?: XOR<RoguelikeRunCreateWithoutLobbiesInput, RoguelikeRunUncheckedCreateWithoutLobbiesInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutLobbiesInput
+    connect?: RoguelikeRunWhereUniqueInput
   }
 
   export type FleetCreateNestedManyWithoutLobbyInput = {
@@ -25149,6 +39033,26 @@ export namespace Prisma {
     delete?: MapWhereInput | boolean
     connect?: MapWhereUniqueInput
     update?: XOR<XOR<MapUpdateToOneWithWhereWithoutLobbiesInput, MapUpdateWithoutLobbiesInput>, MapUncheckedUpdateWithoutLobbiesInput>
+  }
+
+  export type CampaignNodeUpdateOneWithoutLobbiesNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutLobbiesInput, CampaignNodeUncheckedCreateWithoutLobbiesInput>
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutLobbiesInput
+    upsert?: CampaignNodeUpsertWithoutLobbiesInput
+    disconnect?: CampaignNodeWhereInput | boolean
+    delete?: CampaignNodeWhereInput | boolean
+    connect?: CampaignNodeWhereUniqueInput
+    update?: XOR<XOR<CampaignNodeUpdateToOneWithWhereWithoutLobbiesInput, CampaignNodeUpdateWithoutLobbiesInput>, CampaignNodeUncheckedUpdateWithoutLobbiesInput>
+  }
+
+  export type RoguelikeRunUpdateOneWithoutLobbiesNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutLobbiesInput, RoguelikeRunUncheckedCreateWithoutLobbiesInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutLobbiesInput
+    upsert?: RoguelikeRunUpsertWithoutLobbiesInput
+    disconnect?: RoguelikeRunWhereInput | boolean
+    delete?: RoguelikeRunWhereInput | boolean
+    connect?: RoguelikeRunWhereUniqueInput
+    update?: XOR<XOR<RoguelikeRunUpdateToOneWithWhereWithoutLobbiesInput, RoguelikeRunUpdateWithoutLobbiesInput>, RoguelikeRunUncheckedUpdateWithoutLobbiesInput>
   }
 
   export type FleetUpdateManyWithoutLobbyNestedInput = {
@@ -25343,6 +39247,20 @@ export namespace Prisma {
     connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
   }
 
+  export type CampaignNodeCreateNestedManyWithoutMapInput = {
+    create?: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput> | CampaignNodeCreateWithoutMapInput[] | CampaignNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutMapInput | CampaignNodeCreateOrConnectWithoutMapInput[]
+    createMany?: CampaignNodeCreateManyMapInputEnvelope
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeCreateNestedManyWithoutMapInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput> | RoguelikeNodeCreateWithoutMapInput[] | RoguelikeNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutMapInput | RoguelikeNodeCreateOrConnectWithoutMapInput[]
+    createMany?: RoguelikeNodeCreateManyMapInputEnvelope
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+  }
+
   export type LobbyUncheckedCreateNestedManyWithoutMapInput = {
     create?: XOR<LobbyCreateWithoutMapInput, LobbyUncheckedCreateWithoutMapInput> | LobbyCreateWithoutMapInput[] | LobbyUncheckedCreateWithoutMapInput[]
     connectOrCreate?: LobbyCreateOrConnectWithoutMapInput | LobbyCreateOrConnectWithoutMapInput[]
@@ -25355,6 +39273,20 @@ export namespace Prisma {
     connectOrCreate?: AIMapPlacementCreateOrConnectWithoutMapInput | AIMapPlacementCreateOrConnectWithoutMapInput[]
     createMany?: AIMapPlacementCreateManyMapInputEnvelope
     connect?: AIMapPlacementWhereUniqueInput | AIMapPlacementWhereUniqueInput[]
+  }
+
+  export type CampaignNodeUncheckedCreateNestedManyWithoutMapInput = {
+    create?: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput> | CampaignNodeCreateWithoutMapInput[] | CampaignNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutMapInput | CampaignNodeCreateOrConnectWithoutMapInput[]
+    createMany?: CampaignNodeCreateManyMapInputEnvelope
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeUncheckedCreateNestedManyWithoutMapInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput> | RoguelikeNodeCreateWithoutMapInput[] | RoguelikeNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutMapInput | RoguelikeNodeCreateOrConnectWithoutMapInput[]
+    createMany?: RoguelikeNodeCreateManyMapInputEnvelope
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
   }
 
   export type LobbyUpdateManyWithoutMapNestedInput = {
@@ -25385,6 +39317,34 @@ export namespace Prisma {
     deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
   }
 
+  export type CampaignNodeUpdateManyWithoutMapNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput> | CampaignNodeCreateWithoutMapInput[] | CampaignNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutMapInput | CampaignNodeCreateOrConnectWithoutMapInput[]
+    upsert?: CampaignNodeUpsertWithWhereUniqueWithoutMapInput | CampaignNodeUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: CampaignNodeCreateManyMapInputEnvelope
+    set?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    disconnect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    delete?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    update?: CampaignNodeUpdateWithWhereUniqueWithoutMapInput | CampaignNodeUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: CampaignNodeUpdateManyWithWhereWithoutMapInput | CampaignNodeUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeUpdateManyWithoutMapNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput> | RoguelikeNodeCreateWithoutMapInput[] | RoguelikeNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutMapInput | RoguelikeNodeCreateOrConnectWithoutMapInput[]
+    upsert?: RoguelikeNodeUpsertWithWhereUniqueWithoutMapInput | RoguelikeNodeUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: RoguelikeNodeCreateManyMapInputEnvelope
+    set?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    disconnect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    delete?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    update?: RoguelikeNodeUpdateWithWhereUniqueWithoutMapInput | RoguelikeNodeUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: RoguelikeNodeUpdateManyWithWhereWithoutMapInput | RoguelikeNodeUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
+  }
+
   export type LobbyUncheckedUpdateManyWithoutMapNestedInput = {
     create?: XOR<LobbyCreateWithoutMapInput, LobbyUncheckedCreateWithoutMapInput> | LobbyCreateWithoutMapInput[] | LobbyUncheckedCreateWithoutMapInput[]
     connectOrCreate?: LobbyCreateOrConnectWithoutMapInput | LobbyCreateOrConnectWithoutMapInput[]
@@ -25411,6 +39371,34 @@ export namespace Prisma {
     update?: AIMapPlacementUpdateWithWhereUniqueWithoutMapInput | AIMapPlacementUpdateWithWhereUniqueWithoutMapInput[]
     updateMany?: AIMapPlacementUpdateManyWithWhereWithoutMapInput | AIMapPlacementUpdateManyWithWhereWithoutMapInput[]
     deleteMany?: AIMapPlacementScalarWhereInput | AIMapPlacementScalarWhereInput[]
+  }
+
+  export type CampaignNodeUncheckedUpdateManyWithoutMapNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput> | CampaignNodeCreateWithoutMapInput[] | CampaignNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutMapInput | CampaignNodeCreateOrConnectWithoutMapInput[]
+    upsert?: CampaignNodeUpsertWithWhereUniqueWithoutMapInput | CampaignNodeUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: CampaignNodeCreateManyMapInputEnvelope
+    set?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    disconnect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    delete?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    update?: CampaignNodeUpdateWithWhereUniqueWithoutMapInput | CampaignNodeUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: CampaignNodeUpdateManyWithWhereWithoutMapInput | CampaignNodeUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeUncheckedUpdateManyWithoutMapNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput> | RoguelikeNodeCreateWithoutMapInput[] | RoguelikeNodeUncheckedCreateWithoutMapInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutMapInput | RoguelikeNodeCreateOrConnectWithoutMapInput[]
+    upsert?: RoguelikeNodeUpsertWithWhereUniqueWithoutMapInput | RoguelikeNodeUpsertWithWhereUniqueWithoutMapInput[]
+    createMany?: RoguelikeNodeCreateManyMapInputEnvelope
+    set?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    disconnect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    delete?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    update?: RoguelikeNodeUpdateWithWhereUniqueWithoutMapInput | RoguelikeNodeUpdateWithWhereUniqueWithoutMapInput[]
+    updateMany?: RoguelikeNodeUpdateManyWithWhereWithoutMapInput | RoguelikeNodeUpdateManyWithWhereWithoutMapInput[]
+    deleteMany?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
   }
 
   export type AIMapPlacementCreateNestedManyWithoutConfigInput = {
@@ -25481,6 +39469,679 @@ export namespace Prisma {
     upsert?: AIShipConfigUpsertWithoutPlacementsInput
     connect?: AIShipConfigWhereUniqueInput
     update?: XOR<XOR<AIShipConfigUpdateToOneWithWhereWithoutPlacementsInput, AIShipConfigUpdateWithoutPlacementsInput>, AIShipConfigUncheckedUpdateWithoutPlacementsInput>
+  }
+
+  export type CampaignNodeCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput> | CampaignNodeCreateWithoutCampaignInput[] | CampaignNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCampaignInput | CampaignNodeCreateOrConnectWithoutCampaignInput[]
+    createMany?: CampaignNodeCreateManyCampaignInputEnvelope
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+  }
+
+  export type CampaignNodeUncheckedCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput> | CampaignNodeCreateWithoutCampaignInput[] | CampaignNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCampaignInput | CampaignNodeCreateOrConnectWithoutCampaignInput[]
+    createMany?: CampaignNodeCreateManyCampaignInputEnvelope
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+  }
+
+  export type CampaignNodeUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput> | CampaignNodeCreateWithoutCampaignInput[] | CampaignNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCampaignInput | CampaignNodeCreateOrConnectWithoutCampaignInput[]
+    upsert?: CampaignNodeUpsertWithWhereUniqueWithoutCampaignInput | CampaignNodeUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: CampaignNodeCreateManyCampaignInputEnvelope
+    set?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    disconnect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    delete?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    update?: CampaignNodeUpdateWithWhereUniqueWithoutCampaignInput | CampaignNodeUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: CampaignNodeUpdateManyWithWhereWithoutCampaignInput | CampaignNodeUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+  }
+
+  export type CampaignNodeUncheckedUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput> | CampaignNodeCreateWithoutCampaignInput[] | CampaignNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCampaignInput | CampaignNodeCreateOrConnectWithoutCampaignInput[]
+    upsert?: CampaignNodeUpsertWithWhereUniqueWithoutCampaignInput | CampaignNodeUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: CampaignNodeCreateManyCampaignInputEnvelope
+    set?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    disconnect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    delete?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    connect?: CampaignNodeWhereUniqueInput | CampaignNodeWhereUniqueInput[]
+    update?: CampaignNodeUpdateWithWhereUniqueWithoutCampaignInput | CampaignNodeUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: CampaignNodeUpdateManyWithWhereWithoutCampaignInput | CampaignNodeUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+  }
+
+  export type CampaignNodeCreateprerequisitesInput = {
+    set: number[]
+  }
+
+  export type CampaignCreateNestedOneWithoutNodesInput = {
+    create?: XOR<CampaignCreateWithoutNodesInput, CampaignUncheckedCreateWithoutNodesInput>
+    connectOrCreate?: CampaignCreateOrConnectWithoutNodesInput
+    connect?: CampaignWhereUniqueInput
+  }
+
+  export type MapCreateNestedOneWithoutCampaignNodesInput = {
+    create?: XOR<MapCreateWithoutCampaignNodesInput, MapUncheckedCreateWithoutCampaignNodesInput>
+    connectOrCreate?: MapCreateOrConnectWithoutCampaignNodesInput
+    connect?: MapWhereUniqueInput
+  }
+
+  export type CampaignNodeCompletionCreateNestedManyWithoutNodeInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput> | CampaignNodeCompletionCreateWithoutNodeInput[] | CampaignNodeCompletionUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutNodeInput | CampaignNodeCompletionCreateOrConnectWithoutNodeInput[]
+    createMany?: CampaignNodeCompletionCreateManyNodeInputEnvelope
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+  }
+
+  export type LobbyCreateNestedManyWithoutCampaignNodeInput = {
+    create?: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput> | LobbyCreateWithoutCampaignNodeInput[] | LobbyUncheckedCreateWithoutCampaignNodeInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutCampaignNodeInput | LobbyCreateOrConnectWithoutCampaignNodeInput[]
+    createMany?: LobbyCreateManyCampaignNodeInputEnvelope
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+  }
+
+  export type CampaignNodeCompletionUncheckedCreateNestedManyWithoutNodeInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput> | CampaignNodeCompletionCreateWithoutNodeInput[] | CampaignNodeCompletionUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutNodeInput | CampaignNodeCompletionCreateOrConnectWithoutNodeInput[]
+    createMany?: CampaignNodeCompletionCreateManyNodeInputEnvelope
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+  }
+
+  export type LobbyUncheckedCreateNestedManyWithoutCampaignNodeInput = {
+    create?: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput> | LobbyCreateWithoutCampaignNodeInput[] | LobbyUncheckedCreateWithoutCampaignNodeInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutCampaignNodeInput | LobbyCreateOrConnectWithoutCampaignNodeInput[]
+    createMany?: LobbyCreateManyCampaignNodeInputEnvelope
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+  }
+
+  export type CampaignNodeUpdateprerequisitesInput = {
+    set?: number[]
+    push?: number | number[]
+  }
+
+  export type CampaignUpdateOneRequiredWithoutNodesNestedInput = {
+    create?: XOR<CampaignCreateWithoutNodesInput, CampaignUncheckedCreateWithoutNodesInput>
+    connectOrCreate?: CampaignCreateOrConnectWithoutNodesInput
+    upsert?: CampaignUpsertWithoutNodesInput
+    connect?: CampaignWhereUniqueInput
+    update?: XOR<XOR<CampaignUpdateToOneWithWhereWithoutNodesInput, CampaignUpdateWithoutNodesInput>, CampaignUncheckedUpdateWithoutNodesInput>
+  }
+
+  export type MapUpdateOneRequiredWithoutCampaignNodesNestedInput = {
+    create?: XOR<MapCreateWithoutCampaignNodesInput, MapUncheckedCreateWithoutCampaignNodesInput>
+    connectOrCreate?: MapCreateOrConnectWithoutCampaignNodesInput
+    upsert?: MapUpsertWithoutCampaignNodesInput
+    connect?: MapWhereUniqueInput
+    update?: XOR<XOR<MapUpdateToOneWithWhereWithoutCampaignNodesInput, MapUpdateWithoutCampaignNodesInput>, MapUncheckedUpdateWithoutCampaignNodesInput>
+  }
+
+  export type CampaignNodeCompletionUpdateManyWithoutNodeNestedInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput> | CampaignNodeCompletionCreateWithoutNodeInput[] | CampaignNodeCompletionUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutNodeInput | CampaignNodeCompletionCreateOrConnectWithoutNodeInput[]
+    upsert?: CampaignNodeCompletionUpsertWithWhereUniqueWithoutNodeInput | CampaignNodeCompletionUpsertWithWhereUniqueWithoutNodeInput[]
+    createMany?: CampaignNodeCompletionCreateManyNodeInputEnvelope
+    set?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    disconnect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    delete?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    update?: CampaignNodeCompletionUpdateWithWhereUniqueWithoutNodeInput | CampaignNodeCompletionUpdateWithWhereUniqueWithoutNodeInput[]
+    updateMany?: CampaignNodeCompletionUpdateManyWithWhereWithoutNodeInput | CampaignNodeCompletionUpdateManyWithWhereWithoutNodeInput[]
+    deleteMany?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+  }
+
+  export type LobbyUpdateManyWithoutCampaignNodeNestedInput = {
+    create?: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput> | LobbyCreateWithoutCampaignNodeInput[] | LobbyUncheckedCreateWithoutCampaignNodeInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutCampaignNodeInput | LobbyCreateOrConnectWithoutCampaignNodeInput[]
+    upsert?: LobbyUpsertWithWhereUniqueWithoutCampaignNodeInput | LobbyUpsertWithWhereUniqueWithoutCampaignNodeInput[]
+    createMany?: LobbyCreateManyCampaignNodeInputEnvelope
+    set?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    disconnect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    delete?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    update?: LobbyUpdateWithWhereUniqueWithoutCampaignNodeInput | LobbyUpdateWithWhereUniqueWithoutCampaignNodeInput[]
+    updateMany?: LobbyUpdateManyWithWhereWithoutCampaignNodeInput | LobbyUpdateManyWithWhereWithoutCampaignNodeInput[]
+    deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateManyWithoutNodeNestedInput = {
+    create?: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput> | CampaignNodeCompletionCreateWithoutNodeInput[] | CampaignNodeCompletionUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: CampaignNodeCompletionCreateOrConnectWithoutNodeInput | CampaignNodeCompletionCreateOrConnectWithoutNodeInput[]
+    upsert?: CampaignNodeCompletionUpsertWithWhereUniqueWithoutNodeInput | CampaignNodeCompletionUpsertWithWhereUniqueWithoutNodeInput[]
+    createMany?: CampaignNodeCompletionCreateManyNodeInputEnvelope
+    set?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    disconnect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    delete?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    connect?: CampaignNodeCompletionWhereUniqueInput | CampaignNodeCompletionWhereUniqueInput[]
+    update?: CampaignNodeCompletionUpdateWithWhereUniqueWithoutNodeInput | CampaignNodeCompletionUpdateWithWhereUniqueWithoutNodeInput[]
+    updateMany?: CampaignNodeCompletionUpdateManyWithWhereWithoutNodeInput | CampaignNodeCompletionUpdateManyWithWhereWithoutNodeInput[]
+    deleteMany?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+  }
+
+  export type LobbyUncheckedUpdateManyWithoutCampaignNodeNestedInput = {
+    create?: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput> | LobbyCreateWithoutCampaignNodeInput[] | LobbyUncheckedCreateWithoutCampaignNodeInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutCampaignNodeInput | LobbyCreateOrConnectWithoutCampaignNodeInput[]
+    upsert?: LobbyUpsertWithWhereUniqueWithoutCampaignNodeInput | LobbyUpsertWithWhereUniqueWithoutCampaignNodeInput[]
+    createMany?: LobbyCreateManyCampaignNodeInputEnvelope
+    set?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    disconnect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    delete?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    update?: LobbyUpdateWithWhereUniqueWithoutCampaignNodeInput | LobbyUpdateWithWhereUniqueWithoutCampaignNodeInput[]
+    updateMany?: LobbyUpdateManyWithWhereWithoutCampaignNodeInput | LobbyUpdateManyWithWhereWithoutCampaignNodeInput[]
+    deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutCampaignNodeCompletionsInput = {
+    create?: XOR<UserCreateWithoutCampaignNodeCompletionsInput, UserUncheckedCreateWithoutCampaignNodeCompletionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCampaignNodeCompletionsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type CampaignNodeCreateNestedOneWithoutCompletionsInput = {
+    create?: XOR<CampaignNodeCreateWithoutCompletionsInput, CampaignNodeUncheckedCreateWithoutCompletionsInput>
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCompletionsInput
+    connect?: CampaignNodeWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutCampaignNodeCompletionsNestedInput = {
+    create?: XOR<UserCreateWithoutCampaignNodeCompletionsInput, UserUncheckedCreateWithoutCampaignNodeCompletionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCampaignNodeCompletionsInput
+    upsert?: UserUpsertWithoutCampaignNodeCompletionsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutCampaignNodeCompletionsInput, UserUpdateWithoutCampaignNodeCompletionsInput>, UserUncheckedUpdateWithoutCampaignNodeCompletionsInput>
+  }
+
+  export type CampaignNodeUpdateOneRequiredWithoutCompletionsNestedInput = {
+    create?: XOR<CampaignNodeCreateWithoutCompletionsInput, CampaignNodeUncheckedCreateWithoutCompletionsInput>
+    connectOrCreate?: CampaignNodeCreateOrConnectWithoutCompletionsInput
+    upsert?: CampaignNodeUpsertWithoutCompletionsInput
+    connect?: CampaignNodeWhereUniqueInput
+    update?: XOR<XOR<CampaignNodeUpdateToOneWithWhereWithoutCompletionsInput, CampaignNodeUpdateWithoutCompletionsInput>, CampaignNodeUncheckedUpdateWithoutCompletionsInput>
+  }
+
+  export type RoguelikeNodeCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput> | RoguelikeNodeCreateWithoutCampaignInput[] | RoguelikeNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutCampaignInput | RoguelikeNodeCreateOrConnectWithoutCampaignInput[]
+    createMany?: RoguelikeNodeCreateManyCampaignInputEnvelope
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+  }
+
+  export type RoguelikeRunCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput> | RoguelikeRunCreateWithoutCampaignInput[] | RoguelikeRunUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutCampaignInput | RoguelikeRunCreateOrConnectWithoutCampaignInput[]
+    createMany?: RoguelikeRunCreateManyCampaignInputEnvelope
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeUncheckedCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput> | RoguelikeNodeCreateWithoutCampaignInput[] | RoguelikeNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutCampaignInput | RoguelikeNodeCreateOrConnectWithoutCampaignInput[]
+    createMany?: RoguelikeNodeCreateManyCampaignInputEnvelope
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+  }
+
+  export type RoguelikeRunUncheckedCreateNestedManyWithoutCampaignInput = {
+    create?: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput> | RoguelikeRunCreateWithoutCampaignInput[] | RoguelikeRunUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutCampaignInput | RoguelikeRunCreateOrConnectWithoutCampaignInput[]
+    createMany?: RoguelikeRunCreateManyCampaignInputEnvelope
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput> | RoguelikeNodeCreateWithoutCampaignInput[] | RoguelikeNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutCampaignInput | RoguelikeNodeCreateOrConnectWithoutCampaignInput[]
+    upsert?: RoguelikeNodeUpsertWithWhereUniqueWithoutCampaignInput | RoguelikeNodeUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: RoguelikeNodeCreateManyCampaignInputEnvelope
+    set?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    disconnect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    delete?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    update?: RoguelikeNodeUpdateWithWhereUniqueWithoutCampaignInput | RoguelikeNodeUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: RoguelikeNodeUpdateManyWithWhereWithoutCampaignInput | RoguelikeNodeUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
+  }
+
+  export type RoguelikeRunUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput> | RoguelikeRunCreateWithoutCampaignInput[] | RoguelikeRunUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutCampaignInput | RoguelikeRunCreateOrConnectWithoutCampaignInput[]
+    upsert?: RoguelikeRunUpsertWithWhereUniqueWithoutCampaignInput | RoguelikeRunUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: RoguelikeRunCreateManyCampaignInputEnvelope
+    set?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    disconnect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    delete?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    update?: RoguelikeRunUpdateWithWhereUniqueWithoutCampaignInput | RoguelikeRunUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: RoguelikeRunUpdateManyWithWhereWithoutCampaignInput | RoguelikeRunUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeUncheckedUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput> | RoguelikeNodeCreateWithoutCampaignInput[] | RoguelikeNodeUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutCampaignInput | RoguelikeNodeCreateOrConnectWithoutCampaignInput[]
+    upsert?: RoguelikeNodeUpsertWithWhereUniqueWithoutCampaignInput | RoguelikeNodeUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: RoguelikeNodeCreateManyCampaignInputEnvelope
+    set?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    disconnect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    delete?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    connect?: RoguelikeNodeWhereUniqueInput | RoguelikeNodeWhereUniqueInput[]
+    update?: RoguelikeNodeUpdateWithWhereUniqueWithoutCampaignInput | RoguelikeNodeUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: RoguelikeNodeUpdateManyWithWhereWithoutCampaignInput | RoguelikeNodeUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
+  }
+
+  export type RoguelikeRunUncheckedUpdateManyWithoutCampaignNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput> | RoguelikeRunCreateWithoutCampaignInput[] | RoguelikeRunUncheckedCreateWithoutCampaignInput[]
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutCampaignInput | RoguelikeRunCreateOrConnectWithoutCampaignInput[]
+    upsert?: RoguelikeRunUpsertWithWhereUniqueWithoutCampaignInput | RoguelikeRunUpsertWithWhereUniqueWithoutCampaignInput[]
+    createMany?: RoguelikeRunCreateManyCampaignInputEnvelope
+    set?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    disconnect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    delete?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    connect?: RoguelikeRunWhereUniqueInput | RoguelikeRunWhereUniqueInput[]
+    update?: RoguelikeRunUpdateWithWhereUniqueWithoutCampaignInput | RoguelikeRunUpdateWithWhereUniqueWithoutCampaignInput[]
+    updateMany?: RoguelikeRunUpdateManyWithWhereWithoutCampaignInput | RoguelikeRunUpdateManyWithWhereWithoutCampaignInput[]
+    deleteMany?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+  }
+
+  export type RoguelikeCampaignCreateNestedOneWithoutNodesInput = {
+    create?: XOR<RoguelikeCampaignCreateWithoutNodesInput, RoguelikeCampaignUncheckedCreateWithoutNodesInput>
+    connectOrCreate?: RoguelikeCampaignCreateOrConnectWithoutNodesInput
+    connect?: RoguelikeCampaignWhereUniqueInput
+  }
+
+  export type MapCreateNestedOneWithoutRoguelikeNodesInput = {
+    create?: XOR<MapCreateWithoutRoguelikeNodesInput, MapUncheckedCreateWithoutRoguelikeNodesInput>
+    connectOrCreate?: MapCreateOrConnectWithoutRoguelikeNodesInput
+    connect?: MapWhereUniqueInput
+  }
+
+  export type RoguelikeEdgeCreateNestedManyWithoutParentInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput> | RoguelikeEdgeCreateWithoutParentInput[] | RoguelikeEdgeUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutParentInput | RoguelikeEdgeCreateOrConnectWithoutParentInput[]
+    createMany?: RoguelikeEdgeCreateManyParentInputEnvelope
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+  }
+
+  export type RoguelikeEdgeCreateNestedManyWithoutChildInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput> | RoguelikeEdgeCreateWithoutChildInput[] | RoguelikeEdgeUncheckedCreateWithoutChildInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutChildInput | RoguelikeEdgeCreateOrConnectWithoutChildInput[]
+    createMany?: RoguelikeEdgeCreateManyChildInputEnvelope
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput> | RoguelikeNodeDefeatCreateWithoutNodeInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput | RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyNodeInputEnvelope
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+  }
+
+  export type RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput> | RoguelikeEdgeCreateWithoutParentInput[] | RoguelikeEdgeUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutParentInput | RoguelikeEdgeCreateOrConnectWithoutParentInput[]
+    createMany?: RoguelikeEdgeCreateManyParentInputEnvelope
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+  }
+
+  export type RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput> | RoguelikeEdgeCreateWithoutChildInput[] | RoguelikeEdgeUncheckedCreateWithoutChildInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutChildInput | RoguelikeEdgeCreateOrConnectWithoutChildInput[]
+    createMany?: RoguelikeEdgeCreateManyChildInputEnvelope
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput> | RoguelikeNodeDefeatCreateWithoutNodeInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput | RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyNodeInputEnvelope
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+  }
+
+  export type RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput = {
+    create?: XOR<RoguelikeCampaignCreateWithoutNodesInput, RoguelikeCampaignUncheckedCreateWithoutNodesInput>
+    connectOrCreate?: RoguelikeCampaignCreateOrConnectWithoutNodesInput
+    upsert?: RoguelikeCampaignUpsertWithoutNodesInput
+    connect?: RoguelikeCampaignWhereUniqueInput
+    update?: XOR<XOR<RoguelikeCampaignUpdateToOneWithWhereWithoutNodesInput, RoguelikeCampaignUpdateWithoutNodesInput>, RoguelikeCampaignUncheckedUpdateWithoutNodesInput>
+  }
+
+  export type MapUpdateOneWithoutRoguelikeNodesNestedInput = {
+    create?: XOR<MapCreateWithoutRoguelikeNodesInput, MapUncheckedCreateWithoutRoguelikeNodesInput>
+    connectOrCreate?: MapCreateOrConnectWithoutRoguelikeNodesInput
+    upsert?: MapUpsertWithoutRoguelikeNodesInput
+    disconnect?: MapWhereInput | boolean
+    delete?: MapWhereInput | boolean
+    connect?: MapWhereUniqueInput
+    update?: XOR<XOR<MapUpdateToOneWithWhereWithoutRoguelikeNodesInput, MapUpdateWithoutRoguelikeNodesInput>, MapUncheckedUpdateWithoutRoguelikeNodesInput>
+  }
+
+  export type RoguelikeEdgeUpdateManyWithoutParentNestedInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput> | RoguelikeEdgeCreateWithoutParentInput[] | RoguelikeEdgeUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutParentInput | RoguelikeEdgeCreateOrConnectWithoutParentInput[]
+    upsert?: RoguelikeEdgeUpsertWithWhereUniqueWithoutParentInput | RoguelikeEdgeUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: RoguelikeEdgeCreateManyParentInputEnvelope
+    set?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    disconnect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    delete?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    update?: RoguelikeEdgeUpdateWithWhereUniqueWithoutParentInput | RoguelikeEdgeUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: RoguelikeEdgeUpdateManyWithWhereWithoutParentInput | RoguelikeEdgeUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+  }
+
+  export type RoguelikeEdgeUpdateManyWithoutChildNestedInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput> | RoguelikeEdgeCreateWithoutChildInput[] | RoguelikeEdgeUncheckedCreateWithoutChildInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutChildInput | RoguelikeEdgeCreateOrConnectWithoutChildInput[]
+    upsert?: RoguelikeEdgeUpsertWithWhereUniqueWithoutChildInput | RoguelikeEdgeUpsertWithWhereUniqueWithoutChildInput[]
+    createMany?: RoguelikeEdgeCreateManyChildInputEnvelope
+    set?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    disconnect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    delete?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    update?: RoguelikeEdgeUpdateWithWhereUniqueWithoutChildInput | RoguelikeEdgeUpdateWithWhereUniqueWithoutChildInput[]
+    updateMany?: RoguelikeEdgeUpdateManyWithWhereWithoutChildInput | RoguelikeEdgeUpdateManyWithWhereWithoutChildInput[]
+    deleteMany?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput> | RoguelikeNodeDefeatCreateWithoutNodeInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput | RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput[]
+    upsert?: RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutNodeInput | RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutNodeInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyNodeInputEnvelope
+    set?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    disconnect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    delete?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    update?: RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutNodeInput | RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutNodeInput[]
+    updateMany?: RoguelikeNodeDefeatUpdateManyWithWhereWithoutNodeInput | RoguelikeNodeDefeatUpdateManyWithWhereWithoutNodeInput[]
+    deleteMany?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput> | RoguelikeEdgeCreateWithoutParentInput[] | RoguelikeEdgeUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutParentInput | RoguelikeEdgeCreateOrConnectWithoutParentInput[]
+    upsert?: RoguelikeEdgeUpsertWithWhereUniqueWithoutParentInput | RoguelikeEdgeUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: RoguelikeEdgeCreateManyParentInputEnvelope
+    set?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    disconnect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    delete?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    update?: RoguelikeEdgeUpdateWithWhereUniqueWithoutParentInput | RoguelikeEdgeUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: RoguelikeEdgeUpdateManyWithWhereWithoutParentInput | RoguelikeEdgeUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput = {
+    create?: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput> | RoguelikeEdgeCreateWithoutChildInput[] | RoguelikeEdgeUncheckedCreateWithoutChildInput[]
+    connectOrCreate?: RoguelikeEdgeCreateOrConnectWithoutChildInput | RoguelikeEdgeCreateOrConnectWithoutChildInput[]
+    upsert?: RoguelikeEdgeUpsertWithWhereUniqueWithoutChildInput | RoguelikeEdgeUpsertWithWhereUniqueWithoutChildInput[]
+    createMany?: RoguelikeEdgeCreateManyChildInputEnvelope
+    set?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    disconnect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    delete?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    connect?: RoguelikeEdgeWhereUniqueInput | RoguelikeEdgeWhereUniqueInput[]
+    update?: RoguelikeEdgeUpdateWithWhereUniqueWithoutChildInput | RoguelikeEdgeUpdateWithWhereUniqueWithoutChildInput[]
+    updateMany?: RoguelikeEdgeUpdateManyWithWhereWithoutChildInput | RoguelikeEdgeUpdateManyWithWhereWithoutChildInput[]
+    deleteMany?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput> | RoguelikeNodeDefeatCreateWithoutNodeInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput | RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput[]
+    upsert?: RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutNodeInput | RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutNodeInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyNodeInputEnvelope
+    set?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    disconnect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    delete?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    update?: RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutNodeInput | RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutNodeInput[]
+    updateMany?: RoguelikeNodeDefeatUpdateManyWithWhereWithoutNodeInput | RoguelikeNodeDefeatUpdateManyWithWhereWithoutNodeInput[]
+    deleteMany?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeCreateNestedOneWithoutChildEdgesInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutChildEdgesInput, RoguelikeNodeUncheckedCreateWithoutChildEdgesInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutChildEdgesInput
+    connect?: RoguelikeNodeWhereUniqueInput
+  }
+
+  export type RoguelikeNodeCreateNestedOneWithoutParentEdgesInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutParentEdgesInput, RoguelikeNodeUncheckedCreateWithoutParentEdgesInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutParentEdgesInput
+    connect?: RoguelikeNodeWhereUniqueInput
+  }
+
+  export type RoguelikeNodeUpdateOneRequiredWithoutChildEdgesNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutChildEdgesInput, RoguelikeNodeUncheckedCreateWithoutChildEdgesInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutChildEdgesInput
+    upsert?: RoguelikeNodeUpsertWithoutChildEdgesInput
+    connect?: RoguelikeNodeWhereUniqueInput
+    update?: XOR<XOR<RoguelikeNodeUpdateToOneWithWhereWithoutChildEdgesInput, RoguelikeNodeUpdateWithoutChildEdgesInput>, RoguelikeNodeUncheckedUpdateWithoutChildEdgesInput>
+  }
+
+  export type RoguelikeNodeUpdateOneRequiredWithoutParentEdgesNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutParentEdgesInput, RoguelikeNodeUncheckedCreateWithoutParentEdgesInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutParentEdgesInput
+    upsert?: RoguelikeNodeUpsertWithoutParentEdgesInput
+    connect?: RoguelikeNodeWhereUniqueInput
+    update?: XOR<XOR<RoguelikeNodeUpdateToOneWithWhereWithoutParentEdgesInput, RoguelikeNodeUpdateWithoutParentEdgesInput>, RoguelikeNodeUncheckedUpdateWithoutParentEdgesInput>
+  }
+
+  export type UserCreateNestedOneWithoutRoguelikeRunsInput = {
+    create?: XOR<UserCreateWithoutRoguelikeRunsInput, UserUncheckedCreateWithoutRoguelikeRunsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutRoguelikeRunsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type RoguelikeCampaignCreateNestedOneWithoutRunsInput = {
+    create?: XOR<RoguelikeCampaignCreateWithoutRunsInput, RoguelikeCampaignUncheckedCreateWithoutRunsInput>
+    connectOrCreate?: RoguelikeCampaignCreateOrConnectWithoutRunsInput
+    connect?: RoguelikeCampaignWhereUniqueInput
+  }
+
+  export type RoguelikeRosterShipCreateNestedManyWithoutRunInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput> | RoguelikeRosterShipCreateWithoutRunInput[] | RoguelikeRosterShipUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutRunInput | RoguelikeRosterShipCreateOrConnectWithoutRunInput[]
+    createMany?: RoguelikeRosterShipCreateManyRunInputEnvelope
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeDefeatCreateNestedManyWithoutRunInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput> | RoguelikeNodeDefeatCreateWithoutRunInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutRunInput | RoguelikeNodeDefeatCreateOrConnectWithoutRunInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyRunInputEnvelope
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+  }
+
+  export type LobbyCreateNestedManyWithoutRoguelikeRunInput = {
+    create?: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput> | LobbyCreateWithoutRoguelikeRunInput[] | LobbyUncheckedCreateWithoutRoguelikeRunInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutRoguelikeRunInput | LobbyCreateOrConnectWithoutRoguelikeRunInput[]
+    createMany?: LobbyCreateManyRoguelikeRunInputEnvelope
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+  }
+
+  export type RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput> | RoguelikeRosterShipCreateWithoutRunInput[] | RoguelikeRosterShipUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutRunInput | RoguelikeRosterShipCreateOrConnectWithoutRunInput[]
+    createMany?: RoguelikeRosterShipCreateManyRunInputEnvelope
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput> | RoguelikeNodeDefeatCreateWithoutRunInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutRunInput | RoguelikeNodeDefeatCreateOrConnectWithoutRunInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyRunInputEnvelope
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+  }
+
+  export type LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput = {
+    create?: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput> | LobbyCreateWithoutRoguelikeRunInput[] | LobbyUncheckedCreateWithoutRoguelikeRunInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutRoguelikeRunInput | LobbyCreateOrConnectWithoutRoguelikeRunInput[]
+    createMany?: LobbyCreateManyRoguelikeRunInputEnvelope
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+  }
+
+  export type EnumRoguelikeRunStatusFieldUpdateOperationsInput = {
+    set?: $Enums.RoguelikeRunStatus
+  }
+
+  export type UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput = {
+    create?: XOR<UserCreateWithoutRoguelikeRunsInput, UserUncheckedCreateWithoutRoguelikeRunsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutRoguelikeRunsInput
+    upsert?: UserUpsertWithoutRoguelikeRunsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutRoguelikeRunsInput, UserUpdateWithoutRoguelikeRunsInput>, UserUncheckedUpdateWithoutRoguelikeRunsInput>
+  }
+
+  export type RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput = {
+    create?: XOR<RoguelikeCampaignCreateWithoutRunsInput, RoguelikeCampaignUncheckedCreateWithoutRunsInput>
+    connectOrCreate?: RoguelikeCampaignCreateOrConnectWithoutRunsInput
+    upsert?: RoguelikeCampaignUpsertWithoutRunsInput
+    connect?: RoguelikeCampaignWhereUniqueInput
+    update?: XOR<XOR<RoguelikeCampaignUpdateToOneWithWhereWithoutRunsInput, RoguelikeCampaignUpdateWithoutRunsInput>, RoguelikeCampaignUncheckedUpdateWithoutRunsInput>
+  }
+
+  export type RoguelikeRosterShipUpdateManyWithoutRunNestedInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput> | RoguelikeRosterShipCreateWithoutRunInput[] | RoguelikeRosterShipUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutRunInput | RoguelikeRosterShipCreateOrConnectWithoutRunInput[]
+    upsert?: RoguelikeRosterShipUpsertWithWhereUniqueWithoutRunInput | RoguelikeRosterShipUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: RoguelikeRosterShipCreateManyRunInputEnvelope
+    set?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    disconnect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    delete?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    update?: RoguelikeRosterShipUpdateWithWhereUniqueWithoutRunInput | RoguelikeRosterShipUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: RoguelikeRosterShipUpdateManyWithWhereWithoutRunInput | RoguelikeRosterShipUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput> | RoguelikeNodeDefeatCreateWithoutRunInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutRunInput | RoguelikeNodeDefeatCreateOrConnectWithoutRunInput[]
+    upsert?: RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutRunInput | RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyRunInputEnvelope
+    set?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    disconnect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    delete?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    update?: RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutRunInput | RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: RoguelikeNodeDefeatUpdateManyWithWhereWithoutRunInput | RoguelikeNodeDefeatUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+  }
+
+  export type LobbyUpdateManyWithoutRoguelikeRunNestedInput = {
+    create?: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput> | LobbyCreateWithoutRoguelikeRunInput[] | LobbyUncheckedCreateWithoutRoguelikeRunInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutRoguelikeRunInput | LobbyCreateOrConnectWithoutRoguelikeRunInput[]
+    upsert?: LobbyUpsertWithWhereUniqueWithoutRoguelikeRunInput | LobbyUpsertWithWhereUniqueWithoutRoguelikeRunInput[]
+    createMany?: LobbyCreateManyRoguelikeRunInputEnvelope
+    set?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    disconnect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    delete?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    update?: LobbyUpdateWithWhereUniqueWithoutRoguelikeRunInput | LobbyUpdateWithWhereUniqueWithoutRoguelikeRunInput[]
+    updateMany?: LobbyUpdateManyWithWhereWithoutRoguelikeRunInput | LobbyUpdateManyWithWhereWithoutRoguelikeRunInput[]
+    deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput = {
+    create?: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput> | RoguelikeRosterShipCreateWithoutRunInput[] | RoguelikeRosterShipUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeRosterShipCreateOrConnectWithoutRunInput | RoguelikeRosterShipCreateOrConnectWithoutRunInput[]
+    upsert?: RoguelikeRosterShipUpsertWithWhereUniqueWithoutRunInput | RoguelikeRosterShipUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: RoguelikeRosterShipCreateManyRunInputEnvelope
+    set?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    disconnect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    delete?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    connect?: RoguelikeRosterShipWhereUniqueInput | RoguelikeRosterShipWhereUniqueInput[]
+    update?: RoguelikeRosterShipUpdateWithWhereUniqueWithoutRunInput | RoguelikeRosterShipUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: RoguelikeRosterShipUpdateManyWithWhereWithoutRunInput | RoguelikeRosterShipUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput = {
+    create?: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput> | RoguelikeNodeDefeatCreateWithoutRunInput[] | RoguelikeNodeDefeatUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutRunInput | RoguelikeNodeDefeatCreateOrConnectWithoutRunInput[]
+    upsert?: RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutRunInput | RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: RoguelikeNodeDefeatCreateManyRunInputEnvelope
+    set?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    disconnect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    delete?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+    update?: RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutRunInput | RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: RoguelikeNodeDefeatUpdateManyWithWhereWithoutRunInput | RoguelikeNodeDefeatUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+  }
+
+  export type LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput = {
+    create?: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput> | LobbyCreateWithoutRoguelikeRunInput[] | LobbyUncheckedCreateWithoutRoguelikeRunInput[]
+    connectOrCreate?: LobbyCreateOrConnectWithoutRoguelikeRunInput | LobbyCreateOrConnectWithoutRoguelikeRunInput[]
+    upsert?: LobbyUpsertWithWhereUniqueWithoutRoguelikeRunInput | LobbyUpsertWithWhereUniqueWithoutRoguelikeRunInput[]
+    createMany?: LobbyCreateManyRoguelikeRunInputEnvelope
+    set?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    disconnect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    delete?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    connect?: LobbyWhereUniqueInput | LobbyWhereUniqueInput[]
+    update?: LobbyUpdateWithWhereUniqueWithoutRoguelikeRunInput | LobbyUpdateWithWhereUniqueWithoutRoguelikeRunInput[]
+    updateMany?: LobbyUpdateManyWithWhereWithoutRoguelikeRunInput | LobbyUpdateManyWithWhereWithoutRoguelikeRunInput[]
+    deleteMany?: LobbyScalarWhereInput | LobbyScalarWhereInput[]
+  }
+
+  export type RoguelikeRunCreateNestedOneWithoutRosterInput = {
+    create?: XOR<RoguelikeRunCreateWithoutRosterInput, RoguelikeRunUncheckedCreateWithoutRosterInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutRosterInput
+    connect?: RoguelikeRunWhereUniqueInput
+  }
+
+  export type ShipCreateNestedOneWithoutRoguelikeRosterEntriesInput = {
+    create?: XOR<ShipCreateWithoutRoguelikeRosterEntriesInput, ShipUncheckedCreateWithoutRoguelikeRosterEntriesInput>
+    connectOrCreate?: ShipCreateOrConnectWithoutRoguelikeRosterEntriesInput
+    connect?: ShipWhereUniqueInput
+  }
+
+  export type RoguelikeRunUpdateOneRequiredWithoutRosterNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutRosterInput, RoguelikeRunUncheckedCreateWithoutRosterInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutRosterInput
+    upsert?: RoguelikeRunUpsertWithoutRosterInput
+    connect?: RoguelikeRunWhereUniqueInput
+    update?: XOR<XOR<RoguelikeRunUpdateToOneWithWhereWithoutRosterInput, RoguelikeRunUpdateWithoutRosterInput>, RoguelikeRunUncheckedUpdateWithoutRosterInput>
+  }
+
+  export type ShipUpdateOneRequiredWithoutRoguelikeRosterEntriesNestedInput = {
+    create?: XOR<ShipCreateWithoutRoguelikeRosterEntriesInput, ShipUncheckedCreateWithoutRoguelikeRosterEntriesInput>
+    connectOrCreate?: ShipCreateOrConnectWithoutRoguelikeRosterEntriesInput
+    upsert?: ShipUpsertWithoutRoguelikeRosterEntriesInput
+    connect?: ShipWhereUniqueInput
+    update?: XOR<XOR<ShipUpdateToOneWithWhereWithoutRoguelikeRosterEntriesInput, ShipUpdateWithoutRoguelikeRosterEntriesInput>, ShipUncheckedUpdateWithoutRoguelikeRosterEntriesInput>
+  }
+
+  export type RoguelikeRunCreateNestedOneWithoutDefeatsInput = {
+    create?: XOR<RoguelikeRunCreateWithoutDefeatsInput, RoguelikeRunUncheckedCreateWithoutDefeatsInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutDefeatsInput
+    connect?: RoguelikeRunWhereUniqueInput
+  }
+
+  export type RoguelikeNodeCreateNestedOneWithoutDefeatsInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutDefeatsInput, RoguelikeNodeUncheckedCreateWithoutDefeatsInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutDefeatsInput
+    connect?: RoguelikeNodeWhereUniqueInput
+  }
+
+  export type RoguelikeRunUpdateOneRequiredWithoutDefeatsNestedInput = {
+    create?: XOR<RoguelikeRunCreateWithoutDefeatsInput, RoguelikeRunUncheckedCreateWithoutDefeatsInput>
+    connectOrCreate?: RoguelikeRunCreateOrConnectWithoutDefeatsInput
+    upsert?: RoguelikeRunUpsertWithoutDefeatsInput
+    connect?: RoguelikeRunWhereUniqueInput
+    update?: XOR<XOR<RoguelikeRunUpdateToOneWithWhereWithoutDefeatsInput, RoguelikeRunUpdateWithoutDefeatsInput>, RoguelikeRunUncheckedUpdateWithoutDefeatsInput>
+  }
+
+  export type RoguelikeNodeUpdateOneRequiredWithoutDefeatsNestedInput = {
+    create?: XOR<RoguelikeNodeCreateWithoutDefeatsInput, RoguelikeNodeUncheckedCreateWithoutDefeatsInput>
+    connectOrCreate?: RoguelikeNodeCreateOrConnectWithoutDefeatsInput
+    upsert?: RoguelikeNodeUpsertWithoutDefeatsInput
+    connect?: RoguelikeNodeWhereUniqueInput
+    update?: XOR<XOR<RoguelikeNodeUpdateToOneWithWhereWithoutDefeatsInput, RoguelikeNodeUpdateWithoutDefeatsInput>, RoguelikeNodeUncheckedUpdateWithoutDefeatsInput>
   }
 
   export type UserCreateNestedOneWithoutStatsInput = {
@@ -25983,6 +40644,23 @@ export namespace Prisma {
     _max?: NestedEnumGamePhaseFilter<$PrismaModel>
   }
 
+  export type NestedEnumRoguelikeRunStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.RoguelikeRunStatus | EnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel> | $Enums.RoguelikeRunStatus
+  }
+
+  export type NestedEnumRoguelikeRunStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.RoguelikeRunStatus | EnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RoguelikeRunStatus[] | ListEnumRoguelikeRunStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRoguelikeRunStatusWithAggregatesFilter<$PrismaModel> | $Enums.RoguelikeRunStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel>
+    _max?: NestedEnumRoguelikeRunStatusFilter<$PrismaModel>
+  }
+
   export type NestedEnumTournamentStateFilter<$PrismaModel = never> = {
     equals?: $Enums.TournamentState | EnumTournamentStateFieldRefInput<$PrismaModel>
     in?: $Enums.TournamentState[] | ListEnumTournamentStateFieldRefInput<$PrismaModel>
@@ -26015,6 +40693,7 @@ export namespace Prisma {
     shipsDestroyed?: number
     destroyedAt?: Date | string | null
     createdAt?: Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipCreateNestedManyWithoutShipInput
   }
 
   export type ShipUncheckedCreateWithoutOwnerInput = {
@@ -26033,6 +40712,7 @@ export namespace Prisma {
     shipsDestroyed?: number
     destroyedAt?: Date | string | null
     createdAt?: Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutShipInput
   }
 
   export type ShipCreateOrConnectWithoutOwnerInput = {
@@ -26059,6 +40739,8 @@ export namespace Prisma {
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
@@ -26079,6 +40761,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
@@ -26108,6 +40792,8 @@ export namespace Prisma {
     creator: UserCreateNestedOneWithoutLobbiesCreatedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
@@ -26128,6 +40814,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
@@ -26157,6 +40845,8 @@ export namespace Prisma {
     creator: UserCreateNestedOneWithoutLobbiesCreatedInput
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
@@ -26177,6 +40867,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
@@ -26462,6 +41154,66 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CampaignNodeCompletionCreateWithoutUserInput = {
+    completedAt?: Date | string
+    node: CampaignNodeCreateNestedOneWithoutCompletionsInput
+  }
+
+  export type CampaignNodeCompletionUncheckedCreateWithoutUserInput = {
+    id?: number
+    nodeId: number
+    completedAt?: Date | string
+  }
+
+  export type CampaignNodeCompletionCreateOrConnectWithoutUserInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    create: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput>
+  }
+
+  export type CampaignNodeCompletionCreateManyUserInputEnvelope = {
+    data: CampaignNodeCompletionCreateManyUserInput | CampaignNodeCompletionCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeRunCreateWithoutUserInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    campaign: RoguelikeCampaignCreateNestedOneWithoutRunsInput
+    roster?: RoguelikeRosterShipCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutRunInput
+    lobbies?: LobbyCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateWithoutUserInput = {
+    id?: number
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    roster?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunCreateOrConnectWithoutUserInput = {
+    where: RoguelikeRunWhereUniqueInput
+    create: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput>
+  }
+
+  export type RoguelikeRunCreateManyUserInputEnvelope = {
+    data: RoguelikeRunCreateManyUserInput | RoguelikeRunCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type ShipUpsertWithWhereUniqueWithoutOwnerInput = {
     where: ShipWhereUniqueInput
     update: XOR<ShipUpdateWithoutOwnerInput, ShipUncheckedUpdateWithoutOwnerInput>
@@ -26535,6 +41287,8 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Lobby"> | Date | string
     joinedAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
     joinerFleetSetAt?: DateTimeNullableFilter<"Lobby"> | Date | string | null
+    campaignNodeId?: IntNullableFilter<"Lobby"> | number | null
+    roguelikeRunId?: IntNullableFilter<"Lobby"> | number | null
   }
 
   export type LobbyUpsertWithWhereUniqueWithoutJoinerInput = {
@@ -26789,11 +41543,71 @@ export namespace Prisma {
     data: XOR<TournamentMatchUpdateManyMutationInput, TournamentMatchUncheckedUpdateManyWithoutPlayer2Input>
   }
 
+  export type CampaignNodeCompletionUpsertWithWhereUniqueWithoutUserInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    update: XOR<CampaignNodeCompletionUpdateWithoutUserInput, CampaignNodeCompletionUncheckedUpdateWithoutUserInput>
+    create: XOR<CampaignNodeCompletionCreateWithoutUserInput, CampaignNodeCompletionUncheckedCreateWithoutUserInput>
+  }
+
+  export type CampaignNodeCompletionUpdateWithWhereUniqueWithoutUserInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    data: XOR<CampaignNodeCompletionUpdateWithoutUserInput, CampaignNodeCompletionUncheckedUpdateWithoutUserInput>
+  }
+
+  export type CampaignNodeCompletionUpdateManyWithWhereWithoutUserInput = {
+    where: CampaignNodeCompletionScalarWhereInput
+    data: XOR<CampaignNodeCompletionUpdateManyMutationInput, CampaignNodeCompletionUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type CampaignNodeCompletionScalarWhereInput = {
+    AND?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+    OR?: CampaignNodeCompletionScalarWhereInput[]
+    NOT?: CampaignNodeCompletionScalarWhereInput | CampaignNodeCompletionScalarWhereInput[]
+    id?: IntFilter<"CampaignNodeCompletion"> | number
+    userId?: StringFilter<"CampaignNodeCompletion"> | string
+    nodeId?: IntFilter<"CampaignNodeCompletion"> | number
+    completedAt?: DateTimeFilter<"CampaignNodeCompletion"> | Date | string
+  }
+
+  export type RoguelikeRunUpsertWithWhereUniqueWithoutUserInput = {
+    where: RoguelikeRunWhereUniqueInput
+    update: XOR<RoguelikeRunUpdateWithoutUserInput, RoguelikeRunUncheckedUpdateWithoutUserInput>
+    create: XOR<RoguelikeRunCreateWithoutUserInput, RoguelikeRunUncheckedCreateWithoutUserInput>
+  }
+
+  export type RoguelikeRunUpdateWithWhereUniqueWithoutUserInput = {
+    where: RoguelikeRunWhereUniqueInput
+    data: XOR<RoguelikeRunUpdateWithoutUserInput, RoguelikeRunUncheckedUpdateWithoutUserInput>
+  }
+
+  export type RoguelikeRunUpdateManyWithWhereWithoutUserInput = {
+    where: RoguelikeRunScalarWhereInput
+    data: XOR<RoguelikeRunUpdateManyMutationInput, RoguelikeRunUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type RoguelikeRunScalarWhereInput = {
+    AND?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+    OR?: RoguelikeRunScalarWhereInput[]
+    NOT?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
+    id?: IntFilter<"RoguelikeRun"> | number
+    userId?: StringFilter<"RoguelikeRun"> | string
+    generation?: IntFilter<"RoguelikeRun"> | number
+    status?: EnumRoguelikeRunStatusFilter<"RoguelikeRun"> | $Enums.RoguelikeRunStatus
+    campaignId?: IntFilter<"RoguelikeRun"> | number
+    currentNodeId?: IntFilter<"RoguelikeRun"> | number
+    currentCostCap?: IntFilter<"RoguelikeRun"> | number
+    activeLobbyId?: IntNullableFilter<"RoguelikeRun"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeRun"> | Date | string
+    endedAt?: DateTimeNullableFilter<"RoguelikeRun"> | Date | string | null
+  }
+
   export type UserCreateWithoutShipsInput = {
     id: string
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -26812,6 +41626,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutShipsInput = {
@@ -26819,6 +41635,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -26837,11 +41655,34 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutShipsInput = {
     where: UserWhereUniqueInput
     create: XOR<UserCreateWithoutShipsInput, UserUncheckedCreateWithoutShipsInput>
+  }
+
+  export type RoguelikeRosterShipCreateWithoutShipInput = {
+    hp?: number
+    run: RoguelikeRunCreateNestedOneWithoutRosterInput
+  }
+
+  export type RoguelikeRosterShipUncheckedCreateWithoutShipInput = {
+    id?: number
+    runId: number
+    hp?: number
+  }
+
+  export type RoguelikeRosterShipCreateOrConnectWithoutShipInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    create: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput>
+  }
+
+  export type RoguelikeRosterShipCreateManyShipInputEnvelope = {
+    data: RoguelikeRosterShipCreateManyShipInput | RoguelikeRosterShipCreateManyShipInput[]
+    skipDuplicates?: boolean
   }
 
   export type UserUpsertWithoutShipsInput = {
@@ -26860,6 +41701,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -26878,6 +41721,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutShipsInput = {
@@ -26885,6 +41730,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -26903,6 +41750,34 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type RoguelikeRosterShipUpsertWithWhereUniqueWithoutShipInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    update: XOR<RoguelikeRosterShipUpdateWithoutShipInput, RoguelikeRosterShipUncheckedUpdateWithoutShipInput>
+    create: XOR<RoguelikeRosterShipCreateWithoutShipInput, RoguelikeRosterShipUncheckedCreateWithoutShipInput>
+  }
+
+  export type RoguelikeRosterShipUpdateWithWhereUniqueWithoutShipInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    data: XOR<RoguelikeRosterShipUpdateWithoutShipInput, RoguelikeRosterShipUncheckedUpdateWithoutShipInput>
+  }
+
+  export type RoguelikeRosterShipUpdateManyWithWhereWithoutShipInput = {
+    where: RoguelikeRosterShipScalarWhereInput
+    data: XOR<RoguelikeRosterShipUpdateManyMutationInput, RoguelikeRosterShipUncheckedUpdateManyWithoutShipInput>
+  }
+
+  export type RoguelikeRosterShipScalarWhereInput = {
+    AND?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
+    OR?: RoguelikeRosterShipScalarWhereInput[]
+    NOT?: RoguelikeRosterShipScalarWhereInput | RoguelikeRosterShipScalarWhereInput[]
+    id?: IntFilter<"RoguelikeRosterShip"> | number
+    runId?: IntFilter<"RoguelikeRosterShip"> | number
+    shipId?: IntFilter<"RoguelikeRosterShip"> | number
+    hp?: IntFilter<"RoguelikeRosterShip"> | number
   }
 
   export type UserCreateWithoutFleetsInput = {
@@ -26910,6 +41785,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -26928,6 +41805,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutFleetsInput = {
@@ -26935,6 +41814,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -26953,6 +41834,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutFleetsInput = {
@@ -26975,6 +41858,8 @@ export namespace Prisma {
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
   }
@@ -26995,6 +41880,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
   }
@@ -27020,6 +41907,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27038,6 +41927,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutFleetsInput = {
@@ -27045,6 +41936,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27063,6 +41956,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type LobbyUpsertWithoutFleetsInput = {
@@ -27091,6 +41986,8 @@ export namespace Prisma {
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
   }
@@ -27111,6 +42008,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
   }
@@ -27120,6 +42019,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27138,6 +42039,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLobbiesCreatedInput = {
@@ -27145,6 +42048,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27163,6 +42068,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLobbiesCreatedInput = {
@@ -27175,6 +42082,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27193,6 +42102,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLobbiesJoinedInput = {
@@ -27200,6 +42111,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27218,6 +42131,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLobbiesJoinedInput = {
@@ -27230,6 +42145,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27248,6 +42165,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutLobbiesReservedInput = {
@@ -27255,6 +42174,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27273,6 +42194,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutLobbiesReservedInput = {
@@ -27286,8 +42209,11 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeCreateNestedManyWithoutMapInput
   }
 
   export type MapUncheckedCreateWithoutLobbiesInput = {
@@ -27297,13 +42223,80 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeUncheckedCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutMapInput
   }
 
   export type MapCreateOrConnectWithoutLobbiesInput = {
     where: MapWhereUniqueInput
     create: XOR<MapCreateWithoutLobbiesInput, MapUncheckedCreateWithoutLobbiesInput>
+  }
+
+  export type CampaignNodeCreateWithoutLobbiesInput = {
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    campaign: CampaignCreateNestedOneWithoutNodesInput
+    map: MapCreateNestedOneWithoutCampaignNodesInput
+    completions?: CampaignNodeCompletionCreateNestedManyWithoutNodeInput
+  }
+
+  export type CampaignNodeUncheckedCreateWithoutLobbiesInput = {
+    id?: number
+    campaignId: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    completions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type CampaignNodeCreateOrConnectWithoutLobbiesInput = {
+    where: CampaignNodeWhereUniqueInput
+    create: XOR<CampaignNodeCreateWithoutLobbiesInput, CampaignNodeUncheckedCreateWithoutLobbiesInput>
+  }
+
+  export type RoguelikeRunCreateWithoutLobbiesInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    user: UserCreateNestedOneWithoutRoguelikeRunsInput
+    campaign: RoguelikeCampaignCreateNestedOneWithoutRunsInput
+    roster?: RoguelikeRosterShipCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateWithoutLobbiesInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    roster?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput
+  }
+
+  export type RoguelikeRunCreateOrConnectWithoutLobbiesInput = {
+    where: RoguelikeRunWhereUniqueInput
+    create: XOR<RoguelikeRunCreateWithoutLobbiesInput, RoguelikeRunUncheckedCreateWithoutLobbiesInput>
   }
 
   export type FleetCreateWithoutLobbyInput = {
@@ -27415,6 +42408,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27433,6 +42428,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLobbiesCreatedInput = {
@@ -27440,6 +42437,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27458,6 +42457,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserUpsertWithoutLobbiesJoinedInput = {
@@ -27476,6 +42477,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27494,6 +42497,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLobbiesJoinedInput = {
@@ -27501,6 +42506,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27519,6 +42526,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserUpsertWithoutLobbiesReservedInput = {
@@ -27537,6 +42546,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27555,6 +42566,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutLobbiesReservedInput = {
@@ -27562,6 +42575,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27580,6 +42595,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type MapUpsertWithoutLobbiesInput = {
@@ -27599,8 +42616,11 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUpdateManyWithoutMapNestedInput
   }
 
   export type MapUncheckedUpdateWithoutLobbiesInput = {
@@ -27610,8 +42630,87 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUncheckedUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUncheckedUpdateManyWithoutMapNestedInput
+  }
+
+  export type CampaignNodeUpsertWithoutLobbiesInput = {
+    update: XOR<CampaignNodeUpdateWithoutLobbiesInput, CampaignNodeUncheckedUpdateWithoutLobbiesInput>
+    create: XOR<CampaignNodeCreateWithoutLobbiesInput, CampaignNodeUncheckedCreateWithoutLobbiesInput>
+    where?: CampaignNodeWhereInput
+  }
+
+  export type CampaignNodeUpdateToOneWithWhereWithoutLobbiesInput = {
+    where?: CampaignNodeWhereInput
+    data: XOR<CampaignNodeUpdateWithoutLobbiesInput, CampaignNodeUncheckedUpdateWithoutLobbiesInput>
+  }
+
+  export type CampaignNodeUpdateWithoutLobbiesInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: CampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneRequiredWithoutCampaignNodesNestedInput
+    completions?: CampaignNodeCompletionUpdateManyWithoutNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateWithoutLobbiesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completions?: CampaignNodeCompletionUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeRunUpsertWithoutLobbiesInput = {
+    update: XOR<RoguelikeRunUpdateWithoutLobbiesInput, RoguelikeRunUncheckedUpdateWithoutLobbiesInput>
+    create: XOR<RoguelikeRunCreateWithoutLobbiesInput, RoguelikeRunUncheckedCreateWithoutLobbiesInput>
+    where?: RoguelikeRunWhereInput
+  }
+
+  export type RoguelikeRunUpdateToOneWithWhereWithoutLobbiesInput = {
+    where?: RoguelikeRunWhereInput
+    data: XOR<RoguelikeRunUpdateWithoutLobbiesInput, RoguelikeRunUncheckedUpdateWithoutLobbiesInput>
+  }
+
+  export type RoguelikeRunUpdateWithoutLobbiesInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput
+    roster?: RoguelikeRosterShipUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateWithoutLobbiesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roster?: RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput
   }
 
   export type FleetUpsertWithWhereUniqueWithoutLobbyInput = {
@@ -27721,6 +42820,8 @@ export namespace Prisma {
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
   }
@@ -27741,6 +42842,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
   }
@@ -27755,6 +42858,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27773,6 +42878,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutGamesAsPlayer1Input = {
@@ -27780,6 +42887,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27798,6 +42907,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutGamesAsPlayer1Input = {
@@ -27810,6 +42921,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27828,6 +42941,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutGamesAsPlayer2Input = {
@@ -27835,6 +42950,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -27853,6 +42970,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutGamesAsPlayer2Input = {
@@ -27913,6 +43032,8 @@ export namespace Prisma {
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
   }
@@ -27933,6 +43054,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
   }
@@ -27953,6 +43076,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27971,6 +43096,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGamesAsPlayer1Input = {
@@ -27978,6 +43105,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -27996,6 +43125,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserUpsertWithoutGamesAsPlayer2Input = {
@@ -28014,6 +43145,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28032,6 +43165,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGamesAsPlayer2Input = {
@@ -28039,6 +43174,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28057,6 +43194,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type GameTurnUpsertWithWhereUniqueWithoutGameInput = {
@@ -28176,6 +43315,8 @@ export namespace Prisma {
     creator: UserCreateNestedOneWithoutLobbiesCreatedInput
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
@@ -28196,6 +43337,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
     tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
@@ -28231,6 +43374,78 @@ export namespace Prisma {
 
   export type AIMapPlacementCreateManyMapInputEnvelope = {
     data: AIMapPlacementCreateManyMapInput | AIMapPlacementCreateManyMapInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CampaignNodeCreateWithoutMapInput = {
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    campaign: CampaignCreateNestedOneWithoutNodesInput
+    completions?: CampaignNodeCompletionCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeUncheckedCreateWithoutMapInput = {
+    id?: number
+    campaignId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    completions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeCreateOrConnectWithoutMapInput = {
+    where: CampaignNodeWhereUniqueInput
+    create: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput>
+  }
+
+  export type CampaignNodeCreateManyMapInputEnvelope = {
+    data: CampaignNodeCreateManyMapInput | CampaignNodeCreateManyMapInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeNodeCreateWithoutMapInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
+    childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateWithoutMapInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeCreateOrConnectWithoutMapInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    create: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput>
+  }
+
+  export type RoguelikeNodeCreateManyMapInputEnvelope = {
+    data: RoguelikeNodeCreateManyMapInput | RoguelikeNodeCreateManyMapInput[]
     skipDuplicates?: boolean
   }
 
@@ -28275,6 +43490,68 @@ export namespace Prisma {
     row?: IntFilter<"AIMapPlacement"> | number
     col?: IntFilter<"AIMapPlacement"> | number
     configId?: IntFilter<"AIMapPlacement"> | number
+  }
+
+  export type CampaignNodeUpsertWithWhereUniqueWithoutMapInput = {
+    where: CampaignNodeWhereUniqueInput
+    update: XOR<CampaignNodeUpdateWithoutMapInput, CampaignNodeUncheckedUpdateWithoutMapInput>
+    create: XOR<CampaignNodeCreateWithoutMapInput, CampaignNodeUncheckedCreateWithoutMapInput>
+  }
+
+  export type CampaignNodeUpdateWithWhereUniqueWithoutMapInput = {
+    where: CampaignNodeWhereUniqueInput
+    data: XOR<CampaignNodeUpdateWithoutMapInput, CampaignNodeUncheckedUpdateWithoutMapInput>
+  }
+
+  export type CampaignNodeUpdateManyWithWhereWithoutMapInput = {
+    where: CampaignNodeScalarWhereInput
+    data: XOR<CampaignNodeUpdateManyMutationInput, CampaignNodeUncheckedUpdateManyWithoutMapInput>
+  }
+
+  export type CampaignNodeScalarWhereInput = {
+    AND?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+    OR?: CampaignNodeScalarWhereInput[]
+    NOT?: CampaignNodeScalarWhereInput | CampaignNodeScalarWhereInput[]
+    id?: IntFilter<"CampaignNode"> | number
+    campaignId?: IntFilter<"CampaignNode"> | number
+    mapId?: IntFilter<"CampaignNode"> | number
+    prerequisites?: IntNullableListFilter<"CampaignNode">
+    costLimit?: IntFilter<"CampaignNode"> | number
+    turnTimeSeconds?: IntFilter<"CampaignNode"> | number
+    maxScore?: IntFilter<"CampaignNode"> | number
+    creatorGoesFirst?: BoolFilter<"CampaignNode"> | boolean
+    createdAt?: DateTimeFilter<"CampaignNode"> | Date | string
+  }
+
+  export type RoguelikeNodeUpsertWithWhereUniqueWithoutMapInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    update: XOR<RoguelikeNodeUpdateWithoutMapInput, RoguelikeNodeUncheckedUpdateWithoutMapInput>
+    create: XOR<RoguelikeNodeCreateWithoutMapInput, RoguelikeNodeUncheckedCreateWithoutMapInput>
+  }
+
+  export type RoguelikeNodeUpdateWithWhereUniqueWithoutMapInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    data: XOR<RoguelikeNodeUpdateWithoutMapInput, RoguelikeNodeUncheckedUpdateWithoutMapInput>
+  }
+
+  export type RoguelikeNodeUpdateManyWithWhereWithoutMapInput = {
+    where: RoguelikeNodeScalarWhereInput
+    data: XOR<RoguelikeNodeUpdateManyMutationInput, RoguelikeNodeUncheckedUpdateManyWithoutMapInput>
+  }
+
+  export type RoguelikeNodeScalarWhereInput = {
+    AND?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
+    OR?: RoguelikeNodeScalarWhereInput[]
+    NOT?: RoguelikeNodeScalarWhereInput | RoguelikeNodeScalarWhereInput[]
+    id?: IntFilter<"RoguelikeNode"> | number
+    campaignId?: IntFilter<"RoguelikeNode"> | number
+    kind?: IntFilter<"RoguelikeNode"> | number
+    mapId?: IntNullableFilter<"RoguelikeNode"> | number | null
+    turnTimeSeconds?: IntNullableFilter<"RoguelikeNode"> | number | null
+    maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
+    creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
+    costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
   }
 
   export type AIMapPlacementCreateWithoutConfigInput = {
@@ -28322,8 +43599,11 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     lobbies?: LobbyCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeCreateNestedManyWithoutMapInput
   }
 
   export type MapUncheckedCreateWithoutAiPlacementsInput = {
@@ -28333,8 +43613,11 @@ export namespace Prisma {
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
     createdAt?: Date | string
     lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeUncheckedCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutMapInput
   }
 
   export type MapCreateOrConnectWithoutAiPlacementsInput = {
@@ -28381,8 +43664,11 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUpdateManyWithoutMapNestedInput
   }
 
   export type MapUncheckedUpdateWithoutAiPlacementsInput = {
@@ -28392,8 +43678,11 @@ export namespace Prisma {
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUncheckedUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUncheckedUpdateManyWithoutMapNestedInput
   }
 
   export type AIShipConfigUpsertWithoutPlacementsInput = {
@@ -28424,11 +43713,1611 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CampaignNodeCreateWithoutCampaignInput = {
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    map: MapCreateNestedOneWithoutCampaignNodesInput
+    completions?: CampaignNodeCompletionCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeUncheckedCreateWithoutCampaignInput = {
+    id?: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    completions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutNodeInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeCreateOrConnectWithoutCampaignInput = {
+    where: CampaignNodeWhereUniqueInput
+    create: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type CampaignNodeCreateManyCampaignInputEnvelope = {
+    data: CampaignNodeCreateManyCampaignInput | CampaignNodeCreateManyCampaignInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CampaignNodeUpsertWithWhereUniqueWithoutCampaignInput = {
+    where: CampaignNodeWhereUniqueInput
+    update: XOR<CampaignNodeUpdateWithoutCampaignInput, CampaignNodeUncheckedUpdateWithoutCampaignInput>
+    create: XOR<CampaignNodeCreateWithoutCampaignInput, CampaignNodeUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type CampaignNodeUpdateWithWhereUniqueWithoutCampaignInput = {
+    where: CampaignNodeWhereUniqueInput
+    data: XOR<CampaignNodeUpdateWithoutCampaignInput, CampaignNodeUncheckedUpdateWithoutCampaignInput>
+  }
+
+  export type CampaignNodeUpdateManyWithWhereWithoutCampaignInput = {
+    where: CampaignNodeScalarWhereInput
+    data: XOR<CampaignNodeUpdateManyMutationInput, CampaignNodeUncheckedUpdateManyWithoutCampaignInput>
+  }
+
+  export type CampaignCreateWithoutNodesInput = {
+    requiredVariant?: number
+    createdAt?: Date | string
+  }
+
+  export type CampaignUncheckedCreateWithoutNodesInput = {
+    id?: number
+    requiredVariant?: number
+    createdAt?: Date | string
+  }
+
+  export type CampaignCreateOrConnectWithoutNodesInput = {
+    where: CampaignWhereUniqueInput
+    create: XOR<CampaignCreateWithoutNodesInput, CampaignUncheckedCreateWithoutNodesInput>
+  }
+
+  export type MapCreateWithoutCampaignNodesInput = {
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
+    createdAt?: Date | string
+    lobbies?: LobbyCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeCreateNestedManyWithoutMapInput
+  }
+
+  export type MapUncheckedCreateWithoutCampaignNodesInput = {
+    id?: number
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
+    createdAt?: Date | string
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
+    roguelikeNodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutMapInput
+  }
+
+  export type MapCreateOrConnectWithoutCampaignNodesInput = {
+    where: MapWhereUniqueInput
+    create: XOR<MapCreateWithoutCampaignNodesInput, MapUncheckedCreateWithoutCampaignNodesInput>
+  }
+
+  export type CampaignNodeCompletionCreateWithoutNodeInput = {
+    completedAt?: Date | string
+    user: UserCreateNestedOneWithoutCampaignNodeCompletionsInput
+  }
+
+  export type CampaignNodeCompletionUncheckedCreateWithoutNodeInput = {
+    id?: number
+    userId: string
+    completedAt?: Date | string
+  }
+
+  export type CampaignNodeCompletionCreateOrConnectWithoutNodeInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    create: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput>
+  }
+
+  export type CampaignNodeCompletionCreateManyNodeInputEnvelope = {
+    data: CampaignNodeCompletionCreateManyNodeInput | CampaignNodeCompletionCreateManyNodeInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type LobbyCreateWithoutCampaignNodeInput = {
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    creator: UserCreateNestedOneWithoutLobbiesCreatedInput
+    joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
+    reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
+    map?: MapCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
+    fleets?: FleetCreateNestedManyWithoutLobbyInput
+    game?: GameCreateNestedOneWithoutLobbyInput
+    tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
+  }
+
+  export type LobbyUncheckedCreateWithoutCampaignNodeInput = {
+    id?: number
+    creatorId: string
+    joinerId?: string | null
+    reservedJoinerId?: string | null
+    mapId?: number | null
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    roguelikeRunId?: number | null
+    fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
+    game?: GameUncheckedCreateNestedOneWithoutLobbyInput
+    tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
+  }
+
+  export type LobbyCreateOrConnectWithoutCampaignNodeInput = {
+    where: LobbyWhereUniqueInput
+    create: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput>
+  }
+
+  export type LobbyCreateManyCampaignNodeInputEnvelope = {
+    data: LobbyCreateManyCampaignNodeInput | LobbyCreateManyCampaignNodeInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CampaignUpsertWithoutNodesInput = {
+    update: XOR<CampaignUpdateWithoutNodesInput, CampaignUncheckedUpdateWithoutNodesInput>
+    create: XOR<CampaignCreateWithoutNodesInput, CampaignUncheckedCreateWithoutNodesInput>
+    where?: CampaignWhereInput
+  }
+
+  export type CampaignUpdateToOneWithWhereWithoutNodesInput = {
+    where?: CampaignWhereInput
+    data: XOR<CampaignUpdateWithoutNodesInput, CampaignUncheckedUpdateWithoutNodesInput>
+  }
+
+  export type CampaignUpdateWithoutNodesInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignUncheckedUpdateWithoutNodesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MapUpsertWithoutCampaignNodesInput = {
+    update: XOR<MapUpdateWithoutCampaignNodesInput, MapUncheckedUpdateWithoutCampaignNodesInput>
+    create: XOR<MapCreateWithoutCampaignNodesInput, MapUncheckedCreateWithoutCampaignNodesInput>
+    where?: MapWhereInput
+  }
+
+  export type MapUpdateToOneWithWhereWithoutCampaignNodesInput = {
+    where?: MapWhereInput
+    data: XOR<MapUpdateWithoutCampaignNodesInput, MapUncheckedUpdateWithoutCampaignNodesInput>
+  }
+
+  export type MapUpdateWithoutCampaignNodesInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUpdateManyWithoutMapNestedInput
+  }
+
+  export type MapUncheckedUpdateWithoutCampaignNodesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
+    roguelikeNodes?: RoguelikeNodeUncheckedUpdateManyWithoutMapNestedInput
+  }
+
+  export type CampaignNodeCompletionUpsertWithWhereUniqueWithoutNodeInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    update: XOR<CampaignNodeCompletionUpdateWithoutNodeInput, CampaignNodeCompletionUncheckedUpdateWithoutNodeInput>
+    create: XOR<CampaignNodeCompletionCreateWithoutNodeInput, CampaignNodeCompletionUncheckedCreateWithoutNodeInput>
+  }
+
+  export type CampaignNodeCompletionUpdateWithWhereUniqueWithoutNodeInput = {
+    where: CampaignNodeCompletionWhereUniqueInput
+    data: XOR<CampaignNodeCompletionUpdateWithoutNodeInput, CampaignNodeCompletionUncheckedUpdateWithoutNodeInput>
+  }
+
+  export type CampaignNodeCompletionUpdateManyWithWhereWithoutNodeInput = {
+    where: CampaignNodeCompletionScalarWhereInput
+    data: XOR<CampaignNodeCompletionUpdateManyMutationInput, CampaignNodeCompletionUncheckedUpdateManyWithoutNodeInput>
+  }
+
+  export type LobbyUpsertWithWhereUniqueWithoutCampaignNodeInput = {
+    where: LobbyWhereUniqueInput
+    update: XOR<LobbyUpdateWithoutCampaignNodeInput, LobbyUncheckedUpdateWithoutCampaignNodeInput>
+    create: XOR<LobbyCreateWithoutCampaignNodeInput, LobbyUncheckedCreateWithoutCampaignNodeInput>
+  }
+
+  export type LobbyUpdateWithWhereUniqueWithoutCampaignNodeInput = {
+    where: LobbyWhereUniqueInput
+    data: XOR<LobbyUpdateWithoutCampaignNodeInput, LobbyUncheckedUpdateWithoutCampaignNodeInput>
+  }
+
+  export type LobbyUpdateManyWithWhereWithoutCampaignNodeInput = {
+    where: LobbyScalarWhereInput
+    data: XOR<LobbyUpdateManyMutationInput, LobbyUncheckedUpdateManyWithoutCampaignNodeInput>
+  }
+
+  export type UserCreateWithoutCampaignNodeCompletionsInput = {
+    id: string
+    email: string
+    username?: string | null
+    creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
+    purchasedShipCount?: number
+    lobbiesCreatedCount?: number
+    kickCount?: number
+    kickTimeoutUntil?: Date | string | null
+    tutorialCompleted?: boolean
+    tutorialPath?: string | null
+    createdAt?: Date | string
+    ships?: ShipCreateNestedManyWithoutOwnerInput
+    lobbiesCreated?: LobbyCreateNestedManyWithoutCreatorInput
+    lobbiesJoined?: LobbyCreateNestedManyWithoutJoinerInput
+    lobbiesReserved?: LobbyCreateNestedManyWithoutReservedJoinerInput
+    gamesAsPlayer1?: GameCreateNestedManyWithoutPlayer1Input
+    gamesAsPlayer2?: GameCreateNestedManyWithoutPlayer2Input
+    fleets?: FleetCreateNestedManyWithoutOwnerInput
+    stats?: PlayerStatsCreateNestedOneWithoutUserInput
+    tournamentsCreated?: TournamentCreateNestedManyWithoutCreatorInput
+    tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
+    tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
+    tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutCampaignNodeCompletionsInput = {
+    id: string
+    email: string
+    username?: string | null
+    creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
+    purchasedShipCount?: number
+    lobbiesCreatedCount?: number
+    kickCount?: number
+    kickTimeoutUntil?: Date | string | null
+    tutorialCompleted?: boolean
+    tutorialPath?: string | null
+    createdAt?: Date | string
+    ships?: ShipUncheckedCreateNestedManyWithoutOwnerInput
+    lobbiesCreated?: LobbyUncheckedCreateNestedManyWithoutCreatorInput
+    lobbiesJoined?: LobbyUncheckedCreateNestedManyWithoutJoinerInput
+    lobbiesReserved?: LobbyUncheckedCreateNestedManyWithoutReservedJoinerInput
+    gamesAsPlayer1?: GameUncheckedCreateNestedManyWithoutPlayer1Input
+    gamesAsPlayer2?: GameUncheckedCreateNestedManyWithoutPlayer2Input
+    fleets?: FleetUncheckedCreateNestedManyWithoutOwnerInput
+    stats?: PlayerStatsUncheckedCreateNestedOneWithoutUserInput
+    tournamentsCreated?: TournamentUncheckedCreateNestedManyWithoutCreatorInput
+    tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
+    tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
+    tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutCampaignNodeCompletionsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutCampaignNodeCompletionsInput, UserUncheckedCreateWithoutCampaignNodeCompletionsInput>
+  }
+
+  export type CampaignNodeCreateWithoutCompletionsInput = {
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    campaign: CampaignCreateNestedOneWithoutNodesInput
+    map: MapCreateNestedOneWithoutCampaignNodesInput
+    lobbies?: LobbyCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeUncheckedCreateWithoutCompletionsInput = {
+    id?: number
+    campaignId: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutCampaignNodeInput
+  }
+
+  export type CampaignNodeCreateOrConnectWithoutCompletionsInput = {
+    where: CampaignNodeWhereUniqueInput
+    create: XOR<CampaignNodeCreateWithoutCompletionsInput, CampaignNodeUncheckedCreateWithoutCompletionsInput>
+  }
+
+  export type UserUpsertWithoutCampaignNodeCompletionsInput = {
+    update: XOR<UserUpdateWithoutCampaignNodeCompletionsInput, UserUncheckedUpdateWithoutCampaignNodeCompletionsInput>
+    create: XOR<UserCreateWithoutCampaignNodeCompletionsInput, UserUncheckedCreateWithoutCampaignNodeCompletionsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutCampaignNodeCompletionsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutCampaignNodeCompletionsInput, UserUncheckedUpdateWithoutCampaignNodeCompletionsInput>
+  }
+
+  export type UserUpdateWithoutCampaignNodeCompletionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
+    purchasedShipCount?: IntFieldUpdateOperationsInput | number
+    lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
+    kickCount?: IntFieldUpdateOperationsInput | number
+    kickTimeoutUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tutorialCompleted?: BoolFieldUpdateOperationsInput | boolean
+    tutorialPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ships?: ShipUpdateManyWithoutOwnerNestedInput
+    lobbiesCreated?: LobbyUpdateManyWithoutCreatorNestedInput
+    lobbiesJoined?: LobbyUpdateManyWithoutJoinerNestedInput
+    lobbiesReserved?: LobbyUpdateManyWithoutReservedJoinerNestedInput
+    gamesAsPlayer1?: GameUpdateManyWithoutPlayer1NestedInput
+    gamesAsPlayer2?: GameUpdateManyWithoutPlayer2NestedInput
+    fleets?: FleetUpdateManyWithoutOwnerNestedInput
+    stats?: PlayerStatsUpdateOneWithoutUserNestedInput
+    tournamentsCreated?: TournamentUpdateManyWithoutCreatorNestedInput
+    tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
+    tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
+    tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutCampaignNodeCompletionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
+    purchasedShipCount?: IntFieldUpdateOperationsInput | number
+    lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
+    kickCount?: IntFieldUpdateOperationsInput | number
+    kickTimeoutUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tutorialCompleted?: BoolFieldUpdateOperationsInput | boolean
+    tutorialPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ships?: ShipUncheckedUpdateManyWithoutOwnerNestedInput
+    lobbiesCreated?: LobbyUncheckedUpdateManyWithoutCreatorNestedInput
+    lobbiesJoined?: LobbyUncheckedUpdateManyWithoutJoinerNestedInput
+    lobbiesReserved?: LobbyUncheckedUpdateManyWithoutReservedJoinerNestedInput
+    gamesAsPlayer1?: GameUncheckedUpdateManyWithoutPlayer1NestedInput
+    gamesAsPlayer2?: GameUncheckedUpdateManyWithoutPlayer2NestedInput
+    fleets?: FleetUncheckedUpdateManyWithoutOwnerNestedInput
+    stats?: PlayerStatsUncheckedUpdateOneWithoutUserNestedInput
+    tournamentsCreated?: TournamentUncheckedUpdateManyWithoutCreatorNestedInput
+    tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
+    tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
+    tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type CampaignNodeUpsertWithoutCompletionsInput = {
+    update: XOR<CampaignNodeUpdateWithoutCompletionsInput, CampaignNodeUncheckedUpdateWithoutCompletionsInput>
+    create: XOR<CampaignNodeCreateWithoutCompletionsInput, CampaignNodeUncheckedCreateWithoutCompletionsInput>
+    where?: CampaignNodeWhereInput
+  }
+
+  export type CampaignNodeUpdateToOneWithWhereWithoutCompletionsInput = {
+    where?: CampaignNodeWhereInput
+    data: XOR<CampaignNodeUpdateWithoutCompletionsInput, CampaignNodeUncheckedUpdateWithoutCompletionsInput>
+  }
+
+  export type CampaignNodeUpdateWithoutCompletionsInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: CampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneRequiredWithoutCampaignNodesNestedInput
+    lobbies?: LobbyUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateWithoutCompletionsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUncheckedUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type RoguelikeNodeCreateWithoutCampaignInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    map?: MapCreateNestedOneWithoutRoguelikeNodesInput
+    childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateWithoutCampaignInput = {
+    id?: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeCreateOrConnectWithoutCampaignInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    create: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type RoguelikeNodeCreateManyCampaignInputEnvelope = {
+    data: RoguelikeNodeCreateManyCampaignInput | RoguelikeNodeCreateManyCampaignInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeRunCreateWithoutCampaignInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    user: UserCreateNestedOneWithoutRoguelikeRunsInput
+    roster?: RoguelikeRosterShipCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutRunInput
+    lobbies?: LobbyCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateWithoutCampaignInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    roster?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunCreateOrConnectWithoutCampaignInput = {
+    where: RoguelikeRunWhereUniqueInput
+    create: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type RoguelikeRunCreateManyCampaignInputEnvelope = {
+    data: RoguelikeRunCreateManyCampaignInput | RoguelikeRunCreateManyCampaignInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeNodeUpsertWithWhereUniqueWithoutCampaignInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    update: XOR<RoguelikeNodeUpdateWithoutCampaignInput, RoguelikeNodeUncheckedUpdateWithoutCampaignInput>
+    create: XOR<RoguelikeNodeCreateWithoutCampaignInput, RoguelikeNodeUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type RoguelikeNodeUpdateWithWhereUniqueWithoutCampaignInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    data: XOR<RoguelikeNodeUpdateWithoutCampaignInput, RoguelikeNodeUncheckedUpdateWithoutCampaignInput>
+  }
+
+  export type RoguelikeNodeUpdateManyWithWhereWithoutCampaignInput = {
+    where: RoguelikeNodeScalarWhereInput
+    data: XOR<RoguelikeNodeUpdateManyMutationInput, RoguelikeNodeUncheckedUpdateManyWithoutCampaignInput>
+  }
+
+  export type RoguelikeRunUpsertWithWhereUniqueWithoutCampaignInput = {
+    where: RoguelikeRunWhereUniqueInput
+    update: XOR<RoguelikeRunUpdateWithoutCampaignInput, RoguelikeRunUncheckedUpdateWithoutCampaignInput>
+    create: XOR<RoguelikeRunCreateWithoutCampaignInput, RoguelikeRunUncheckedCreateWithoutCampaignInput>
+  }
+
+  export type RoguelikeRunUpdateWithWhereUniqueWithoutCampaignInput = {
+    where: RoguelikeRunWhereUniqueInput
+    data: XOR<RoguelikeRunUpdateWithoutCampaignInput, RoguelikeRunUncheckedUpdateWithoutCampaignInput>
+  }
+
+  export type RoguelikeRunUpdateManyWithWhereWithoutCampaignInput = {
+    where: RoguelikeRunScalarWhereInput
+    data: XOR<RoguelikeRunUpdateManyMutationInput, RoguelikeRunUncheckedUpdateManyWithoutCampaignInput>
+  }
+
+  export type RoguelikeCampaignCreateWithoutNodesInput = {
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    runs?: RoguelikeRunCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignUncheckedCreateWithoutNodesInput = {
+    id?: number
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    runs?: RoguelikeRunUncheckedCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignCreateOrConnectWithoutNodesInput = {
+    where: RoguelikeCampaignWhereUniqueInput
+    create: XOR<RoguelikeCampaignCreateWithoutNodesInput, RoguelikeCampaignUncheckedCreateWithoutNodesInput>
+  }
+
+  export type MapCreateWithoutRoguelikeNodesInput = {
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
+    createdAt?: Date | string
+    lobbies?: LobbyCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeCreateNestedManyWithoutMapInput
+  }
+
+  export type MapUncheckedCreateWithoutRoguelikeNodesInput = {
+    id?: number
+    name: string
+    gridWidth?: number
+    gridHeight?: number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: number
+    createdAt?: Date | string
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutMapInput
+    aiPlacements?: AIMapPlacementUncheckedCreateNestedManyWithoutMapInput
+    campaignNodes?: CampaignNodeUncheckedCreateNestedManyWithoutMapInput
+  }
+
+  export type MapCreateOrConnectWithoutRoguelikeNodesInput = {
+    where: MapWhereUniqueInput
+    create: XOR<MapCreateWithoutRoguelikeNodesInput, MapUncheckedCreateWithoutRoguelikeNodesInput>
+  }
+
+  export type RoguelikeEdgeCreateWithoutParentInput = {
+    twoWay?: boolean
+    child: RoguelikeNodeCreateNestedOneWithoutParentEdgesInput
+  }
+
+  export type RoguelikeEdgeUncheckedCreateWithoutParentInput = {
+    id?: number
+    childId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeCreateOrConnectWithoutParentInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    create: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput>
+  }
+
+  export type RoguelikeEdgeCreateManyParentInputEnvelope = {
+    data: RoguelikeEdgeCreateManyParentInput | RoguelikeEdgeCreateManyParentInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeEdgeCreateWithoutChildInput = {
+    twoWay?: boolean
+    parent: RoguelikeNodeCreateNestedOneWithoutChildEdgesInput
+  }
+
+  export type RoguelikeEdgeUncheckedCreateWithoutChildInput = {
+    id?: number
+    parentId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeCreateOrConnectWithoutChildInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    create: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput>
+  }
+
+  export type RoguelikeEdgeCreateManyChildInputEnvelope = {
+    data: RoguelikeEdgeCreateManyChildInput | RoguelikeEdgeCreateManyChildInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeNodeDefeatCreateWithoutNodeInput = {
+    run: RoguelikeRunCreateNestedOneWithoutDefeatsInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput = {
+    id?: number
+    runId: number
+  }
+
+  export type RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    create: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput>
+  }
+
+  export type RoguelikeNodeDefeatCreateManyNodeInputEnvelope = {
+    data: RoguelikeNodeDefeatCreateManyNodeInput | RoguelikeNodeDefeatCreateManyNodeInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeCampaignUpsertWithoutNodesInput = {
+    update: XOR<RoguelikeCampaignUpdateWithoutNodesInput, RoguelikeCampaignUncheckedUpdateWithoutNodesInput>
+    create: XOR<RoguelikeCampaignCreateWithoutNodesInput, RoguelikeCampaignUncheckedCreateWithoutNodesInput>
+    where?: RoguelikeCampaignWhereInput
+  }
+
+  export type RoguelikeCampaignUpdateToOneWithWhereWithoutNodesInput = {
+    where?: RoguelikeCampaignWhereInput
+    data: XOR<RoguelikeCampaignUpdateWithoutNodesInput, RoguelikeCampaignUncheckedUpdateWithoutNodesInput>
+  }
+
+  export type RoguelikeCampaignUpdateWithoutNodesInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    runs?: RoguelikeRunUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type RoguelikeCampaignUncheckedUpdateWithoutNodesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    runs?: RoguelikeRunUncheckedUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type MapUpsertWithoutRoguelikeNodesInput = {
+    update: XOR<MapUpdateWithoutRoguelikeNodesInput, MapUncheckedUpdateWithoutRoguelikeNodesInput>
+    create: XOR<MapCreateWithoutRoguelikeNodesInput, MapUncheckedCreateWithoutRoguelikeNodesInput>
+    where?: MapWhereInput
+  }
+
+  export type MapUpdateToOneWithWhereWithoutRoguelikeNodesInput = {
+    where?: MapWhereInput
+    data: XOR<MapUpdateWithoutRoguelikeNodesInput, MapUncheckedUpdateWithoutRoguelikeNodesInput>
+  }
+
+  export type MapUpdateWithoutRoguelikeNodesInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUpdateManyWithoutMapNestedInput
+  }
+
+  export type MapUncheckedUpdateWithoutRoguelikeNodesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    gridWidth?: IntFieldUpdateOperationsInput | number
+    gridHeight?: IntFieldUpdateOperationsInput | number
+    blockedTiles?: JsonNullValueInput | InputJsonValue
+    scoringTiles?: JsonNullValueInput | InputJsonValue
+    mode?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lobbies?: LobbyUncheckedUpdateManyWithoutMapNestedInput
+    aiPlacements?: AIMapPlacementUncheckedUpdateManyWithoutMapNestedInput
+    campaignNodes?: CampaignNodeUncheckedUpdateManyWithoutMapNestedInput
+  }
+
+  export type RoguelikeEdgeUpsertWithWhereUniqueWithoutParentInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    update: XOR<RoguelikeEdgeUpdateWithoutParentInput, RoguelikeEdgeUncheckedUpdateWithoutParentInput>
+    create: XOR<RoguelikeEdgeCreateWithoutParentInput, RoguelikeEdgeUncheckedCreateWithoutParentInput>
+  }
+
+  export type RoguelikeEdgeUpdateWithWhereUniqueWithoutParentInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    data: XOR<RoguelikeEdgeUpdateWithoutParentInput, RoguelikeEdgeUncheckedUpdateWithoutParentInput>
+  }
+
+  export type RoguelikeEdgeUpdateManyWithWhereWithoutParentInput = {
+    where: RoguelikeEdgeScalarWhereInput
+    data: XOR<RoguelikeEdgeUpdateManyMutationInput, RoguelikeEdgeUncheckedUpdateManyWithoutParentInput>
+  }
+
+  export type RoguelikeEdgeScalarWhereInput = {
+    AND?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+    OR?: RoguelikeEdgeScalarWhereInput[]
+    NOT?: RoguelikeEdgeScalarWhereInput | RoguelikeEdgeScalarWhereInput[]
+    id?: IntFilter<"RoguelikeEdge"> | number
+    parentId?: IntFilter<"RoguelikeEdge"> | number
+    childId?: IntFilter<"RoguelikeEdge"> | number
+    twoWay?: BoolFilter<"RoguelikeEdge"> | boolean
+  }
+
+  export type RoguelikeEdgeUpsertWithWhereUniqueWithoutChildInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    update: XOR<RoguelikeEdgeUpdateWithoutChildInput, RoguelikeEdgeUncheckedUpdateWithoutChildInput>
+    create: XOR<RoguelikeEdgeCreateWithoutChildInput, RoguelikeEdgeUncheckedCreateWithoutChildInput>
+  }
+
+  export type RoguelikeEdgeUpdateWithWhereUniqueWithoutChildInput = {
+    where: RoguelikeEdgeWhereUniqueInput
+    data: XOR<RoguelikeEdgeUpdateWithoutChildInput, RoguelikeEdgeUncheckedUpdateWithoutChildInput>
+  }
+
+  export type RoguelikeEdgeUpdateManyWithWhereWithoutChildInput = {
+    where: RoguelikeEdgeScalarWhereInput
+    data: XOR<RoguelikeEdgeUpdateManyMutationInput, RoguelikeEdgeUncheckedUpdateManyWithoutChildInput>
+  }
+
+  export type RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutNodeInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    update: XOR<RoguelikeNodeDefeatUpdateWithoutNodeInput, RoguelikeNodeDefeatUncheckedUpdateWithoutNodeInput>
+    create: XOR<RoguelikeNodeDefeatCreateWithoutNodeInput, RoguelikeNodeDefeatUncheckedCreateWithoutNodeInput>
+  }
+
+  export type RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutNodeInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    data: XOR<RoguelikeNodeDefeatUpdateWithoutNodeInput, RoguelikeNodeDefeatUncheckedUpdateWithoutNodeInput>
+  }
+
+  export type RoguelikeNodeDefeatUpdateManyWithWhereWithoutNodeInput = {
+    where: RoguelikeNodeDefeatScalarWhereInput
+    data: XOR<RoguelikeNodeDefeatUpdateManyMutationInput, RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeInput>
+  }
+
+  export type RoguelikeNodeDefeatScalarWhereInput = {
+    AND?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+    OR?: RoguelikeNodeDefeatScalarWhereInput[]
+    NOT?: RoguelikeNodeDefeatScalarWhereInput | RoguelikeNodeDefeatScalarWhereInput[]
+    id?: IntFilter<"RoguelikeNodeDefeat"> | number
+    runId?: IntFilter<"RoguelikeNodeDefeat"> | number
+    nodeId?: IntFilter<"RoguelikeNodeDefeat"> | number
+  }
+
+  export type RoguelikeNodeCreateWithoutChildEdgesInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
+    map?: MapCreateNestedOneWithoutRoguelikeNodesInput
+    parentEdges?: RoguelikeEdgeCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateWithoutChildEdgesInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeCreateOrConnectWithoutChildEdgesInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    create: XOR<RoguelikeNodeCreateWithoutChildEdgesInput, RoguelikeNodeUncheckedCreateWithoutChildEdgesInput>
+  }
+
+  export type RoguelikeNodeCreateWithoutParentEdgesInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
+    map?: MapCreateNestedOneWithoutRoguelikeNodesInput
+    childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateWithoutParentEdgesInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
+  }
+
+  export type RoguelikeNodeCreateOrConnectWithoutParentEdgesInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    create: XOR<RoguelikeNodeCreateWithoutParentEdgesInput, RoguelikeNodeUncheckedCreateWithoutParentEdgesInput>
+  }
+
+  export type RoguelikeNodeUpsertWithoutChildEdgesInput = {
+    update: XOR<RoguelikeNodeUpdateWithoutChildEdgesInput, RoguelikeNodeUncheckedUpdateWithoutChildEdgesInput>
+    create: XOR<RoguelikeNodeCreateWithoutChildEdgesInput, RoguelikeNodeUncheckedCreateWithoutChildEdgesInput>
+    where?: RoguelikeNodeWhereInput
+  }
+
+  export type RoguelikeNodeUpdateToOneWithWhereWithoutChildEdgesInput = {
+    where?: RoguelikeNodeWhereInput
+    data: XOR<RoguelikeNodeUpdateWithoutChildEdgesInput, RoguelikeNodeUncheckedUpdateWithoutChildEdgesInput>
+  }
+
+  export type RoguelikeNodeUpdateWithoutChildEdgesInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
+    parentEdges?: RoguelikeEdgeUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateWithoutChildEdgesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUpsertWithoutParentEdgesInput = {
+    update: XOR<RoguelikeNodeUpdateWithoutParentEdgesInput, RoguelikeNodeUncheckedUpdateWithoutParentEdgesInput>
+    create: XOR<RoguelikeNodeCreateWithoutParentEdgesInput, RoguelikeNodeUncheckedCreateWithoutParentEdgesInput>
+    where?: RoguelikeNodeWhereInput
+  }
+
+  export type RoguelikeNodeUpdateToOneWithWhereWithoutParentEdgesInput = {
+    where?: RoguelikeNodeWhereInput
+    data: XOR<RoguelikeNodeUpdateWithoutParentEdgesInput, RoguelikeNodeUncheckedUpdateWithoutParentEdgesInput>
+  }
+
+  export type RoguelikeNodeUpdateWithoutParentEdgesInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
+    childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateWithoutParentEdgesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type UserCreateWithoutRoguelikeRunsInput = {
+    id: string
+    email: string
+    username?: string | null
+    creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
+    purchasedShipCount?: number
+    lobbiesCreatedCount?: number
+    kickCount?: number
+    kickTimeoutUntil?: Date | string | null
+    tutorialCompleted?: boolean
+    tutorialPath?: string | null
+    createdAt?: Date | string
+    ships?: ShipCreateNestedManyWithoutOwnerInput
+    lobbiesCreated?: LobbyCreateNestedManyWithoutCreatorInput
+    lobbiesJoined?: LobbyCreateNestedManyWithoutJoinerInput
+    lobbiesReserved?: LobbyCreateNestedManyWithoutReservedJoinerInput
+    gamesAsPlayer1?: GameCreateNestedManyWithoutPlayer1Input
+    gamesAsPlayer2?: GameCreateNestedManyWithoutPlayer2Input
+    fleets?: FleetCreateNestedManyWithoutOwnerInput
+    stats?: PlayerStatsCreateNestedOneWithoutUserInput
+    tournamentsCreated?: TournamentCreateNestedManyWithoutCreatorInput
+    tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
+    tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
+    tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutRoguelikeRunsInput = {
+    id: string
+    email: string
+    username?: string | null
+    creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
+    purchasedShipCount?: number
+    lobbiesCreatedCount?: number
+    kickCount?: number
+    kickTimeoutUntil?: Date | string | null
+    tutorialCompleted?: boolean
+    tutorialPath?: string | null
+    createdAt?: Date | string
+    ships?: ShipUncheckedCreateNestedManyWithoutOwnerInput
+    lobbiesCreated?: LobbyUncheckedCreateNestedManyWithoutCreatorInput
+    lobbiesJoined?: LobbyUncheckedCreateNestedManyWithoutJoinerInput
+    lobbiesReserved?: LobbyUncheckedCreateNestedManyWithoutReservedJoinerInput
+    gamesAsPlayer1?: GameUncheckedCreateNestedManyWithoutPlayer1Input
+    gamesAsPlayer2?: GameUncheckedCreateNestedManyWithoutPlayer2Input
+    fleets?: FleetUncheckedCreateNestedManyWithoutOwnerInput
+    stats?: PlayerStatsUncheckedCreateNestedOneWithoutUserInput
+    tournamentsCreated?: TournamentUncheckedCreateNestedManyWithoutCreatorInput
+    tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
+    tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
+    tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutRoguelikeRunsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutRoguelikeRunsInput, UserUncheckedCreateWithoutRoguelikeRunsInput>
+  }
+
+  export type RoguelikeCampaignCreateWithoutRunsInput = {
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    nodes?: RoguelikeNodeCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignUncheckedCreateWithoutRunsInput = {
+    id?: number
+    requiredVariant?: number
+    autoHealPercent?: number
+    initialCostCap: number
+    rootNodeId?: number | null
+    createdAt?: Date | string
+    nodes?: RoguelikeNodeUncheckedCreateNestedManyWithoutCampaignInput
+  }
+
+  export type RoguelikeCampaignCreateOrConnectWithoutRunsInput = {
+    where: RoguelikeCampaignWhereUniqueInput
+    create: XOR<RoguelikeCampaignCreateWithoutRunsInput, RoguelikeCampaignUncheckedCreateWithoutRunsInput>
+  }
+
+  export type RoguelikeRosterShipCreateWithoutRunInput = {
+    hp?: number
+    ship: ShipCreateNestedOneWithoutRoguelikeRosterEntriesInput
+  }
+
+  export type RoguelikeRosterShipUncheckedCreateWithoutRunInput = {
+    id?: number
+    shipId: number
+    hp?: number
+  }
+
+  export type RoguelikeRosterShipCreateOrConnectWithoutRunInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    create: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput>
+  }
+
+  export type RoguelikeRosterShipCreateManyRunInputEnvelope = {
+    data: RoguelikeRosterShipCreateManyRunInput | RoguelikeRosterShipCreateManyRunInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RoguelikeNodeDefeatCreateWithoutRunInput = {
+    node: RoguelikeNodeCreateNestedOneWithoutDefeatsInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedCreateWithoutRunInput = {
+    id?: number
+    nodeId: number
+  }
+
+  export type RoguelikeNodeDefeatCreateOrConnectWithoutRunInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    create: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput>
+  }
+
+  export type RoguelikeNodeDefeatCreateManyRunInputEnvelope = {
+    data: RoguelikeNodeDefeatCreateManyRunInput | RoguelikeNodeDefeatCreateManyRunInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type LobbyCreateWithoutRoguelikeRunInput = {
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    creator: UserCreateNestedOneWithoutLobbiesCreatedInput
+    joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
+    reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
+    map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    fleets?: FleetCreateNestedManyWithoutLobbyInput
+    game?: GameCreateNestedOneWithoutLobbyInput
+    tournamentMatch?: TournamentMatchCreateNestedOneWithoutLobbyInput
+  }
+
+  export type LobbyUncheckedCreateWithoutRoguelikeRunInput = {
+    id?: number
+    creatorId: string
+    joinerId?: string | null
+    reservedJoinerId?: string | null
+    mapId?: number | null
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
+    game?: GameUncheckedCreateNestedOneWithoutLobbyInput
+    tournamentMatch?: TournamentMatchUncheckedCreateNestedOneWithoutLobbyInput
+  }
+
+  export type LobbyCreateOrConnectWithoutRoguelikeRunInput = {
+    where: LobbyWhereUniqueInput
+    create: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput>
+  }
+
+  export type LobbyCreateManyRoguelikeRunInputEnvelope = {
+    data: LobbyCreateManyRoguelikeRunInput | LobbyCreateManyRoguelikeRunInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutRoguelikeRunsInput = {
+    update: XOR<UserUpdateWithoutRoguelikeRunsInput, UserUncheckedUpdateWithoutRoguelikeRunsInput>
+    create: XOR<UserCreateWithoutRoguelikeRunsInput, UserUncheckedCreateWithoutRoguelikeRunsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutRoguelikeRunsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutRoguelikeRunsInput, UserUncheckedUpdateWithoutRoguelikeRunsInput>
+  }
+
+  export type UserUpdateWithoutRoguelikeRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
+    purchasedShipCount?: IntFieldUpdateOperationsInput | number
+    lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
+    kickCount?: IntFieldUpdateOperationsInput | number
+    kickTimeoutUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tutorialCompleted?: BoolFieldUpdateOperationsInput | boolean
+    tutorialPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ships?: ShipUpdateManyWithoutOwnerNestedInput
+    lobbiesCreated?: LobbyUpdateManyWithoutCreatorNestedInput
+    lobbiesJoined?: LobbyUpdateManyWithoutJoinerNestedInput
+    lobbiesReserved?: LobbyUpdateManyWithoutReservedJoinerNestedInput
+    gamesAsPlayer1?: GameUpdateManyWithoutPlayer1NestedInput
+    gamesAsPlayer2?: GameUpdateManyWithoutPlayer2NestedInput
+    fleets?: FleetUpdateManyWithoutOwnerNestedInput
+    stats?: PlayerStatsUpdateOneWithoutUserNestedInput
+    tournamentsCreated?: TournamentUpdateManyWithoutCreatorNestedInput
+    tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
+    tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
+    tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutRoguelikeRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    username?: NullableStringFieldUpdateOperationsInput | string | null
+    creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
+    purchasedShipCount?: IntFieldUpdateOperationsInput | number
+    lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
+    kickCount?: IntFieldUpdateOperationsInput | number
+    kickTimeoutUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tutorialCompleted?: BoolFieldUpdateOperationsInput | boolean
+    tutorialPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ships?: ShipUncheckedUpdateManyWithoutOwnerNestedInput
+    lobbiesCreated?: LobbyUncheckedUpdateManyWithoutCreatorNestedInput
+    lobbiesJoined?: LobbyUncheckedUpdateManyWithoutJoinerNestedInput
+    lobbiesReserved?: LobbyUncheckedUpdateManyWithoutReservedJoinerNestedInput
+    gamesAsPlayer1?: GameUncheckedUpdateManyWithoutPlayer1NestedInput
+    gamesAsPlayer2?: GameUncheckedUpdateManyWithoutPlayer2NestedInput
+    fleets?: FleetUncheckedUpdateManyWithoutOwnerNestedInput
+    stats?: PlayerStatsUncheckedUpdateOneWithoutUserNestedInput
+    tournamentsCreated?: TournamentUncheckedUpdateManyWithoutCreatorNestedInput
+    tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
+    tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
+    tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type RoguelikeCampaignUpsertWithoutRunsInput = {
+    update: XOR<RoguelikeCampaignUpdateWithoutRunsInput, RoguelikeCampaignUncheckedUpdateWithoutRunsInput>
+    create: XOR<RoguelikeCampaignCreateWithoutRunsInput, RoguelikeCampaignUncheckedCreateWithoutRunsInput>
+    where?: RoguelikeCampaignWhereInput
+  }
+
+  export type RoguelikeCampaignUpdateToOneWithWhereWithoutRunsInput = {
+    where?: RoguelikeCampaignWhereInput
+    data: XOR<RoguelikeCampaignUpdateWithoutRunsInput, RoguelikeCampaignUncheckedUpdateWithoutRunsInput>
+  }
+
+  export type RoguelikeCampaignUpdateWithoutRunsInput = {
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: RoguelikeNodeUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type RoguelikeCampaignUncheckedUpdateWithoutRunsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    requiredVariant?: IntFieldUpdateOperationsInput | number
+    autoHealPercent?: IntFieldUpdateOperationsInput | number
+    initialCostCap?: IntFieldUpdateOperationsInput | number
+    rootNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nodes?: RoguelikeNodeUncheckedUpdateManyWithoutCampaignNestedInput
+  }
+
+  export type RoguelikeRosterShipUpsertWithWhereUniqueWithoutRunInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    update: XOR<RoguelikeRosterShipUpdateWithoutRunInput, RoguelikeRosterShipUncheckedUpdateWithoutRunInput>
+    create: XOR<RoguelikeRosterShipCreateWithoutRunInput, RoguelikeRosterShipUncheckedCreateWithoutRunInput>
+  }
+
+  export type RoguelikeRosterShipUpdateWithWhereUniqueWithoutRunInput = {
+    where: RoguelikeRosterShipWhereUniqueInput
+    data: XOR<RoguelikeRosterShipUpdateWithoutRunInput, RoguelikeRosterShipUncheckedUpdateWithoutRunInput>
+  }
+
+  export type RoguelikeRosterShipUpdateManyWithWhereWithoutRunInput = {
+    where: RoguelikeRosterShipScalarWhereInput
+    data: XOR<RoguelikeRosterShipUpdateManyMutationInput, RoguelikeRosterShipUncheckedUpdateManyWithoutRunInput>
+  }
+
+  export type RoguelikeNodeDefeatUpsertWithWhereUniqueWithoutRunInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    update: XOR<RoguelikeNodeDefeatUpdateWithoutRunInput, RoguelikeNodeDefeatUncheckedUpdateWithoutRunInput>
+    create: XOR<RoguelikeNodeDefeatCreateWithoutRunInput, RoguelikeNodeDefeatUncheckedCreateWithoutRunInput>
+  }
+
+  export type RoguelikeNodeDefeatUpdateWithWhereUniqueWithoutRunInput = {
+    where: RoguelikeNodeDefeatWhereUniqueInput
+    data: XOR<RoguelikeNodeDefeatUpdateWithoutRunInput, RoguelikeNodeDefeatUncheckedUpdateWithoutRunInput>
+  }
+
+  export type RoguelikeNodeDefeatUpdateManyWithWhereWithoutRunInput = {
+    where: RoguelikeNodeDefeatScalarWhereInput
+    data: XOR<RoguelikeNodeDefeatUpdateManyMutationInput, RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunInput>
+  }
+
+  export type LobbyUpsertWithWhereUniqueWithoutRoguelikeRunInput = {
+    where: LobbyWhereUniqueInput
+    update: XOR<LobbyUpdateWithoutRoguelikeRunInput, LobbyUncheckedUpdateWithoutRoguelikeRunInput>
+    create: XOR<LobbyCreateWithoutRoguelikeRunInput, LobbyUncheckedCreateWithoutRoguelikeRunInput>
+  }
+
+  export type LobbyUpdateWithWhereUniqueWithoutRoguelikeRunInput = {
+    where: LobbyWhereUniqueInput
+    data: XOR<LobbyUpdateWithoutRoguelikeRunInput, LobbyUncheckedUpdateWithoutRoguelikeRunInput>
+  }
+
+  export type LobbyUpdateManyWithWhereWithoutRoguelikeRunInput = {
+    where: LobbyScalarWhereInput
+    data: XOR<LobbyUpdateManyMutationInput, LobbyUncheckedUpdateManyWithoutRoguelikeRunInput>
+  }
+
+  export type RoguelikeRunCreateWithoutRosterInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    user: UserCreateNestedOneWithoutRoguelikeRunsInput
+    campaign: RoguelikeCampaignCreateNestedOneWithoutRunsInput
+    defeats?: RoguelikeNodeDefeatCreateNestedManyWithoutRunInput
+    lobbies?: LobbyCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateWithoutRosterInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutRunInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunCreateOrConnectWithoutRosterInput = {
+    where: RoguelikeRunWhereUniqueInput
+    create: XOR<RoguelikeRunCreateWithoutRosterInput, RoguelikeRunUncheckedCreateWithoutRosterInput>
+  }
+
+  export type ShipCreateWithoutRoguelikeRosterEntriesInput = {
+    name?: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    cost?: number
+    costsVersion?: number
+    isFree?: boolean
+    modifiedCount?: number
+    shiny?: boolean
+    constructed?: boolean
+    inFleet?: boolean
+    destroyed?: boolean
+    shipsDestroyed?: number
+    destroyedAt?: Date | string | null
+    createdAt?: Date | string
+    owner: UserCreateNestedOneWithoutShipsInput
+  }
+
+  export type ShipUncheckedCreateWithoutRoguelikeRosterEntriesInput = {
+    id?: number
+    ownerId: string
+    name?: string
+    equipment: JsonNullValueInput | InputJsonValue
+    traits: JsonNullValueInput | InputJsonValue
+    cost?: number
+    costsVersion?: number
+    isFree?: boolean
+    modifiedCount?: number
+    shiny?: boolean
+    constructed?: boolean
+    inFleet?: boolean
+    destroyed?: boolean
+    shipsDestroyed?: number
+    destroyedAt?: Date | string | null
+    createdAt?: Date | string
+  }
+
+  export type ShipCreateOrConnectWithoutRoguelikeRosterEntriesInput = {
+    where: ShipWhereUniqueInput
+    create: XOR<ShipCreateWithoutRoguelikeRosterEntriesInput, ShipUncheckedCreateWithoutRoguelikeRosterEntriesInput>
+  }
+
+  export type RoguelikeRunUpsertWithoutRosterInput = {
+    update: XOR<RoguelikeRunUpdateWithoutRosterInput, RoguelikeRunUncheckedUpdateWithoutRosterInput>
+    create: XOR<RoguelikeRunCreateWithoutRosterInput, RoguelikeRunUncheckedCreateWithoutRosterInput>
+    where?: RoguelikeRunWhereInput
+  }
+
+  export type RoguelikeRunUpdateToOneWithWhereWithoutRosterInput = {
+    where?: RoguelikeRunWhereInput
+    data: XOR<RoguelikeRunUpdateWithoutRosterInput, RoguelikeRunUncheckedUpdateWithoutRosterInput>
+  }
+
+  export type RoguelikeRunUpdateWithoutRosterInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateWithoutRosterInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type ShipUpsertWithoutRoguelikeRosterEntriesInput = {
+    update: XOR<ShipUpdateWithoutRoguelikeRosterEntriesInput, ShipUncheckedUpdateWithoutRoguelikeRosterEntriesInput>
+    create: XOR<ShipCreateWithoutRoguelikeRosterEntriesInput, ShipUncheckedCreateWithoutRoguelikeRosterEntriesInput>
+    where?: ShipWhereInput
+  }
+
+  export type ShipUpdateToOneWithWhereWithoutRoguelikeRosterEntriesInput = {
+    where?: ShipWhereInput
+    data: XOR<ShipUpdateWithoutRoguelikeRosterEntriesInput, ShipUncheckedUpdateWithoutRoguelikeRosterEntriesInput>
+  }
+
+  export type ShipUpdateWithoutRoguelikeRosterEntriesInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    cost?: IntFieldUpdateOperationsInput | number
+    costsVersion?: IntFieldUpdateOperationsInput | number
+    isFree?: BoolFieldUpdateOperationsInput | boolean
+    modifiedCount?: IntFieldUpdateOperationsInput | number
+    shiny?: BoolFieldUpdateOperationsInput | boolean
+    constructed?: BoolFieldUpdateOperationsInput | boolean
+    inFleet?: BoolFieldUpdateOperationsInput | boolean
+    destroyed?: BoolFieldUpdateOperationsInput | boolean
+    shipsDestroyed?: IntFieldUpdateOperationsInput | number
+    destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    owner?: UserUpdateOneRequiredWithoutShipsNestedInput
+  }
+
+  export type ShipUncheckedUpdateWithoutRoguelikeRosterEntriesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    ownerId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    equipment?: JsonNullValueInput | InputJsonValue
+    traits?: JsonNullValueInput | InputJsonValue
+    cost?: IntFieldUpdateOperationsInput | number
+    costsVersion?: IntFieldUpdateOperationsInput | number
+    isFree?: BoolFieldUpdateOperationsInput | boolean
+    modifiedCount?: IntFieldUpdateOperationsInput | number
+    shiny?: BoolFieldUpdateOperationsInput | boolean
+    constructed?: BoolFieldUpdateOperationsInput | boolean
+    inFleet?: BoolFieldUpdateOperationsInput | boolean
+    destroyed?: BoolFieldUpdateOperationsInput | boolean
+    shipsDestroyed?: IntFieldUpdateOperationsInput | number
+    destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeRunCreateWithoutDefeatsInput = {
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    user: UserCreateNestedOneWithoutRoguelikeRunsInput
+    campaign: RoguelikeCampaignCreateNestedOneWithoutRunsInput
+    roster?: RoguelikeRosterShipCreateNestedManyWithoutRunInput
+    lobbies?: LobbyCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunUncheckedCreateWithoutDefeatsInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+    roster?: RoguelikeRosterShipUncheckedCreateNestedManyWithoutRunInput
+    lobbies?: LobbyUncheckedCreateNestedManyWithoutRoguelikeRunInput
+  }
+
+  export type RoguelikeRunCreateOrConnectWithoutDefeatsInput = {
+    where: RoguelikeRunWhereUniqueInput
+    create: XOR<RoguelikeRunCreateWithoutDefeatsInput, RoguelikeRunUncheckedCreateWithoutDefeatsInput>
+  }
+
+  export type RoguelikeNodeCreateWithoutDefeatsInput = {
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
+    map?: MapCreateNestedOneWithoutRoguelikeNodesInput
+    childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeCreateNestedManyWithoutChildInput
+  }
+
+  export type RoguelikeNodeUncheckedCreateWithoutDefeatsInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+    childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
+    parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
+  }
+
+  export type RoguelikeNodeCreateOrConnectWithoutDefeatsInput = {
+    where: RoguelikeNodeWhereUniqueInput
+    create: XOR<RoguelikeNodeCreateWithoutDefeatsInput, RoguelikeNodeUncheckedCreateWithoutDefeatsInput>
+  }
+
+  export type RoguelikeRunUpsertWithoutDefeatsInput = {
+    update: XOR<RoguelikeRunUpdateWithoutDefeatsInput, RoguelikeRunUncheckedUpdateWithoutDefeatsInput>
+    create: XOR<RoguelikeRunCreateWithoutDefeatsInput, RoguelikeRunUncheckedCreateWithoutDefeatsInput>
+    where?: RoguelikeRunWhereInput
+  }
+
+  export type RoguelikeRunUpdateToOneWithWhereWithoutDefeatsInput = {
+    where?: RoguelikeRunWhereInput
+    data: XOR<RoguelikeRunUpdateWithoutDefeatsInput, RoguelikeRunUncheckedUpdateWithoutDefeatsInput>
+  }
+
+  export type RoguelikeRunUpdateWithoutDefeatsInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput
+    roster?: RoguelikeRosterShipUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateWithoutDefeatsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roster?: RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeNodeUpsertWithoutDefeatsInput = {
+    update: XOR<RoguelikeNodeUpdateWithoutDefeatsInput, RoguelikeNodeUncheckedUpdateWithoutDefeatsInput>
+    create: XOR<RoguelikeNodeCreateWithoutDefeatsInput, RoguelikeNodeUncheckedCreateWithoutDefeatsInput>
+    where?: RoguelikeNodeWhereInput
+  }
+
+  export type RoguelikeNodeUpdateToOneWithWhereWithoutDefeatsInput = {
+    where?: RoguelikeNodeWhereInput
+    data: XOR<RoguelikeNodeUpdateWithoutDefeatsInput, RoguelikeNodeUncheckedUpdateWithoutDefeatsInput>
+  }
+
+  export type RoguelikeNodeUpdateWithoutDefeatsInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
+    map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
+    childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUpdateManyWithoutChildNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateWithoutDefeatsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
+  }
+
   export type UserCreateWithoutStatsInput = {
     id: string
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28447,6 +45336,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutStatsInput = {
@@ -28454,6 +45345,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28472,6 +45365,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutStatsInput = {
@@ -28495,6 +45390,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28513,6 +45410,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutStatsInput = {
@@ -28520,6 +45419,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28538,6 +45439,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutTournamentsCreatedInput = {
@@ -28545,6 +45448,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28563,6 +45468,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTournamentsCreatedInput = {
@@ -28570,6 +45477,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28588,6 +45497,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTournamentsCreatedInput = {
@@ -28667,6 +45578,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28685,6 +45598,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTournamentsCreatedInput = {
@@ -28692,6 +45607,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28710,6 +45627,8 @@ export namespace Prisma {
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TournamentRegistrantUpsertWithWhereUniqueWithoutTournamentInput = {
@@ -28797,6 +45716,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28815,6 +45736,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentCreateNestedManyWithoutCreatorInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTournamentRegistrationsInput = {
@@ -28822,6 +45745,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -28840,6 +45765,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedCreateNestedManyWithoutCreatorInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTournamentRegistrationsInput = {
@@ -28917,6 +45844,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28935,6 +45864,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUpdateManyWithoutCreatorNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTournamentRegistrationsInput = {
@@ -28942,6 +45873,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -28960,6 +45893,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedUpdateManyWithoutCreatorNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TournamentCreateWithoutMatchesInput = {
@@ -29015,6 +45950,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -29033,6 +45970,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentCreateNestedManyWithoutCreatorInput
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP2?: TournamentMatchCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTournamentMatchesAsP1Input = {
@@ -29040,6 +45979,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -29058,6 +45999,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedCreateNestedManyWithoutCreatorInput
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer2Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTournamentMatchesAsP1Input = {
@@ -29070,6 +46013,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -29088,6 +46033,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentCreateNestedManyWithoutCreatorInput
     tournamentRegistrations?: TournamentRegistrantCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchCreateNestedManyWithoutPlayer1Input
+    campaignNodeCompletions?: CampaignNodeCompletionCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTournamentMatchesAsP2Input = {
@@ -29095,6 +46042,8 @@ export namespace Prisma {
     email: string
     username?: string | null
     creditBalance?: number
+    decBalance?: number
+    droneCoreTier?: number
     purchasedShipCount?: number
     lobbiesCreatedCount?: number
     kickCount?: number
@@ -29113,6 +46062,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedCreateNestedManyWithoutCreatorInput
     tournamentRegistrations?: TournamentRegistrantUncheckedCreateNestedManyWithoutUserInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedCreateNestedManyWithoutPlayer1Input
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedCreateNestedManyWithoutUserInput
+    roguelikeRuns?: RoguelikeRunUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTournamentMatchesAsP2Input = {
@@ -29135,6 +46086,8 @@ export namespace Prisma {
     joiner?: UserCreateNestedOneWithoutLobbiesJoinedInput
     reservedJoiner?: UserCreateNestedOneWithoutLobbiesReservedInput
     map?: MapCreateNestedOneWithoutLobbiesInput
+    campaignNode?: CampaignNodeCreateNestedOneWithoutLobbiesInput
+    roguelikeRun?: RoguelikeRunCreateNestedOneWithoutLobbiesInput
     fleets?: FleetCreateNestedManyWithoutLobbyInput
     game?: GameCreateNestedOneWithoutLobbyInput
   }
@@ -29155,6 +46108,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
     fleets?: FleetUncheckedCreateNestedManyWithoutLobbyInput
     game?: GameUncheckedCreateNestedOneWithoutLobbyInput
   }
@@ -29234,6 +46189,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -29252,6 +46209,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUpdateManyWithoutCreatorNestedInput
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP2?: TournamentMatchUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTournamentMatchesAsP1Input = {
@@ -29259,6 +46218,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -29277,6 +46238,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedUpdateManyWithoutCreatorNestedInput
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP2?: TournamentMatchUncheckedUpdateManyWithoutPlayer2NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserUpsertWithoutTournamentMatchesAsP2Input = {
@@ -29295,6 +46258,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -29313,6 +46278,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUpdateManyWithoutCreatorNestedInput
     tournamentRegistrations?: TournamentRegistrantUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUpdateManyWithoutPlayer1NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTournamentMatchesAsP2Input = {
@@ -29320,6 +46287,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     username?: NullableStringFieldUpdateOperationsInput | string | null
     creditBalance?: IntFieldUpdateOperationsInput | number
+    decBalance?: IntFieldUpdateOperationsInput | number
+    droneCoreTier?: IntFieldUpdateOperationsInput | number
     purchasedShipCount?: IntFieldUpdateOperationsInput | number
     lobbiesCreatedCount?: IntFieldUpdateOperationsInput | number
     kickCount?: IntFieldUpdateOperationsInput | number
@@ -29338,6 +46307,8 @@ export namespace Prisma {
     tournamentsCreated?: TournamentUncheckedUpdateManyWithoutCreatorNestedInput
     tournamentRegistrations?: TournamentRegistrantUncheckedUpdateManyWithoutUserNestedInput
     tournamentMatchesAsP1?: TournamentMatchUncheckedUpdateManyWithoutPlayer1NestedInput
+    campaignNodeCompletions?: CampaignNodeCompletionUncheckedUpdateManyWithoutUserNestedInput
+    roguelikeRuns?: RoguelikeRunUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type LobbyUpsertWithoutTournamentMatchInput = {
@@ -29366,6 +46337,8 @@ export namespace Prisma {
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
   }
@@ -29386,6 +46359,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
   }
@@ -29423,6 +46398,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
   }
 
   export type LobbyCreateManyJoinerInput = {
@@ -29440,6 +46417,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
   }
 
   export type LobbyCreateManyReservedJoinerInput = {
@@ -29457,6 +46436,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
   }
 
   export type GameCreateManyPlayer1Input = {
@@ -29549,6 +46530,24 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type CampaignNodeCompletionCreateManyUserInput = {
+    id?: number
+    nodeId: number
+    completedAt?: Date | string
+  }
+
+  export type RoguelikeRunCreateManyUserInput = {
+    id?: number
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    campaignId: number
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+  }
+
   export type ShipUpdateWithoutOwnerInput = {
     name?: StringFieldUpdateOperationsInput | string
     equipment?: JsonNullValueInput | InputJsonValue
@@ -29564,6 +46563,7 @@ export namespace Prisma {
     shipsDestroyed?: IntFieldUpdateOperationsInput | number
     destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipUpdateManyWithoutShipNestedInput
   }
 
   export type ShipUncheckedUpdateWithoutOwnerInput = {
@@ -29582,6 +46582,7 @@ export namespace Prisma {
     shipsDestroyed?: IntFieldUpdateOperationsInput | number
     destroyedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    roguelikeRosterEntries?: RoguelikeRosterShipUncheckedUpdateManyWithoutShipNestedInput
   }
 
   export type ShipUncheckedUpdateManyWithoutOwnerInput = {
@@ -29616,6 +46617,8 @@ export namespace Prisma {
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
@@ -29636,6 +46639,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
@@ -29656,6 +46661,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type LobbyUpdateWithoutJoinerInput = {
@@ -29672,6 +46679,8 @@ export namespace Prisma {
     creator?: UserUpdateOneRequiredWithoutLobbiesCreatedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
@@ -29692,6 +46701,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
@@ -29712,6 +46723,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type LobbyUpdateWithoutReservedJoinerInput = {
@@ -29728,6 +46741,8 @@ export namespace Prisma {
     creator?: UserUpdateOneRequiredWithoutLobbiesCreatedNestedInput
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
@@ -29748,6 +46763,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
@@ -29768,6 +46785,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type GameUpdateWithoutPlayer1Input = {
@@ -30041,6 +47060,87 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CampaignNodeCompletionUpdateWithoutUserInput = {
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    node?: CampaignNodeUpdateOneRequiredWithoutCompletionsNestedInput
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateManyWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeRunUpdateWithoutUserInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutRunsNestedInput
+    roster?: RoguelikeRosterShipUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roster?: RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateManyWithoutUserInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    campaignId?: IntFieldUpdateOperationsInput | number
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RoguelikeRosterShipCreateManyShipInput = {
+    id?: number
+    runId: number
+    hp?: number
+  }
+
+  export type RoguelikeRosterShipUpdateWithoutShipInput = {
+    hp?: IntFieldUpdateOperationsInput | number
+    run?: RoguelikeRunUpdateOneRequiredWithoutRosterNestedInput
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateWithoutShipInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateManyWithoutShipInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
   export type FleetCreateManyLobbyInput = {
     id?: number
     ownerId: string
@@ -30130,6 +47230,8 @@ export namespace Prisma {
     createdAt?: Date | string
     joinedAt?: Date | string | null
     joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+    roguelikeRunId?: number | null
   }
 
   export type AIMapPlacementCreateManyMapInput = {
@@ -30137,6 +47239,28 @@ export namespace Prisma {
     row: number
     col: number
     configId: number
+  }
+
+  export type CampaignNodeCreateManyMapInput = {
+    id?: number
+    campaignId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+  }
+
+  export type RoguelikeNodeCreateManyMapInput = {
+    id?: number
+    campaignId: number
+    kind: number
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
   }
 
   export type LobbyUpdateWithoutMapInput = {
@@ -30153,6 +47277,8 @@ export namespace Prisma {
     creator?: UserUpdateOneRequiredWithoutLobbiesCreatedNestedInput
     joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
     reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
     fleets?: FleetUpdateManyWithoutLobbyNestedInput
     game?: GameUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
@@ -30173,6 +47299,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
     fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
     game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
     tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
@@ -30193,6 +47321,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type AIMapPlacementUpdateWithoutMapInput = {
@@ -30213,6 +47343,80 @@ export namespace Prisma {
     row?: IntFieldUpdateOperationsInput | number
     col?: IntFieldUpdateOperationsInput | number
     configId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type CampaignNodeUpdateWithoutMapInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: CampaignUpdateOneRequiredWithoutNodesNestedInput
+    completions?: CampaignNodeCompletionUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completions?: CampaignNodeCompletionUncheckedUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateManyWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeNodeUpdateWithoutMapInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
+    childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateManyWithoutMapInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    campaignId?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AIMapPlacementCreateManyConfigInput = {
@@ -30240,6 +47444,447 @@ export namespace Prisma {
     mapId?: IntFieldUpdateOperationsInput | number
     row?: IntFieldUpdateOperationsInput | number
     col?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type CampaignNodeCreateManyCampaignInput = {
+    id?: number
+    mapId: number
+    prerequisites?: CampaignNodeCreateprerequisitesInput | number[]
+    costLimit: number
+    turnTimeSeconds: number
+    maxScore: number
+    creatorGoesFirst?: boolean
+    createdAt?: Date | string
+  }
+
+  export type CampaignNodeUpdateWithoutCampaignInput = {
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    map?: MapUpdateOneRequiredWithoutCampaignNodesNestedInput
+    completions?: CampaignNodeCompletionUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completions?: CampaignNodeCompletionUncheckedUpdateManyWithoutNodeNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutCampaignNodeNestedInput
+  }
+
+  export type CampaignNodeUncheckedUpdateManyWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    mapId?: IntFieldUpdateOperationsInput | number
+    prerequisites?: CampaignNodeUpdateprerequisitesInput | number[]
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionCreateManyNodeInput = {
+    id?: number
+    userId: string
+    completedAt?: Date | string
+  }
+
+  export type LobbyCreateManyCampaignNodeInput = {
+    id?: number
+    creatorId: string
+    joinerId?: string | null
+    reservedJoinerId?: string | null
+    mapId?: number | null
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    roguelikeRunId?: number | null
+  }
+
+  export type CampaignNodeCompletionUpdateWithoutNodeInput = {
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutCampaignNodeCompletionsNestedInput
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateWithoutNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CampaignNodeCompletionUncheckedUpdateManyWithoutNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    completedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LobbyUpdateWithoutCampaignNodeInput = {
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    creator?: UserUpdateOneRequiredWithoutLobbiesCreatedNestedInput
+    joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
+    reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
+    map?: MapUpdateOneWithoutLobbiesNestedInput
+    roguelikeRun?: RoguelikeRunUpdateOneWithoutLobbiesNestedInput
+    fleets?: FleetUpdateManyWithoutLobbyNestedInput
+    game?: GameUpdateOneWithoutLobbyNestedInput
+    tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
+  }
+
+  export type LobbyUncheckedUpdateWithoutCampaignNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    creatorId?: StringFieldUpdateOperationsInput | string
+    joinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reservedJoinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
+    fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
+    game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
+    tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
+  }
+
+  export type LobbyUncheckedUpdateManyWithoutCampaignNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    creatorId?: StringFieldUpdateOperationsInput | string
+    joinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reservedJoinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roguelikeRunId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type RoguelikeNodeCreateManyCampaignInput = {
+    id?: number
+    kind: number
+    mapId?: number | null
+    turnTimeSeconds?: number | null
+    maxScore?: number | null
+    creatorGoesFirst?: boolean | null
+    costCapOverride?: number | null
+    createdAt?: Date | string
+  }
+
+  export type RoguelikeRunCreateManyCampaignInput = {
+    id?: number
+    userId: string
+    generation?: number
+    status?: $Enums.RoguelikeRunStatus
+    currentNodeId: number
+    currentCostCap: number
+    activeLobbyId?: number | null
+    createdAt?: Date | string
+    endedAt?: Date | string | null
+  }
+
+  export type RoguelikeNodeUpdateWithoutCampaignInput = {
+    kind?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
+    childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
+    parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
+  }
+
+  export type RoguelikeNodeUncheckedUpdateManyWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    kind?: IntFieldUpdateOperationsInput | number
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    turnTimeSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    maxScore?: NullableIntFieldUpdateOperationsInput | number | null
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RoguelikeRunUpdateWithoutCampaignInput = {
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutRoguelikeRunsNestedInput
+    roster?: RoguelikeRosterShipUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    roster?: RoguelikeRosterShipUncheckedUpdateManyWithoutRunNestedInput
+    defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunNestedInput
+    lobbies?: LobbyUncheckedUpdateManyWithoutRoguelikeRunNestedInput
+  }
+
+  export type RoguelikeRunUncheckedUpdateManyWithoutCampaignInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: StringFieldUpdateOperationsInput | string
+    generation?: IntFieldUpdateOperationsInput | number
+    status?: EnumRoguelikeRunStatusFieldUpdateOperationsInput | $Enums.RoguelikeRunStatus
+    currentNodeId?: IntFieldUpdateOperationsInput | number
+    currentCostCap?: IntFieldUpdateOperationsInput | number
+    activeLobbyId?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RoguelikeEdgeCreateManyParentInput = {
+    id?: number
+    childId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeEdgeCreateManyChildInput = {
+    id?: number
+    parentId: number
+    twoWay?: boolean
+  }
+
+  export type RoguelikeNodeDefeatCreateManyNodeInput = {
+    id?: number
+    runId: number
+  }
+
+  export type RoguelikeEdgeUpdateWithoutParentInput = {
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+    child?: RoguelikeNodeUpdateOneRequiredWithoutParentEdgesNestedInput
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateWithoutParentInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    childId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateManyWithoutParentInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    childId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeEdgeUpdateWithoutChildInput = {
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+    parent?: RoguelikeNodeUpdateOneRequiredWithoutChildEdgesNestedInput
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateWithoutChildInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    parentId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeEdgeUncheckedUpdateManyWithoutChildInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    parentId?: IntFieldUpdateOperationsInput | number
+    twoWay?: BoolFieldUpdateOperationsInput | boolean
+  }
+
+  export type RoguelikeNodeDefeatUpdateWithoutNodeInput = {
+    run?: RoguelikeRunUpdateOneRequiredWithoutDefeatsNestedInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateWithoutNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    runId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeRosterShipCreateManyRunInput = {
+    id?: number
+    shipId: number
+    hp?: number
+  }
+
+  export type RoguelikeNodeDefeatCreateManyRunInput = {
+    id?: number
+    nodeId: number
+  }
+
+  export type LobbyCreateManyRoguelikeRunInput = {
+    id?: number
+    creatorId: string
+    joinerId?: string | null
+    reservedJoinerId?: string | null
+    mapId?: number | null
+    status?: $Enums.LobbyStatus
+    costLimit?: number
+    turnTimeSeconds?: number
+    maxScore?: number
+    creatorGoesFirst?: boolean | null
+    isAiGame?: boolean
+    aiDifficulty?: string | null
+    createdAt?: Date | string
+    joinedAt?: Date | string | null
+    joinerFleetSetAt?: Date | string | null
+    campaignNodeId?: number | null
+  }
+
+  export type RoguelikeRosterShipUpdateWithoutRunInput = {
+    hp?: IntFieldUpdateOperationsInput | number
+    ship?: ShipUpdateOneRequiredWithoutRoguelikeRosterEntriesNestedInput
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateWithoutRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    shipId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeRosterShipUncheckedUpdateManyWithoutRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    shipId?: IntFieldUpdateOperationsInput | number
+    hp?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeNodeDefeatUpdateWithoutRunInput = {
+    node?: RoguelikeNodeUpdateOneRequiredWithoutDefeatsNestedInput
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateWithoutRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type RoguelikeNodeDefeatUncheckedUpdateManyWithoutRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    nodeId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type LobbyUpdateWithoutRoguelikeRunInput = {
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    creator?: UserUpdateOneRequiredWithoutLobbiesCreatedNestedInput
+    joiner?: UserUpdateOneWithoutLobbiesJoinedNestedInput
+    reservedJoiner?: UserUpdateOneWithoutLobbiesReservedNestedInput
+    map?: MapUpdateOneWithoutLobbiesNestedInput
+    campaignNode?: CampaignNodeUpdateOneWithoutLobbiesNestedInput
+    fleets?: FleetUpdateManyWithoutLobbyNestedInput
+    game?: GameUpdateOneWithoutLobbyNestedInput
+    tournamentMatch?: TournamentMatchUpdateOneWithoutLobbyNestedInput
+  }
+
+  export type LobbyUncheckedUpdateWithoutRoguelikeRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    creatorId?: StringFieldUpdateOperationsInput | string
+    joinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reservedJoinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
+    fleets?: FleetUncheckedUpdateManyWithoutLobbyNestedInput
+    game?: GameUncheckedUpdateOneWithoutLobbyNestedInput
+    tournamentMatch?: TournamentMatchUncheckedUpdateOneWithoutLobbyNestedInput
+  }
+
+  export type LobbyUncheckedUpdateManyWithoutRoguelikeRunInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    creatorId?: StringFieldUpdateOperationsInput | string
+    joinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reservedJoinerId?: NullableStringFieldUpdateOperationsInput | string | null
+    mapId?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: EnumLobbyStatusFieldUpdateOperationsInput | $Enums.LobbyStatus
+    costLimit?: IntFieldUpdateOperationsInput | number
+    turnTimeSeconds?: IntFieldUpdateOperationsInput | number
+    maxScore?: IntFieldUpdateOperationsInput | number
+    creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    isAiGame?: BoolFieldUpdateOperationsInput | boolean
+    aiDifficulty?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    joinedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    joinerFleetSetAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    campaignNodeId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type TournamentRegistrantCreateManyTournamentInput = {

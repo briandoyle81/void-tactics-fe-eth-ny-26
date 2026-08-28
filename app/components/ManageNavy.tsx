@@ -905,6 +905,7 @@ const ManageNavy: React.FC = () => {
                       shipIds={shipsByStatus.unconstructed
                         .slice(0, STALE_COST_SYNC_BATCH_CAP)
                         .map((ship: Ship) => ship.id)}
+                      ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                       className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                       disabled={fleetStats.unconstructedShips === 0}
                       onSuccess={() => {
@@ -924,6 +925,7 @@ const ManageNavy: React.FC = () => {
                   ) : (
                     <ShipActionButton
                       action="constructAll"
+                      ships={shipsByStatus.unconstructed}
                       className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                       disabled={fleetStats.unconstructedShips === 0}
                       onSuccess={() => {
@@ -979,6 +981,7 @@ const ManageNavy: React.FC = () => {
                   shipIds={shipsByStatus.unconstructed
                     .slice(0, STALE_COST_SYNC_BATCH_CAP)
                     .map((ship: Ship) => ship.id)}
+                  ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                   className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
@@ -991,6 +994,7 @@ const ManageNavy: React.FC = () => {
               ) : (
                 <ShipActionButton
                   action="constructAll"
+                  ships={shipsByStatus.unconstructed}
                   className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
@@ -1049,6 +1053,7 @@ const ManageNavy: React.FC = () => {
                   shipIds={shipsByStatus.unconstructed
                     .slice(0, STALE_COST_SYNC_BATCH_CAP)
                     .map((ship: Ship) => ship.id)}
+                  ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                   className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
@@ -1061,6 +1066,7 @@ const ManageNavy: React.FC = () => {
               ) : (
                 <ShipActionButton
                   action="constructAll"
+                  ships={shipsByStatus.unconstructed}
                   className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {

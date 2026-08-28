@@ -33,9 +33,12 @@ export function useTournamentAdminWeb2() {
     [invalidate],
   );
 
-  const resolveMatch = useCallback(
-    async (tournamentId: number, matchId: number, winnerId: string) => {
-      await apiMutate(`/api/tournaments/${tournamentId}/matches/${matchId}/resolve`, "POST", { winnerId });
+  // Mirrors web3's admin "Resolve as Draw" button — deterministically awards
+  // a stuck match to whichever player registered first (see the resolve
+  // route's doc comment), no winner choice involved.
+  const resolveStuckMatch = useCallback(
+    async (tournamentId: number, matchId: number) => {
+      await apiMutate(`/api/tournaments/${tournamentId}/matches/${matchId}/resolve`, "POST", {});
       await invalidate(tournamentId);
     },
     [invalidate],
@@ -53,5 +56,5 @@ export function useTournamentAdminWeb2() {
     [invalidate],
   );
 
-  return { createMatchLobby, resolveMatch, finalize };
+  return { createMatchLobby, resolveStuckMatch, finalize };
 }

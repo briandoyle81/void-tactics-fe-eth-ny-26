@@ -1,7 +1,18 @@
 "use client";
 
-import type { CampaignGraphNode } from "../hooks/useNodeMap";
 import { getNodeContent } from "../config/campaignNodes";
+
+// Shared verbatim between CampaignGraph.tsx (web3, bigint node ids) and
+// CampaignGraphWeb2.tsx (web2, number node ids) — only ever reads id/
+// unlocked/completed, none of which need chain-specific typing, so a plain
+// structural interface here (rather than importing useNodeMap's
+// CampaignGraphNode) keeps this component genuinely chain-agnostic instead
+// of accidentally coupling it to the web3 hook.
+interface CampaignNodeCardNode {
+  id: bigint | number;
+  unlocked: boolean;
+  completed: boolean;
+}
 
 export const CAMPAIGN_NODE_WIDTH = 96;
 export const CAMPAIGN_NODE_HEIGHT = 64;
@@ -16,7 +27,7 @@ const STAR_SIZE = 18;
 export const CAMPAIGN_NODE_CIRCLE_OFFSET_Y = STAR_SIZE / 2 - CAMPAIGN_NODE_HEIGHT / 2;
 
 interface CampaignNodeCardProps {
-  node: CampaignGraphNode;
+  node: CampaignNodeCardNode;
   isSelected: boolean;
   onSelect: () => void;
 }

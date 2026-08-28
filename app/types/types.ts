@@ -72,6 +72,15 @@ export const MAIN_WEAPON_NAMES = {
   3: "Plasma",
 } as const;
 
+// Variant 2 ("Drone" faction) display names for the same MainWeapon enum
+// values, per docs/faction-2.md §6 (art-matching, not a new enum).
+export const MAIN_WEAPON_NAMES_V2 = {
+  0: "Medium Mining Laser",
+  1: "Linear Accelerator",
+  2: "Torpedo Launcher",
+  3: "Mining Drill",
+} as const;
+
 export const ARMOR_NAMES = {
   0: "None",
   1: "Light",
@@ -86,6 +95,7 @@ export const SHIELD_NAMES = {
   3: "Advanced",
 } as const;
 
+// Variant 1's Special enum: None/EMP/RepairDrones/FlakArray.
 export const SPECIAL_NAMES = {
   0: "None",
   1: "EMP",
@@ -93,10 +103,22 @@ export const SPECIAL_NAMES = {
   3: "Flak",
 } as const;
 
-// Helper functions to get equipment names
-export function getMainWeaponName(value: number): string {
+// Variant 2 uses a disjoint set of Special values (Slot4/5/6), per
+// docs/faction-2.md §6.
+export const SPECIAL_NAMES_V2 = {
+  0: "None",
+  4: "Lightening Field",
+  5: "Attack Drones",
+  6: "Aux Engine",
+} as const;
+
+// Helper functions to get equipment names. `variant` defaults to 1 for call
+// sites that only have a bare weapon/special value in scope (e.g. building a
+// generic filter-dropdown label list) rather than a specific ship.
+export function getMainWeaponName(value: number, variant: number = 1): string {
+  const names = variant === 2 ? MAIN_WEAPON_NAMES_V2 : MAIN_WEAPON_NAMES;
   return (
-    MAIN_WEAPON_NAMES[value as keyof typeof MAIN_WEAPON_NAMES] ||
+    names[value as keyof typeof names] ||
     `Unknown (${value})`
   );
 }
@@ -111,9 +133,10 @@ export function getShieldName(value: number): string {
   );
 }
 
-export function getSpecialName(value: number): string {
+export function getSpecialName(value: number, variant: number = 1): string {
+  const names = variant === 2 ? SPECIAL_NAMES_V2 : SPECIAL_NAMES;
   return (
-    SPECIAL_NAMES[value as keyof typeof SPECIAL_NAMES] || `Unknown (${value})`
+    names[value as keyof typeof names] || `Unknown (${value})`
   );
 }
 
@@ -245,24 +268,6 @@ export interface GameGridDimensions {
 }
 
 // Tuple types for contract return values
-export type LobbyTuple = [
-  bigint, // id
-  Address, // creator
-  Address, // joiner
-  bigint, // costLimit
-  number, // status
-  bigint, // createdAt
-  bigint, // gameStartedAt
-  bigint, // creatorFleetId
-  bigint, // joinerFleetId
-  boolean, // creatorGoesFirst
-  bigint, // turnTime
-  bigint, // joinedAt
-  bigint, // joinerFleetSetAt
-  bigint, // selectedMapId
-  bigint // maxScore
-];
-
 export type FleetTuple = [
   bigint, // id
   bigint, // lobbyId
@@ -294,35 +299,6 @@ export type GameDataTuple = [
 ];
 
 // Helper functions to convert tuples to objects
-export function tupleToLobby(tuple: LobbyTuple): Lobby {
-  return {
-    basic: {
-      id: tuple[0],
-      creator: tuple[1],
-      costLimit: tuple[3],
-      createdAt: tuple[5],
-    },
-    players: {
-      joiner: tuple[2],
-      reservedJoiner: "0x0000000000000000000000000000000000000000" as Address, // Default to zero address if not in tuple
-      creatorFleetId: tuple[7],
-      joinerFleetId: tuple[8],
-      joinedAt: tuple[11],
-      joinerFleetSetAt: tuple[12],
-    },
-    gameConfig: {
-      creatorGoesFirst: tuple[9],
-      turnTime: tuple[10],
-      selectedMapId: tuple[13],
-      maxScore: tuple[14],
-    },
-    state: {
-      status: tuple[4],
-      gameStartedAt: tuple[6],
-    },
-  };
-}
-
 export function tupleToFleet(tuple: FleetTuple): Fleet {
   return {
     id: tuple[0],
@@ -452,9 +428,6 @@ export interface CampaignNode {
   turnTime: bigint;
   maxScore: bigint;
   creatorGoesFirst: boolean;
-  // Descriptive difficulty reference only — never enforced against the
-  // actual AI fleet cost on-chain. Purely for admin/UI display.
-  enemyThreat: bigint;
   exists: boolean;
 }
 

@@ -12,11 +12,15 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId! },
-    select: { creditBalance: true },
+    select: { creditBalance: true, decBalance: true, droneCoreTier: true },
   });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ creditBalance: user.creditBalance });
+  return NextResponse.json({
+    creditBalance: user.creditBalance,
+    decBalance: user.decBalance,
+    droneCoreTier: user.droneCoreTier,
+  });
 }

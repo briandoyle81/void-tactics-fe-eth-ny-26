@@ -2,6 +2,7 @@
 
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
+import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
 
 type Position = { row: number; col: number };
 
@@ -53,6 +54,13 @@ export function GameGridWeaponSelector({
   setSelectedWeaponType,
   setTargetShipId,
 }: GameGridWeaponSelectorProps) {
+  // Resolved unconditionally (before the early `return null`s below) since
+  // this is a hook call — rules-of-hooks requires it run on every render.
+  const shipForFactionAbility = selectedShipId != null ? shipMap.get(selectedShipId) : undefined;
+  const { isHeal: factionAbilityIsHeal } = useFactionAbilityIsHeal(
+    shipForFactionAbility?.traits.variant,
+  );
+
   const hasRealTarget = targetShipId != null && targetShipId !== 0;
   // Hide only when the confirm widget is actually showing without a real
   // target (it embeds its own copy of this selector then) — matches
@@ -73,7 +81,7 @@ export function GameGridWeaponSelector({
   if (isRammingMovePreview) {
     return null;
   }
-  const ship = shipMap.get(selectedShipId);
+  const ship = shipForFactionAbility;
   if (!ship) {
     return null;
   }
@@ -110,9 +118,11 @@ export function GameGridWeaponSelector({
     return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
   });
   const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-    ...(hasRamTarget ? [{ value: "ram" as const, label: "RAM" }] : []),
-    { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon) },
-    ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special) }] : []),
+    ...(hasRamTarget
+      ? [{ value: "ram" as const, label: factionAbilityIsHeal ? "REPAIR" : "RAM" }]
+      : []),
+    { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant) },
+    ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special, ship.traits.variant) }] : []),
   ];
   if (weapons.length <= 1) {
     return null; // only one option — nothing to choose

@@ -12,6 +12,32 @@ import { PurchaseTierTable, type PurchaseTierRowData } from "./PurchaseTierTable
 import { ShipPurchasePricesHeaderCard } from "./ShipPurchasePricesHeaderCard";
 import { ShipPurchaseTierSectionCard } from "./ShipPurchaseTierSectionCard";
 
+// Web2 counterpart to ShipPurchasePrices.tsx's readDraft/writeDraft/
+// clearDraft — an unsaved-edit draft that survives a reload, so an admin
+// mid-edit doesn't lose work. No chainId in the storage key (web2 has one
+// database, not per-chain state); the two tools get separate keys since
+// they're already independent Config rows/loading states here.
+const TIERS_DRAFT_KEY = "void-tactics-price-draft-web2-tiers-v1";
+const UTC_DRAFT_KEY = "void-tactics-price-draft-web2-utc-v1";
+
+function readDraftWeb2<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraftWeb2<T>(key: string, draft: T): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(draft));
+}
+function clearDraftWeb2(key: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(key);
+}
+
 // Web2-mode counterpart to `ShipPurchasePrices.tsx` — same tier-table
 // editing UX, but for DB-backed Config rows (via getPurchaseTiers.ts /
 // getUtcPurchaseTiers.ts) instead of the Ships/ShipPurchaser contracts'
@@ -27,9 +53,30 @@ const ShipPurchasePricesWeb2: React.FC = () => {
   // or a refetch after a successful save) — but not while the admin is
   // mid-edit, so typing doesn't get clobbered by a background refetch.
   const [isDirty, setIsDirty] = useState(false);
+  const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+
+  // Hydrate any unsaved draft from a previous session once, on mount.
+  useEffect(() => {
+    const saved = readDraftWeb2<PurchaseTier[]>(TIERS_DRAFT_KEY);
+    if (saved && saved.length > 0) {
+      setDraft(saved);
+      setIsDirty(true);
+    }
+    setHasHydratedDraft(true);
+  }, []);
+
   useEffect(() => {
     if (!isDirty) setDraft(tiers);
   }, [tiers, isDirty]);
+
+  // Persist (or clear) the draft whenever it changes, once past the initial
+  // hydration read above — otherwise this would immediately overwrite the
+  // just-read draft with the not-yet-hydrated empty state.
+  useEffect(() => {
+    if (!hasHydratedDraft) return;
+    if (isDirty) writeDraftWeb2(TIERS_DRAFT_KEY, draft);
+    else clearDraftWeb2(TIERS_DRAFT_KEY);
+  }, [hasHydratedDraft, isDirty, draft]);
 
   // Tool 3 — direct UTC purchase tiers, independent Config row/API from the
   // ship-pack tiers above (see useUtcPurchaseWeb2.ts / /api/utc/purchase-tiers).
@@ -41,9 +88,28 @@ const ShipPurchasePricesWeb2: React.FC = () => {
   const [utcDraft, setUtcDraft] = useState<UtcPurchaseTier[]>(utcTiers);
   const [isUtcSaving, setIsUtcSaving] = useState(false);
   const [isUtcDirty, setIsUtcDirty] = useState(false);
+  const [hasHydratedUtcDraft, setHasHydratedUtcDraft] = useState(false);
+
+  useEffect(() => {
+    const saved = readDraftWeb2<UtcPurchaseTier[]>(UTC_DRAFT_KEY);
+    if (saved && saved.length > 0) {
+      setUtcDraft(saved);
+      setIsUtcDirty(true);
+    }
+    setHasHydratedUtcDraft(true);
+  }, []);
+
   useEffect(() => {
     if (!isUtcDirty) setUtcDraft(utcTiers);
   }, [utcTiers, isUtcDirty]);
+
+  useEffect(() => {
+    if (!hasHydratedUtcDraft) return;
+    if (isUtcDirty) writeDraftWeb2(UTC_DRAFT_KEY, utcDraft);
+    else clearDraftWeb2(UTC_DRAFT_KEY);
+  }, [hasHydratedUtcDraft, isUtcDirty, utcDraft]);
+
+  const [isReloading, setIsReloading] = useState(false);
 
   if (!canEdit) {
     return (
@@ -109,6 +175,26 @@ const ShipPurchasePricesWeb2: React.FC = () => {
     }
   };
 
+  const hasUnsavedChanges = isDirty || isUtcDirty;
+
+  // Web2 equivalent of ShipPurchasePrices.tsx's handleClearCacheAndReload —
+  // there's no separate manual cache layer to invalidate here (React Query
+  // already backs both reads), so this is a plain refetch-from-server.
+  const handleReloadFromServer = async () => {
+    setIsReloading(true);
+    try {
+      await Promise.all([refetch(), refetchUtc()]);
+      toast.success("Reloaded from server.");
+    } finally {
+      setIsReloading(false);
+    }
+  };
+
+  const handleClearPriceEntry = () => {
+    handleReset();
+    handleUtcReset();
+  };
+
   return (
     <div className="space-y-6">
       <ShipPurchasePricesHeaderCard
@@ -137,8 +223,30 @@ const ShipPurchasePricesWeb2: React.FC = () => {
             ), edited separately below.
           </>
         }
-        hasUnsavedChanges={isDirty || isUtcDirty}
+        hasUnsavedChanges={hasUnsavedChanges}
         unsavedChangesLabel="Unsaved changes."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={handleClearPriceEntry}
+              disabled={!hasUnsavedChanges}
+              className="px-4 py-2 rounded-none border-2 text-warning-red font-mono text-xs font-bold uppercase tracking-wider transition-colors hover:bg-warning-red/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: "var(--color-warning-red)" }}
+            >
+              [CLEAR PRICE ENTRY]
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleReloadFromServer()}
+              disabled={isReloading}
+              className="px-4 py-2 rounded-none border-2 text-amber font-mono text-xs font-bold uppercase tracking-wider transition-colors hover:bg-amber/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: "var(--color-amber)" }}
+            >
+              {isReloading ? "[RELOADING…]" : "[RELOAD FROM SERVER]"}
+            </button>
+          </>
+        }
       />
 
       <ShipPurchaseTierSectionCard

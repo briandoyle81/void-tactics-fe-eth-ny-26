@@ -25,6 +25,7 @@ import {
   Ship,
   Attributes,
   MapMode,
+  LobbyStatus,
 } from "../types/types";
 import { toast } from "react-hot-toast";
 import { cacheShipsData } from "../hooks/useShipDataCache";
@@ -42,6 +43,7 @@ import { LobbyJoinButton } from "./LobbyJoinButton";
 import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { LobbyAcceptButton } from "./LobbyAcceptButton";
 import { LobbyRejectButton } from "./LobbyRejectButton";
+import { LobbyPruneButton } from "./LobbyPruneButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { MapDisplay } from "./MapDisplay";
@@ -102,6 +104,7 @@ const Lobbies: React.FC = () => {
     freeGamesPerAddress,
     additionalLobbyFee,
     paused,
+    staleLobbyThreshold,
     // leaveLobby,
     // timeoutJoiner,
     createFleet,
@@ -1198,6 +1201,10 @@ const Lobbies: React.FC = () => {
         errorMessage.includes("rejected")
       ) {
         toast.error("Transaction declined by user");
+      } else if (errorMessage.includes("MixedVariantFleet")) {
+        toast.error(
+          "A fleet can't mix ships from different factions — select ships of one faction only.",
+        );
       } else {
         toast.error(`Fleet creation failed: ${errorMessage}`);
       }
@@ -1725,6 +1732,14 @@ const Lobbies: React.FC = () => {
                   onError={(error) => {
                     setPendingCreateLobbyHash(undefined);
                     console.error("Failed to create lobby:", error);
+                    const errorMessage = error.message || "";
+                    if (errorMessage.includes("InsufficientUTC")) {
+                      toast.error(
+                        "Insufficient UTC balance — need 1 UTC to reserve this game",
+                      );
+                    } else if (errorMessage.includes("UTCTransferFailed")) {
+                      toast.error("UTC transfer failed, please try again");
+                    }
                   }}
                 >
                   CREATE
@@ -1791,6 +1806,16 @@ const Lobbies: React.FC = () => {
               typeof lobby.players.reservedJoiner === "string" &&
               lobby.players.reservedJoiner !==
                 "0x0000000000000000000000000000000000000000";
+            // Matches pruneStaleLobby's own LobbyNotOpen/LobbyNotStaleYet
+            // revert conditions exactly, so the badge/button only appear
+            // when the call would actually succeed. See
+            // docs/update/Frontend_Updates_2026-08-27.md §4.
+            const isStale =
+              lobby.state.status === LobbyStatus.Open &&
+              !hasJoiner &&
+              staleLobbyThreshold != null &&
+              BigInt(Math.floor(Date.now() / 1000)) - lobby.basic.createdAt >=
+                staleLobbyThreshold;
             return (
             <LobbyCard
               key={lobby.basic.id.toString()}
@@ -1798,6 +1823,7 @@ const Lobbies: React.FC = () => {
               isCreatorMe={isCreatorMe}
               statusColorClass={lobbyStatusColor(lobby.state.status)}
               statusText={lobbyStatusLabel(lobby.state.status)}
+              isStale={isStale}
               creatorLabel={`${lobby.basic.creator.slice(0, 6)}…${lobby.basic.creator.slice(-4)}`}
               creatorStats={
                 <CreatorStats
@@ -1973,6 +1999,24 @@ const Lobbies: React.FC = () => {
                     >
                       LEAVE LOBBY
                     </LobbyLeaveButton>
+                  }
+                  pruneButton={
+                    isStale ? (
+                      <LobbyPruneButton
+                        lobbyId={lobby.basic.id}
+                        className="w-full px-4 py-2.5 border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+                        onSuccess={() => {
+                          toast.success("Stale lobby pruned.");
+                          loadLobbies();
+                        }}
+                        onError={(error) => {
+                          console.error("Failed to prune lobby:", error);
+                          toast.error("Failed to prune lobby");
+                        }}
+                      >
+                        [PRUNE STALE LOBBY]
+                      </LobbyPruneButton>
+                    ) : undefined
                   }
                 />
               }

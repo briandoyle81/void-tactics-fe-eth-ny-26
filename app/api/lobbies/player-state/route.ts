@@ -7,8 +7,9 @@ import { getLobbySettings } from "@/app/lib/lobbySettings";
 // GET /api/lobbies/player-state
 // Returns lobby-economy state for the current user: kickCount, kickTimeoutUntil,
 // lobbiesCreatedCount, freeGamesPerAddress, lobbyCreationCostUtc,
-// reservationFeeUtc, and paused (the admin lobby-creation kill-switch —
-// public to any signed-in user since the create-lobby button needs it).
+// reservationFeeUtc, paused (the admin lobby-creation kill-switch), and
+// staleLobbyThresholdDays — all public to any signed-in user, since the
+// create-lobby button and the stale-lobby prune badge both need them.
 export async function GET() {
   const { userId, error } = await requireAuth();
   if (error) return error;
@@ -32,5 +33,6 @@ export async function GET() {
     lobbyCreationCostUtc: economy.lobbyCreationCostUtc,
     reservationFeeUtc: economy.reservationFeeUtc,
     paused: lobbySettings.paused,
+    staleLobbyThresholdDays: lobbySettings.staleLobbyThresholdDays,
   });
 }

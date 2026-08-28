@@ -107,18 +107,34 @@ export function useLobbySettings() {
   const freeGames = useLobbiesRead("freeGamesPerAddress");
   const additionalFee = useLobbiesRead("additionalLobbyFee");
   const paused = useLobbiesRead("paused");
+  const staleLobbyThreshold = useLobbiesRead("staleLobbyThreshold");
 
   return {
     freeGamesPerAddress: freeGames.data,
     additionalLobbyFee: additionalFee.data,
     paused: paused.data,
+    staleLobbyThreshold: staleLobbyThreshold.data as bigint | undefined,
     isLoading:
-      freeGames.isLoading || additionalFee.isLoading || paused.isLoading,
-    error: freeGames.error || additionalFee.error || paused.error,
+      freeGames.isLoading ||
+      additionalFee.isLoading ||
+      paused.isLoading ||
+      staleLobbyThreshold.isLoading,
+    error:
+      freeGames.error ||
+      additionalFee.error ||
+      paused.error ||
+      staleLobbyThreshold.error,
+    refetchStaleLobbyThreshold: staleLobbyThreshold.refetch,
   };
 }
 
 export function useIsLobbyOpenForJoining(lobbyId: bigint) {
   const args = useMemo(() => [lobbyId] as const, [lobbyId]);
   return useLobbiesRead("isLobbyOpenForJoining", args);
+}
+
+/** Ownable's `owner()` — gates the new stale-lobby-threshold admin control (setStaleLobbyThreshold is onlyOwner). */
+export function useLobbiesOwner() {
+  const result = useLobbiesRead("owner");
+  return { ...result, data: result.data as `0x${string}` | undefined };
 }
