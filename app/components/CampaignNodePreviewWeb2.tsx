@@ -8,24 +8,11 @@ import { NodeMatchModalWeb2 } from "./NodeMatchModalWeb2";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import ShipCard from "./ShipCard";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
-import { HoverShipCardTooltip, type HoverAnchorRect } from "./HoverShipCardTooltip";
 import { ARCHETYPE_LABEL } from "../utils/aiShipConfig";
-import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
+import { aiConfigToPreviewShipWeb2 } from "../utils/aiShipConfigWeb2";
 import type { CampaignWeb2Node, CampaignWeb2 } from "../hooks/useCampaignWeb2";
-
-interface AIMapPlacementWeb2 {
-  id: number;
-  row: number;
-  col: number;
-  configId: number;
-  config: AIShipConfigWeb2;
-}
-
-interface HoveredShip {
-  config: AIShipConfigWeb2;
-  anchor: HoverAnchorRect;
-  key: string;
-}
+import type { AIMapPlacementWeb2 } from "../hooks/useMapEnemyThreatWeb2";
+import { EnemyFleetPreview } from "./EnemyFleetPreview";
 
 interface CampaignNodePreviewWeb2Props {
   node: CampaignWeb2Node;
@@ -37,8 +24,6 @@ interface CampaignNodePreviewWeb2Props {
 // fleet preview (real art tiles + hover-to-inspect, not a text list).
 export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewWeb2Props) {
   const [showFleetModal, setShowFleetModal] = React.useState(false);
-  const [hoveredShip, setHoveredShip] = React.useState<HoveredShip | null>(null);
-  const panelRef = React.useRef<HTMLDivElement>(null);
   const content = getNodeContent(node.id);
 
   const { data: placements = [], isLoading } = useQuery({
@@ -55,9 +40,38 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
     [placements],
   );
 
+  const fleetShips = React.useMemo(
+    () =>
+      placements.map((p, i) => {
+        const previewShip = aiConfigToPreviewShipWeb2(p.config, i);
+        return {
+          key: `${p.config.id}-${i}`,
+          name: p.config.name || ARCHETYPE_LABEL[p.config.archetype],
+          renderImage: () => (
+            <ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
+          ),
+          renderHoverCard: () => (
+            <ShipCard
+              ship={toShipCardDataWeb2(previewShip)}
+              shipImage={<ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} />}
+              isStarred={false}
+              onToggleStar={() => {}}
+              isSelected={false}
+              onToggleSelection={() => {}}
+              onRecycleClick={() => {}}
+              showInGameProperties={false}
+              hideRecycle
+              hideCheckbox
+              tooltipMode
+            />
+          ),
+        };
+      }),
+    [placements],
+  );
+
   return (
     <div
-      ref={panelRef}
       className="relative grid grid-cols-1 gap-8 border-2 border-cyan p-6 font-mono md:grid-cols-2"
       style={{ borderRadius: 0 }}
     >
@@ -86,74 +100,7 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
         </button>
       </div>
 
-      <div className="border-t border-steel pt-4 md:border-t-0 md:border-l md:pl-8 md:pt-0">
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="text-xs uppercase tracking-wider text-text-muted">Enemy Fleet</h4>
-          {!isLoading && placements.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold text-amber bg-amber/10 border border-amber/40 rounded-none whitespace-nowrap">
-              ACTUAL FLEET COST: {totalEnemyThreat}
-            </span>
-          )}
-        </div>
-        {isLoading ? (
-          <p className="mt-2 text-xs text-text-muted">Loading encounter data...</p>
-        ) : placements.length === 0 ? (
-          <p className="mt-2 text-xs text-warning-red">
-            No AI content configured for this node&apos;s map yet.
-          </p>
-        ) : (
-          <div
-            className="mt-3 grid gap-3"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))" }}
-          >
-            {placements.map((p, i) => {
-              const previewShip = aiConfigToPreviewShipWeb2(p.config, i);
-              return (
-                <div
-                  key={`${p.config.id}-${i}`}
-                  className="flex min-w-0 flex-col gap-1"
-                  onMouseEnter={(e) => {
-                    const panelEl = panelRef.current;
-                    if (!panelEl) return;
-                    const tileRect = e.currentTarget.getBoundingClientRect();
-                    const panelRect = panelEl.getBoundingClientRect();
-                    setHoveredShip({
-                      config: p.config,
-                      key: `${p.config.id}-${i}`,
-                      anchor: {
-                        left: tileRect.left - panelRect.left,
-                        top: tileRect.top - panelRect.top,
-                        right: tileRect.right - panelRect.left,
-                        bottom: tileRect.bottom - panelRect.top,
-                      },
-                    });
-                  }}
-                  onMouseLeave={() => setHoveredShip(null)}
-                >
-                  <div
-                    className="relative w-full overflow-hidden"
-                    style={{
-                      aspectRatio: "1",
-                      backgroundColor: "var(--color-slate)",
-                      border: "1px solid var(--color-warning-red)",
-                    }}
-                  >
-                    <ShipImageWeb2
-                      ship={previewShip}
-                      className="h-full w-full"
-                      showLoadingState={false}
-                      hideRankStars
-                    />
-                  </div>
-                  <span className="truncate text-center text-[9px] uppercase tracking-wider text-text-secondary">
-                    {p.config.name || ARCHETYPE_LABEL[p.config.archetype]}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <EnemyFleetPreview ships={fleetShips} totalCost={totalEnemyThreat} isLoading={isLoading} />
 
       {showFleetModal && (
         <NodeMatchModalWeb2
@@ -163,36 +110,6 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
           onLaunched={() => setShowFleetModal(false)}
         />
       )}
-
-      <HoverShipCardTooltip
-        anchor={hoveredShip?.anchor ?? null}
-        hoverKey={hoveredShip?.key ?? null}
-        preferLeftPlacement={false}
-        containerRef={panelRef}
-        renderCard={() =>
-          hoveredShip ? (
-            <ShipCard
-              ship={toShipCardDataWeb2(aiConfigToPreviewShipWeb2(hoveredShip.config))}
-              shipImage={
-                <ShipImageWeb2
-                  ship={aiConfigToPreviewShipWeb2(hoveredShip.config)}
-                  className="h-full w-full"
-                  showLoadingState={false}
-                />
-              }
-              isStarred={false}
-              onToggleStar={() => {}}
-              isSelected={false}
-              onToggleSelection={() => {}}
-              onRecycleClick={() => {}}
-              showInGameProperties={false}
-              hideRecycle
-              hideCheckbox
-              tooltipMode
-            />
-          ) : null
-        }
-      />
     </div>
   );
 }

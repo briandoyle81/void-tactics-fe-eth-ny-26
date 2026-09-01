@@ -169,18 +169,30 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
 
   return (
     <div className="flex flex-col gap-4 border-2 border-cyan p-6 font-mono" style={{ borderRadius: 0 }}>
-      <div>
-        <h3 className="text-xl font-bold text-cyan">[ROGUELIKE CAMPAIGN]</h3>
-        <p className="mt-2 text-sm text-text-secondary">
-          Commit a roster once — it persists (with accumulated hull damage)
-          across every mission until the run ends. Branching paths lock out
-          their siblings once you commit to one, so choose carefully.
-        </p>
-        {!!requiredVariant && (
-          <div className="mt-2 inline-flex w-fit items-center gap-1.5 border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber">
-            Requires Faction {requiredVariant} fleet
-          </div>
-        )}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-xl font-bold text-cyan">[ROGUELIKE CAMPAIGN]</h3>
+          <p className="mt-2 text-sm text-text-secondary">
+            Commit a roster once — it persists (with accumulated hull damage)
+            across every mission until the run ends. Branching paths lock out
+            their siblings once you commit to one, so choose carefully.
+          </p>
+          {!!requiredVariant && (
+            <div className="mt-2 inline-flex w-fit items-center gap-1.5 border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber">
+              Requires Faction {requiredVariant} fleet
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleStartRun()}
+          disabled={isStarting || fleet.selectedShips.length === 0 || isOverCap}
+          className="shrink-0 self-start border-2 border-phosphor-green px-6 py-3 text-sm font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10 disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ borderRadius: 0 }}
+        >
+          {isStarting ? "[STARTING RUN...]" : `[START RUN (${fleet.selectedShips.length})]`}
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
@@ -271,16 +283,6 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
           gridColsClassName="grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3"
         />
       )}
-
-      <button
-        type="button"
-        onClick={() => void handleStartRun()}
-        disabled={isStarting || fleet.selectedShips.length === 0 || isOverCap}
-        className="self-start border-2 border-phosphor-green px-6 py-3 text-sm font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10 disabled:cursor-not-allowed disabled:opacity-40"
-        style={{ borderRadius: 0 }}
-      >
-        {isStarting ? "[STARTING RUN...]" : `[START RUN (${fleet.selectedShips.length})]`}
-      </button>
     </div>
   );
 }

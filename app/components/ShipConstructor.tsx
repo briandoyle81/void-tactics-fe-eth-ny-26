@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Ship } from "../types/types";
+import { Ship, getMainWeaponName, getSpecialName, validSpecialsForVariant } from "../types/types";
 import { renderShip } from "../utils/shipRenderer";
 import { toShipVisual } from "../utils/toShipVisual";
 import { useOwnedShips } from "../hooks/useOwnedShips";
@@ -687,10 +687,11 @@ const ShipConstructor: React.FC = () => {
                       borderColor: "var(--color-cyan)",
                     }}
                   >
-                    <option value={0}>Laser</option>
-                    <option value={1}>Railgun</option>
-                    <option value={2}>Missile</option>
-                    <option value={3}>Plasma</option>
+                    {[0, 1, 2, 3].map((v) => (
+                      <option key={v} value={v}>
+                        {getMainWeaponName(v, variant)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -802,10 +803,11 @@ const ShipConstructor: React.FC = () => {
                       borderColor: "var(--color-cyan)",
                     }}
                   >
-                    <option value={0}>None</option>
-                    <option value={1}>EMP</option>
-                    <option value={2}>Repair</option>
-                    <option value={3}>Flak</option>
+                    {validSpecialsForVariant(variant).map((v) => (
+                      <option key={v} value={v}>
+                        {getSpecialName(v, variant)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

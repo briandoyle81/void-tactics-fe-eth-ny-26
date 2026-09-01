@@ -7,6 +7,7 @@ import type { ShipVisual } from "../types/shipVisual";
 import { useOwnedShipsWeb2 } from "../hooks/useOwnedShipsWeb2";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
+import { getMainWeaponName, getSpecialName, validSpecialsForVariant } from "../types/types";
 import type { Web2Ship } from "../types/web2Ship";
 
 // Web2-mode counterpart to `ShipConstructor.tsx` — but customize-only.
@@ -44,6 +45,13 @@ const ShipConstructorWeb2: React.FC = () => {
   const [costPreview, setCostPreview] = useState<CostPreview | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Variant 2 ("Drone" faction) ships use a disjoint Special value set —
+  // both the option list and the labels shown must follow the selected
+  // ship's actual variant, not variant 1's fixed set (see
+  // app/lib/customizeCost.ts's validSpecialsForVariant).
+  const variant = originalShip?.traits.variant ?? 1;
+  const validSpecials = validSpecialsForVariant(variant);
 
   useEffect(() => {
     if (selectedShipId == null || !ships) {
@@ -250,10 +258,11 @@ const ShipConstructorWeb2: React.FC = () => {
                     className="w-full px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
                     style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
                   >
-                    <option value={0}>Laser</option>
-                    <option value={1}>Railgun</option>
-                    <option value={2}>Missile</option>
-                    <option value={3}>Plasma</option>
+                    {[0, 1, 2, 3].map((v) => (
+                      <option key={v} value={v}>
+                        {getMainWeaponName(v, variant)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -348,10 +357,11 @@ const ShipConstructorWeb2: React.FC = () => {
                     className="w-full px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
                     style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
                   >
-                    <option value={0}>None</option>
-                    <option value={1}>EMP</option>
-                    <option value={2}>Repair</option>
-                    <option value={3}>Flak</option>
+                    {validSpecials.map((v) => (
+                      <option key={v} value={v}>
+                        {getSpecialName(v, variant)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

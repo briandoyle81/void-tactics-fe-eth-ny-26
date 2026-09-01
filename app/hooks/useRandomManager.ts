@@ -14,7 +14,7 @@ const RANDOM_MANAGER_ABI = CONTRACT_ABIS.RANDOM_MANAGER as Abi;
 
 // Base's prevrandao source (relayed from L1) only refreshes roughly every 6
 // L2 blocks (~12s) — see docs/update/Frontend_Updates_2026-08-26.md. Poll
-// the free `canReveal` view until it flips true rather than guessing a wait.
+// the free `canRevealBatch` view until it flips true rather than guessing a wait.
 const CAN_REVEAL_POLL_INTERVAL_MS = 1500;
 const CAN_REVEAL_TIMEOUT_MS = 20000;
 
@@ -55,8 +55,8 @@ export function useRevealRandomness() {
         const ready = await publicClient.readContract({
           address,
           abi: RANDOM_MANAGER_ABI,
-          functionName: "canReveal",
-          args: [serialNumber],
+          functionName: "canRevealBatch",
+          args: [[serialNumber]],
         });
         if (ready) return;
         if (Date.now() > deadline) {
@@ -70,32 +70,39 @@ export function useRevealRandomness() {
     [publicClient, contractAddresses],
   );
 
-  // Reveals a single serial number. AlreadyRevealed is treated as success
-  // (a concurrent reveal — retry, another tab — already did the work).
+  // Reveals a single serial number. If it's already been revealed (e.g. a
+  // prior attempt succeeded but the ship wasn't constructed yet), skip
+  // straight through — canRevealBatch would otherwise report "not
+  // revealable" forever for an already-revealed request, since there's
+  // nothing left to reveal, and waitUntilRevealable would time out.
   const revealOne = useCallback(
     async (serialNumber: bigint) => {
       if (!publicClient) throw new Error("No RPC client available");
+      const address = contractAddresses.RANDOM_MANAGER as `0x${string}`;
+      const [, , revealed] = (await publicClient.readContract({
+        address,
+        abi: RANDOM_MANAGER_ABI,
+        functionName: "requests",
+        args: [serialNumber],
+      })) as [bigint, bigint, boolean, bigint];
+      if (revealed) return;
+
       await waitUntilRevealable(serialNumber);
-      try {
-        const hash = await writeContractAsync({
-          address: contractAddresses.RANDOM_MANAGER as `0x${string}`,
-          abi: RANDOM_MANAGER_ABI,
-          functionName: "revealRandomness",
-          args: [serialNumber],
-          chainId: activeChainId,
-          ...(await getLegacyGasPriceOverridesForWrite(
-            activeChainId,
-            publicClient,
-          )),
-        });
-        await waitForTransactionReceipt(config, {
-          hash,
-          chainId: activeChainId,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!message.includes("AlreadyRevealed")) throw err;
-      }
+      const hash = await writeContractAsync({
+        address,
+        abi: RANDOM_MANAGER_ABI,
+        functionName: "revealRandomness",
+        args: [serialNumber],
+        chainId: activeChainId,
+        ...(await getLegacyGasPriceOverridesForWrite(
+          activeChainId,
+          publicClient,
+        )),
+      });
+      await waitForTransactionReceipt(config, {
+        hash,
+        chainId: activeChainId,
+      });
     },
     [
       writeContractAsync,

@@ -84,6 +84,16 @@ export function useRoguelikeNodeWeb2(nodeId: number | undefined) {
   return { node: data, isLoading, error: error instanceof Error ? error : null };
 }
 
+/** Every node in a campaign, in one call — web2 counterpart to web3's useAllRoguelikeNodes. Powers RoguelikeGraphWeb2's full-map view. */
+export function useRoguelikeCampaignNodesWeb2(campaignId: number | undefined) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["roguelike", "campaign-nodes", "web2", campaignId],
+    queryFn: () => apiFetch<RoguelikeNodeWeb2[]>(`/api/roguelike/campaigns/${campaignId}/nodes`),
+    enabled: campaignId != null,
+  });
+  return { nodes: data ?? [], isLoading, error: error instanceof Error ? error : null };
+}
+
 export function useRoguelikeMatchWeb2() {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: RUN_QUERY_KEY });

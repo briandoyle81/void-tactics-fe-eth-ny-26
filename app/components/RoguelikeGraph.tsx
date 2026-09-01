@@ -3,71 +3,194 @@
 import React from "react";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
-import { RoguelikeNodeKind, type RoguelikeRun } from "../types/roguelike";
+import { RoguelikeNodeKind, type RoguelikeNode, type RoguelikeRun } from "../types/roguelike";
 import {
-  useGetRoguelikeNode,
+  useAllRoguelikeNodes,
   useCampaignAutoHealPercent,
 } from "../hooks/useRoguelikeNodeMap";
-import {
-  useAreRoguelikeNodesDefeated,
-  useAreRoguelikeNodesLocked,
-  useIsRoguelikeNodeDefeated,
-} from "../hooks/useRoguelikeRun";
+import { useAreRoguelikeNodesDefeated, useAreRoguelikeNodesLocked } from "../hooks/useRoguelikeRun";
 import { useRoguelikeMatch } from "../hooks/useRoguelikeMatch";
-import { useMapEnemyThreat } from "../hooks/useAIEncountersContract";
+import { useGetAllAIShipConfigs, useGetMapPlacements } from "../hooks/useAIEncountersContract";
+import type { AIShipConfig } from "../types/types";
+import { ARCHETYPE_LABEL, aiConfigToPreviewShip } from "../utils/aiShipConfig";
+import { buildRoguelikePrerequisites } from "../utils/roguelikeGraphLayout";
+import { CampaignGraphCanvas } from "./CampaignGraphCanvas";
+import { RoguelikeNodeCard, type RoguelikeNodeCardNode } from "./RoguelikeNodeCard";
 import { RoguelikeCombatModal } from "./RoguelikeCombatModal";
 import { RoguelikeResupplyPanel } from "./RoguelikeResupplyPanel";
+import { EnemyFleetPreview } from "./EnemyFleetPreview";
+import { ShipImage } from "./ShipImage";
+import ShipCard from "./ShipCard";
+import { toShipCardData } from "../utils/toShipCardData";
 
 interface RoguelikeGraphProps {
   run: RoguelikeRun;
   onRunEnded: () => void;
+  /** Called after enterResupplyNode succeeds — unlike enterCombatNode
+   * (which navigates away to the game, so the parent naturally refetches on
+   * return), resupply keeps the player on this screen, so `run.currentNodeId`
+   * needs an explicit refetch to stop pointing at the node just left. */
+  onRunAdvanced: () => void;
 }
 
-// Active-run view: the current node plus reachable children (filtered by
-// lock state), not the whole mission tree — a much smaller, more localized
-// graph than the original campaign's full 30-node map. RoguelikeNodeMap's
-// data model is children-with-lockout, not prerequisites-with-ANY-of-unlock,
-// so this is deliberately its own layout, not a reuse of CampaignGraph.tsx.
-export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
+interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
+  prerequisites: number[];
+}
+
+// Active-run view: the whole campaign map, same visual system as the
+// original campaign's CampaignGraph.tsx (CampaignGraphCanvas — depth-tiered
+// columns, SVG prerequisite lanes, starfield backdrop), fed prerequisites
+// inverted from RoguelikeNodeMap's children-with-lockout edges (see
+// buildRoguelikePrerequisites). Interaction stays scoped to what's actually
+// enterable today — the current node, or one of its direct children — same
+// as before this used the shared canvas; walking back across a twoWay edge
+// to an already-left node isn't surfaced as an action here (a real
+// contract-level option that was never wired up, not something this
+// refactor adds).
+export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGraphProps) {
   const { address } = useAccount();
   const { retreatRun, enterResupplyNode } = useRoguelikeMatch();
   const [combatTargetNodeId, setCombatTargetNodeId] = React.useState<bigint | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = React.useState<number | null>(null);
   const [enteringResupply, setEnteringResupply] = React.useState<bigint | null>(null);
   const [isRetreating, setIsRetreating] = React.useState(false);
 
-  const { data: currentNode, isLoading: currentNodeLoading, refetch: refetchCurrentNode } =
-    useGetRoguelikeNode(run.currentNodeId);
+  const { nodes: allNodes, isLoading: nodesLoading } = useAllRoguelikeNodes();
   const { data: autoHealPercent } = useCampaignAutoHealPercent(run.campaignId);
 
-  const childIds = React.useMemo(
-    () => (currentNode?.children ?? []).map((c) => c.childId),
-    [currentNode],
+  const campaignNodes = React.useMemo(
+    () => allNodes.filter((n) => n.campaignId === run.campaignId),
+    [allNodes, run.campaignId],
   );
-  const { lockedByNodeId } = useAreRoguelikeNodesLocked(address, childIds);
-  const { defeatedByNodeId } = useAreRoguelikeNodesDefeated(address, childIds);
-  const { data: isCurrentNodeDefeated } = useIsRoguelikeNodeDefeated(
-    address,
-    run.currentNodeId,
+  const nodeIds = React.useMemo(() => campaignNodes.map((n) => n.id), [campaignNodes]);
+  const byNumberId = React.useMemo(
+    () => new Map(campaignNodes.map((n) => [Number(n.id), n])),
+    [campaignNodes],
   );
-  // enemyThreat is no longer a stored RoguelikeNodeMap field — derived from
-  // the map's actual AI placements instead (see useMapEnemyThreat).
-  const { totalThreat: currentNodeThreat } = useMapEnemyThreat(currentNode?.mapId);
+  const currentNode = byNumberId.get(Number(run.currentNodeId));
 
-  const reachableChildren = React.useMemo(
+  const { lockedByNodeId } = useAreRoguelikeNodesLocked(address, nodeIds);
+  const { defeatedByNodeId } = useAreRoguelikeNodesDefeated(address, nodeIds);
+
+  const prerequisitesByNumberId = React.useMemo(
     () =>
-      (currentNode?.children ?? []).filter(
-        (edge) => !lockedByNodeId.get(edge.childId.toString()),
+      buildRoguelikePrerequisites(
+        campaignNodes.map((n) => ({
+          id: Number(n.id),
+          children: n.children.map((e) => ({ childId: Number(e.childId) })),
+        })),
       ),
-    [currentNode, lockedByNodeId],
+    [campaignNodes],
   );
 
-  const { data: combatTargetNode } = useGetRoguelikeNode(combatTargetNodeId ?? undefined);
+  const canvasNodes: RoguelikeCanvasNode[] = React.useMemo(
+    () =>
+      campaignNodes.map((n) => {
+        const idNum = Number(n.id);
+        const isCurrent = n.id === run.currentNodeId;
+        return {
+          id: idNum,
+          kind: n.kind,
+          prerequisites: prerequisitesByNumberId.get(idNum) ?? [],
+          // Resupply nodes have no on-chain "completed" concept (only
+          // isNodeDefeated, which only applies to Combat nodes) — they
+          // never render as cleared, only as your current position or a
+          // reachable/locked stop on the map.
+          completed: n.kind === RoguelikeNodeKind.Combat ? !!defeatedByNodeId.get(n.id.toString()) : false,
+          unlocked: isCurrent ? true : !lockedByNodeId.get(n.id.toString()),
+          isCurrent,
+        };
+      }),
+    [campaignNodes, run.currentNodeId, defeatedByNodeId, lockedByNodeId, prerequisitesByNumberId],
+  );
+
+  // Snap the selection back to "where you are" whenever your position
+  // actually changes (entering a node) — same intent as CampaignGraph.tsx
+  // restoring a saved selection, but here "the interesting node" is always
+  // your current position rather than something worth persisting.
+  React.useEffect(() => {
+    setSelectedNodeId(Number(run.currentNodeId));
+  }, [run.currentNodeId]);
+
+  const selectedNode: RoguelikeNode | undefined =
+    selectedNodeId != null ? byNumberId.get(selectedNodeId) : undefined;
+  const isSelectedCurrentNode = !!selectedNode && selectedNode.id === run.currentNodeId;
+  const isSelectedReachableChild =
+    !!selectedNode &&
+    !!currentNode &&
+    currentNode.children.some((e) => e.childId === selectedNode.id) &&
+    !lockedByNodeId.get(selectedNode.id.toString());
+  const isSelectedNodeDefeated = selectedNode
+    ? !!defeatedByNodeId.get(selectedNode.id.toString())
+    : false;
+
+  const isSelectedCombatNode = selectedNode?.kind === RoguelikeNodeKind.Combat;
+  const { data: placements, isLoading: placementsLoading } = useGetMapPlacements(
+    isSelectedCombatNode ? selectedNode.mapId : undefined,
+  );
+  const { data: allConfigs, isLoading: configsLoading } = useGetAllAIShipConfigs();
+
+  const configById = React.useMemo(() => {
+    const map = new Map<string, AIShipConfig>();
+    (allConfigs ?? []).forEach((c) => map.set(c.id.toString(), c));
+    return map;
+  }, [allConfigs]);
+
+  const enemyShipConfigs = React.useMemo(() => {
+    if (!placements) return [];
+    return placements.configIds.map((configId) => configById.get(configId.toString()));
+  }, [placements, configById]);
+
+  const fleetShips = React.useMemo(
+    () =>
+      enemyShipConfigs.flatMap((config, i) => {
+        if (!config) return [];
+        const previewShip = aiConfigToPreviewShip(config);
+        return [
+          {
+            key: `${config.id.toString()}-${i}`,
+            name: config.name || ARCHETYPE_LABEL[config.archetype],
+            renderImage: () => (
+              <ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
+            ),
+            renderHoverCard: () => (
+              <ShipCard
+                ship={toShipCardData(previewShip)}
+                shipImage={<ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} />}
+                isStarred={false}
+                onToggleStar={() => {}}
+                isSelected={false}
+                onToggleSelection={() => {}}
+                onRecycleClick={() => {}}
+                showInGameProperties={false}
+                hideRecycle
+                hideCheckbox
+                tooltipMode
+              />
+            ),
+          },
+        ];
+      }),
+    [enemyShipConfigs],
+  );
+
+  const selectedNodeThreat = React.useMemo(
+    () =>
+      enemyShipConfigs.reduce(
+        (sum, config) => sum + (config ? aiConfigToPreviewShip(config).shipData.cost : 0),
+        0,
+      ),
+    [enemyShipConfigs],
+  );
+
+  const combatTargetNode =
+    combatTargetNodeId != null ? byNumberId.get(Number(combatTargetNodeId)) : undefined;
 
   const handleEnterResupply = async (nodeId: bigint) => {
     setEnteringResupply(nodeId);
     try {
       await enterResupplyNode(nodeId);
-      await refetchCurrentNode();
+      onRunAdvanced();
     } catch (error) {
       console.error("Failed to enter resupply node:", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -81,20 +204,6 @@ export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
     } finally {
       setEnteringResupply(null);
     }
-  };
-
-  // The current node itself needs a "fight this" action only in the one
-  // case where it hasn't been cleared yet — right after startRun, when
-  // currentNodeId is the campaign root and it's Combat-kind (the root is
-  // "always enterable" per the doc, targetable even though it equals
-  // currentNodeId, not a child move). Once cleared, currentNodeId stays put
-  // (advancing only happens by entering a child), so this is also the
-  // common "returned to a node already won" case — gated on
-  // isCurrentNodeDefeated via RoguelikeRun.isNodeDefeated rather than
-  // relying solely on catching CannotAdvance/NodeAlreadyDefeated.
-  const handleFightCurrentNode = () => {
-    if (!currentNode) return;
-    setCombatTargetNodeId(currentNode.id);
   };
 
   // A live combat match (run.activeGameId != 0) must be forfeited first —
@@ -132,7 +241,7 @@ export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
     }
   };
 
-  if (currentNodeLoading || !currentNode) {
+  if (nodesLoading || !currentNode) {
     return (
       <div className="border-2 border-cyan p-6 font-mono text-sm text-text-muted" style={{ borderRadius: 0 }}>
         Loading run position…
@@ -141,16 +250,14 @@ export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
   }
 
   if (currentNode.kind === RoguelikeNodeKind.Resupply) {
-    return <RoguelikeResupplyPanel run={run} node={currentNode} onDone={() => refetchCurrentNode()} />;
+    return <RoguelikeResupplyPanel run={run} node={currentNode} onDone={onRunAdvanced} />;
   }
 
   return (
-    <div className="flex flex-col gap-6 border-2 border-cyan p-6 font-mono" style={{ borderRadius: 0 }}>
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between border-2 border-cyan p-6 font-mono" style={{ borderRadius: 0 }}>
         <div>
-          <h3 className="text-xl font-bold text-cyan">
-            [RUN — NODE #{currentNode.id.toString()}]
-          </h3>
+          <h3 className="text-xl font-bold text-cyan">[ROGUELIKE RUN]</h3>
           <p className="mt-1 text-xs text-text-muted">
             Roster: {run.rosterShipIds.length} ships · Cost cap: {run.currentCostCap.toString()}
             {autoHealPercent != null && autoHealPercent > 0 && (
@@ -169,44 +276,84 @@ export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
         </button>
       </div>
 
-      {isCurrentNodeDefeated ? (
-        <p className="text-sm text-phosphor-green">
-          This node is cleared — pick where to go next below.
-        </p>
-      ) : (
-        <button
-          type="button"
-          onClick={handleFightCurrentNode}
-          className="self-start border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10"
-          style={{ borderRadius: 0 }}
-        >
-          [FIGHT THIS NODE] — Threat {currentNodeThreat}
-        </button>
-      )}
+      <CampaignGraphCanvas
+        nodes={canvasNodes}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={setSelectedNodeId}
+        renderNode={(node, isSelected, onSelect) => (
+          <RoguelikeNodeCard node={node} isSelected={isSelected} onSelect={onSelect} />
+        )}
+      >
+        {selectedNode && (
+          <div
+            className="grid grid-cols-1 gap-8 border-2 border-cyan p-6 font-mono md:grid-cols-2"
+            style={{ borderRadius: 0 }}
+          >
+            <div className="flex flex-col">
+              <h4 className="text-lg font-bold text-cyan">
+                [NODE #{selectedNode.id.toString()}] —{" "}
+                {selectedNode.kind === RoguelikeNodeKind.Combat ? "COMBAT" : "RESUPPLY"}
+              </h4>
+              {isSelectedCombatNode && isSelectedNodeDefeated && !isSelectedCurrentNode && (
+                <p className="mt-2 text-sm text-phosphor-green">Cleared.</p>
+              )}
 
-      <div>
-        <h4 className="mb-2 text-xs uppercase tracking-wider text-text-muted">
-          Where next?
-        </h4>
-        {reachableChildren.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            No further missions from here — clearing this node ends the run.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {reachableChildren.map((edge) => (
-              <RoguelikeChildCard
-                key={edge.childId.toString()}
-                nodeId={edge.childId}
-                isDefeated={!!defeatedByNodeId.get(edge.childId.toString())}
-                isEntering={enteringResupply === edge.childId}
-                onEnterCombat={() => setCombatTargetNodeId(edge.childId)}
-                onEnterResupply={() => void handleEnterResupply(edge.childId)}
+              <div className="mt-4">
+                {isSelectedCurrentNode ? (
+                  isSelectedNodeDefeated ? (
+                    <p className="text-sm text-phosphor-green">
+                      This node is cleared — pick where to go next above.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCombatTargetNodeId(selectedNode.id)}
+                      className="self-start border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10"
+                      style={{ borderRadius: 0 }}
+                    >
+                      [FIGHT THIS NODE]
+                    </button>
+                  )
+                ) : isSelectedReachableChild ? (
+                  selectedNode.kind === RoguelikeNodeKind.Combat ? (
+                    <button
+                      type="button"
+                      disabled={isSelectedNodeDefeated}
+                      onClick={() => setCombatTargetNodeId(selectedNode.id)}
+                      className="self-start border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ borderRadius: 0 }}
+                    >
+                      {isSelectedNodeDefeated ? "[ALREADY CLEARED]" : "[ENTER COMBAT]"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={enteringResupply === selectedNode.id}
+                      onClick={() => void handleEnterResupply(selectedNode.id)}
+                      className="self-start border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ borderRadius: 0 }}
+                    >
+                      {enteringResupply === selectedNode.id ? "[ENTERING...]" : "[ENTER RESUPPLY]"}
+                    </button>
+                  )
+                ) : (
+                  <p className="text-sm text-text-muted">
+                    Not reachable from your current position.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {isSelectedCombatNode && (
+              <EnemyFleetPreview
+                ships={fleetShips}
+                totalCost={selectedNodeThreat}
+                isLoading={placementsLoading || configsLoading}
               />
-            ))}
+            )}
           </div>
         )}
-      </div>
+      </CampaignGraphCanvas>
 
       {combatTargetNodeId != null && combatTargetNode && (
         <RoguelikeCombatModal
@@ -216,63 +363,6 @@ export function RoguelikeGraph({ run, onRunEnded }: RoguelikeGraphProps) {
           onLaunched={() => setCombatTargetNodeId(null)}
         />
       )}
-    </div>
-  );
-}
-
-function RoguelikeChildCard({
-  nodeId,
-  isDefeated,
-  isEntering,
-  onEnterCombat,
-  onEnterResupply,
-}: {
-  nodeId: bigint;
-  isDefeated: boolean;
-  isEntering: boolean;
-  onEnterCombat: () => void;
-  onEnterResupply: () => void;
-}) {
-  const { data: node, isLoading } = useGetRoguelikeNode(nodeId);
-  // enemyThreat is no longer a stored RoguelikeNodeMap field — derived from
-  // the map's actual AI placements instead (see useMapEnemyThreat).
-  const { totalThreat: nodeThreat } = useMapEnemyThreat(node?.mapId);
-
-  if (isLoading || !node) {
-    return (
-      <div className="border border-gunmetal p-3 text-xs text-text-muted">
-        Loading node #{nodeId.toString()}…
-      </div>
-    );
-  }
-
-  const isCombat = node.kind === RoguelikeNodeKind.Combat;
-  // Resupply hubs have no "defeated" concept — only a Combat node already
-  // cleared earlier this run (reachable again via a twoWay back-edge) needs
-  // gating; re-entering it otherwise reverts NodeAlreadyDefeated.
-  const isBlocked = isCombat && isDefeated;
-
-  return (
-    <div className="flex flex-col gap-2 border-2 border-gunmetal p-3">
-      <span className="text-xs uppercase tracking-wider text-text-secondary">
-        Node #{node.id.toString()} — {isCombat ? "Combat" : "Resupply"}
-      </span>
-      {isCombat ? (
-        <span className="text-xs text-amber">
-          {isDefeated ? "Cleared" : `Threat ${nodeThreat}`}
-        </span>
-      ) : (
-        <span className="text-xs text-cyan">Repair & roster changes</span>
-      )}
-      <button
-        type="button"
-        disabled={isEntering || isBlocked}
-        onClick={isCombat ? onEnterCombat : onEnterResupply}
-        className="mt-1 self-start border-2 border-cyan px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ borderRadius: 0 }}
-      >
-        {isEntering ? "[ENTERING...]" : isBlocked ? "[ALREADY CLEARED]" : "[ENTER]"}
-      </button>
     </div>
   );
 }

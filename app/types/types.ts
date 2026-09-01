@@ -64,12 +64,15 @@ export function tupleToShip(tuple: ShipTuple): Ship {
   };
 }
 
-// Equipment enum mappings based on actual contract enums
+// Equipment enum mappings based on actual contract enums. Verified
+// 2026-08-28 via `cast call` against the live RenderMetadata contract on
+// Base Sepolia (mainWeaponNames(1, slot)) — "Missile"/"Plasma" were
+// abbreviated relative to the on-chain names.
 export const MAIN_WEAPON_NAMES = {
   0: "Laser",
   1: "Railgun",
-  2: "Missile",
-  3: "Plasma",
+  2: "Missile Launcher",
+  3: "Plasma Cannon",
 } as const;
 
 // Variant 2 ("Drone" faction) display names for the same MainWeapon enum
@@ -95,12 +98,15 @@ export const SHIELD_NAMES = {
   3: "Advanced",
 } as const;
 
-// Variant 1's Special enum: None/EMP/RepairDrones/FlakArray.
+// Variant 1's Special enum: None/EMP/RepairDrones/FlakArray. Verified
+// 2026-08-28 via `cast call` against the live RenderMetadata contract on
+// Base Sepolia (specialNames(1, slot)) — the previous "Repair"/"Flak"
+// strings here were abbreviated relative to the on-chain names.
 export const SPECIAL_NAMES = {
   0: "None",
   1: "EMP",
-  2: "Repair",
-  3: "Flak",
+  2: "Repair Drones",
+  3: "Flak Array",
 } as const;
 
 // Variant 2 uses a disjoint set of Special values (Slot4/5/6), per
@@ -138,6 +144,21 @@ export function getSpecialName(value: number, variant: number = 1): string {
   return (
     names[value as keyof typeof names] || `Unknown (${value})`
   );
+}
+
+// Which raw Special values are valid for a given variant — variant 2's
+// Special enum is disjoint from variant 1's (Slot 4/5/6 vs Slot 1/2/3), so a
+// value valid for one variant can be meaningless/invalid for the other.
+// Shared by customize-ship forms (option lists) and validation
+// (app/lib/customizeCost.ts) so both stay in sync with SPECIAL_NAMES/
+// SPECIAL_NAMES_V2 above.
+const VALID_SPECIALS_BY_VARIANT: Record<number, readonly number[]> = {
+  2: [0, 4, 5, 6],
+};
+const DEFAULT_VALID_SPECIALS: readonly number[] = [0, 1, 2, 3];
+
+export function validSpecialsForVariant(variant: number): readonly number[] {
+  return VALID_SPECIALS_BY_VARIANT[variant] ?? DEFAULT_VALID_SPECIALS;
 }
 
 // New types for Game and Lobbies contracts

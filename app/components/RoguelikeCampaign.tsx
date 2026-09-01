@@ -40,5 +40,5 @@ export function RoguelikeCampaign() {
     return <RoguelikeRunStart onRunStarted={refetchAll} />;
   }
 
-  return <RoguelikeGraph run={run} onRunEnded={refetchAll} />;
+  return <RoguelikeGraph run={run} onRunEnded={refetchAll} onRunAdvanced={refetchAll} />;
 }

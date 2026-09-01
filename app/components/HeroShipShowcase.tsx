@@ -10,14 +10,20 @@ import { toShipVisual } from "../utils/toShipVisual";
 import { SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { WeaponIcon, DefenseIcon, SpecialIcon } from "./EquipmentTypeIcons";
 import {
   getMainWeaponName,
   getArmorName,
   getShieldName,
   getSpecialName,
+  validSpecialsForVariant,
 } from "../types/types";
 
 const DRONE_NAMES_ABI = CONTRACT_ABIS.DRONE_NAMES as Abi;
+
+// Equipment row labels are icon-only (category glyph + title tooltip)
+// instead of "Weapon:"/"Armor:"/"Shields:"/"Special:" text — the value
+// itself (e.g. "Plasma Cannon") stays full text.
 
 // Random ship names for hero showcase
 const SHIP_NAMES = [
@@ -105,7 +111,14 @@ function generateRandomShip(index: number, variant: number): Ship {
         ? Math.floor(Math.random() * 3) + 1
         : 0
       : 0;
-  const special = Math.floor(Math.random() * 4);
+  // Variant 2 ("Drone" faction) ships use a disjoint Special value set
+  // (Slot 4/5/6 instead of Slot 1/2/3) — picking from a flat 0-3 range here
+  // produced invalid values for variant-2 ships (getSpecialName falling
+  // through to "Unknown", and the art renderer having no matching special
+  // to draw). Must pick from the values actually valid for this ship's
+  // variant instead.
+  const validSpecials = validSpecialsForVariant(variant);
+  const special = validSpecials[Math.floor(Math.random() * validSpecials.length)];
 
   // Random traits
   const accuracy = Math.floor(Math.random() * 3);
@@ -296,7 +309,6 @@ export const HeroShipShowcase: React.FC<{
   const accentInset = side === "enemy" ? "rgba(255, 77, 77, 0.1)" : "rgba(86, 214, 255, 0.1)";
   const flipSprite = side === "allied";
 
-
   /** Narrow stats column, wider art (~36% / ~64%). Flip column fr order when art is on the left. */
   const intelGridCols = flipLayout
     ? "grid-cols-[minmax(0,3.5fr)_minmax(0,2fr)]"
@@ -343,11 +355,12 @@ export const HeroShipShowcase: React.FC<{
                 minHeight: "2.4em",
               }}
             >
-              {heroShip?.name ?? " "}
+              {heroShip?.name ?? " "}
             </h3>
           </div>
 
-          {/* Equipment */}
+          {/* Equipment — icon labels (Weapon/Armor-Shields/Special), full
+              text values. */}
           <div
             className={`mb-1.5 border-b pb-1.5 md:mb-2 md:pb-2 ${accentDividerClass}`}
             style={{
@@ -355,19 +368,28 @@ export const HeroShipShowcase: React.FC<{
             }}
           >
             <div className="space-y-0.5 text-xs leading-tight sm:text-sm md:text-base">
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">Weapon:</span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon, heroShip.traits.variant) : " "}
+              {/* Row labels are icon-only (title tooltip carries the word);
+                  values stay full text and wrap to a second line instead of
+                  truncating. */}
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span className="shrink-0 opacity-60" title="Weapon" aria-label="Weapon">
+                  <WeaponIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </span>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
+                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon, heroShip.traits.variant) : " "}
                 </span>
               </div>
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">
-                  {heroShip && heroShip.equipment.shields > 0 ? "Shields:" : "Armor:"}
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span
+                  className="shrink-0 opacity-60"
+                  title={heroShip && heroShip.equipment.shields > 0 ? "Shields" : "Armor"}
+                  aria-label={heroShip && heroShip.equipment.shields > 0 ? "Shields" : "Armor"}
+                >
+                  <DefenseIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
                   {!heroShip
-                    ? " "
+                    ? " "
                     : heroShip.equipment.armor > 0
                       ? getArmorName(heroShip.equipment.armor)
                       : heroShip.equipment.shields > 0
@@ -375,11 +397,13 @@ export const HeroShipShowcase: React.FC<{
                         : "None"}
                 </span>
               </div>
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">Special:</span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span className="shrink-0 opacity-60" title="Special" aria-label="Special">
+                  <SpecialIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </span>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
                   {!heroShip
-                    ? " "
+                    ? " "
                     : heroShip.equipment.special > 0
                       ? getSpecialName(heroShip.equipment.special, heroShip.traits.variant)
                       : "None"}
@@ -393,13 +417,13 @@ export const HeroShipShowcase: React.FC<{
             <div className="data-readout">
               <span className="data-readout-label">Range</span>
               <span className="font-bold text-phosphor-green font-mono text-xs">
-                {shipAttributes?.range ?? " "}
+                {shipAttributes?.range ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Damage</span>
               <span className="font-bold text-warning-red font-mono text-xs">
-                {shipAttributes?.gunDamage ?? " "}
+                {shipAttributes?.gunDamage ?? " "}
               </span>
             </div>
             <div className="data-readout">
@@ -407,19 +431,19 @@ export const HeroShipShowcase: React.FC<{
               <span className="font-bold text-amber font-mono text-xs">
                 {shipAttributes
                   ? `${shipAttributes.hullPoints}/${shipAttributes.maxHullPoints}`
-                  : " "}
+                  : " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Move</span>
               <span className={`font-bold font-mono text-xs ${side === "enemy" ? "text-warning-red" : "text-cyan"}`}>
-                {shipAttributes?.movement ?? " "}
+                {shipAttributes?.movement ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Defense</span>
               <span className="font-bold text-amber font-mono text-xs">
-                {shipAttributes ? `${shipAttributes.damageReduction}%` : " "}
+                {shipAttributes ? `${shipAttributes.damageReduction}%` : " "}
               </span>
             </div>
           </div>
@@ -438,12 +462,14 @@ export const HeroShipShowcase: React.FC<{
               "--bracket-color": accent,
             } as React.CSSProperties}
           >
-            {/* Flip wrapper matches ShipCard tooltip: art + rank stars + glow
-                mirror together. container-type:size lives on this OUTER,
-                untransformed div — putting it on the same element as the
-                scaleX(-1) transform below made the rank stars' cqmin-based
-                SHIP_IMAGE_RANK_STAR_BOX size compute near-zero on flipped
-                (allied-side) ships instead of matching the unflipped side. */}
+            {/* Only the art + glow overlay flip (scaleX(-1)) — the rank
+                star lives as a sibling outside that transform, matching
+                ShipImageView.tsx's own star-is-a-sibling-of-<img> pattern.
+                Nesting the star INSIDE the flipped wrapper made its
+                cqmin-based SHIP_IMAGE_RANK_STAR_BOX size compute near-zero
+                on flipped (allied-side) ships, even though container-type:size
+                lived on this outer, untransformed div — an intervening
+                transformed ancestor still threw off cqmin resolution. */}
             <div className="relative h-full w-full min-h-0 flex-1 [container-type:size]">
               <div
                 className="relative h-full w-full"
@@ -464,23 +490,23 @@ export const HeroShipShowcase: React.FC<{
                     boxShadow: `inset 0 0 60px ${accentInset}`,
                   }}
                 />
-                {heroShip.shipData.constructed && (
-                  <div
-                    className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
-                    style={{
-                      fontSize: SHIP_IMAGE_RANK_STAR_BOX,
-                    }}
-                    role="img"
-                    aria-label={`Combat rank ${shipRank.rank} of 6`}
-                  >
-                    {Array.from({ length: shipRank.rank }, (_, i) => (
-                      <span key={i} aria-hidden>
-                        ⭐
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
+              {heroShip.shipData.constructed && (
+                <div
+                  className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
+                  style={{
+                    fontSize: SHIP_IMAGE_RANK_STAR_BOX,
+                  }}
+                  role="img"
+                  aria-label={`Combat rank ${shipRank.rank} of 6`}
+                >
+                  {Array.from({ length: shipRank.rank }, (_, i) => (
+                    <span key={i} aria-hidden>
+                      ⭐
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (

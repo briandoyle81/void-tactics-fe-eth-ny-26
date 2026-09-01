@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     shiny: q.has("shiny") ? q.get("shiny") === "true" : ship.shiny,
   };
 
-  const validationError = validateCustomization(proposed.equipment, proposed.traits);
+  const validationError = validateCustomization(proposed.equipment, proposed.traits, currentTraitsRaw.variant ?? 0);
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
   const current = {
@@ -81,9 +81,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { equipment, traits } = body;
   const shiny = body.shiny;
 
-  const validationError = validateCustomization(equipment, traits);
-  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
-
   const ship = await prisma.ship.findFirst({ where: { id: shipId, ownerId: userId! } });
   if (!ship) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!ship.constructed) return NextResponse.json({ error: "Ship must be constructed before modifying" }, { status: 409 });
@@ -91,6 +88,10 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const existingTraitsRaw = ship.traits as any;
+
+  const validationError = validateCustomization(equipment, traits, existingTraitsRaw.variant ?? 0);
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+
   const current = {
     equipment: ship.equipment as unknown as ShipEquipmentInput,
     traits: { accuracy: existingTraitsRaw.accuracy ?? 0, hull: existingTraitsRaw.hull ?? 0, speed: existingTraitsRaw.speed ?? 0 } as ShipTraitsInput,

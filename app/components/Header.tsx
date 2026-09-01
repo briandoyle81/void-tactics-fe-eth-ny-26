@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useConfig, useReadContract } from "wagmi";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { DynamicUserProfile, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { formatEther } from "viem";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
@@ -30,6 +30,7 @@ import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import { setAppMode, type AppMode } from "../config/appMode";
 import { useAppMode } from "../hooks/useAppMode";
 import AuthSignIn from "./AuthSignIn";
+import { PasskeyEnablePrompt } from "./PasskeyEnablePrompt";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
 
@@ -94,11 +95,15 @@ function HeaderLogoutButton({
   onBeforeLogOut,
   className,
   style,
+  onMouseEnter,
+  onMouseLeave,
   children,
 }: {
   onBeforeLogOut?: () => void;
   className?: string;
   style?: React.CSSProperties;
+  onMouseEnter?: React.MouseEventHandler<HTMLButtonElement>;
+  onMouseLeave?: React.MouseEventHandler<HTMLButtonElement>;
   children: React.ReactNode;
 }) {
   const { handleLogOut } = useDynamicContext();
@@ -115,7 +120,13 @@ function HeaderLogoutButton({
   };
 
   return (
-    <button onClick={handleClick} className={className} style={style}>
+    <button
+      onClick={handleClick}
+      className={className}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {children}
     </button>
   );
@@ -445,12 +456,15 @@ const Header: React.FC = () => {
   const [showDroneStorefrontWeb2, setShowDroneStorefrontWeb2] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLElement | null>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   const account = useAccount();
   const config = useConfig();
+  const { setShowDynamicUserProfile } = useDynamicContext();
 
   const [selectedChainId, setSelectedChainIdState] = useState<number>(() => {
     if (typeof window === "undefined") return DEFAULT_CHAIN_ID;
@@ -713,6 +727,22 @@ const Header: React.FC = () => {
       window.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isNetworkMenuOpen]);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (accountMenuRef.current && !accountMenuRef.current.contains(target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isAccountMenuOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1244,20 +1274,86 @@ const Header: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex gap-2 flex-col items-stretch">
-                      <HeaderLogoutButton
-                        onBeforeLogOut={handleBeforeLogOut}
-                        className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-48 flex items-center justify-center text-xs h-8"
-                        style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          borderColor: "var(--color-warning-red)",
-                          color: "var(--color-warning-red)",
-                          backgroundColor: "var(--color-steel)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        [LOG OUT]
-                      </HeaderLogoutButton>
+                      {/* Account menu — My Account / Log Out */}
+                      <div ref={accountMenuRef} className="relative w-full md:w-48">
+                        <button
+                          type="button"
+                          onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                          className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full flex items-center justify-center gap-1.5 text-xs h-8"
+                          style={{
+                            fontFamily:
+                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            borderColor: "var(--color-cyan)",
+                            color: "var(--color-cyan)",
+                            backgroundColor: "var(--color-steel)",
+                            borderRadius: 0,
+                          }}
+                        >
+                          [MENU]
+                          <span className="text-[10px] leading-none">
+                            {isAccountMenuOpen ? "▲" : "▼"}
+                          </span>
+                        </button>
+
+                        {isAccountMenuOpen && (
+                          <div
+                            className="absolute left-0 top-[calc(100%+4px)] z-[130] w-full border border-solid"
+                            style={{
+                              backgroundColor: "var(--color-near-black)",
+                              borderColor: "var(--color-cyan)",
+                              borderTopColor: "var(--color-steel)",
+                              borderLeftColor: "var(--color-steel)",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAccountMenuOpen(false);
+                                setShowDynamicUserProfile(true);
+                              }}
+                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
+                              style={{
+                                fontFamily:
+                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                color: "var(--color-cyan)",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "var(--color-slate)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "transparent";
+                              }}
+                              title="Manage connected wallets, security, and passkeys"
+                            >
+                              My Account
+                            </button>
+                            <HeaderLogoutButton
+                              onBeforeLogOut={() => {
+                                setIsAccountMenuOpen(false);
+                                handleBeforeLogOut();
+                              }}
+                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
+                              style={{
+                                fontFamily:
+                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                color: "var(--color-warning-red)",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "var(--color-slate)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "transparent";
+                              }}
+                            >
+                              Log Out
+                            </HeaderLogoutButton>
+                          </div>
+                        )}
+                      </div>
                       {/* Address (moved here) */}
                       <div
                         className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"
@@ -1360,6 +1456,12 @@ const Header: React.FC = () => {
       {showDroneStorefrontWeb2 && (
         <DroneStorefrontWeb2 onClose={() => setShowDroneStorefrontWeb2(false)} />
       )}
+      {/* Dynamic's own profile modal (wallets, security, passkeys) — opened
+          via My Account in the [MENU] dropdown above. Mounted here since
+          Header renders on every page; Dynamic controls its own visibility
+          off showDynamicUserProfile. */}
+      <DynamicUserProfile />
+      <PasskeyEnablePrompt />
     </header>
   );
 };

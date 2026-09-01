@@ -55,6 +55,7 @@ const KNOWN_TAB_NAMES = new Set<string>([
   "Manage Navy",
   "Lobbies",
   "Campaign",
+  "Roguelike",
   "Games",
   "Profile",
   "Maps",

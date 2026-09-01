@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { useWriteContract } from "wagmi";
+import { useConfig, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
@@ -34,69 +35,55 @@ export function useRoguelikeMatchContract() {
 
 export function useRoguelikeMatch() {
   const { writeContractAsync } = useWriteContract();
+  const config = useConfig();
+
+  // Callers refetch run/node state right after these resolve, so each write
+  // waits for its receipt here rather than just returning the submitted
+  // hash — otherwise the refetch races the still-pending transaction and
+  // reads stale state.
+  const writeAndWait = useCallback(
+    async (functionName: string, args: unknown[], gas?: bigint) => {
+      const hash = await writeContractAsync({
+        address: ROGUELIKE_MATCH_ADDRESS,
+        abi: ROGUELIKE_MATCH_ABI,
+        functionName,
+        args,
+        chainId: CHAIN_ID,
+        ...(gas != null ? { gas } : {}),
+      });
+      await waitForTransactionReceipt(config, { hash, chainId: CHAIN_ID });
+      return hash;
+    },
+    [writeContractAsync, config],
+  );
 
   const startRun = useCallback(
     (campaignId: bigint, shipIds: bigint[]) =>
-      writeContractAsync({
-        address: ROGUELIKE_MATCH_ADDRESS,
-        abi: ROGUELIKE_MATCH_ABI,
-        functionName: "startRun",
-        args: [campaignId, shipIds],
-        chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+      writeAndWait("startRun", [campaignId, shipIds]),
+    [writeAndWait],
   );
 
   const enterCombatNode = useCallback(
     (targetNodeId: bigint, positions: RoguelikePosition[]) =>
-      writeContractAsync({
-        address: ROGUELIKE_MATCH_ADDRESS,
-        abi: ROGUELIKE_MATCH_ABI,
-        functionName: "enterCombatNode",
-        args: [targetNodeId, positions],
-        chainId: CHAIN_ID,
-        gas: ENTER_COMBAT_NODE_GAS_LIMIT,
-      }),
-    [writeContractAsync],
+      writeAndWait("enterCombatNode", [targetNodeId, positions], ENTER_COMBAT_NODE_GAS_LIMIT),
+    [writeAndWait],
   );
 
   const enterResupplyNode = useCallback(
-    (targetNodeId: bigint) =>
-      writeContractAsync({
-        address: ROGUELIKE_MATCH_ADDRESS,
-        abi: ROGUELIKE_MATCH_ABI,
-        functionName: "enterResupplyNode",
-        args: [targetNodeId],
-        chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+    (targetNodeId: bigint) => writeAndWait("enterResupplyNode", [targetNodeId]),
+    [writeAndWait],
   );
 
   // gameId = 0 if no match is currently active (between nodes); the active
   // gameId if retreating mid-combat.
   const retreatRun = useCallback(
-    (gameId: bigint) =>
-      writeContractAsync({
-        address: ROGUELIKE_MATCH_ADDRESS,
-        abi: ROGUELIKE_MATCH_ABI,
-        functionName: "retreatRun",
-        args: [gameId],
-        chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+    (gameId: bigint) => writeAndWait("retreatRun", [gameId]),
+    [writeAndWait],
   );
 
   const takeAITurn = useCallback(
-    (gameId: bigint) =>
-      writeContractAsync({
-        address: ROGUELIKE_MATCH_ADDRESS,
-        abi: ROGUELIKE_MATCH_ABI,
-        functionName: "takeAITurn",
-        args: [gameId],
-        chainId: CHAIN_ID,
-        gas: TAKE_AI_TURN_GAS_LIMIT,
-      }),
-    [writeContractAsync],
+    (gameId: bigint) => writeAndWait("takeAITurn", [gameId], TAKE_AI_TURN_GAS_LIMIT),
+    [writeAndWait],
   );
 
   return { startRun, enterCombatNode, enterResupplyNode, retreatRun, takeAITurn };

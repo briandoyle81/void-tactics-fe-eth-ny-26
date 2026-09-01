@@ -119,11 +119,13 @@ export function useRoguelikeNodeCount() {
 }
 
 // RoguelikeNodeMap has no getAllNodes/getNodesInCampaign convenience call
-// (unlike the original NodeMap) — admin tooling has to enumerate ids
-// itself. Node ids are sequential starting at 1 (same convention as the
-// original NodeMap), so this batches getNode(1..nodeCount()) in one
-// multicall — only meant for admin-panel-scale node counts, not something
-// to call from player-facing screens.
+// (unlike the original NodeMap). Node ids are sequential starting at 1
+// (same convention as the original NodeMap), so this batches
+// getNode(1..nodeCount()) in one multicall. Used both by admin tooling and
+// by RoguelikeGraph.tsx to render the full campaign map (same "load
+// everything, filter client-side" approach CampaignGraph.tsx's
+// useCampaignGraph takes) — fine at these node-map-scale counts (tens of
+// nodes), not something to reach for at arbitrary scale.
 export function useAllRoguelikeNodes() {
   const { data: nodeCount } = useRoguelikeNodeCount();
   const ids = useMemo(() => {

@@ -12,17 +12,11 @@ import type { AIShipConfig } from "../types/types";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
 import { toShipCardData } from "../utils/toShipCardData";
-import { HoverShipCardTooltip, type HoverAnchorRect } from "./HoverShipCardTooltip";
 import { ARCHETYPE_LABEL, aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { NodeMatchModal } from "./NodeMatchModal";
 import { useNodeGameStatus } from "../hooks/useNodeGameStatus";
 import { navigateToGame } from "../utils/navigateToGame";
-
-interface HoveredShip {
-  config: AIShipConfig;
-  anchor: HoverAnchorRect;
-  key: string;
-}
+import { EnemyFleetPreview } from "./EnemyFleetPreview";
 
 interface CampaignNodePreviewProps {
   node: CampaignGraphNode;
@@ -35,8 +29,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
   const { address, isConnected } = useAccount();
   const [showFleetModal, setShowFleetModal] = React.useState(false);
   const { activeGameId } = useNodeGameStatus(node.id);
-  const [hoveredShip, setHoveredShip] = React.useState<HoveredShip | null>(null);
-  const panelRef = React.useRef<HTMLDivElement>(null);
   const content = getNodeContent(node.id);
   const { data: requiredVariant } = useCampaignRequiredVariant(node.campaignId);
 
@@ -56,6 +48,39 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
     return placements.configIds.map((configId) => configById.get(configId.toString()));
   }, [placements, configById]);
 
+  const fleetShips = React.useMemo(
+    () =>
+      enemyShips.flatMap((config, i) => {
+        if (!config) return [];
+        const previewShip = aiConfigToPreviewShip(config);
+        return [
+          {
+            key: `${config.id.toString()}-${i}`,
+            name: config.name || ARCHETYPE_LABEL[config.archetype],
+            renderImage: () => (
+              <ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
+            ),
+            renderHoverCard: () => (
+              <ShipCard
+                ship={toShipCardData(previewShip)}
+                shipImage={<ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} />}
+                isStarred={false}
+                onToggleStar={() => {}}
+                isSelected={false}
+                onToggleSelection={() => {}}
+                onRecycleClick={() => {}}
+                showInGameProperties={false}
+                hideRecycle
+                hideCheckbox
+                tooltipMode
+              />
+            ),
+          },
+        ];
+      }),
+    [enemyShips],
+  );
+
   const totalEnemyThreat = React.useMemo(
     () =>
       enemyShips.reduce(
@@ -67,7 +92,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
 
   return (
     <div
-      ref={panelRef}
       className="relative grid grid-cols-1 gap-8 border-2 border-cyan p-6 font-mono md:grid-cols-2"
       style={{ borderRadius: 0 }}
     >
@@ -116,75 +140,11 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
         </button>
       </div>
 
-      <div className="border-t border-steel pt-4 md:border-t-0 md:border-l md:pl-8 md:pt-0">
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="text-xs uppercase tracking-wider text-text-muted">
-            Enemy Fleet
-          </h4>
-          {!placementsLoading && !configsLoading && enemyShips.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold text-amber bg-amber/10 border border-amber/40 rounded-none whitespace-nowrap">
-              ACTUAL FLEET COST: {totalEnemyThreat}
-            </span>
-          )}
-        </div>
-        {placementsLoading || configsLoading ? (
-          <p className="mt-2 text-xs text-text-muted">Loading encounter data...</p>
-        ) : enemyShips.length === 0 ? (
-          <p className="mt-2 text-xs text-warning-red">
-            No AI content configured for this node&apos;s map yet.
-          </p>
-        ) : (
-          <div
-            className="mt-3 grid gap-3"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))" }}
-          >
-            {enemyShips.map((config, i) =>
-              config ? (
-                <div
-                  key={`${config.id.toString()}-${i}`}
-                  className="flex min-w-0 flex-col gap-1"
-                  onMouseEnter={(e) => {
-                    const panelEl = panelRef.current;
-                    if (!panelEl) return;
-                    const tileRect = e.currentTarget.getBoundingClientRect();
-                    const panelRect = panelEl.getBoundingClientRect();
-                    setHoveredShip({
-                      config,
-                      key: `${config.id.toString()}-${i}`,
-                      anchor: {
-                        left: tileRect.left - panelRect.left,
-                        top: tileRect.top - panelRect.top,
-                        right: tileRect.right - panelRect.left,
-                        bottom: tileRect.bottom - panelRect.top,
-                      },
-                    });
-                  }}
-                  onMouseLeave={() => setHoveredShip(null)}
-                >
-                  <div
-                    className="relative w-full overflow-hidden"
-                    style={{
-                      aspectRatio: "1",
-                      backgroundColor: "var(--color-slate)",
-                      border: "1px solid var(--color-warning-red)",
-                    }}
-                  >
-                    <ShipImage
-                      ship={aiConfigToPreviewShip(config)}
-                      className="h-full w-full"
-                      showLoadingState={false}
-                      hideRankStars
-                    />
-                  </div>
-                  <span className="truncate text-center text-[9px] uppercase tracking-wider text-text-secondary">
-                    {config.name || ARCHETYPE_LABEL[config.archetype]}
-                  </span>
-                </div>
-              ) : null,
-            )}
-          </div>
-        )}
-      </div>
+      <EnemyFleetPreview
+        ships={fleetShips}
+        totalCost={totalEnemyThreat}
+        isLoading={placementsLoading || configsLoading}
+      />
 
       {showFleetModal && (
         <NodeMatchModal
@@ -193,36 +153,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
           onLaunched={() => setShowFleetModal(false)}
         />
       )}
-
-      <HoverShipCardTooltip
-        anchor={hoveredShip?.anchor ?? null}
-        hoverKey={hoveredShip?.key ?? null}
-        preferLeftPlacement={false}
-        containerRef={panelRef}
-        renderCard={() =>
-          hoveredShip ? (
-            <ShipCard
-              ship={toShipCardData(aiConfigToPreviewShip(hoveredShip.config))}
-              shipImage={
-                <ShipImage
-                  ship={aiConfigToPreviewShip(hoveredShip.config)}
-                  className="h-full w-full"
-                  showLoadingState={false}
-                />
-              }
-              isStarred={false}
-              onToggleStar={() => {}}
-              isSelected={false}
-              onToggleSelection={() => {}}
-              onRecycleClick={() => {}}
-              showInGameProperties={false}
-              hideRecycle
-              hideCheckbox
-              tooltipMode
-            />
-          ) : null
-        }
-      />
     </div>
   );
 }
