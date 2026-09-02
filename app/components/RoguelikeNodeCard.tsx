@@ -1,19 +1,18 @@
 "use client";
 
 import { RoguelikeNodeKind } from "../types/roguelike";
+import { getRoguelikeNodeContent } from "../config/roguelikeNodes";
 import { CAMPAIGN_NODE_WIDTH, CAMPAIGN_NODE_HEIGHT } from "./CampaignNodeCard";
 
 // Roguelike counterpart to CampaignNodeCard — same "star-chart node" visual
-// language (glowing circle + label, campaign-reticle selection ring) so the
-// two campaign types' maps read as one system, rendered via the same shared
-// CampaignGraphCanvas. Content differs (no static per-id title config like
-// the original campaign's campaignNodes.ts — roguelike nodes are admin-
-// created dynamically, so the label is just kind + id) and adds an
-// `isCurrent` marker the original campaign has no concept of (there's no
-// "where you are right now" in the freely-replayable original campaign).
-// Number-native and chain-agnostic, shared verbatim between RoguelikeGraph.tsx
-// (web3) and RoguelikeGraphWeb2.tsx (web2) — see feedback_number_native_
-// shared_components memory.
+// language (glowing circle + label, campaign-reticle selection ring, and now
+// the same roguelikeNodes.ts-sourced title too) so the two campaign types'
+// maps read as one system, rendered via the same shared CampaignGraphCanvas.
+// Adds an `isCurrent` marker the original campaign has no concept of
+// (there's no "where you are right now" in the freely-replayable original
+// campaign). Number-native and chain-agnostic, shared verbatim between
+// RoguelikeGraph.tsx (web3) and RoguelikeGraphWeb2.tsx (web2) — see
+// feedback_number_native_shared_components memory.
 export interface RoguelikeNodeCardNode {
   id: number;
   kind: RoguelikeNodeKind;
@@ -28,9 +27,27 @@ interface RoguelikeNodeCardProps {
   node: RoguelikeNodeCardNode;
   isSelected: boolean;
   onSelect: () => void;
+  /** Overrides roguelikeNodes.ts's static getRoguelikeNodeContent(id) lookup
+   * — pass the DB-merged title (see useNodeContent.ts) so an admin's edit
+   * shows up on the map immediately. */
+  title?: string;
+  /** Shows a small edit-mode badge — set by the caller only while its own
+   * Edit Mode toggle is on. */
+  editMode?: boolean;
+  /** Connect-mode visual state (see RoguelikeGraph.tsx's connectMode state
+   * machine): the node being linked FROM, a valid click target, or a target
+   * that can't be linked. */
+  connectHighlight?: "source" | "candidate" | "invalid";
 }
 
-export function RoguelikeNodeCard({ node, isSelected, onSelect }: RoguelikeNodeCardProps) {
+export function RoguelikeNodeCard({
+  node,
+  isSelected,
+  onSelect,
+  title,
+  editMode,
+  connectHighlight,
+}: RoguelikeNodeCardProps) {
   // Every node stays clickable, unlike CampaignNodeCard (which disables
   // locked nodes) — "unlocked" here means "enterable right now from your
   // current position," not "ever reachable," so letting the player preview
@@ -44,13 +61,15 @@ export function RoguelikeNodeCard({ node, isSelected, onSelect }: RoguelikeNodeC
         ? "var(--color-cyan)"
         : "var(--color-text-secondary)";
 
-  const kindLabel = node.kind === RoguelikeNodeKind.Combat ? "COMBAT" : "RESUPPLY";
+  const resolvedTitle = title ?? getRoguelikeNodeContent(node.id).title;
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="group relative flex flex-col items-center gap-3 font-mono cursor-pointer"
+      className={`group relative flex flex-col items-center gap-3 font-mono cursor-pointer ${
+        connectHighlight === "invalid" ? "opacity-40" : ""
+      }`}
       style={{ width: CAMPAIGN_NODE_WIDTH, height: CAMPAIGN_NODE_HEIGHT }}
     >
       {isSelected && (
@@ -74,6 +93,15 @@ export function RoguelikeNodeCard({ node, isSelected, onSelect }: RoguelikeNodeC
         </span>
       )}
 
+      {editMode && (
+        <span
+          className="pointer-events-none absolute text-[10px] leading-none"
+          style={{ top: -20, right: 8, color: "var(--color-amber)" }}
+        >
+          ✎
+        </span>
+      )}
+
       <span
         className={`block rounded-full ${
           node.isCurrent || (node.unlocked && !node.completed) ? "campaign-node-unlocked" : ""
@@ -82,7 +110,14 @@ export function RoguelikeNodeCard({ node, isSelected, onSelect }: RoguelikeNodeC
           width: STAR_SIZE,
           height: STAR_SIZE,
           backgroundColor: node.completed || node.unlocked || node.isCurrent ? starColor : "var(--color-near-black)",
-          border: `2px solid ${starColor}`,
+          border: `2px solid ${
+            connectHighlight === "source"
+              ? "var(--color-amber)"
+              : connectHighlight === "candidate"
+                ? "var(--color-phosphor-green)"
+                : starColor
+          }`,
+          boxShadow: connectHighlight === "source" ? "0 0 8px var(--color-amber)" : undefined,
         }}
       />
 
@@ -90,7 +125,7 @@ export function RoguelikeNodeCard({ node, isSelected, onSelect }: RoguelikeNodeC
         className="line-clamp-2 w-full break-words text-center text-[10px] uppercase tracking-wider"
         style={{ color: "var(--color-text-primary)" }}
       >
-        {kindLabel} #{node.id}
+        {resolvedTitle}
       </span>
     </button>
   );

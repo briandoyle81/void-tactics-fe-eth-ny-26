@@ -3,9 +3,15 @@
 import React from "react";
 import { useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCampaignGraph } from "../hooks/useNodeMap";
+import { toast } from "react-hot-toast";
+import { useCampaignGraphWithContent } from "../hooks/useNodeMap";
+import { useIsNodeMapEditor } from "../hooks/useIsNodeMapEditor";
+import { useNodeMapAdmin } from "../hooks/useNodeMapAdmin";
 import { CampaignNodeCard } from "./CampaignNodeCard";
 import { CampaignNodePreview } from "./CampaignNodePreview";
+import { CampaignNodeEditPanel } from "./CampaignNodeEditPanel";
+import { CampaignSettingsModal } from "./CampaignSettingsModal";
+import { CampaignEditModeToggle } from "./CampaignEditModeToggle";
 import { CampaignGraphCanvas } from "./CampaignGraphCanvas";
 
 // Only campaign 1 ("Shattered Hive") exists today — same "default to 1, no
@@ -32,6 +38,13 @@ const MANUAL_COLUMN_OVERRIDES: Record<number, number> = {
   24: 15,
 };
 
+// Synthetic "+ ADD NODE" tile injected into the canvas while Edit Mode is
+// on — has no prerequisites so it lands in column 1 per the map editor
+// plan's "position is edge-derived, a disconnected node has no special
+// storage" decision. Never a real node id (NodeMap ids are small sequential
+// integers).
+const ADD_NODE_SENTINEL_ID = Number.MAX_SAFE_INTEGER;
+
 // Remembers the last-viewed node per wallet, matching Games.tsx's
 // `selectedGameId-${address}` convention — falls back to "anonymous" for a
 // disconnected viewer so the map still remembers something sane.
@@ -41,7 +54,9 @@ function campaignSelectedNodeStorageKey(address: string | undefined): string {
 
 export function CampaignGraph() {
   const { address } = useAccount();
-  const { nodes, isLoading, error, refetch } = useCampaignGraph(address, DEFAULT_CAMPAIGN_ID);
+  const { nodes, isLoading, error, refetch } = useCampaignGraphWithContent(address, DEFAULT_CAMPAIGN_ID);
+  const { isEditor } = useIsNodeMapEditor();
+  const admin = useNodeMapAdmin();
   const [selectedNodeId, setSelectedNodeIdState] = React.useState<bigint | null>(null);
   const setSelectedNodeId = React.useCallback(
     (nodeId: bigint) => {
@@ -54,6 +69,10 @@ export function CampaignGraph() {
   );
   const queryClient = useQueryClient();
   const [isResettingCache, setIsResettingCache] = React.useState(false);
+
+  const [editMode, setEditMode] = React.useState(false);
+  const [connectMode, setConnectMode] = React.useState<{ sourceNodeId: bigint } | null>(null);
+  const [showSettings, setShowSettings] = React.useState(false);
 
   // Debug affordance: NodeMap/AIEncounters reads (node list, unlock/complete
   // state, enemy fleet configs, map placements) all go through wagmi's
@@ -88,9 +107,10 @@ export function CampaignGraph() {
     </button>
   );
 
+  const isCreatingNode = selectedNodeId != null && Number(selectedNodeId) === ADD_NODE_SENTINEL_ID;
   const selectedNode = React.useMemo(
-    () => nodes.find((n) => n.id === selectedNodeId) ?? null,
-    [nodes, selectedNodeId],
+    () => (isCreatingNode ? null : nodes.find((n) => n.id === selectedNodeId) ?? null),
+    [nodes, selectedNodeId, isCreatingNode],
   );
 
   // Restore the last-viewed node once the graph loads; fall back to the
@@ -106,6 +126,15 @@ export function CampaignGraph() {
     const savedNode = saved ? nodes.find((n) => n.id.toString() === saved) : undefined;
     setSelectedNodeIdState(savedNode ? savedNode.id : nodes[0].id);
   }, [nodes, selectedNodeId, address]);
+
+  // Leaving Edit Mode always drops connect-mode/create-in-progress state.
+  React.useEffect(() => {
+    if (!editMode) {
+      setConnectMode(null);
+      if (isCreatingNode) setSelectedNodeIdState(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode]);
 
   if (isLoading) {
     return (
@@ -129,34 +158,158 @@ export function CampaignGraph() {
     );
   }
 
-  // Adapt bigint node ids/prerequisites down to plain numbers only here, at
-  // the data/adapter boundary — CampaignGraphCanvas itself is number-native
-  // and shared verbatim with CampaignGraphWeb2.tsx. A lookup back to the
-  // real bigint-typed node is kept alongside for onSelectNode, since
-  // setSelectedNodeId needs the original bigint id.
+  interface CanvasNode {
+    id: number;
+    prerequisites: number[];
+    completed: boolean;
+    unlocked: boolean;
+    title: string;
+    editMode: boolean;
+    connectHighlight: "source" | "candidate" | "invalid" | undefined;
+  }
+
   const byNumberId = new Map(nodes.map((n) => [Number(n.id), n]));
-  const canvasNodes = nodes.map((n) => ({
-    id: Number(n.id),
-    prerequisites: n.prerequisites.map(Number),
-    completed: n.completed,
-    unlocked: n.unlocked,
-  }));
+  const canvasNodes: CanvasNode[] = nodes.map((n) => {
+    const idNum = Number(n.id);
+    const isConnectSource = connectMode?.sourceNodeId === n.id;
+    return {
+      id: idNum,
+      prerequisites: n.prerequisites.map(Number),
+      completed: n.completed,
+      unlocked: n.unlocked,
+      title: n.title,
+      editMode,
+      connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
+    };
+  });
+  if (editMode) {
+    canvasNodes.push({
+      id: ADD_NODE_SENTINEL_ID,
+      prerequisites: [],
+      completed: false,
+      unlocked: true,
+      title: "+ ADD NODE",
+      editMode: true,
+      connectHighlight: connectMode ? "invalid" : undefined,
+    });
+  }
+
+  // While connect mode is active, clicking a node on the canvas adds it as
+  // a prerequisite of connectMode.sourceNodeId (the node being edited) —
+  // see CampaignNodeEditPanel's onStartConnectMode, which sets sourceNodeId
+  // to the currently-selected node.
+  const handleConnectTarget = async (targetNode: (typeof nodes)[number], sourceNodeId: bigint) => {
+    const wouldCycle = targetNode.prerequisites.some((p) => p === sourceNodeId);
+    if (wouldCycle) {
+      toast.error("That would create a cycle — pick a different node.");
+      return;
+    }
+    try {
+      await admin.addPrerequisite(sourceNodeId, targetNode.id);
+      toast.success(`Node #${targetNode.id.toString()} linked as a prerequisite.`);
+      await refetch();
+    } catch (error) {
+      console.error("Failed to add prerequisite:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add prerequisite");
+    } finally {
+      setConnectMode(null);
+    }
+  };
+
+  const handleSelectNode = (id: number) => {
+    if (connectMode) {
+      if (id === Number(connectMode.sourceNodeId) || id === ADD_NODE_SENTINEL_ID) return;
+      const targetNode = byNumberId.get(id);
+      if (targetNode) void handleConnectTarget(targetNode, connectMode.sourceNodeId);
+      return;
+    }
+    if (id === ADD_NODE_SENTINEL_ID) {
+      setSelectedNodeIdState(BigInt(ADD_NODE_SENTINEL_ID));
+      return;
+    }
+    const node = byNumberId.get(id);
+    if (node) setSelectedNodeId(node.id);
+  };
 
   return (
-    <CampaignGraphCanvas
-      nodes={canvasNodes}
-      selectedNodeId={selectedNodeId != null ? Number(selectedNodeId) : null}
-      onSelectNode={(id) => {
-        const node = byNumberId.get(id);
-        if (node) setSelectedNodeId(node.id);
-      }}
-      manualColumnOverrides={MANUAL_COLUMN_OVERRIDES}
-      headerExtra={debugResetButton}
-      renderNode={(canvasNode, isSelected, onSelect) => (
-        <CampaignNodeCard node={canvasNode} isSelected={isSelected} onSelect={onSelect} />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <CampaignEditModeToggle
+          isEditor={isEditor}
+          editMode={editMode}
+          onToggle={() => setEditMode((v) => !v)}
+        />
+        {editMode && (
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="self-start border-2 border-amber px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber hover:bg-amber/10 font-mono"
+            style={{ borderRadius: 0 }}
+          >
+            [CAMPAIGN SETTINGS]
+          </button>
+        )}
+      </div>
+
+      <CampaignGraphCanvas
+        nodes={canvasNodes}
+        selectedNodeId={selectedNodeId != null ? Number(selectedNodeId) : null}
+        onSelectNode={handleSelectNode}
+        manualColumnOverrides={MANUAL_COLUMN_OVERRIDES}
+        headerExtra={debugResetButton}
+        renderNode={(canvasNode, isSelected, onSelect) => (
+          <CampaignNodeCard
+            node={canvasNode}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            title={canvasNode.title}
+            editMode={canvasNode.editMode}
+            connectHighlight={canvasNode.connectHighlight}
+          />
+        )}
+      >
+        {connectMode && (
+          <div
+            className="flex items-center justify-between border-2 border-amber px-4 py-3 font-mono text-sm text-amber"
+            style={{ borderRadius: 0 }}
+          >
+            <span>
+              Click the node that should unlock node #{connectMode.sourceNodeId.toString()}.
+            </span>
+            <button
+              type="button"
+              onClick={() => setConnectMode(null)}
+              className="border border-amber px-3 py-1 text-xs uppercase tracking-wider hover:bg-amber/10"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {editMode ? (
+          <CampaignNodeEditPanel
+            mode={isCreatingNode ? "create" : "edit"}
+            node={selectedNode}
+            connectModeActive={!!selectedNode && connectMode?.sourceNodeId === selectedNode.id}
+            onStartConnectMode={(sourceNodeId) => setConnectMode({ sourceNodeId })}
+            onCancelConnectMode={() => setConnectMode(null)}
+            onSaved={() => void refetch()}
+            onCreated={() => {
+              setSelectedNodeIdState(null);
+              void refetch();
+            }}
+            onCancelCreate={() => setSelectedNodeIdState(null)}
+          />
+        ) : (
+          selectedNode && <CampaignNodePreview node={selectedNode} />
+        )}
+      </CampaignGraphCanvas>
+
+      {showSettings && (
+        <CampaignSettingsModal
+          nodeIds={nodes.map((n) => Number(n.id))}
+          onClose={() => setShowSettings(false)}
+        />
       )}
-    >
-      {selectedNode && <CampaignNodePreview node={selectedNode} />}
-    </CampaignGraphCanvas>
+    </div>
   );
 }

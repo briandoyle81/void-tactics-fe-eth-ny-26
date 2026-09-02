@@ -3,19 +3,18 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
-import { getNodeContent } from "../config/campaignNodes";
 import { NodeMatchModalWeb2 } from "./NodeMatchModalWeb2";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import ShipCard from "./ShipCard";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { ARCHETYPE_LABEL } from "../utils/aiShipConfig";
 import { aiConfigToPreviewShipWeb2 } from "../utils/aiShipConfigWeb2";
-import type { CampaignWeb2Node, CampaignWeb2 } from "../hooks/useCampaignWeb2";
+import type { CampaignWeb2NodeWithContent, CampaignWeb2 } from "../hooks/useCampaignWeb2";
 import type { AIMapPlacementWeb2 } from "../hooks/useMapEnemyThreatWeb2";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
 
 interface CampaignNodePreviewWeb2Props {
-  node: CampaignWeb2Node;
+  node: CampaignWeb2NodeWithContent;
   campaign: CampaignWeb2;
 }
 
@@ -24,7 +23,6 @@ interface CampaignNodePreviewWeb2Props {
 // fleet preview (real art tiles + hover-to-inspect, not a text list).
 export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewWeb2Props) {
   const [showFleetModal, setShowFleetModal] = React.useState(false);
-  const content = getNodeContent(node.id);
 
   const { data: placements = [], isLoading } = useQuery({
     queryKey: ["ai-map-placements", node.mapId],
@@ -76,8 +74,8 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
       style={{ borderRadius: 0 }}
     >
       <div className="flex flex-col">
-        <h3 className="text-xl font-bold text-cyan">{content.title}</h3>
-        <p className="mt-2 text-sm text-text-secondary">{content.description}</p>
+        <h3 className="text-xl font-bold text-cyan">{node.title}</h3>
+        <p className="mt-2 text-sm text-text-secondary">{node.description}</p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
             Player cost limit: <span className="text-cyan">{node.costLimit}</span>

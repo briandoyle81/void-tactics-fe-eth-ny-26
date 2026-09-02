@@ -6,6 +6,7 @@ import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { CampaignNode } from "../types/types";
+import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
 
 // Single-player (NodeMap/SinglePlayerMatch/AIEncounters) is Base Sepolia
 // only — always read from that chain regardless of the connected
@@ -244,4 +245,28 @@ export function useCampaignGraph(playerAddress: Address | undefined, campaignId:
       void completedReads.refetch();
     },
   };
+}
+
+export type CampaignGraphNodeWithContent = CampaignGraphNode & NodeContentValue;
+
+/**
+ * The full campaign graph, content included: useCampaignGraph's on-chain
+ * structure/unlock/completed reads, merged with the three-layer
+ * (DB -> static config -> default) title/description resolution from
+ * useNodeContent.ts — one call for what CampaignGraph.tsx previously
+ * assembled from two separate hooks plus a per-node resolveNodeContent call.
+ */
+export function useCampaignGraphWithContent(
+  playerAddress: Address | undefined,
+  campaignId: bigint,
+) {
+  const graph = useCampaignGraph(playerAddress, campaignId);
+  const { contentById } = useAllNodeContent("CAMPAIGN");
+
+  const nodes = useMemo(
+    () => mergeNodeContent("CAMPAIGN", graph.nodes, contentById),
+    [graph.nodes, contentById],
+  );
+
+  return { ...graph, nodes };
 }

@@ -1,9 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
 import type { Web2Ship } from "../types/web2Ship";
+import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
 
 // Web2-mode counterpart to useRoguelikeRun.ts/useRoguelikeMatch.ts —
 // Prisma-backed run/roster reads and mutations instead of on-chain
@@ -56,11 +58,11 @@ export function useRoguelikeRunWeb2() {
 }
 
 export function useRoguelikeCampaignWeb2(campaignId: number) {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["roguelike", "campaign", "web2", campaignId],
     queryFn: () => apiFetch<RoguelikeCampaignWeb2>(`/api/roguelike/campaigns/${campaignId}`),
   });
-  return { campaign: data, isLoading, error: error instanceof Error ? error : null };
+  return { campaign: data, isLoading, error: error instanceof Error ? error : null, refetch };
 }
 
 export interface RoguelikeNodeWeb2 {
@@ -86,12 +88,27 @@ export function useRoguelikeNodeWeb2(nodeId: number | undefined) {
 
 /** Every node in a campaign, in one call — web2 counterpart to web3's useAllRoguelikeNodes. Powers RoguelikeGraphWeb2's full-map view. */
 export function useRoguelikeCampaignNodesWeb2(campaignId: number | undefined) {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["roguelike", "campaign-nodes", "web2", campaignId],
     queryFn: () => apiFetch<RoguelikeNodeWeb2[]>(`/api/roguelike/campaigns/${campaignId}/nodes`),
     enabled: campaignId != null,
   });
-  return { nodes: data ?? [], isLoading, error: error instanceof Error ? error : null };
+  return { nodes: data ?? [], isLoading, error: error instanceof Error ? error : null, refetch };
+}
+
+export type RoguelikeNodeWeb2WithContent = RoguelikeNodeWeb2 & NodeContentValue;
+
+/** Web2 counterpart to useRoguelikeNodeMap.ts's useRoguelikeGraphWithContent — same structure+content merge, Prisma-backed instead of on-chain. */
+export function useRoguelikeCampaignNodesWeb2WithContent(campaignId: number | undefined) {
+  const graph = useRoguelikeCampaignNodesWeb2(campaignId);
+  const { contentById } = useAllNodeContent("ROGUELIKE");
+
+  const nodes = useMemo(
+    () => mergeNodeContent("ROGUELIKE", graph.nodes, contentById),
+    [graph.nodes, contentById],
+  );
+
+  return { ...graph, nodes };
 }
 
 export function useRoguelikeMatchWeb2() {

@@ -17,8 +17,6 @@ import { PresetMap, MapMode } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 import { MAP_ADMIN_ADDRESS } from "../config/alpha";
 import { AIEncountersAdminPanel } from "./AIEncountersAdminPanel";
-import { NodeMapAdminPanel } from "./NodeMapAdminPanel";
-import { RoguelikeNodeMapAdminPanel } from "./RoguelikeNodeMapAdminPanel";
 import { LobbyAdminPanel } from "./LobbyAdminPanel";
 import { AdminSettingsExport } from "./AdminSettingsExport";
 
@@ -221,8 +219,6 @@ export default function Maps() {
           .filter((m) => (modeByMapId.get(m.id) ?? MapMode.Both) !== MapMode.PvP)
           .map((m) => m.id)}
       />
-      <NodeMapAdminPanel />
-      <RoguelikeNodeMapAdminPanel />
       <LobbyAdminPanel />
       <AdminSettingsExport maps={maps} />
     </div>

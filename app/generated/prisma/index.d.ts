@@ -133,6 +133,11 @@ export type TournamentRegistrant = $Result.DefaultSelection<Prisma.$TournamentRe
  * 
  */
 export type TournamentMatch = $Result.DefaultSelection<Prisma.$TournamentMatchPayload>
+/**
+ * Model NodeContent
+ * 
+ */
+export type NodeContent = $Result.DefaultSelection<Prisma.$NodeContentPayload>
 
 /**
  * Enums
@@ -177,6 +182,14 @@ export const TournamentState: {
 
 export type TournamentState = (typeof TournamentState)[keyof typeof TournamentState]
 
+
+export const NodeGraphType: {
+  CAMPAIGN: 'CAMPAIGN',
+  ROGUELIKE: 'ROGUELIKE'
+};
+
+export type NodeGraphType = (typeof NodeGraphType)[keyof typeof NodeGraphType]
+
 }
 
 export type LobbyStatus = $Enums.LobbyStatus
@@ -194,6 +207,10 @@ export const RoguelikeRunStatus: typeof $Enums.RoguelikeRunStatus
 export type TournamentState = $Enums.TournamentState
 
 export const TournamentState: typeof $Enums.TournamentState
+
+export type NodeGraphType = $Enums.NodeGraphType
+
+export const NodeGraphType: typeof $Enums.NodeGraphType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -555,6 +572,16 @@ export class PrismaClient<
     * ```
     */
   get tournamentMatch(): Prisma.TournamentMatchDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.nodeContent`: Exposes CRUD operations for the **NodeContent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more NodeContents
+    * const nodeContents = await prisma.nodeContent.findMany()
+    * ```
+    */
+  get nodeContent(): Prisma.NodeContentDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1012,7 +1039,8 @@ export namespace Prisma {
     PlayerStats: 'PlayerStats',
     Tournament: 'Tournament',
     TournamentRegistrant: 'TournamentRegistrant',
-    TournamentMatch: 'TournamentMatch'
+    TournamentMatch: 'TournamentMatch',
+    NodeContent: 'NodeContent'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1028,7 +1056,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "aIShipConfig" | "aIMapPlacement" | "aIFleetShip" | "campaign" | "campaignNode" | "campaignNodeCompletion" | "roguelikeCampaign" | "roguelikeNode" | "roguelikeEdge" | "roguelikeRun" | "roguelikeRosterShip" | "roguelikeNodeDefeat" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch"
+      modelProps: "user" | "ship" | "fleet" | "lobby" | "game" | "gameTurn" | "map" | "aIShipConfig" | "aIMapPlacement" | "aIFleetShip" | "campaign" | "campaignNode" | "campaignNodeCompletion" | "roguelikeCampaign" | "roguelikeNode" | "roguelikeEdge" | "roguelikeRun" | "roguelikeRosterShip" | "roguelikeNodeDefeat" | "config" | "playerStats" | "tournament" | "tournamentRegistrant" | "tournamentMatch" | "nodeContent"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2808,6 +2836,80 @@ export namespace Prisma {
           }
         }
       }
+      NodeContent: {
+        payload: Prisma.$NodeContentPayload<ExtArgs>
+        fields: Prisma.NodeContentFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.NodeContentFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.NodeContentFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          findFirst: {
+            args: Prisma.NodeContentFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.NodeContentFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          findMany: {
+            args: Prisma.NodeContentFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>[]
+          }
+          create: {
+            args: Prisma.NodeContentCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          createMany: {
+            args: Prisma.NodeContentCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.NodeContentCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>[]
+          }
+          delete: {
+            args: Prisma.NodeContentDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          update: {
+            args: Prisma.NodeContentUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          deleteMany: {
+            args: Prisma.NodeContentDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.NodeContentUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.NodeContentUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>[]
+          }
+          upsert: {
+            args: Prisma.NodeContentUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$NodeContentPayload>
+          }
+          aggregate: {
+            args: Prisma.NodeContentAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateNodeContent>
+          }
+          groupBy: {
+            args: Prisma.NodeContentGroupByArgs<ExtArgs>
+            result: $Utils.Optional<NodeContentGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.NodeContentCountArgs<ExtArgs>
+            result: $Utils.Optional<NodeContentCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2940,6 +3042,7 @@ export namespace Prisma {
     tournament?: TournamentOmit
     tournamentRegistrant?: TournamentRegistrantOmit
     tournamentMatch?: TournamentMatchOmit
+    nodeContent?: NodeContentOmit
   }
 
   /* Types for Logging */
@@ -32188,6 +32291,1096 @@ export namespace Prisma {
 
 
   /**
+   * Model NodeContent
+   */
+
+  export type AggregateNodeContent = {
+    _count: NodeContentCountAggregateOutputType | null
+    _avg: NodeContentAvgAggregateOutputType | null
+    _sum: NodeContentSumAggregateOutputType | null
+    _min: NodeContentMinAggregateOutputType | null
+    _max: NodeContentMaxAggregateOutputType | null
+  }
+
+  export type NodeContentAvgAggregateOutputType = {
+    id: number | null
+    nodeId: number | null
+  }
+
+  export type NodeContentSumAggregateOutputType = {
+    id: number | null
+    nodeId: number | null
+  }
+
+  export type NodeContentMinAggregateOutputType = {
+    id: number | null
+    graphType: $Enums.NodeGraphType | null
+    nodeId: number | null
+    title: string | null
+    description: string | null
+    publishedTitle: string | null
+    publishedDescription: string | null
+    dirtyAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type NodeContentMaxAggregateOutputType = {
+    id: number | null
+    graphType: $Enums.NodeGraphType | null
+    nodeId: number | null
+    title: string | null
+    description: string | null
+    publishedTitle: string | null
+    publishedDescription: string | null
+    dirtyAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type NodeContentCountAggregateOutputType = {
+    id: number
+    graphType: number
+    nodeId: number
+    title: number
+    description: number
+    publishedTitle: number
+    publishedDescription: number
+    dirtyAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type NodeContentAvgAggregateInputType = {
+    id?: true
+    nodeId?: true
+  }
+
+  export type NodeContentSumAggregateInputType = {
+    id?: true
+    nodeId?: true
+  }
+
+  export type NodeContentMinAggregateInputType = {
+    id?: true
+    graphType?: true
+    nodeId?: true
+    title?: true
+    description?: true
+    publishedTitle?: true
+    publishedDescription?: true
+    dirtyAt?: true
+    updatedAt?: true
+  }
+
+  export type NodeContentMaxAggregateInputType = {
+    id?: true
+    graphType?: true
+    nodeId?: true
+    title?: true
+    description?: true
+    publishedTitle?: true
+    publishedDescription?: true
+    dirtyAt?: true
+    updatedAt?: true
+  }
+
+  export type NodeContentCountAggregateInputType = {
+    id?: true
+    graphType?: true
+    nodeId?: true
+    title?: true
+    description?: true
+    publishedTitle?: true
+    publishedDescription?: true
+    dirtyAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type NodeContentAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which NodeContent to aggregate.
+     */
+    where?: NodeContentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of NodeContents to fetch.
+     */
+    orderBy?: NodeContentOrderByWithRelationInput | NodeContentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: NodeContentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` NodeContents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` NodeContents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned NodeContents
+    **/
+    _count?: true | NodeContentCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: NodeContentAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: NodeContentSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: NodeContentMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: NodeContentMaxAggregateInputType
+  }
+
+  export type GetNodeContentAggregateType<T extends NodeContentAggregateArgs> = {
+        [P in keyof T & keyof AggregateNodeContent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateNodeContent[P]>
+      : GetScalarType<T[P], AggregateNodeContent[P]>
+  }
+
+
+
+
+  export type NodeContentGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: NodeContentWhereInput
+    orderBy?: NodeContentOrderByWithAggregationInput | NodeContentOrderByWithAggregationInput[]
+    by: NodeContentScalarFieldEnum[] | NodeContentScalarFieldEnum
+    having?: NodeContentScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: NodeContentCountAggregateInputType | true
+    _avg?: NodeContentAvgAggregateInputType
+    _sum?: NodeContentSumAggregateInputType
+    _min?: NodeContentMinAggregateInputType
+    _max?: NodeContentMaxAggregateInputType
+  }
+
+  export type NodeContentGroupByOutputType = {
+    id: number
+    graphType: $Enums.NodeGraphType
+    nodeId: number
+    title: string
+    description: string
+    publishedTitle: string | null
+    publishedDescription: string | null
+    dirtyAt: Date | null
+    updatedAt: Date
+    _count: NodeContentCountAggregateOutputType | null
+    _avg: NodeContentAvgAggregateOutputType | null
+    _sum: NodeContentSumAggregateOutputType | null
+    _min: NodeContentMinAggregateOutputType | null
+    _max: NodeContentMaxAggregateOutputType | null
+  }
+
+  type GetNodeContentGroupByPayload<T extends NodeContentGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<NodeContentGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof NodeContentGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], NodeContentGroupByOutputType[P]>
+            : GetScalarType<T[P], NodeContentGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type NodeContentSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    graphType?: boolean
+    nodeId?: boolean
+    title?: boolean
+    description?: boolean
+    publishedTitle?: boolean
+    publishedDescription?: boolean
+    dirtyAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["nodeContent"]>
+
+  export type NodeContentSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    graphType?: boolean
+    nodeId?: boolean
+    title?: boolean
+    description?: boolean
+    publishedTitle?: boolean
+    publishedDescription?: boolean
+    dirtyAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["nodeContent"]>
+
+  export type NodeContentSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    graphType?: boolean
+    nodeId?: boolean
+    title?: boolean
+    description?: boolean
+    publishedTitle?: boolean
+    publishedDescription?: boolean
+    dirtyAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["nodeContent"]>
+
+  export type NodeContentSelectScalar = {
+    id?: boolean
+    graphType?: boolean
+    nodeId?: boolean
+    title?: boolean
+    description?: boolean
+    publishedTitle?: boolean
+    publishedDescription?: boolean
+    dirtyAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type NodeContentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "graphType" | "nodeId" | "title" | "description" | "publishedTitle" | "publishedDescription" | "dirtyAt" | "updatedAt", ExtArgs["result"]["nodeContent"]>
+
+  export type $NodeContentPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "NodeContent"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      graphType: $Enums.NodeGraphType
+      nodeId: number
+      title: string
+      description: string
+      publishedTitle: string | null
+      publishedDescription: string | null
+      dirtyAt: Date | null
+      updatedAt: Date
+    }, ExtArgs["result"]["nodeContent"]>
+    composites: {}
+  }
+
+  type NodeContentGetPayload<S extends boolean | null | undefined | NodeContentDefaultArgs> = $Result.GetResult<Prisma.$NodeContentPayload, S>
+
+  type NodeContentCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<NodeContentFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: NodeContentCountAggregateInputType | true
+    }
+
+  export interface NodeContentDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['NodeContent'], meta: { name: 'NodeContent' } }
+    /**
+     * Find zero or one NodeContent that matches the filter.
+     * @param {NodeContentFindUniqueArgs} args - Arguments to find a NodeContent
+     * @example
+     * // Get one NodeContent
+     * const nodeContent = await prisma.nodeContent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends NodeContentFindUniqueArgs>(args: SelectSubset<T, NodeContentFindUniqueArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one NodeContent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {NodeContentFindUniqueOrThrowArgs} args - Arguments to find a NodeContent
+     * @example
+     * // Get one NodeContent
+     * const nodeContent = await prisma.nodeContent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends NodeContentFindUniqueOrThrowArgs>(args: SelectSubset<T, NodeContentFindUniqueOrThrowArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first NodeContent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentFindFirstArgs} args - Arguments to find a NodeContent
+     * @example
+     * // Get one NodeContent
+     * const nodeContent = await prisma.nodeContent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends NodeContentFindFirstArgs>(args?: SelectSubset<T, NodeContentFindFirstArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first NodeContent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentFindFirstOrThrowArgs} args - Arguments to find a NodeContent
+     * @example
+     * // Get one NodeContent
+     * const nodeContent = await prisma.nodeContent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends NodeContentFindFirstOrThrowArgs>(args?: SelectSubset<T, NodeContentFindFirstOrThrowArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more NodeContents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all NodeContents
+     * const nodeContents = await prisma.nodeContent.findMany()
+     * 
+     * // Get first 10 NodeContents
+     * const nodeContents = await prisma.nodeContent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const nodeContentWithIdOnly = await prisma.nodeContent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends NodeContentFindManyArgs>(args?: SelectSubset<T, NodeContentFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a NodeContent.
+     * @param {NodeContentCreateArgs} args - Arguments to create a NodeContent.
+     * @example
+     * // Create one NodeContent
+     * const NodeContent = await prisma.nodeContent.create({
+     *   data: {
+     *     // ... data to create a NodeContent
+     *   }
+     * })
+     * 
+     */
+    create<T extends NodeContentCreateArgs>(args: SelectSubset<T, NodeContentCreateArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many NodeContents.
+     * @param {NodeContentCreateManyArgs} args - Arguments to create many NodeContents.
+     * @example
+     * // Create many NodeContents
+     * const nodeContent = await prisma.nodeContent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends NodeContentCreateManyArgs>(args?: SelectSubset<T, NodeContentCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many NodeContents and returns the data saved in the database.
+     * @param {NodeContentCreateManyAndReturnArgs} args - Arguments to create many NodeContents.
+     * @example
+     * // Create many NodeContents
+     * const nodeContent = await prisma.nodeContent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many NodeContents and only return the `id`
+     * const nodeContentWithIdOnly = await prisma.nodeContent.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends NodeContentCreateManyAndReturnArgs>(args?: SelectSubset<T, NodeContentCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a NodeContent.
+     * @param {NodeContentDeleteArgs} args - Arguments to delete one NodeContent.
+     * @example
+     * // Delete one NodeContent
+     * const NodeContent = await prisma.nodeContent.delete({
+     *   where: {
+     *     // ... filter to delete one NodeContent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends NodeContentDeleteArgs>(args: SelectSubset<T, NodeContentDeleteArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one NodeContent.
+     * @param {NodeContentUpdateArgs} args - Arguments to update one NodeContent.
+     * @example
+     * // Update one NodeContent
+     * const nodeContent = await prisma.nodeContent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends NodeContentUpdateArgs>(args: SelectSubset<T, NodeContentUpdateArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more NodeContents.
+     * @param {NodeContentDeleteManyArgs} args - Arguments to filter NodeContents to delete.
+     * @example
+     * // Delete a few NodeContents
+     * const { count } = await prisma.nodeContent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends NodeContentDeleteManyArgs>(args?: SelectSubset<T, NodeContentDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more NodeContents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many NodeContents
+     * const nodeContent = await prisma.nodeContent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends NodeContentUpdateManyArgs>(args: SelectSubset<T, NodeContentUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more NodeContents and returns the data updated in the database.
+     * @param {NodeContentUpdateManyAndReturnArgs} args - Arguments to update many NodeContents.
+     * @example
+     * // Update many NodeContents
+     * const nodeContent = await prisma.nodeContent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more NodeContents and only return the `id`
+     * const nodeContentWithIdOnly = await prisma.nodeContent.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends NodeContentUpdateManyAndReturnArgs>(args: SelectSubset<T, NodeContentUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one NodeContent.
+     * @param {NodeContentUpsertArgs} args - Arguments to update or create a NodeContent.
+     * @example
+     * // Update or create a NodeContent
+     * const nodeContent = await prisma.nodeContent.upsert({
+     *   create: {
+     *     // ... data to create a NodeContent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the NodeContent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends NodeContentUpsertArgs>(args: SelectSubset<T, NodeContentUpsertArgs<ExtArgs>>): Prisma__NodeContentClient<$Result.GetResult<Prisma.$NodeContentPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of NodeContents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentCountArgs} args - Arguments to filter NodeContents to count.
+     * @example
+     * // Count the number of NodeContents
+     * const count = await prisma.nodeContent.count({
+     *   where: {
+     *     // ... the filter for the NodeContents we want to count
+     *   }
+     * })
+    **/
+    count<T extends NodeContentCountArgs>(
+      args?: Subset<T, NodeContentCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], NodeContentCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a NodeContent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends NodeContentAggregateArgs>(args: Subset<T, NodeContentAggregateArgs>): Prisma.PrismaPromise<GetNodeContentAggregateType<T>>
+
+    /**
+     * Group by NodeContent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {NodeContentGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends NodeContentGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: NodeContentGroupByArgs['orderBy'] }
+        : { orderBy?: NodeContentGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, NodeContentGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetNodeContentGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the NodeContent model
+   */
+  readonly fields: NodeContentFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for NodeContent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__NodeContentClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the NodeContent model
+   */
+  interface NodeContentFieldRefs {
+    readonly id: FieldRef<"NodeContent", 'Int'>
+    readonly graphType: FieldRef<"NodeContent", 'NodeGraphType'>
+    readonly nodeId: FieldRef<"NodeContent", 'Int'>
+    readonly title: FieldRef<"NodeContent", 'String'>
+    readonly description: FieldRef<"NodeContent", 'String'>
+    readonly publishedTitle: FieldRef<"NodeContent", 'String'>
+    readonly publishedDescription: FieldRef<"NodeContent", 'String'>
+    readonly dirtyAt: FieldRef<"NodeContent", 'DateTime'>
+    readonly updatedAt: FieldRef<"NodeContent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * NodeContent findUnique
+   */
+  export type NodeContentFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter, which NodeContent to fetch.
+     */
+    where: NodeContentWhereUniqueInput
+  }
+
+  /**
+   * NodeContent findUniqueOrThrow
+   */
+  export type NodeContentFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter, which NodeContent to fetch.
+     */
+    where: NodeContentWhereUniqueInput
+  }
+
+  /**
+   * NodeContent findFirst
+   */
+  export type NodeContentFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter, which NodeContent to fetch.
+     */
+    where?: NodeContentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of NodeContents to fetch.
+     */
+    orderBy?: NodeContentOrderByWithRelationInput | NodeContentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for NodeContents.
+     */
+    cursor?: NodeContentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` NodeContents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` NodeContents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of NodeContents.
+     */
+    distinct?: NodeContentScalarFieldEnum | NodeContentScalarFieldEnum[]
+  }
+
+  /**
+   * NodeContent findFirstOrThrow
+   */
+  export type NodeContentFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter, which NodeContent to fetch.
+     */
+    where?: NodeContentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of NodeContents to fetch.
+     */
+    orderBy?: NodeContentOrderByWithRelationInput | NodeContentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for NodeContents.
+     */
+    cursor?: NodeContentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` NodeContents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` NodeContents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of NodeContents.
+     */
+    distinct?: NodeContentScalarFieldEnum | NodeContentScalarFieldEnum[]
+  }
+
+  /**
+   * NodeContent findMany
+   */
+  export type NodeContentFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter, which NodeContents to fetch.
+     */
+    where?: NodeContentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of NodeContents to fetch.
+     */
+    orderBy?: NodeContentOrderByWithRelationInput | NodeContentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing NodeContents.
+     */
+    cursor?: NodeContentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` NodeContents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` NodeContents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of NodeContents.
+     */
+    distinct?: NodeContentScalarFieldEnum | NodeContentScalarFieldEnum[]
+  }
+
+  /**
+   * NodeContent create
+   */
+  export type NodeContentCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * The data needed to create a NodeContent.
+     */
+    data: XOR<NodeContentCreateInput, NodeContentUncheckedCreateInput>
+  }
+
+  /**
+   * NodeContent createMany
+   */
+  export type NodeContentCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many NodeContents.
+     */
+    data: NodeContentCreateManyInput | NodeContentCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * NodeContent createManyAndReturn
+   */
+  export type NodeContentCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * The data used to create many NodeContents.
+     */
+    data: NodeContentCreateManyInput | NodeContentCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * NodeContent update
+   */
+  export type NodeContentUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * The data needed to update a NodeContent.
+     */
+    data: XOR<NodeContentUpdateInput, NodeContentUncheckedUpdateInput>
+    /**
+     * Choose, which NodeContent to update.
+     */
+    where: NodeContentWhereUniqueInput
+  }
+
+  /**
+   * NodeContent updateMany
+   */
+  export type NodeContentUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update NodeContents.
+     */
+    data: XOR<NodeContentUpdateManyMutationInput, NodeContentUncheckedUpdateManyInput>
+    /**
+     * Filter which NodeContents to update
+     */
+    where?: NodeContentWhereInput
+    /**
+     * Limit how many NodeContents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * NodeContent updateManyAndReturn
+   */
+  export type NodeContentUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * The data used to update NodeContents.
+     */
+    data: XOR<NodeContentUpdateManyMutationInput, NodeContentUncheckedUpdateManyInput>
+    /**
+     * Filter which NodeContents to update
+     */
+    where?: NodeContentWhereInput
+    /**
+     * Limit how many NodeContents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * NodeContent upsert
+   */
+  export type NodeContentUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * The filter to search for the NodeContent to update in case it exists.
+     */
+    where: NodeContentWhereUniqueInput
+    /**
+     * In case the NodeContent found by the `where` argument doesn't exist, create a new NodeContent with this data.
+     */
+    create: XOR<NodeContentCreateInput, NodeContentUncheckedCreateInput>
+    /**
+     * In case the NodeContent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<NodeContentUpdateInput, NodeContentUncheckedUpdateInput>
+  }
+
+  /**
+   * NodeContent delete
+   */
+  export type NodeContentDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+    /**
+     * Filter which NodeContent to delete.
+     */
+    where: NodeContentWhereUniqueInput
+  }
+
+  /**
+   * NodeContent deleteMany
+   */
+  export type NodeContentDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which NodeContents to delete
+     */
+    where?: NodeContentWhereInput
+    /**
+     * Limit how many NodeContents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * NodeContent without action
+   */
+  export type NodeContentDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the NodeContent
+     */
+    select?: NodeContentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the NodeContent
+     */
+    omit?: NodeContentOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -32533,6 +33726,21 @@ export namespace Prisma {
   export type TournamentMatchScalarFieldEnum = (typeof TournamentMatchScalarFieldEnum)[keyof typeof TournamentMatchScalarFieldEnum]
 
 
+  export const NodeContentScalarFieldEnum: {
+    id: 'id',
+    graphType: 'graphType',
+    nodeId: 'nodeId',
+    title: 'title',
+    description: 'description',
+    publishedTitle: 'publishedTitle',
+    publishedDescription: 'publishedDescription',
+    dirtyAt: 'dirtyAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type NodeContentScalarFieldEnum = (typeof NodeContentScalarFieldEnum)[keyof typeof NodeContentScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -32702,6 +33910,20 @@ export namespace Prisma {
    * Reference to a field of type 'TournamentState[]'
    */
   export type ListEnumTournamentStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TournamentState[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'NodeGraphType'
+   */
+  export type EnumNodeGraphTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NodeGraphType'>
+    
+
+
+  /**
+   * Reference to a field of type 'NodeGraphType[]'
+   */
+  export type ListEnumNodeGraphTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NodeGraphType[]'>
     
 
 
@@ -34584,6 +35806,81 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"TournamentMatch"> | Date | string
   }
 
+  export type NodeContentWhereInput = {
+    AND?: NodeContentWhereInput | NodeContentWhereInput[]
+    OR?: NodeContentWhereInput[]
+    NOT?: NodeContentWhereInput | NodeContentWhereInput[]
+    id?: IntFilter<"NodeContent"> | number
+    graphType?: EnumNodeGraphTypeFilter<"NodeContent"> | $Enums.NodeGraphType
+    nodeId?: IntFilter<"NodeContent"> | number
+    title?: StringFilter<"NodeContent"> | string
+    description?: StringFilter<"NodeContent"> | string
+    publishedTitle?: StringNullableFilter<"NodeContent"> | string | null
+    publishedDescription?: StringNullableFilter<"NodeContent"> | string | null
+    dirtyAt?: DateTimeNullableFilter<"NodeContent"> | Date | string | null
+    updatedAt?: DateTimeFilter<"NodeContent"> | Date | string
+  }
+
+  export type NodeContentOrderByWithRelationInput = {
+    id?: SortOrder
+    graphType?: SortOrder
+    nodeId?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    publishedTitle?: SortOrderInput | SortOrder
+    publishedDescription?: SortOrderInput | SortOrder
+    dirtyAt?: SortOrderInput | SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type NodeContentWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    graphType_nodeId?: NodeContentGraphTypeNodeIdCompoundUniqueInput
+    AND?: NodeContentWhereInput | NodeContentWhereInput[]
+    OR?: NodeContentWhereInput[]
+    NOT?: NodeContentWhereInput | NodeContentWhereInput[]
+    graphType?: EnumNodeGraphTypeFilter<"NodeContent"> | $Enums.NodeGraphType
+    nodeId?: IntFilter<"NodeContent"> | number
+    title?: StringFilter<"NodeContent"> | string
+    description?: StringFilter<"NodeContent"> | string
+    publishedTitle?: StringNullableFilter<"NodeContent"> | string | null
+    publishedDescription?: StringNullableFilter<"NodeContent"> | string | null
+    dirtyAt?: DateTimeNullableFilter<"NodeContent"> | Date | string | null
+    updatedAt?: DateTimeFilter<"NodeContent"> | Date | string
+  }, "id" | "graphType_nodeId">
+
+  export type NodeContentOrderByWithAggregationInput = {
+    id?: SortOrder
+    graphType?: SortOrder
+    nodeId?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    publishedTitle?: SortOrderInput | SortOrder
+    publishedDescription?: SortOrderInput | SortOrder
+    dirtyAt?: SortOrderInput | SortOrder
+    updatedAt?: SortOrder
+    _count?: NodeContentCountOrderByAggregateInput
+    _avg?: NodeContentAvgOrderByAggregateInput
+    _max?: NodeContentMaxOrderByAggregateInput
+    _min?: NodeContentMinOrderByAggregateInput
+    _sum?: NodeContentSumOrderByAggregateInput
+  }
+
+  export type NodeContentScalarWhereWithAggregatesInput = {
+    AND?: NodeContentScalarWhereWithAggregatesInput | NodeContentScalarWhereWithAggregatesInput[]
+    OR?: NodeContentScalarWhereWithAggregatesInput[]
+    NOT?: NodeContentScalarWhereWithAggregatesInput | NodeContentScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"NodeContent"> | number
+    graphType?: EnumNodeGraphTypeWithAggregatesFilter<"NodeContent"> | $Enums.NodeGraphType
+    nodeId?: IntWithAggregatesFilter<"NodeContent"> | number
+    title?: StringWithAggregatesFilter<"NodeContent"> | string
+    description?: StringWithAggregatesFilter<"NodeContent"> | string
+    publishedTitle?: StringNullableWithAggregatesFilter<"NodeContent"> | string | null
+    publishedDescription?: StringNullableWithAggregatesFilter<"NodeContent"> | string | null
+    dirtyAt?: DateTimeNullableWithAggregatesFilter<"NodeContent"> | Date | string | null
+    updatedAt?: DateTimeWithAggregatesFilter<"NodeContent"> | Date | string
+  }
+
   export type UserCreateInput = {
     id: string
     email: string
@@ -36456,6 +37753,87 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type NodeContentCreateInput = {
+    graphType: $Enums.NodeGraphType
+    nodeId: number
+    title: string
+    description: string
+    publishedTitle?: string | null
+    publishedDescription?: string | null
+    dirtyAt?: Date | string | null
+    updatedAt?: Date | string
+  }
+
+  export type NodeContentUncheckedCreateInput = {
+    id?: number
+    graphType: $Enums.NodeGraphType
+    nodeId: number
+    title: string
+    description: string
+    publishedTitle?: string | null
+    publishedDescription?: string | null
+    dirtyAt?: Date | string | null
+    updatedAt?: Date | string
+  }
+
+  export type NodeContentUpdateInput = {
+    graphType?: EnumNodeGraphTypeFieldUpdateOperationsInput | $Enums.NodeGraphType
+    nodeId?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    publishedTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    dirtyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NodeContentUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    graphType?: EnumNodeGraphTypeFieldUpdateOperationsInput | $Enums.NodeGraphType
+    nodeId?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    publishedTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    dirtyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NodeContentCreateManyInput = {
+    id?: number
+    graphType: $Enums.NodeGraphType
+    nodeId: number
+    title: string
+    description: string
+    publishedTitle?: string | null
+    publishedDescription?: string | null
+    dirtyAt?: Date | string | null
+    updatedAt?: Date | string
+  }
+
+  export type NodeContentUpdateManyMutationInput = {
+    graphType?: EnumNodeGraphTypeFieldUpdateOperationsInput | $Enums.NodeGraphType
+    nodeId?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    publishedTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    dirtyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NodeContentUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    graphType?: EnumNodeGraphTypeFieldUpdateOperationsInput | $Enums.NodeGraphType
+    nodeId?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    publishedTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    dirtyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -38214,6 +39592,74 @@ export namespace Prisma {
     round?: SortOrder
     matchIndex?: SortOrder
     lobbyId?: SortOrder
+  }
+
+  export type EnumNodeGraphTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.NodeGraphType | EnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumNodeGraphTypeFilter<$PrismaModel> | $Enums.NodeGraphType
+  }
+
+  export type NodeContentGraphTypeNodeIdCompoundUniqueInput = {
+    graphType: $Enums.NodeGraphType
+    nodeId: number
+  }
+
+  export type NodeContentCountOrderByAggregateInput = {
+    id?: SortOrder
+    graphType?: SortOrder
+    nodeId?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    publishedTitle?: SortOrder
+    publishedDescription?: SortOrder
+    dirtyAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type NodeContentAvgOrderByAggregateInput = {
+    id?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type NodeContentMaxOrderByAggregateInput = {
+    id?: SortOrder
+    graphType?: SortOrder
+    nodeId?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    publishedTitle?: SortOrder
+    publishedDescription?: SortOrder
+    dirtyAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type NodeContentMinOrderByAggregateInput = {
+    id?: SortOrder
+    graphType?: SortOrder
+    nodeId?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    publishedTitle?: SortOrder
+    publishedDescription?: SortOrder
+    dirtyAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type NodeContentSumOrderByAggregateInput = {
+    id?: SortOrder
+    nodeId?: SortOrder
+  }
+
+  export type EnumNodeGraphTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.NodeGraphType | EnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumNodeGraphTypeWithAggregatesFilter<$PrismaModel> | $Enums.NodeGraphType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumNodeGraphTypeFilter<$PrismaModel>
+    _max?: NestedEnumNodeGraphTypeFilter<$PrismaModel>
   }
 
   export type ShipCreateNestedManyWithoutOwnerInput = {
@@ -40350,6 +41796,10 @@ export namespace Prisma {
     update?: XOR<XOR<LobbyUpdateToOneWithWhereWithoutTournamentMatchInput, LobbyUpdateWithoutTournamentMatchInput>, LobbyUncheckedUpdateWithoutTournamentMatchInput>
   }
 
+  export type EnumNodeGraphTypeFieldUpdateOperationsInput = {
+    set?: $Enums.NodeGraphType
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -40676,6 +42126,23 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumTournamentStateFilter<$PrismaModel>
     _max?: NestedEnumTournamentStateFilter<$PrismaModel>
+  }
+
+  export type NestedEnumNodeGraphTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.NodeGraphType | EnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumNodeGraphTypeFilter<$PrismaModel> | $Enums.NodeGraphType
+  }
+
+  export type NestedEnumNodeGraphTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.NodeGraphType | EnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.NodeGraphType[] | ListEnumNodeGraphTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumNodeGraphTypeWithAggregatesFilter<$PrismaModel> | $Enums.NodeGraphType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumNodeGraphTypeFilter<$PrismaModel>
+    _max?: NestedEnumNodeGraphTypeFilter<$PrismaModel>
   }
 
   export type ShipCreateWithoutOwnerInput = {

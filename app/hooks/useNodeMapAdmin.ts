@@ -83,9 +83,64 @@ export function useNodeMapAdmin() {
     [writeContractAsync, contract, publicClient],
   );
 
+  // Incremental edge edits — cheaper and safer than resending the whole
+  // updateNode payload (costLimit/turnTime/maxScore/creatorGoesFirst) just
+  // to add or remove one prerequisite.
+  const addPrerequisite = useCallback(
+    async (nodeId: bigint, prerequisiteId: bigint) => {
+      const hash = await writeContractAsync({
+        ...contract,
+        functionName: "addPrerequisite",
+        args: [nodeId, prerequisiteId],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, contract, publicClient],
+  );
+
+  const removePrerequisite = useCallback(
+    async (nodeId: bigint, prerequisiteId: bigint) => {
+      const hash = await writeContractAsync({
+        ...contract,
+        functionName: "removePrerequisite",
+        args: [nodeId, prerequisiteId],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, contract, publicClient],
+  );
+
+  const createCampaign = useCallback(async () => {
+    const hash = await writeContractAsync({
+      ...contract,
+      functionName: "createCampaign",
+    });
+    await publicClient!.waitForTransactionReceipt({ hash });
+    return hash;
+  }, [writeContractAsync, contract, publicClient]);
+
+  const setCampaignRequiredVariant = useCallback(
+    async (campaignId: bigint, variant: number) => {
+      const hash = await writeContractAsync({
+        ...contract,
+        functionName: "setCampaignRequiredVariant",
+        args: [campaignId, variant],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, contract, publicClient],
+  );
+
   return {
     createNode,
     updateNode,
     setNodeEditor,
+    addPrerequisite,
+    removePrerequisite,
+    createCampaign,
+    setCampaignRequiredVariant,
   };
 }

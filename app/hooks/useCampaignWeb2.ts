@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
+import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
 
 // Web2-mode counterpart to useNodeMap.ts's useCampaignGraph — fetches the
 // Prisma-backed campaign graph via /api/campaign/nodes instead of an
@@ -42,6 +44,21 @@ export function useCampaignGraphWeb2(campaignId: number) {
     error: error instanceof Error ? error : null,
     refetch,
   };
+}
+
+export type CampaignWeb2NodeWithContent = CampaignWeb2Node & NodeContentValue;
+
+/** Web2 counterpart to useNodeMap.ts's useCampaignGraphWithContent — same structure+content merge, Prisma-backed instead of on-chain. */
+export function useCampaignGraphWeb2WithContent(campaignId: number) {
+  const graph = useCampaignGraphWeb2(campaignId);
+  const { contentById } = useAllNodeContent("CAMPAIGN");
+
+  const nodes = useMemo(
+    () => mergeNodeContent("CAMPAIGN", graph.nodes, contentById),
+    [graph.nodes, contentById],
+  );
+
+  return { ...graph, nodes };
 }
 
 export function useStartCampaignNodeWeb2() {

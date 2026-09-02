@@ -380,6 +380,18 @@ exports.Prisma.TournamentMatchScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.NodeContentScalarFieldEnum = {
+  id: 'id',
+  graphType: 'graphType',
+  nodeId: 'nodeId',
+  title: 'title',
+  description: 'description',
+  publishedTitle: 'publishedTitle',
+  publishedDescription: 'publishedDescription',
+  dirtyAt: 'dirtyAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -437,6 +449,11 @@ exports.TournamentState = exports.$Enums.TournamentState = {
   CANCELLED: 'CANCELLED'
 };
 
+exports.NodeGraphType = exports.$Enums.NodeGraphType = {
+  CAMPAIGN: 'CAMPAIGN',
+  ROGUELIKE: 'ROGUELIKE'
+};
+
 exports.Prisma.ModelName = {
   User: 'User',
   Ship: 'Ship',
@@ -461,7 +478,8 @@ exports.Prisma.ModelName = {
   PlayerStats: 'PlayerStats',
   Tournament: 'Tournament',
   TournamentRegistrant: 'TournamentRegistrant',
-  TournamentMatch: 'TournamentMatch'
+  TournamentMatch: 'TournamentMatch',
+  NodeContent: 'NodeContent'
 };
 
 /**

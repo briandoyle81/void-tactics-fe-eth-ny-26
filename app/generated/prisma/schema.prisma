@@ -513,3 +513,49 @@ model TournamentMatch {
 
   @@index([tournamentId, round])
 }
+
+// ── Node display content (campaign map editor) ──────────────────────────────
+// Title/description for a campaign or roguelike node, keyed by (graphType,
+// nodeId) — nodeId is a plain numeric id from whichever graph's own id space
+// (NodeMap/CampaignNode ids for CAMPAIGN, RoguelikeNodeMap/RoguelikeNode ids
+// for ROGUELIKE; web2 and web3 node ids are assumed aligned per graph, same
+// assumption app/config/campaignNodes.ts already makes). This is a pure
+// display-content overlay — never gameplay logic — so it's the same single
+// table for both web2 and web3 node graphs. The hand-maintained
+// campaignNodes.ts/roguelikeNodes.ts static files stay in place as a
+// fallback layer: a row here wins if present, otherwise those files' content
+// is used, otherwise a generic default (see useNodeContent.ts).
+enum NodeGraphType {
+  CAMPAIGN
+  ROGUELIKE
+}
+
+// publishedTitle/publishedDescription/dirtyAt track the on-chain
+// NodeContentRegistry publish flow layered on top of this table (see
+// contracts/NodeContentRegistry.sol and app/api/node-content/publish/
+// route.ts): title/description remain the live-editable draft (unchanged
+// behavior — every PUT here is instant, no gas/wallet involved), while
+// publishedTitle/publishedDescription are the last values this row is
+// known to have on-chain, refreshed either by a successful publish or by
+// /api/node-content/sync pulling the registry's current state. A row is
+// "dirty" (has an unpublished edit) whenever dirtyAt is non-null; the
+// publish endpoint's chunked batches are drawn from exactly those rows,
+// and dirtyAt is cleared back to null once its chunk's tx confirms. Kept
+// as an explicit timestamp column (not just a computed title !==
+// publishedTitle check) so "N nodes pending" and "oldest unpublished edit"
+// are cheap, indexed queries for the publish admin UI, not a table scan.
+model NodeContent {
+  id                   Int           @id @default(autoincrement())
+  graphType            NodeGraphType
+  nodeId               Int
+  title                String
+  description          String
+  publishedTitle       String?
+  publishedDescription String?
+  dirtyAt              DateTime?
+  updatedAt            DateTime      @updatedAt
+
+  @@unique([graphType, nodeId])
+  @@index([graphType])
+  @@index([graphType, dirtyAt])
+}

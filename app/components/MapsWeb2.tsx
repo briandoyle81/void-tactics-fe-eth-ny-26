@@ -12,8 +12,6 @@ import { MapPreviewCard } from "./MapPreviewCard";
 import { MapsListShell } from "./MapsListShell";
 import { MapPosition, ScoringPosition, MapMode } from "../types/types";
 import { AIEncountersAdminPanelWeb2 } from "./AIEncountersAdminPanelWeb2";
-import { NodeMapAdminPanelWeb2 } from "./NodeMapAdminPanelWeb2";
-import { RoguelikeNodeMapAdminPanelWeb2 } from "./RoguelikeNodeMapAdminPanelWeb2";
 import { LobbyAdminPanelWeb2 } from "./LobbyAdminPanelWeb2";
 import { AdminSettingsExportWeb2 } from "./AdminSettingsExportWeb2";
 
@@ -268,8 +266,6 @@ export default function MapsWeb2() {
       <AIEncountersAdminPanelWeb2
         mapIds={maps.filter((m) => m.mode !== MapMode.PvP).map((m) => m.id)}
       />
-      <NodeMapAdminPanelWeb2 />
-      <RoguelikeNodeMapAdminPanelWeb2 />
       <LobbyAdminPanelWeb2 />
       <AdminSettingsExportWeb2 maps={maps} />
     </div>

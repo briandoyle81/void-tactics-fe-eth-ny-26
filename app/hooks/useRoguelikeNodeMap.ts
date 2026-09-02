@@ -6,6 +6,7 @@ import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { RoguelikeNode } from "../types/roguelike";
+import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
 
 // Roguelike is Base Sepolia only, same as the original single-player stack
 // (AIEncounters/NodeMap/SinglePlayerMatch) — pin to that chain directly
@@ -149,4 +150,30 @@ export function useAllRoguelikeNodes() {
     .filter((n): n is RoguelikeNode => !!n && n.exists);
 
   return { ...result, nodes };
+}
+
+export type RoguelikeNodeWithContent = RoguelikeNode & NodeContentValue;
+
+/**
+ * The full roguelike graph for one campaign, content included:
+ * useAllRoguelikeNodes (filtered to campaignId, same as RoguelikeGraph.tsx
+ * does today) merged with the three-layer title/description resolution from
+ * useNodeContent.ts — the roguelike counterpart to
+ * useCampaignGraphWithContent in useNodeMap.ts.
+ */
+export function useRoguelikeGraphWithContent(campaignId: bigint) {
+  const { nodes: allNodes, ...rest } = useAllRoguelikeNodes();
+  const { contentById } = useAllNodeContent("ROGUELIKE");
+
+  const campaignNodes = useMemo(
+    () => allNodes.filter((n) => n.campaignId === campaignId),
+    [allNodes, campaignId],
+  );
+
+  const nodes = useMemo(
+    () => mergeNodeContent("ROGUELIKE", campaignNodes, contentById),
+    [campaignNodes, contentById],
+  );
+
+  return { ...rest, nodes };
 }

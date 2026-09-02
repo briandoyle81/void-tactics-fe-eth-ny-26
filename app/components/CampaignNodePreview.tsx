@@ -2,8 +2,7 @@
 
 import React from "react";
 import { useAccount } from "wagmi";
-import { useCampaignRequiredVariant, type CampaignGraphNode } from "../hooks/useNodeMap";
-import { getNodeContent } from "../config/campaignNodes";
+import { useCampaignRequiredVariant, type CampaignGraphNodeWithContent } from "../hooks/useNodeMap";
 import {
   useGetAllAIShipConfigs,
   useGetMapPlacements,
@@ -19,7 +18,7 @@ import { navigateToGame } from "../utils/navigateToGame";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
 
 interface CampaignNodePreviewProps {
-  node: CampaignGraphNode;
+  node: CampaignGraphNodeWithContent;
 }
 
 // Detail panel for a selected node: enemy-fleet preview (from AIEncounters,
@@ -29,7 +28,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
   const { address, isConnected } = useAccount();
   const [showFleetModal, setShowFleetModal] = React.useState(false);
   const { activeGameId } = useNodeGameStatus(node.id);
-  const content = getNodeContent(node.id);
   const { data: requiredVariant } = useCampaignRequiredVariant(node.campaignId);
 
   const { data: placements, isLoading: placementsLoading } = useGetMapPlacements(
@@ -96,8 +94,8 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
       style={{ borderRadius: 0 }}
     >
       <div className="flex flex-col">
-        <h3 className="text-xl font-bold text-cyan">{content.title}</h3>
-        <p className="mt-2 text-sm text-text-secondary">{content.description}</p>
+        <h3 className="text-xl font-bold text-cyan">{node.title}</h3>
+        <p className="mt-2 text-sm text-text-secondary">{node.description}</p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
             Player cost limit: <span className="text-cyan">{node.costLimit.toString()}</span>

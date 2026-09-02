@@ -29,6 +29,7 @@ import RoguelikeRunContract from "../contracts/artifacts/DeployModule#RoguelikeR
 import RoguelikeMatchContract from "../contracts/artifacts/DeployModule#RoguelikeMatch.json";
 import RoguelikeResupplyContract from "../contracts/artifacts/DeployModule#RoguelikeResupply.json";
 import RandomManagerContract from "../contracts/artifacts/DeployModule#RandomManager.json";
+import NodeContentRegistryContract from "../contracts/artifacts/DeployModule#NodeContentRegistry.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -217,6 +218,12 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   RANDOM_MANAGER:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
+  // Not yet deployed to Base Sepolia — falls back to ZERO_ADDRESS until a
+  // real deploy populates deployed_addresses.json (see
+  // NodeContentRegistry.sol's header comment / DeployAndConfig.ts).
+  NODE_CONTENT_REGISTRY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeContentRegistry"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const XAI_TESTNET_CONTRACT_ADDRESSES = {
@@ -333,6 +340,7 @@ export const CONTRACT_ABIS = {
   ROGUELIKE_MATCH: RoguelikeMatchContract.abi,
   ROGUELIKE_RESUPPLY: RoguelikeResupplyContract.abi,
   RANDOM_MANAGER: RandomManagerContract.abi,
+  NODE_CONTENT_REGISTRY: NodeContentRegistryContract.abi,
 } as const;
 
 // Contract types for wagmi
