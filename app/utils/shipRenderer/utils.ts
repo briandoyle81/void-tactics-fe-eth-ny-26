@@ -148,8 +148,25 @@ export function blendHSL(
   hslString: string
 ): string {
   const { h: h2, s: s2, l: l2 } = parseHSL(hslString);
+  const { blendedH, blendedS, blendedL } = blendValues(h, s, l, h2, s2, l2);
 
-  // Blend the values according to the specified ratios
+  // Return the blended HSL string
+  return buildHslString(blendedH, blendedS, blendedL);
+}
+
+/**
+ * Shared 50/50-ish blend math, factored out of blendHSL so blendHSLV2 can
+ * reuse it without duplicating the ratio logic.
+ * Ported from blendValues
+ */
+function blendValues(
+  h: number,
+  s: number,
+  l: number,
+  h2: number,
+  s2: number,
+  l2: number
+): { blendedH: number; blendedS: number; blendedL: number } {
   // H: 50/50 blend, but don't change hue too much if saturation is > 40
   let blendedH: number;
   if (s2 > 40) {
@@ -169,6 +186,44 @@ export function blendHSL(
   // L: 85% old, 15% new
   const blendedL = Math.floor((l2 * 85 + l * 15) / 100);
 
-  // Return the blended HSL string
-  return `hsl(${uintToString(blendedH)}, ${uintToString(blendedS)}%, ${uintToString(blendedL)}%)`;
+  return { blendedH, blendedS, blendedL };
+}
+
+/**
+ * Ported from hslString
+ */
+function buildHslString(h: number, s: number, l: number): string {
+  return `hsl(${uintToString(h)}, ${uintToString(s)}%, ${uintToString(l)}%)`;
+}
+
+/**
+ * True for colors in variant 2's dense orange/amber accent-highlight range
+ * (weapon glows, engine lights, etc.).
+ * Ported from isOrangeAccent
+ */
+function isOrangeAccent(h2: number, s2: number): boolean {
+  return h2 <= 45 && s2 >= 55;
+}
+
+/**
+ * Variant 2's shiny tint: for vivid orange accents, fully replaces hue and
+ * saturation with the ship's own (h, s) instead of blending (blendHSL barely
+ * moves already-saturated colors, which keeps orange accents orange on every
+ * shiny variant-2 ship). Every other color keeps blendHSL's blend behavior.
+ * Ported from blendHSLV2
+ */
+export function blendHSLV2(
+  h: number,
+  s: number,
+  l: number,
+  hslString: string
+): string {
+  const { h: h2, s: s2, l: l2 } = parseHSL(hslString);
+
+  if (isOrangeAccent(h2, s2)) {
+    return buildHslString(h, s, l2);
+  }
+
+  const { blendedH, blendedS, blendedL } = blendValues(h, s, l, h2, s2, l2);
+  return buildHslString(blendedH, blendedS, blendedL);
 }

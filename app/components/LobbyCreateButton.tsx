@@ -28,6 +28,10 @@ interface LobbyCreateButtonProps {
   maxScore: bigint;
   value: bigint;
   reservedJoiner?: Address; // Optional: address to reserve for (undefined or zero address for open lobby)
+  /** True when this is the player's first unresolved AI reservation — Lobbies.createLobby waives the
+   * usual 1 UTC reservation fee for it. Caller derives this from
+   * playerState.activeAILobbiesCount (see Lobbies.tsx); ignored for human-reserved/open lobbies. */
+  skipReservationFee?: boolean;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
@@ -74,6 +78,7 @@ export function LobbyCreateButton({
   maxScore,
   value,
   reservedJoiner,
+  skipReservationFee = false,
   children,
   className = "",
   disabled = false,
@@ -138,10 +143,12 @@ export function LobbyCreateButton({
     });
 
   // UTC is required only for the reservation fee (1 UTC). Additional lobby fee is native.
+  // A player's first unresolved AI reservation is free (Lobbies.createLobby waives the fee) —
+  // skipReservationFee reflects that, read from playerState.activeAILobbiesCount by the caller.
   const totalUtcRequired = React.useMemo(() => {
-    if (isReserved) return parseEther("1");
+    if (isReserved && !skipReservationFee) return parseEther("1");
     return 0n;
-  }, [isReserved]);
+  }, [isReserved, skipReservationFee]);
 
   // Type-safe UTC balance
   const utcBalanceBigInt = React.useMemo(() => utcBalance as bigint | undefined, [utcBalance]);
@@ -320,6 +327,7 @@ export function LobbyCreateButton({
           creator_goes_first: creatorGoesFirst,
           max_score: maxScore.toString(),
           is_reserved: Boolean(isReserved),
+          reservation_fee_waived: skipReservationFee,
         });
         onSuccess?.();
       }}

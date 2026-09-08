@@ -17,6 +17,10 @@ import ManageNavy from "./components/ManageNavy";
 import ManageNavyWeb2 from "./components/ManageNavyWeb2";
 import Lobbies from "./components/Lobbies";
 import LobbiesWeb2 from "./components/LobbiesWeb2";
+import { CampaignGraph } from "./components/CampaignGraph";
+import { CampaignGraphWeb2 } from "./components/CampaignGraphWeb2";
+import { RoguelikeCampaign } from "./components/RoguelikeCampaign";
+import { RoguelikeCampaignWeb2 } from "./components/RoguelikeCampaignWeb2";
 import Games from "./components/Games";
 import GamesWeb2 from "./components/GamesWeb2";
 import Profile from "./components/Profile";
@@ -27,6 +31,7 @@ import MapsWeb2 from "./components/MapsWeb2";
 import ShipAttributes from "./components/ShipAttributes";
 import ShipAttributesWeb2 from "./components/ShipAttributesWeb2";
 import ShipConstructor from "./components/ShipConstructor";
+import ShipConstructorWeb2 from "./components/ShipConstructorWeb2";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
 import ShipPurchasePricesWeb2 from "./components/ShipPurchasePricesWeb2";
 import { Tournaments } from "./components/Tournaments";
@@ -34,6 +39,7 @@ import { TournamentsWeb2 } from "./components/TournamentsWeb2";
 import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
 import { useOwnedShips } from "./hooks/useOwnedShips";
+import { useOwnedShipsWeb2 } from "./hooks/useOwnedShipsWeb2";
 import { usePlayerGames } from "./hooks/usePlayerGames";
 import { usePlayerGamesWeb2 } from "./hooks/usePlayerGamesWeb2";
 import { useCurrentUser } from "./hooks/useCurrentUser";
@@ -48,6 +54,8 @@ const KNOWN_TAB_NAMES = new Set<string>([
   "Info",
   "Manage Navy",
   "Lobbies",
+  "Campaign",
+  "Roguelike",
   "Games",
   "Profile",
   "Maps",
@@ -62,9 +70,15 @@ export default function Home() {
   const { isOwner } = useShipAttributesOwner();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const { ships, isLoading: shipsLoading } = useOwnedShips();
-  const { games: playerGames, isLoading: gamesLoading } = usePlayerGames();
-  const { games: playerGamesWeb2, isLoading: gamesLoadingWeb2 } = usePlayerGamesWeb2();
-  const { userId: currentUserId, isLoggedIn } = useCurrentUser();
+  const { ships: shipsWeb2, isLoading: shipsLoadingWeb2 } = useOwnedShipsWeb2();
+  const { games: playerGames, isLoading: gamesLoading, refetch: refetchPlayerGames } = usePlayerGames();
+  const {
+    games: playerGamesWeb2,
+    isLoading: gamesLoadingWeb2,
+    refetch: refetchPlayerGamesWeb2,
+  } = usePlayerGamesWeb2();
+  const { userId: currentUserId, isLoggedIn, isLoading: isUserLoading } =
+    useCurrentUser();
   const appMode = useAppMode();
   const isWeb2Admin = useWeb2Admin();
 
@@ -151,6 +165,15 @@ export default function Home() {
   useEffect(() => {
     const handleNavigateToGames = () => {
       setActiveTab("Games");
+      // Lobbies.tsx already refetches its own usePlayerGames() instance
+      // before firing this event, but that's a separate hook instance —
+      // refetching there doesn't reliably update this component's own
+      // playerGames/playerGamesWeb2 state, which is what actually gates
+      // showGames and renders the Games tab here. Without this, the tab
+      // (and its contents) stayed on stale pre-game data until a full page
+      // reload remounted everything from scratch.
+      void refetchPlayerGames();
+      void refetchPlayerGamesWeb2();
     };
 
     window.addEventListener(
@@ -169,6 +192,59 @@ export default function Home() {
       document.removeEventListener(
         "void-tactics-navigate-to-games",
         handleNavigateToGames,
+      );
+    };
+  }, [refetchPlayerGames, refetchPlayerGamesWeb2]);
+
+  // Listen for "return to campaign" navigation from GameResultModal
+  // (mission complete/failed screen) — mirrors handleNavigateToGames above.
+  useEffect(() => {
+    const handleNavigateToCampaign = () => {
+      setActiveTab("Campaign");
+    };
+
+    window.addEventListener(
+      "void-tactics-navigate-to-campaign",
+      handleNavigateToCampaign,
+    );
+    document.addEventListener(
+      "void-tactics-navigate-to-campaign",
+      handleNavigateToCampaign,
+    );
+    return () => {
+      window.removeEventListener(
+        "void-tactics-navigate-to-campaign",
+        handleNavigateToCampaign,
+      );
+      document.removeEventListener(
+        "void-tactics-navigate-to-campaign",
+        handleNavigateToCampaign,
+      );
+    };
+  }, []);
+
+  // Same as above, for the Roguelike campaign's "Return to Run" CTA.
+  useEffect(() => {
+    const handleNavigateToRoguelike = () => {
+      setActiveTab("Roguelike");
+    };
+
+    window.addEventListener(
+      "void-tactics-navigate-to-roguelike",
+      handleNavigateToRoguelike,
+    );
+    document.addEventListener(
+      "void-tactics-navigate-to-roguelike",
+      handleNavigateToRoguelike,
+    );
+    return () => {
+      window.removeEventListener(
+        "void-tactics-navigate-to-roguelike",
+        handleNavigateToRoguelike,
+      );
+      document.removeEventListener(
+        "void-tactics-navigate-to-roguelike",
+        handleNavigateToRoguelike,
       );
     };
   }, []);
@@ -247,6 +323,36 @@ export default function Home() {
     };
   }, []);
 
+  // Listen for navigation to Info (e.g. clicking the header title/logo).
+  useEffect(() => {
+    const handleNavigateToInfo = () => {
+      setActiveTab("Info");
+    };
+
+    window.addEventListener(
+      "void-tactics-navigate-to-info",
+      handleNavigateToInfo,
+    );
+    return () => {
+      window.removeEventListener(
+        "void-tactics-navigate-to-info",
+        handleNavigateToInfo,
+      );
+    };
+  }, []);
+
+  // Once both identities are definitively logged out (not mid-connect/
+  // mid-session-check), force the tab back to Info — a tab restored from a
+  // previous logged-in session (e.g. an admin tab) shouldn't linger after
+  // logout even though the tab bar itself is hidden while signed out.
+  useEffect(() => {
+    if (status === "connecting" || status === "reconnecting" || isUserLoading)
+      return;
+    if (!isConnected && !isLoggedIn && activeTab !== "Info") {
+      setActiveTab("Info");
+    }
+  }, [status, isConnected, isLoggedIn, isUserLoading, activeTab]);
+
   // Save tab to localStorage whenever it changes (only after hydration)
   useEffect(() => {
     if (isHydrated) {
@@ -271,10 +377,8 @@ export default function Home() {
   }, []);
 
   // Keep tabs visible during loading to avoid flash-of-hidden-tabs for returning users.
-  const hasShips = shipsLoading || ships.length > 0;
-  // Ship customization has no web2 counterpart yet — never surface the tab
-  // in web2 mode rather than showing a wallet-gated, non-functional view.
-  const canShowCustomizeShip = appMode !== "web2";
+  const hasShips =
+    appMode === "web2" ? shipsLoadingWeb2 || shipsWeb2.length > 0 : shipsLoading || ships.length > 0;
   const hasGames =
     appMode === "web2"
       ? gamesLoadingWeb2 || playerGamesWeb2.length > 0
@@ -292,8 +396,7 @@ export default function Home() {
             g.turnState.currentTurn === address,
         );
   const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
-  const showCustomizeShip =
-    canShowCustomizeShip && (hasShips || activeTab === "Customize Ship");
+  const showCustomizeShip = hasShips || activeTab === "Customize Ship";
   // Web2 mode signs in via NextAuth, never connects a wallet — `status`
   // (wagmi) would stay "disconnected" forever for those users, so the tab
   // bar needs a mode-aware "signed in" check instead.
@@ -480,7 +583,12 @@ export default function Home() {
               >
               {(() => {
                 const tabs = ["Info", "Manage Navy", "Lobbies", "Tournaments"];
-                if (showGames) tabs.push("Games");
+                tabs.push("Campaign");
+                tabs.push("Roguelike");
+                // Games shows whenever Lobbies does (i.e. unconditionally) —
+                // previously gated behind hasGames, which hid the tab until
+                // a player's first game existed. Profile keeps its own gate.
+                tabs.push("Games");
                 if (showGames) tabs.push("Profile");
                 if (
                   address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() ||
@@ -563,7 +671,15 @@ export default function Home() {
           )}
 
           {/* Tab Content */}
-          {activeTab === "Maps" ? (
+          {!isHydrated ? (
+            // Server-rendered HTML has no access to the localStorage-saved
+            // tab, so activeTab starts as "Info" — rendering that here would
+            // flash the Info tab's content before the layout effect above
+            // restores the real tab. Render nothing for this one frame
+            // instead; isHydrated flips true in the same effect that
+            // restores activeTab, so this is barely perceptible.
+            <div className="w-full" />
+          ) : activeTab === "Maps" ? (
             <div className="w-full">
               <div
                 className="border border-solid p-1"
@@ -628,6 +744,10 @@ export default function Home() {
                 (appMode === "web2" ? <ManageNavyWeb2 /> : <ManageNavy />)}
               {activeTab === "Lobbies" &&
                 (appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />)}
+              {activeTab === "Campaign" &&
+                (appMode === "web2" ? <CampaignGraphWeb2 /> : <CampaignGraph />)}
+              {activeTab === "Roguelike" &&
+                (appMode === "web2" ? <RoguelikeCampaignWeb2 /> : <RoguelikeCampaign />)}
               {activeTab === "Profile" &&
                 (appMode === "web2" ? <ProfileWeb2 /> : <Profile />)}
               {activeTab === "Info" && <Info />}
@@ -639,9 +759,8 @@ export default function Home() {
                 ) : (
                   <ShipPurchasePrices />
                 ))}
-              {activeTab === "Customize Ship" && canShowCustomizeShip && (
-                <ShipConstructor />
-              )}
+              {activeTab === "Customize Ship" &&
+                (appMode === "web2" ? <ShipConstructorWeb2 /> : <ShipConstructor />)}
               {activeTab === "Tournaments" &&
                 (appMode === "web2" ? <TournamentsWeb2 /> : <Tournaments />)}
             </div>

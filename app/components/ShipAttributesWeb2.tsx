@@ -81,6 +81,11 @@ function CostsSection() {
     }
   };
 
+  const handleReset = () => {
+    if (data) setDraft(data.costs);
+    setIsDirty(false);
+  };
+
   if (isLoading) {
     return (
       <div className={sectionClass}>
@@ -143,15 +148,26 @@ function CostsSection() {
           ))}
         </div>
       ))}
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={isSaving || !isDirty}
-        className={saveBtnClass}
-        style={{ borderColor: "var(--color-cyan)" }}
-      >
-        {isSaving ? "[SAVING…]" : "[SAVE COSTS]"}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || !isDirty}
+          className={saveBtnClass}
+          style={{ borderColor: "var(--color-cyan)" }}
+        >
+          {isSaving ? "[SAVING…]" : "[SAVE COSTS]"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={isSaving || !isDirty}
+          className={saveBtnClass}
+          style={{ borderColor: "var(--color-steel)", color: "var(--color-text-secondary)" }}
+        >
+          [RESET]
+        </button>
+      </div>
     </div>
   );
 }
@@ -215,6 +231,11 @@ function AttributeTablesSection() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleReset = () => {
+    if (data) setDraft(data);
+    setIsDirty(false);
   };
 
   if (isLoading) {
@@ -370,15 +391,26 @@ function AttributeTablesSection() {
         </div>
       ))}
 
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={isSaving || !isDirty}
-        className={saveBtnClass}
-        style={{ borderColor: "var(--color-cyan)" }}
-      >
-        {isSaving ? "[SAVING…]" : "[SAVE ATTRIBUTE TABLES]"}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || !isDirty}
+          className={saveBtnClass}
+          style={{ borderColor: "var(--color-cyan)" }}
+        >
+          {isSaving ? "[SAVING…]" : "[SAVE ATTRIBUTE TABLES]"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={isSaving || !isDirty}
+          className={saveBtnClass}
+          style={{ borderColor: "var(--color-steel)", color: "var(--color-text-secondary)" }}
+        >
+          [RESET]
+        </button>
+      </div>
     </div>
   );
 }

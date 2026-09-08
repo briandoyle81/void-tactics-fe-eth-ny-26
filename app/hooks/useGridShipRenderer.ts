@@ -23,7 +23,7 @@ const MAX_RENDERED_CACHE_SIZE = 100;
 const renderedImageAccessOrder: string[] = [];
 
 function getRenderedImageKey(ship: GridShip): string {
-  return `${ship.id}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
+  return `${ship.id}-${ship.traits.variant}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
 }
 
 function getCachedRenderedImage(ship: GridShip): string | null {
@@ -80,6 +80,7 @@ export function useGridShipRenderer(ship: GridShip): ShipImageState {
   }, [
     isValidShip,
     ship?.id,
+    ship?.traits?.variant,
     ship?.equipment?.mainWeapon,
     ship?.equipment?.armor,
     ship?.equipment?.shields,

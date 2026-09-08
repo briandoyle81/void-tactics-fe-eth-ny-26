@@ -14,6 +14,8 @@ interface LobbyCardProps {
   isCreatorMe: boolean;
   statusColorClass: string;
   statusText: string;
+  /** Open, unjoined, and past Lobbies.staleLobbyThreshold — eligible for pruneStaleLobby. */
+  isStale?: boolean;
 
   creatorLabel: string;
   creatorStats?: React.ReactNode;
@@ -40,6 +42,7 @@ export function LobbyCard({
   isCreatorMe,
   statusColorClass,
   statusText,
+  isStale = false,
   creatorLabel,
   creatorStats,
   joinerLabel,
@@ -89,14 +92,26 @@ export function LobbyCard({
             </span>
           )}
         </div>
-        <span
-          className={`text-[11px] font-bold tracking-widest ${statusColorClass}`}
-          style={{
-            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-          }}
-        >
-          [{statusText}]
-        </span>
+        <div className="flex items-center gap-2">
+          {isStale && (
+            <span
+              className="text-[10px] font-bold tracking-widest text-warning-red"
+              style={{
+                fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+              }}
+            >
+              [STALE]
+            </span>
+          )}
+          <span
+            className={`text-[11px] font-bold tracking-widest ${statusColorClass}`}
+            style={{
+              fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+            }}
+          >
+            [{statusText}]
+          </span>
+        </div>
       </div>
 
       {/* ── Body ── */}

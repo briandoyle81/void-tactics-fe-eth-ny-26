@@ -3,6 +3,7 @@
 import React from "react";
 import { useFreeShipClaiming } from "../hooks/useFreeShipClaiming";
 import { useAccount } from "wagmi";
+import { VariantPicker } from "./VariantPicker";
 
 const FreeShipClaiming: React.FC = () => {
   const { address } = useAccount();
@@ -12,6 +13,8 @@ const FreeShipClaiming: React.FC = () => {
     isLoadingClaimStatus,
     claimFreeShips,
     isPending,
+    selectedVariant,
+    setSelectedVariant,
   } = useFreeShipClaiming();
 
   if (!address) return null;
@@ -72,6 +75,8 @@ const FreeShipClaiming: React.FC = () => {
             </p>
 
             <div className="space-y-3">
+              <VariantPicker selectedVariant={selectedVariant} onSelect={setSelectedVariant} />
+
               <button
                 onClick={claimFreeShips}
                 disabled={isPending || isLoadingClaimStatus}

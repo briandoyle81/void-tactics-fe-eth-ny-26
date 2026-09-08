@@ -15,9 +15,17 @@ export function useShipsContract() {
   };
 }
 
-// Hook for reading contract data with proper typing
-export function useShipsRead(functionName: string, args?: readonly unknown[]) {
-  const activeChainId = useSelectedChainId();
+// Hook for reading contract data with proper typing. `chainIdOverride` lets
+// a caller pin the read to a specific chain instead of following the header
+// network picker — needed for flows (like the campaign, Base-Sepolia-only)
+// that must work regardless of what chain the picker happens to be on.
+export function useShipsRead(
+  functionName: string,
+  args?: readonly unknown[],
+  chainIdOverride?: number,
+) {
+  const pickerChainId = useSelectedChainId();
+  const activeChainId = chainIdOverride ?? pickerChainId;
   const contractAddresses = getContractAddresses(activeChainId);
 
   return useReadContract({

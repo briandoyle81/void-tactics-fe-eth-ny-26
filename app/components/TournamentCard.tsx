@@ -15,6 +15,10 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const STATE_MAP: Record<TournamentState, TournamentCardState> = {
   [TournamentState.Registration]: "registration",
+  // Card list is a coarse view — Starting (bracket shuffle in flight,
+  // usually a few seconds) doesn't need its own card state, just show it
+  // as still in-progress like Active.
+  [TournamentState.Starting]: "active",
   [TournamentState.Active]: "active",
   [TournamentState.Complete]: "complete",
   [TournamentState.Cancelled]: "cancelled",

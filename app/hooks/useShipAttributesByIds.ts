@@ -9,8 +9,13 @@ import {
   writeShipAttributesByIdsCache,
 } from "../utils/shipAttributesLocalCache";
 
-export function useShipAttributesByIds(shipIds: bigint[]) {
-  const chainId = useSelectedChainId();
+// `chainIdOverride` pins the read to a specific chain instead of following
+// the header network picker — needed by the campaign flow (Base-Sepolia-
+// only, like every other campaign hook), so attributes stay correct
+// regardless of what chain the picker happens to be set to.
+export function useShipAttributesByIds(shipIds: bigint[], chainIdOverride?: number) {
+  const pickerChainId = useSelectedChainId();
+  const chainId = chainIdOverride ?? pickerChainId;
   const shipIdsString = React.useMemo(
     () => shipIdsToCacheKeyString(shipIds),
     [shipIds],

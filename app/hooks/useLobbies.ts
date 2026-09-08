@@ -35,7 +35,7 @@ export function useLobbies() {
   const { writeContract, data: hash } = useLobbiesWrite();
   const { data: lobbyCount } = useLobbyCount();
   const { playerState } = usePlayerLobbyState(address || "");
-  const { freeGamesPerAddress, additionalLobbyFee, paused } =
+  const { freeGamesPerAddress, additionalLobbyFee, paused, staleLobbyThreshold } =
     useLobbySettings();
 
   // Use the new lobby list hook
@@ -262,6 +262,7 @@ export function useLobbies() {
     freeGamesPerAddress,
     additionalLobbyFee,
     paused,
+    staleLobbyThreshold,
 
     // Actions
     createLobby,

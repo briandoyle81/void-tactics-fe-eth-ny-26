@@ -4,6 +4,7 @@ import React from "react";
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { STYLE_LABEL } from "../styles/fontStyles";
+import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
 
 interface ConfirmWidgetAnchor {
   left: string;
@@ -24,6 +25,9 @@ interface GameGridConfirmWidgetProps {
   specialType: number;
   targetShipId: number | null;
   isRammingMovePreview: boolean;
+  /** Non-null (== selectedShipId) whenever the selection is in retreat mode
+   * — see GameGridWeaponSelector.tsx's matching prop. */
+  retreatPrepShipId?: number | null;
   movementRange: readonly { row: number; col: number }[];
   grid: (GridShipPosition | null)[][];
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
@@ -44,6 +48,7 @@ export function GameGridConfirmWidget({
   specialType,
   targetShipId,
   isRammingMovePreview,
+  retreatPrepShipId = null,
   movementRange,
   grid,
   isShipOwnedByCurrentPlayer,
@@ -52,12 +57,22 @@ export function GameGridConfirmWidget({
   setTargetShipId,
 }: GameGridConfirmWidgetProps) {
   const hasRealTarget = targetShipId != null && targetShipId !== 0;
+  const currentShip = selectedShipId != null ? shipMap.get(selectedShipId) : null;
+  const { isHeal: currentShipFactionAbilityIsHeal } = useFactionAbilityIsHeal(
+    currentShip?.traits.variant,
+  );
 
   const embeddedWeaponSelector = (() => {
     if (hasRealTarget) return null;
     if (isRammingMovePreview) return null;
     const ship = selectedShipId ? shipMap.get(selectedShipId) : null;
     if (!ship) return null;
+    // A ship in retreat mode (forced for 0hp, or voluntarily toggled) can
+    // only submit Retreat this turn — see GameGridWeaponSelector.tsx's
+    // matching guard.
+    if (retreatPrepShipId != null) {
+      return null;
+    }
     const hasSpecial = ship.equipment.special > 0;
     const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
       const cell = grid[r]?.[c];
@@ -66,9 +81,11 @@ export function GameGridConfirmWidget({
       return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
     });
     const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-      ...(hasRamTarget ? [{ value: "ram" as const, label: "RAM" }] : []),
-      { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon) },
-      ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special) }] : []),
+      ...(hasRamTarget
+        ? [{ value: "ram" as const, label: currentShipFactionAbilityIsHeal ? "REPAIR" : "RAM" }]
+        : []),
+      { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant) },
+      ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special, ship.traits.variant) }] : []),
     ];
     return (
       <div className="flex border-b" style={{ borderColor: "var(--color-gunmetal)" }}>

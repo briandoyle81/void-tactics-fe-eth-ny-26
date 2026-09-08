@@ -133,7 +133,17 @@ export function MapDisplayView({
     col: number;
     mouseX: number;
     mouseY: number;
+    // Which side of the board this ship belongs to (tooltip anchor/side
+    // placement only — see the placement logic below).
     isCreatorShip: boolean;
+    // Whether the art itself renders mirrored — must match the on-map
+    // sprite's own flippedShipIds check exactly (see the grid cell render
+    // below), not be re-derived from isCreatorShip: single-player always
+    // has isCreator=true regardless of which ship is hovered, so deriving
+    // the art flip from isCreatorShip inverted it for every ship (player's
+    // own included) rather than reflecting whether that specific ship is
+    // actually in flippedShipIds.
+    isFlipped: boolean;
   } | null>(null);
 
   const handleCellEnter = (row: number, col: number, e: React.MouseEvent<HTMLDivElement>) => {
@@ -152,6 +162,7 @@ export function MapDisplayView({
         mouseX: e.clientX,
         mouseY: e.clientY,
         isCreatorShip,
+        isFlipped,
       });
     } else {
       setHoveredCell(null);
@@ -552,7 +563,7 @@ export function MapDisplayView({
                       hideCheckbox={true}
                       tooltipMode={true}
                       isCurrentPlayerShip={isCurrentPlayerShip}
-                      flipShip={hoveredCell.isCreatorShip}
+                      flipShip={hoveredCell.isFlipped}
                       tooltipGridPosition={{ row: hoveredCell.row, col: hoveredCell.col }}
                     />
                   </div>

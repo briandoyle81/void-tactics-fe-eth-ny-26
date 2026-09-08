@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { useAccount, useBlockNumber } from "wagmi";
+import { useCallback, useState, useEffect, useMemo, useRef } from "react";
+import { useAccount, useBlockNumber, useReadContracts } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLobbiesRead } from "./useLobbiesContract";
+import { useLobbiesRead, useLobbiesChainParams } from "./useLobbiesContract";
 import { getSelectedChainId } from "../config/networks";
 import { Lobby } from "../types/types";
 
@@ -13,15 +13,58 @@ export function useLobbyList() {
     watch: true,
     chainId: activeChainId,
   });
+  const {
+    address: lobbiesAddress,
+    abi: lobbiesAbi,
+    chainId: lobbiesChainId,
+  } = useLobbiesChainParams();
 
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use the new single function that returns all lobbies for a player with duplicates
-  const lobbiesData = useLobbiesRead("getAllLobbiesForPlayerWithDupes", [
-    address || "0x0",
-  ]);
+  // getAllLobbiesForPlayerWithDupes was removed (see
+  // docs/update/Frontend_Updates_2026-08-27.md §4) — its replacement is two
+  // id-list reads merged client-side, then a batched getLobby(id) per id for
+  // the full structs. Both remain the correct call for normal (non-whale-
+  // scale) usage per the doc; no need for the new paginated variant here.
+  const playerLobbyIds = useLobbiesRead(
+    "getPlayerLobbies",
+    address ? [address] : undefined,
+    { query: { enabled: !!address } },
+  );
+  const openLobbyIds = useLobbiesRead("getOpenLobbies");
+
+  const allLobbyIds = useMemo(() => {
+    const ids = new Set<string>();
+    (playerLobbyIds.data as readonly bigint[] | undefined)?.forEach((id) =>
+      ids.add(id.toString()),
+    );
+    (openLobbyIds.data as readonly bigint[] | undefined)?.forEach((id) =>
+      ids.add(id.toString()),
+    );
+    return Array.from(ids, (s) => BigInt(s));
+  }, [playerLobbyIds.data, openLobbyIds.data]);
+
+  const lobbyStructs = useReadContracts({
+    contracts: allLobbyIds.map((id) => ({
+      address: lobbiesAddress,
+      abi: lobbiesAbi,
+      chainId: lobbiesChainId,
+      functionName: "getLobby" as const,
+      args: [id] as const,
+    })),
+    query: { enabled: allLobbyIds.length > 0 },
+  });
+
+  const processLobbyData = useCallback((): Lobby[] => {
+    return (lobbyStructs.data ?? [])
+      .map((r) => r.result as Lobby | undefined)
+      .filter(
+        (l): l is Lobby =>
+          !!l && typeof l === "object" && !!l.basic && l.basic.id != null,
+      );
+  }, [lobbyStructs.data]);
 
   const prevChainIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -44,54 +87,54 @@ export function useLobbyList() {
     const now = Date.now();
     if (now - lastInvalidatedRef.current < 5000) return;
     lastInvalidatedRef.current = now;
-    queryClient.invalidateQueries({ queryKey: lobbiesData.queryKey });
-  }, [blockNumber, queryClient, lobbiesData.queryKey]);
+    queryClient.invalidateQueries({ queryKey: playerLobbyIds.queryKey });
+    queryClient.invalidateQueries({ queryKey: openLobbyIds.queryKey });
+    queryClient.invalidateQueries({ queryKey: lobbyStructs.queryKey });
+  }, [
+    blockNumber,
+    queryClient,
+    playerLobbyIds.queryKey,
+    openLobbyIds.queryKey,
+    lobbyStructs.queryKey,
+  ]);
 
   // Process the lobby data when it changes
   useEffect(() => {
-    setLobbies(processLobbyData(lobbiesData.data));
-    setIsLoading(lobbiesData.isLoading);
-    setError(lobbiesData.error?.message || null);
+    setLobbies(processLobbyData());
+    setIsLoading(
+      playerLobbyIds.isLoading || openLobbyIds.isLoading || lobbyStructs.isLoading,
+    );
+    setError(
+      playerLobbyIds.error?.message ||
+        openLobbyIds.error?.message ||
+        lobbyStructs.error?.message ||
+        null,
+    );
   }, [
-    lobbiesData.data,
-    lobbiesData.isLoading,
-    lobbiesData.error,
+    processLobbyData,
+    playerLobbyIds.isLoading,
+    openLobbyIds.isLoading,
+    lobbyStructs.isLoading,
+    playerLobbyIds.error,
+    openLobbyIds.error,
+    lobbyStructs.error,
     address,
     activeChainId,
   ]);
 
-  const processLobbyData = (data: unknown): Lobby[] => {
-    if (!data || !Array.isArray(data)) return [];
-    const fetchedLobbies: Lobby[] = [];
-    const seenIds = new Set<string>();
-    data.forEach((lobbyData, index) => {
-      if (
-        lobbyData &&
-        typeof lobbyData === "object" &&
-        (lobbyData as { basic?: { id?: unknown } }).basic &&
-        (lobbyData as { basic: { id: unknown } }).basic.id
-      ) {
-        try {
-          const lobby = lobbyData as Lobby;
-          const lobbyId = lobby.basic.id.toString();
-          if (!seenIds.has(lobbyId)) {
-            seenIds.add(lobbyId);
-            fetchedLobbies.push(lobby);
-          }
-        } catch (err) {
-          console.error(`Error converting lobby at index ${index}:`, err);
-        }
-      }
-    });
-    return fetchedLobbies;
-  };
-
   const refetch = async (): Promise<Lobby[]> => {
-    const result = await lobbiesData.refetch();
-    const processed = processLobbyData(result.data);
-    if (processed.length > 0 || result.data !== undefined) {
-      setLobbies(processed);
-    }
+    // The id-list reads must resolve (and the component re-render, updating
+    // allLobbyIds) before lobbyStructs' own contracts array reflects any
+    // newly-appeared lobby id — but for the common case (an existing
+    // lobby's state changed, id set unchanged), lobbyStructs also needs its
+    // own explicit refetch since its query key wouldn't otherwise change.
+    await Promise.all([
+      playerLobbyIds.refetch(),
+      openLobbyIds.refetch(),
+      lobbyStructs.refetch(),
+    ]);
+    const processed = processLobbyData();
+    setLobbies(processed);
     return processed;
   };
 

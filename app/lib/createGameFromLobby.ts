@@ -26,6 +26,12 @@ export async function createGameFromLobby(
   lobby: LobbyForGame,
   creatorFleet: FleetWithShips,
   joinerFleet: FleetWithShips,
+  // Roguelike-only: ships carry damage sustained in earlier missions this
+  // run (RoguelikeRosterShip.hp — see resolveRoguelikeRunIfApplicable.ts;
+  // 0 = undamaged, matching the on-chain getShipHP convention). Every other
+  // caller (PvP, vs-AI, tournament) omits this and ships start at full
+  // health, unchanged from before this param existed.
+  startingDamageByShipId?: Map<number, number>,
 ): Promise<number> {
   const allShipIds = [...creatorFleet.shipIds, ...joinerFleet.shipIds];
   const dbShips = await prisma.ship.findMany({ where: { id: { in: allShipIds } } });
@@ -35,9 +41,14 @@ export async function createGameFromLobby(
   const joinerShips = joinerFleet.shipIds.map((id) => dbShipToShip(shipMap.get(id)!));
   const allShips = [...creatorShips, ...joinerShips];
   const attributeTables = await getShipAttributeTables();
-  const allAttributes = allShips.map((ship) =>
-    calculateAttributesFromContractsWeb2(ship, attributeTables),
-  );
+  const allAttributes = allShips.map((ship) => {
+    const attrs = calculateAttributesFromContractsWeb2(ship, attributeTables);
+    const damage = startingDamageByShipId?.get(ship.id) ?? 0;
+    if (damage > 0) {
+      attrs.hullPoints = Math.max(0, attrs.hullPoints - damage);
+    }
+    return attrs;
+  });
 
   const defaultPositions = (isCreator: boolean, count: number): Array<{ row: number; col: number }> => {
     const col = isCreator ? 0 : 16;

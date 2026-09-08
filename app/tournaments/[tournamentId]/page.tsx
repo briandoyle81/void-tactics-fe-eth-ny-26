@@ -13,6 +13,7 @@ import { TournamentState } from "../../types/types";
 
 const STATE_LABELS: Record<TournamentState, string> = {
   [TournamentState.Registration]: "Registration Open",
+  [TournamentState.Starting]: "Building Bracket…",
   [TournamentState.Active]: "In Progress",
   [TournamentState.Complete]: "Complete",
   [TournamentState.Cancelled]: "Cancelled",
@@ -28,12 +29,20 @@ export default function TournamentPage() {
   const [actionPending, setActionPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // For actions that return a tx hash (register/cancel/claim*/buildBracket) —
+  // waits for the receipt before refetching. Previously this didn't wait at
+  // all, refetching essentially immediately after the wallet returned the
+  // hash, before the tx was even mined; fixed here since startAndBuildBracket
+  // below needed the same publicClient wiring anyway.
   const run = useCallback(
-    async (fn: () => Promise<unknown>) => {
+    async (fn: () => Promise<`0x${string}`>) => {
       setActionPending(true);
       setActionError(null);
       try {
-        await fn();
+        const hash = await fn();
+        if (actions.publicClient) {
+          await actions.publicClient.waitForTransactionReceipt({ hash });
+        }
         void refetch();
       } catch (err) {
         setActionError(err instanceof Error ? err.message : "Transaction failed");
@@ -41,8 +50,26 @@ export default function TournamentPage() {
         setActionPending(false);
       }
     },
-    [refetch],
+    [refetch, actions],
   );
+
+  // Start is its own handler, not routed through run() above: it already
+  // waits for its own start() receipt internally and then auto-retries
+  // buildBracket() for a bit (see useTournamentActions.startAndBuildBracket)
+  // — it returns void, not a hash, and must not surface a timed-out
+  // auto-retry as an error since start() itself already succeeded.
+  const runStart = useCallback(async () => {
+    setActionPending(true);
+    setActionError(null);
+    try {
+      await actions.startAndBuildBracket(tournamentId);
+      void refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Transaction failed");
+    } finally {
+      setActionPending(false);
+    }
+  }, [actions, tournamentId, refetch]);
 
   if (isLoading || !summary || !config) {
     return (
@@ -100,7 +127,7 @@ export default function TournamentPage() {
         <div className="mb-6">
           <button
             disabled={actionPending}
-            onClick={() => void run(() => actions.start(tournamentId))}
+            onClick={() => void runStart()}
             className="border border-gunmetal/60 px-4 py-2 text-xs text-text-muted hover:border-steel hover:text-secondary transition-colors disabled:opacity-50"
           >
             {actionPending ? "Starting…" : "Start Tournament"}
@@ -111,10 +138,36 @@ export default function TournamentPage() {
         </div>
       )}
 
+      {/* Building bracket (start() succeeded, buildBracket() reveals the
+          round-1 pairing shuffle and hasn't landed yet — usually the Start
+          button above already auto-retries this; shown as a manual
+          fallback for anyone viewing the page if that auto-retry window
+          closes, e.g. the starter's tab closed). Permissionless — not
+          gated to whoever clicked Start. */}
+      {summary.state === TournamentState.Starting && (
+        <div className="mb-6 border border-cyan/30 bg-cyan/5 p-4">
+          <div className="text-xs text-cyan mb-2">
+            Shuffling round-1 pairings… this needs one more transaction a
+            few seconds after Start. Anyone can trigger it.
+          </div>
+          <button
+            disabled={actionPending}
+            onClick={() => void run(() => actions.buildBracket(tournamentId))}
+            className="border border-cyan px-4 py-2 text-xs text-cyan hover:bg-cyan/10 transition-colors disabled:opacity-50"
+          >
+            {actionPending ? "Building…" : "Build Bracket"}
+          </button>
+        </div>
+      )}
+
       {/* Bracket */}
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Bracket</div>
-        <TournamentBracket tournamentId={tournamentId} bracket={bracket} />
+        <TournamentBracket
+          tournamentId={tournamentId}
+          bracket={bracket}
+          isBuildingBracket={summary.state === TournamentState.Starting}
+        />
       </div>
 
       {/* Admin panel */}

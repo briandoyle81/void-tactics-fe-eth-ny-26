@@ -64,12 +64,24 @@ export function tupleToShip(tuple: ShipTuple): Ship {
   };
 }
 
-// Equipment enum mappings based on actual contract enums
+// Equipment enum mappings based on actual contract enums. Verified
+// 2026-08-28 via `cast call` against the live RenderMetadata contract on
+// Base Sepolia (mainWeaponNames(1, slot)) — "Missile"/"Plasma" were
+// abbreviated relative to the on-chain names.
 export const MAIN_WEAPON_NAMES = {
   0: "Laser",
   1: "Railgun",
-  2: "Missile",
-  3: "Plasma",
+  2: "Missile Launcher",
+  3: "Plasma Cannon",
+} as const;
+
+// Variant 2 ("Drone" faction) display names for the same MainWeapon enum
+// values, per docs/faction-2.md §6 (art-matching, not a new enum).
+export const MAIN_WEAPON_NAMES_V2 = {
+  0: "Medium Mining Laser",
+  1: "Linear Accelerator",
+  2: "Torpedo Launcher",
+  3: "Mining Drill",
 } as const;
 
 export const ARMOR_NAMES = {
@@ -86,17 +98,33 @@ export const SHIELD_NAMES = {
   3: "Advanced",
 } as const;
 
+// Variant 1's Special enum: None/EMP/RepairDrones/FlakArray. Verified
+// 2026-08-28 via `cast call` against the live RenderMetadata contract on
+// Base Sepolia (specialNames(1, slot)) — the previous "Repair"/"Flak"
+// strings here were abbreviated relative to the on-chain names.
 export const SPECIAL_NAMES = {
   0: "None",
   1: "EMP",
-  2: "Repair",
-  3: "Flak",
+  2: "Repair Drones",
+  3: "Flak Array",
 } as const;
 
-// Helper functions to get equipment names
-export function getMainWeaponName(value: number): string {
+// Variant 2 uses a disjoint set of Special values (Slot4/5/6), per
+// docs/faction-2.md §6.
+export const SPECIAL_NAMES_V2 = {
+  0: "None",
+  4: "Lightening Field",
+  5: "Attack Drones",
+  6: "Aux Engine",
+} as const;
+
+// Helper functions to get equipment names. `variant` defaults to 1 for call
+// sites that only have a bare weapon/special value in scope (e.g. building a
+// generic filter-dropdown label list) rather than a specific ship.
+export function getMainWeaponName(value: number, variant: number = 1): string {
+  const names = variant === 2 ? MAIN_WEAPON_NAMES_V2 : MAIN_WEAPON_NAMES;
   return (
-    MAIN_WEAPON_NAMES[value as keyof typeof MAIN_WEAPON_NAMES] ||
+    names[value as keyof typeof names] ||
     `Unknown (${value})`
   );
 }
@@ -111,10 +139,26 @@ export function getShieldName(value: number): string {
   );
 }
 
-export function getSpecialName(value: number): string {
+export function getSpecialName(value: number, variant: number = 1): string {
+  const names = variant === 2 ? SPECIAL_NAMES_V2 : SPECIAL_NAMES;
   return (
-    SPECIAL_NAMES[value as keyof typeof SPECIAL_NAMES] || `Unknown (${value})`
+    names[value as keyof typeof names] || `Unknown (${value})`
   );
+}
+
+// Which raw Special values are valid for a given variant — variant 2's
+// Special enum is disjoint from variant 1's (Slot 4/5/6 vs Slot 1/2/3), so a
+// value valid for one variant can be meaningless/invalid for the other.
+// Shared by customize-ship forms (option lists) and validation
+// (app/lib/customizeCost.ts) so both stay in sync with SPECIAL_NAMES/
+// SPECIAL_NAMES_V2 above.
+const VALID_SPECIALS_BY_VARIANT: Record<number, readonly number[]> = {
+  2: [0, 4, 5, 6],
+};
+const DEFAULT_VALID_SPECIALS: readonly number[] = [0, 1, 2, 3];
+
+export function validSpecialsForVariant(variant: number): readonly number[] {
+  return VALID_SPECIALS_BY_VARIANT[variant] ?? DEFAULT_VALID_SPECIALS;
 }
 
 // New types for Game and Lobbies contracts
@@ -190,6 +234,8 @@ export interface PlayerLobbyState {
   hasActiveLobby: boolean;
   kickCount: bigint;
   lastKickTime: bigint;
+  /** Unresolved (not yet InGame) lobbies reserved for the AI. The first one is free to create; a second concurrent one costs 1 UTC. */
+  activeAILobbiesCount: bigint;
 }
 
 export interface Attributes {
@@ -226,6 +272,8 @@ export interface GameMetadata {
   creatorGoesFirst: boolean;
   startedAt: bigint;
   winner: Address;
+  ended: boolean;
+  orchestrator: Address; // PvPMatch or SinglePlayerMatch — whichever contract started this game
 }
 
 export interface GameTurnState {
@@ -241,24 +289,6 @@ export interface GameGridDimensions {
 }
 
 // Tuple types for contract return values
-export type LobbyTuple = [
-  bigint, // id
-  Address, // creator
-  Address, // joiner
-  bigint, // costLimit
-  number, // status
-  bigint, // createdAt
-  bigint, // gameStartedAt
-  bigint, // creatorFleetId
-  bigint, // joinerFleetId
-  boolean, // creatorGoesFirst
-  bigint, // turnTime
-  bigint, // joinedAt
-  bigint, // joinerFleetSetAt
-  bigint, // selectedMapId
-  bigint // maxScore
-];
-
 export type FleetTuple = [
   bigint, // id
   bigint, // lobbyId
@@ -273,7 +303,8 @@ export type PlayerLobbyStateTuple = [
   bigint, // activeLobbiesCount
   boolean, // hasActiveLobby
   bigint, // kickCount
-  bigint // lastKickTime
+  bigint, // lastKickTime
+  bigint // activeAILobbiesCount
 ];
 
 export type GameDataTuple = [
@@ -289,35 +320,6 @@ export type GameDataTuple = [
 ];
 
 // Helper functions to convert tuples to objects
-export function tupleToLobby(tuple: LobbyTuple): Lobby {
-  return {
-    basic: {
-      id: tuple[0],
-      creator: tuple[1],
-      costLimit: tuple[3],
-      createdAt: tuple[5],
-    },
-    players: {
-      joiner: tuple[2],
-      reservedJoiner: "0x0000000000000000000000000000000000000000" as Address, // Default to zero address if not in tuple
-      creatorFleetId: tuple[7],
-      joinerFleetId: tuple[8],
-      joinedAt: tuple[11],
-      joinerFleetSetAt: tuple[12],
-    },
-    gameConfig: {
-      creatorGoesFirst: tuple[9],
-      turnTime: tuple[10],
-      selectedMapId: tuple[13],
-      maxScore: tuple[14],
-    },
-    state: {
-      status: tuple[4],
-      gameStartedAt: tuple[6],
-    },
-  };
-}
-
 export function tupleToFleet(tuple: FleetTuple): Fleet {
   return {
     id: tuple[0],
@@ -338,6 +340,7 @@ export function tupleToPlayerLobbyState(
     hasActiveLobby: tuple[2],
     kickCount: tuple[3],
     lastKickTime: tuple[4],
+    activeAILobbiesCount: tuple[5],
   };
 }
 
@@ -398,6 +401,15 @@ export interface GameDataView {
   lastMove?: LastMove; // Last move made in the game
 }
 
+// NOTE: values 0-4 (Pass..Special) match the on-chain Game.ActionType 1:1.
+// ClaimPoints (5) and Ram (6) are web2/simulated-only — the real contract's
+// on-chain ActionType enum has no equivalents (scoring is automatic per
+// round, and ramming is now dispatched as FactionAbility). Raw on-chain
+// value 5 must be normalized to FactionAbility (7) at the web3 read
+// boundary — see useGetGame in useGameContract.ts — before it reaches any
+// shared component, since literal 5 would otherwise collide with
+// ClaimPoints. Do not renumber/remove ClaimPoints or Ram: web2 persists
+// these raw integers directly (see app/api/games/[id]/action/route.ts).
 export enum ActionType {
   Pass,
   Shoot,
@@ -406,6 +418,82 @@ export enum ActionType {
   Special,
   ClaimPoints,
   Ram,
+  FactionAbility,
+}
+
+// SinglePlayerMatch / AIEncounters types
+export enum Archetype {
+  Grunt,
+  Aggressor,
+  Sniper,
+  Support,
+  Turtle,
+  Rammer,
+}
+
+// SinglePlayerMatch.aiShipInfo(shipId)
+export interface AIShipInfo {
+  archetype: Archetype;
+  variant: number;
+  special: number;
+}
+
+// NodeMap.getAllNodes()/.getNode(nodeId) — the campaign graph. No display
+// names/flavor text on-chain, see app/config/campaignNodes.ts for that.
+export interface CampaignNode {
+  id: bigint;
+  campaignId: bigint;
+  mapId: bigint;
+  prerequisites: bigint[];
+  costLimit: bigint;
+  turnTime: bigint;
+  maxScore: bigint;
+  creatorGoesFirst: boolean;
+  exists: boolean;
+}
+
+// Maps.mapMode(mapId) / createPresetMap(..., mode) — which flow a map is
+// valid for. Enforced on-chain: Lobbies reverts InvalidMapId for PvE-only
+// maps, NodeMap reverts InvalidMapMode for maps that aren't PvE or Both.
+export enum MapMode {
+  PvP = 0,
+  PvE = 1,
+  Both = 2,
+}
+
+// AIEncounters' on-chain `Colors`/`Traits` structs have a third color slot
+// (h3/s3/l3) that the shared ShipColors/ShipTraits types (used for regular
+// ship purchasing/rendering) don't carry — see ShipConstructor.tsx, which
+// already tracks h3/s3/l3 separately from ShipColors for the same reason.
+// Scoped to AIEncounters only; not a fix for the wider ShipColors gap.
+export interface AIEncountersColors {
+  h1: number;
+  s1: number;
+  l1: number;
+  h2: number;
+  s2: number;
+  l2: number;
+  h3: number;
+  s3: number;
+  l3: number;
+}
+
+export interface AIEncountersTraits {
+  serialNumber: bigint;
+  colors: AIEncountersColors;
+  variant: number;
+  accuracy: number;
+  hull: number;
+  speed: number;
+}
+
+// AIEncounters.getAIShipConfig(configId) / getAllAIShipConfigs()
+export interface AIShipConfig {
+  id: bigint;
+  name: string;
+  equipment: ShipEquipment;
+  traits: AIEncountersTraits;
+  archetype: Archetype;
 }
 
 // Maps contract types
@@ -453,6 +541,8 @@ export interface GameMetadata {
   creatorGoesFirst: boolean;
   startedAt: bigint;
   winner: Address;
+  ended: boolean;
+  orchestrator: Address; // PvPMatch or SinglePlayerMatch — whichever contract started this game
 }
 
 export interface GameTurnState {
@@ -485,9 +575,13 @@ export interface Game {
 
 export enum TournamentState {
   Registration = 0,
-  Active = 1,
-  Complete = 2,
-  Cancelled = 3,
+  // Registration closed, round-1 pairing randomness requested but not yet
+  // revealed/applied — buildBracket() moves a tournament from here to
+  // Active. See Tournament.sol's TournamentState for the source of truth.
+  Starting = 1,
+  Active = 2,
+  Complete = 3,
+  Cancelled = 4,
 }
 
 export interface TournamentConfig {

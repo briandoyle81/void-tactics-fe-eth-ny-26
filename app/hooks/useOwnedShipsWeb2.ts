@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { Web2Ship } from "../types/web2Ship";
 import { cacheShipsData } from "./useShipDataCacheWeb2";
+import { useCurrentUser } from "./useCurrentUser";
 
 // Web2-mode counterpart to `useOwnedShips.ts` — fetches the current user's
 // ships from the Prisma-backed `/api/ships` route instead of an on-chain
@@ -27,9 +28,15 @@ async function fetchAllShips(): Promise<Web2Ship[]> {
 }
 
 export function useOwnedShipsWeb2() {
+  // Called unconditionally from Info.tsx (the default tab, mounted
+  // regardless of web2/web3 mode) as well as web2-only screens — without
+  // this gate, it hits /api/ships and retries/polls indefinitely even for
+  // web3 users who have no web2 session at all.
+  const { isLoggedIn } = useCurrentUser();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["ships", "owned", "web2"],
     queryFn: fetchAllShips,
+    enabled: isLoggedIn,
     // Every purchase/construct/recycle/claim-free action already calls
     // `refetch()` on success (see ManageNavyWeb2.tsx) — this interval only
     // needs to catch changes from elsewhere (another tab/device), not

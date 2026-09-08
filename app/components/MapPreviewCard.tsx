@@ -17,13 +17,23 @@ export interface MapPreviewCardData {
 interface MapPreviewCardProps {
   map: MapPreviewCardData;
   onEdit: () => void;
+  // Web3-only (Maps.tsx) — Maps.mapMode has no web2 equivalent, so this
+  // stays undefined/unrendered for MapsWeb2.tsx's usage.
+  modeLabel?: string;
 }
 
-export function MapPreviewCard({ map, onEdit }: MapPreviewCardProps) {
+export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) {
   return (
     <div className="bg-steel rounded-none p-4 border border-gunmetal">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-mono text-white">{map.titleLabel}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-mono text-white">{map.titleLabel}</h3>
+          {modeLabel && (
+            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan bg-cyan/10 border border-cyan/40 rounded-none">
+              {modeLabel}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={onEdit}

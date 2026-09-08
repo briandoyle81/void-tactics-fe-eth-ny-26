@@ -179,6 +179,12 @@ const GameCardWeb2: React.FC<{
             <span className="data-readout-label">You are</span>
             <span className="font-mono text-xs">{isCreatorMe ? "Creator" : "Joiner"}</span>
           </div>
+          <div className="data-readout">
+            <span className="data-readout-label">Opponent</span>
+            <span className="font-mono text-xs">
+              {isCreatorMe ? game.metadata.joinerLabel : game.metadata.creatorLabel}
+            </span>
+          </div>
         </>
       }
       dateLabel={new Date(game.metadata.startedAt).toLocaleDateString()}

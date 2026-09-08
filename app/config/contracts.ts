@@ -1,15 +1,38 @@
-import ShipsContract from "../contracts/DeployModule#Ships.json";
-import LobbiesContract from "../contracts/DeployModule#Lobbies.json";
-import FleetsContract from "../contracts/DeployModule#Fleets.json";
-import GameContract from "../contracts/DeployModule#Game.json";
-import UniversalCreditsContract from "../contracts/DeployModule#UniversalCredits.json";
-import MapsContract from "../contracts/DeployModule#Maps.json";
-import ShipAttributesContract from "../contracts/DeployModule#ShipAttributes.json";
-import DroneYardContract from "../contracts/DeployModule#DroneYard.json";
-import TutorialClaimContract from "../contracts/DeployModule#TutorialClaim.json";
-import ShipPurchaserContract from "../contracts/DeployModule#ShipPurchaser.json";
-import TournamentContract from "../contracts/DeployModule#Tournament.json";
-import GameBlobRegistryContract from "../contracts/GameBlobRegistryModule#GameBlobRegistry.json";
+import ShipsContract from "../contracts/artifacts/DeployModule#Ships.json";
+import LobbiesContract from "../contracts/artifacts/DeployModule#Lobbies.json";
+import FleetsContract from "../contracts/artifacts/DeployModule#Fleets.json";
+import GameContract from "../contracts/artifacts/DeployModule#Game.json";
+import UniversalCreditsContract from "../contracts/artifacts/DeployModule#UniversalCredits.json";
+import MapsContract from "../contracts/artifacts/DeployModule#Maps.json";
+import ShipAttributesContract from "../contracts/artifacts/DeployModule#ShipAttributes.json";
+import DroneYardContract from "../contracts/artifacts/DeployModule#DroneYard.json";
+import DroneEnergyCoresContract from "../contracts/artifacts/DeployModule#DroneEnergyCores.json";
+import TutorialClaimContract from "../contracts/artifacts/DeployModule#TutorialClaim.json";
+import ShipPurchaserContract from "../contracts/artifacts/DeployModule#ShipPurchaser.json";
+import TournamentContract from "../contracts/artifacts/DeployModule#Tournament.json";
+import GameBlobRegistryContract from "../contracts/artifacts/DeployModule#GameBlobRegistry.json";
+import SinglePlayerMatchContract from "../contracts/artifacts/DeployModule#SinglePlayerMatch.json";
+import AIEncountersContract from "../contracts/artifacts/DeployModule#AIEncounters.json";
+import PvPMatchContract from "../contracts/artifacts/DeployModule#PvPMatch.json";
+import NodeMapContract from "../contracts/artifacts/DeployModule#NodeMap.json";
+import AIShipsContract from "../contracts/artifacts/DeployModule#AIShips.json";
+import ShipsRouterContract from "../contracts/artifacts/DeployModule#ShipsRouter.json";
+import DroneStorefrontContract from "../contracts/artifacts/DeployModule#DroneStorefront.json";
+import FreeShipClaimContract from "../contracts/artifacts/DeployModule#FreeShipClaim.json";
+import RamResolverContract from "../contracts/artifacts/DeployModule#RamResolver.json";
+import RepairResolverContract from "../contracts/artifacts/DeployModule#RepairResolver.json";
+import DroneNamesContract from "../contracts/artifacts/DeployModule#DroneNames.json";
+import VariantPurchaseGateContract from "../contracts/artifacts/DeployModule#VariantPurchaseGate.json";
+import ShatteredHiveMedalContract from "../contracts/artifacts/DeployModule#ShatteredHiveMedal.json";
+import RoguelikeNodeMapContract from "../contracts/artifacts/DeployModule#RoguelikeNodeMap.json";
+import RoguelikeRunContract from "../contracts/artifacts/DeployModule#RoguelikeRun.json";
+import RoguelikeMatchContract from "../contracts/artifacts/DeployModule#RoguelikeMatch.json";
+import RoguelikeResupplyContract from "../contracts/artifacts/DeployModule#RoguelikeResupply.json";
+import RandomManagerContract from "../contracts/artifacts/DeployModule#RandomManager.json";
+import NodeContentRegistryContract from "../contracts/artifacts/DeployModule#NodeContentRegistry.json";
+import DECBonusWinEffectContract from "../contracts/artifacts/DeployModule#DECBonusWinEffect.json";
+import HealAboveFloorWinEffectContract from "../contracts/artifacts/DeployModule#HealAboveFloorWinEffect.json";
+import ShipGrantWinEffectContract from "../contracts/artifacts/DeployModule#ShipGrantWinEffect.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -49,8 +72,33 @@ const FLOW_TESTNET_CONTRACT_ADDRESSES = {
   SHIP_ATTRIBUTES: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShipAttributes"],
   SHIP_PURCHASER: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShipPurchaser"],
   DRONE_YARD: FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneYard"],
+  DRONE_ENERGY_CORES:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ?? ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ?? ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ?? ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    FLOW_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const RONIN_SAIGON_CONTRACT_ADDRESSES = {
@@ -72,15 +120,81 @@ const RONIN_SAIGON_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
+    ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ??
+    ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ??
+    ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    RONIN_SAIGON_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
 } as const;
 
 const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Ships"] ?? ZERO_ADDRESS,
   TOURNAMENT: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Tournament"] ?? ZERO_ADDRESS,
-  GAME_BLOB_REGISTRY: BASE_SEPOLIA_DEPLOYED_ADDRESSES["GameBlobRegistryModule#GameBlobRegistry"] ?? ZERO_ADDRESS,
+  GAME_BLOB_REGISTRY: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#GameBlobRegistry"] ?? ZERO_ADDRESS,
+  SINGLE_PLAYER_MATCH: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#SinglePlayerMatch"] ?? ZERO_ADDRESS,
+  AI_ENCOUNTERS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#AIEncounters"] ?? ZERO_ADDRESS,
+  PVP_MATCH: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#PvPMatch"] ?? ZERO_ADDRESS,
+  NODE_MAP: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeMap"] ?? ZERO_ADDRESS,
+  AI_SHIPS: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#AIShips"] ?? ZERO_ADDRESS,
+  SHIPS_ROUTER: BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipsRouter"] ?? ZERO_ADDRESS,
+  ROGUELIKE_NODE_MAP:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeNodeMap"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_RUN:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeRun"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_MATCH:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeMatch"] ??
+    ZERO_ADDRESS,
+  ROGUELIKE_RESUPPLY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RoguelikeResupply"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ??
+    ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ??
+    ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
   FLEETS:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#Fleets"] ?? ZERO_ADDRESS,
   LOBBIES:
@@ -98,8 +212,32 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
+    ZERO_ADDRESS,
+  // Not yet deployed to Base Sepolia — falls back to ZERO_ADDRESS until a
+  // real deploy populates deployed_addresses.json (see
+  // NodeContentRegistry.sol's header comment / DeployAndConfig.ts).
+  NODE_CONTENT_REGISTRY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeContentRegistry"] ??
+    ZERO_ADDRESS,
+  // Pluggable roguelike win effects (see IRoguelikeWinEffect.sol) — not yet
+  // deployed to Base Sepolia, falls back to ZERO_ADDRESS until a real
+  // deploy populates deployed_addresses.json.
+  DEC_BONUS_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DECBonusWinEffect"] ??
+    ZERO_ADDRESS,
+  HEAL_ABOVE_FLOOR_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#HealAboveFloorWinEffect"] ??
+    ZERO_ADDRESS,
+  SHIP_GRANT_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipGrantWinEffect"] ??
     ZERO_ADDRESS,
 } as const;
 
@@ -122,8 +260,33 @@ const XAI_TESTNET_CONTRACT_ADDRESSES = {
     ZERO_ADDRESS,
   DRONE_YARD:
     XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneYard"] ?? ZERO_ADDRESS,
+  DRONE_ENERGY_CORES:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneEnergyCores"] ??
+    ZERO_ADDRESS,
   TUTORIAL_CLAIM:
     XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#TutorialClaim"] ??
+    ZERO_ADDRESS,
+  FREE_SHIP_CLAIM:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#FreeShipClaim"] ??
+    ZERO_ADDRESS,
+  DRONE_STOREFRONT:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneStorefront"] ??
+    ZERO_ADDRESS,
+  RAM_RESOLVER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RamResolver"] ?? ZERO_ADDRESS,
+  REPAIR_RESOLVER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RepairResolver"] ??
+    ZERO_ADDRESS,
+  DRONE_NAMES:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#DroneNames"] ?? ZERO_ADDRESS,
+  VARIANT_PURCHASE_GATE:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#VariantPurchaseGate"] ??
+    ZERO_ADDRESS,
+  SHATTERED_HIVE_MEDAL:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#ShatteredHiveMedal"] ??
+    ZERO_ADDRESS,
+  RANDOM_MANAGER:
+    XAI_TESTNET_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
 } as const;
 
@@ -169,10 +332,33 @@ export const CONTRACT_ABIS = {
   MAPS: MapsContract.abi,
   SHIP_ATTRIBUTES: ShipAttributesContract.abi,
   DRONE_YARD: DroneYardContract.abi,
+  DRONE_ENERGY_CORES: DroneEnergyCoresContract.abi,
   TUTORIAL_CLAIM: TutorialClaimContract.abi,
   SHIP_PURCHASER: ShipPurchaserContract.abi,
   TOURNAMENT: TournamentContract.abi,
   GAME_BLOB_REGISTRY: GameBlobRegistryContract.abi,
+  SINGLE_PLAYER_MATCH: SinglePlayerMatchContract.abi,
+  AI_ENCOUNTERS: AIEncountersContract.abi,
+  PVP_MATCH: PvPMatchContract.abi,
+  NODE_MAP: NodeMapContract.abi,
+  AI_SHIPS: AIShipsContract.abi,
+  SHIPS_ROUTER: ShipsRouterContract.abi,
+  DRONE_STOREFRONT: DroneStorefrontContract.abi,
+  FREE_SHIP_CLAIM: FreeShipClaimContract.abi,
+  RAM_RESOLVER: RamResolverContract.abi,
+  REPAIR_RESOLVER: RepairResolverContract.abi,
+  DRONE_NAMES: DroneNamesContract.abi,
+  VARIANT_PURCHASE_GATE: VariantPurchaseGateContract.abi,
+  SHATTERED_HIVE_MEDAL: ShatteredHiveMedalContract.abi,
+  ROGUELIKE_NODE_MAP: RoguelikeNodeMapContract.abi,
+  ROGUELIKE_RUN: RoguelikeRunContract.abi,
+  ROGUELIKE_MATCH: RoguelikeMatchContract.abi,
+  ROGUELIKE_RESUPPLY: RoguelikeResupplyContract.abi,
+  RANDOM_MANAGER: RandomManagerContract.abi,
+  NODE_CONTENT_REGISTRY: NodeContentRegistryContract.abi,
+  DEC_BONUS_WIN_EFFECT: DECBonusWinEffectContract.abi,
+  HEAL_ABOVE_FLOOR_WIN_EFFECT: HealAboveFloorWinEffectContract.abi,
+  SHIP_GRANT_WIN_EFFECT: ShipGrantWinEffectContract.abi,
 } as const;
 
 // Contract types for wagmi

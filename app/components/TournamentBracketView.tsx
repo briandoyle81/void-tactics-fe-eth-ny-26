@@ -75,13 +75,23 @@ function MatchCard({
 interface TournamentBracketViewProps {
   bracket: BracketMatchData[];
   renderReplayLink?: (match: BracketMatchData) => ReactNode;
+  /** Distinguishes "still registering" from "shuffling pairings" for the
+   * empty-bracket message below — both render an empty bracket array, but
+   * for different reasons. Omit if unknown; defaults to the registration copy. */
+  isBuildingBracket?: boolean;
 }
 
-export function TournamentBracketView({ bracket, renderReplayLink }: TournamentBracketViewProps) {
+export function TournamentBracketView({
+  bracket,
+  renderReplayLink,
+  isBuildingBracket = false,
+}: TournamentBracketViewProps) {
   if (bracket.length === 0) {
     return (
       <div className="text-center text-xs text-text-muted font-mono py-8">
-        Bracket not yet generated. Tournament starts when registration conditions are met.
+        {isBuildingBracket
+          ? "Shuffling round-1 pairings…"
+          : "Bracket not yet generated. Tournament starts when registration conditions are met."}
       </div>
     );
   }

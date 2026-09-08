@@ -2,6 +2,7 @@
 
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
+import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
 
 type Position = { row: number; col: number };
 
@@ -20,6 +21,11 @@ interface GameGridWeaponSelectorProps {
   getShipAttributes: (shipId: number) => Attributes | null;
   showConfirmWidget?: boolean;
   isRammingMovePreview?: boolean;
+  /** Non-null (== selectedShipId) whenever the selection is in retreat mode
+   * — forced for a disabled (0hp) ship, or voluntarily toggled for a
+   * healthy one. Either way the ship can only Retreat this turn, so no
+   * weapon/special/ram choice applies. */
+  retreatPrepShipId?: number | null;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setTargetShipId: (shipId: number | null) => void;
 }
@@ -44,17 +50,47 @@ export function GameGridWeaponSelector({
   getShipAttributes,
   showConfirmWidget = false,
   isRammingMovePreview = false,
+  retreatPrepShipId = null,
   setSelectedWeaponType,
   setTargetShipId,
 }: GameGridWeaponSelectorProps) {
+  // Resolved unconditionally (before the early `return null`s below) since
+  // this is a hook call — rules-of-hooks requires it run on every render.
+  const shipForFactionAbility = selectedShipId != null ? shipMap.get(selectedShipId) : undefined;
+  const { isHeal: factionAbilityIsHeal } = useFactionAbilityIsHeal(
+    shipForFactionAbility?.traits.variant,
+  );
+
   const hasRealTarget = targetShipId != null && targetShipId !== 0;
-  // Hide only when confirm widget is showing without a real target (confirm widget embeds selector then)
-  if (showConfirmWidget && !hasRealTarget) return null;
-  if (!selectedShipId || !isCurrentPlayerTurn) return null;
-  if (!isShipOwnedByCurrentPlayer(selectedShipId)) return null;
-  if (isRammingMovePreview) return null;
-  const ship = shipMap.get(selectedShipId);
-  if (!ship) return null;
+  // Hide only when the confirm widget is actually showing without a real
+  // target (it embeds its own copy of this selector then) — matches
+  // GameGrid.tsx's `showConfirmWidget && previewPosition && ...` render gate
+  // for <GameGridConfirmWidget> exactly. Checking showConfirmWidget alone
+  // (without previewPosition) previously hid this selector even when the
+  // confirm widget wasn't rendering yet (e.g. selecting a no-target special
+  // like Flak before staging a move), leaving neither selector visible.
+  if (showConfirmWidget && previewPosition && !hasRealTarget) {
+    return null;
+  }
+  if (!selectedShipId || !isCurrentPlayerTurn) {
+    return null;
+  }
+  if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
+    return null;
+  }
+  if (isRammingMovePreview) {
+    return null;
+  }
+  const ship = shipForFactionAbility;
+  if (!ship) {
+    return null;
+  }
+  // A ship in retreat mode (forced for 0hp, or voluntarily toggled) can
+  // only submit Retreat this turn — surfaced via the on-grid/off-grid
+  // confirm widgets' RETREAT button, never this weapon/special/ram selector.
+  if (retreatPrepShipId != null) {
+    return null;
+  }
 
   // Find the ship's current (non-preview) cell position
   let shipRow = -1, shipCol = -1;
@@ -70,7 +106,9 @@ export function GameGridWeaponSelector({
     const sp = allShipPositions.find(p => p.shipId === selectedShipId);
     if (sp) { shipRow = sp.position.row; shipCol = sp.position.col; }
   }
-  if (shipRow < 0) return null;
+  if (shipRow < 0) {
+    return null;
+  }
 
   const hasSpecial = ship.equipment.special > 0;
   const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
@@ -80,11 +118,15 @@ export function GameGridWeaponSelector({
     return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
   });
   const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-    ...(hasRamTarget ? [{ value: "ram" as const, label: "RAM" }] : []),
-    { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon) },
-    ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special) }] : []),
+    ...(hasRamTarget
+      ? [{ value: "ram" as const, label: factionAbilityIsHeal ? "REPAIR" : "RAM" }]
+      : []),
+    { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant) },
+    ...(hasSpecial ? [{ value: "special" as const, label: getSpecialName(ship.equipment.special, ship.traits.variant) }] : []),
   ];
-  if (weapons.length <= 1) return null; // only one option — nothing to choose
+  if (weapons.length <= 1) {
+    return null; // only one option — nothing to choose
+  }
 
   // When a move is staged, anchor to the destination (same origin as the laser beam);
   // otherwise anchor to the ship's current (from) cell.

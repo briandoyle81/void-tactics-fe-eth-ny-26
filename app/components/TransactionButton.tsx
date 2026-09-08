@@ -267,12 +267,29 @@ export function TransactionButton({
     const canHandleSuccess = isHydrated && (isActiveTransaction || isOwnSentHash);
 
     if (canHandleSuccess && isConfirmed && receipt && hash) {
-      // Prevent duplicate success handling for the same tx hash.
+      // Prevent duplicate handling for the same tx hash.
       if (completedHashRef.current === hash) return;
       completedHashRef.current = hash;
-
-      // Transaction confirmed on blockchain
       setIsLocallyPending(false); // Reset local pending state
+
+      // `isConfirmed` (useWaitForTransactionReceipt's isSuccess) only means
+      // a receipt was fetched — it stays true even when the transaction
+      // itself reverted on-chain (status: "reverted"), since viem doesn't
+      // throw for that case. Without this check, every reverted write
+      // (wrong turn, invalid move, etc.) across the app was silently
+      // treated as a success: onSuccess fired, onError never did, and
+      // callers that record optimistic state on success (e.g. the move
+      // confirm widget) were left showing a move that never happened until
+      // something unrelated eventually reconciled the UI.
+      if (receipt.status === "reverted") {
+        const revertError = new Error(
+          "Transaction reverted on-chain",
+        );
+        completeTransaction(transactionId, false, revertError);
+        onError?.(revertError);
+        return;
+      }
+
       // Call onReceipt callback with gas information
       if (onReceipt && receipt.gasUsed) {
         onReceipt({ gasUsed: receipt.gasUsed });

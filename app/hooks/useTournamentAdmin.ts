@@ -43,52 +43,66 @@ export function useTournamentAdmin() {
       const lobbyId = (logs[0]?.args as { lobbyId?: bigint } | undefined)?.lobbyId;
       if (!lobbyId) throw new Error("LobbyCreated event not found in receipt");
 
-      // Step 3: assign the game to the match
-      return writeContractAsync({
+      // Step 3: assign the game to the match. Wait for this receipt too
+      // (not just step 1's) before resolving — callers treat this promise
+      // settling as "the whole thing is done," which wasn't true while it
+      // only resolved on this write's send.
+      const assignHash = await writeContractAsync({
         address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
         abi: TOURNAMENT_ABI,
         functionName: "assignMatchGame",
         args: [tournamentId, matchId, lobbyId],
         chainId: CHAIN_ID,
       });
+      await publicClient!.waitForTransactionReceipt({ hash: assignHash });
+      return assignHash;
     },
     [writeContractAsync, publicClient],
   );
 
   const submitResult = useCallback(
-    (tournamentId: bigint, matchId: bigint, walrusBlobId: `0x${string}` = ZERO_BLOB) =>
-      writeContractAsync({
+    async (tournamentId: bigint, matchId: bigint, walrusBlobId: `0x${string}` = ZERO_BLOB) => {
+      const hash = await writeContractAsync({
         address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
         abi: TOURNAMENT_ABI,
         functionName: "recordResult",
         args: [tournamentId, matchId, walrusBlobId],
         chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, publicClient],
   );
 
   const resolveDraw = useCallback(
-    (tournamentId: bigint, matchId: bigint, walrusBlobId: `0x${string}` = ZERO_BLOB) =>
-      writeContractAsync({
+    async (tournamentId: bigint, matchId: bigint, walrusBlobId: `0x${string}` = ZERO_BLOB) => {
+      const hash = await writeContractAsync({
         address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
         abi: TOURNAMENT_ABI,
         functionName: "resolveDraw",
         args: [tournamentId, matchId, walrusBlobId],
         chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, publicClient],
   );
 
   const finalize = useCallback(
-    (tournamentId: bigint) =>
-      writeContractAsync({
+    async (tournamentId: bigint) => {
+      const hash = await writeContractAsync({
         address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
         abi: TOURNAMENT_ABI,
         functionName: "finalize",
         args: [tournamentId],
         chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, publicClient],
   );
 
   return { createMatchLobby, submitResult, resolveDraw, finalize };

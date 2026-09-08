@@ -2,13 +2,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useConfig, useReadContract } from "wagmi";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { DynamicUserProfile, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { formatEther } from "viem";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import UTCPurchaseModal from "./UTCPurchaseModal";
 import UTCPurchaseModalWeb2 from "./UTCPurchaseModalWeb2";
+import DroneStorefront from "./DroneStorefront";
+import DroneStorefrontWeb2 from "./DroneStorefrontWeb2";
 import {
   DEFAULT_CHAIN_ID,
   getSelectedChainId,
@@ -28,6 +30,7 @@ import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import { setAppMode, type AppMode } from "../config/appMode";
 import { useAppMode } from "../hooks/useAppMode";
 import AuthSignIn from "./AuthSignIn";
+import { PasskeyEnablePrompt } from "./PasskeyEnablePrompt";
 
 const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
 
@@ -92,11 +95,15 @@ function HeaderLogoutButton({
   onBeforeLogOut,
   className,
   style,
+  onMouseEnter,
+  onMouseLeave,
   children,
 }: {
   onBeforeLogOut?: () => void;
   className?: string;
   style?: React.CSSProperties;
+  onMouseEnter?: React.MouseEventHandler<HTMLButtonElement>;
+  onMouseLeave?: React.MouseEventHandler<HTMLButtonElement>;
   children: React.ReactNode;
 }) {
   const { handleLogOut } = useDynamicContext();
@@ -113,7 +120,13 @@ function HeaderLogoutButton({
   };
 
   return (
-    <button onClick={handleClick} className={className} style={style}>
+    <button
+      onClick={handleClick}
+      className={className}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {children}
     </button>
   );
@@ -316,11 +329,22 @@ function HeaderModeSwitchBadge({
 
 function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
   const isMobile = variant === "mobile";
+  const handleClick = () => {
+    window.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
+    );
+    document.dispatchEvent(
+      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
+    );
+  };
   return (
-    <div
-      className={
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label="Go to Info"
+      className={`border-0 bg-transparent p-0 text-left ${
         isMobile ? "relative min-w-0 shrink" : "relative w-fit shrink-0"
-      }
+      }`}
     >
       <h1
         className={
@@ -343,7 +367,7 @@ function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
         }
         style={{ backgroundColor: "var(--color-cyan)" }}
       />
-    </div>
+    </button>
   );
 }
 
@@ -426,16 +450,21 @@ function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
 const Header: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
+  const [showDroneStorefront, setShowDroneStorefront] = useState(false);
   const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] =
     useState(false);
+  const [showDroneStorefrontWeb2, setShowDroneStorefrontWeb2] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLElement | null>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   const account = useAccount();
   const config = useConfig();
+  const { setShowDynamicUserProfile } = useDynamicContext();
 
   const [selectedChainId, setSelectedChainIdState] = useState<number>(() => {
     if (typeof window === "undefined") return DEFAULT_CHAIN_ID;
@@ -483,6 +512,26 @@ const Header: React.FC = () => {
     args: account.address ? [account.address] : undefined,
     chainId: selectedChainId,
     query: { enabled: isHydrated && !!account.address },
+  });
+
+  // Read Drone Cores balance — DroneEnergyCores is only deployed on Base
+  // Sepolia so far (resolves to the zero address on other chains), so gate
+  // the read on that rather than firing a doomed call and showing a
+  // misleading "0.00" on chains where the contract doesn't exist at all.
+  const droneEnergyCoresAddress = CONTRACT_ADDRESSES.DRONE_ENERGY_CORES as
+    | `0x${string}`
+    | undefined;
+  const isDroneEnergyCoresDeployed =
+    !!droneEnergyCoresAddress &&
+    droneEnergyCoresAddress.toLowerCase() !==
+      "0x0000000000000000000000000000000000000000";
+  const { data: droneCoresBalance } = useReadContract({
+    address: droneEnergyCoresAddress,
+    abi: CONTRACT_ABIS.DRONE_ENERGY_CORES as Abi,
+    functionName: "balanceOf",
+    args: account.address ? [account.address] : undefined,
+    chainId: selectedChainId,
+    query: { enabled: isHydrated && !!account.address && isDroneEnergyCoresDeployed },
   });
 
   // Hydration safety
@@ -680,6 +729,22 @@ const Header: React.FC = () => {
   }, [isNetworkMenuOpen]);
 
   useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (accountMenuRef.current && !accountMenuRef.current.contains(target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleResize = () => {
@@ -726,7 +791,7 @@ const Header: React.FC = () => {
     username: web2Username,
     email: web2Email,
   } = useCurrentUser();
-  const { creditBalance } = useUserBalanceWeb2();
+  const { creditBalance, decBalance } = useUserBalanceWeb2();
   const appMode = useAppMode();
 
   // True once a wallet is connected AND a Web2 session is also active —
@@ -899,6 +964,37 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setShowDroneStorefrontWeb2(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
+                      style={{
+                        backgroundColor: "var(--color-near-black)",
+                        borderColor: "var(--color-cyan)",
+                        borderTopColor: "var(--color-steel)",
+                        borderLeftColor: "var(--color-steel)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-slate)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-near-black)";
+                      }}
+                      title="Drone Energy Cores — click to view Drone Storefront"
+                    >
+                      <span
+                        className="text-xs font-bold tracking-wider uppercase"
+                        style={{
+                          fontFamily:
+                            "var(--font-jetbrains-mono), 'Courier New', monospace",
+                          color: "var(--color-cyan)",
+                        }}
+                      >
+                        {decBalance} DC
+                      </span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setShowUTCPurchaseModalWeb2(true)}
                       className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
                       style={{
@@ -1000,6 +1096,42 @@ const Header: React.FC = () => {
 
                       {/* UTC Balance and Network */}
                       <div className="flex items-center gap-2 justify-between md:justify-start">
+                        {/* Drone Cores Balance - Clickable (opens Drone Storefront) */}
+                        <button
+                          onClick={() => setShowDroneStorefront(true)}
+                          disabled={!isDroneEnergyCoresDeployed}
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-60"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-cyan)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isDroneEnergyCoresDeployed) return;
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-near-black)";
+                          }}
+                        >
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-cyan)",
+                            }}
+                          >
+                            {isDroneEnergyCoresDeployed
+                              ? droneCoresBalance
+                                ? `${formatEther(droneCoresBalance as bigint)} DC`
+                                : "0.00 DC"
+                              : "N/A DC"}
+                          </span>
+                        </button>
                         {/* UTC Balance - Clickable */}
                         <button
                           onClick={() => setShowUTCPurchaseModal(true)}
@@ -1142,20 +1274,86 @@ const Header: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex gap-2 flex-col items-stretch">
-                      <HeaderLogoutButton
-                        onBeforeLogOut={handleBeforeLogOut}
-                        className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-48 flex items-center justify-center text-xs h-8"
-                        style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          borderColor: "var(--color-warning-red)",
-                          color: "var(--color-warning-red)",
-                          backgroundColor: "var(--color-steel)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        [LOG OUT]
-                      </HeaderLogoutButton>
+                      {/* Account menu — My Account / Log Out */}
+                      <div ref={accountMenuRef} className="relative w-full md:w-48">
+                        <button
+                          type="button"
+                          onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                          className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full flex items-center justify-center gap-1.5 text-xs h-8"
+                          style={{
+                            fontFamily:
+                              "var(--font-rajdhani), 'Arial Black', sans-serif",
+                            borderColor: "var(--color-cyan)",
+                            color: "var(--color-cyan)",
+                            backgroundColor: "var(--color-steel)",
+                            borderRadius: 0,
+                          }}
+                        >
+                          [MENU]
+                          <span className="text-[10px] leading-none">
+                            {isAccountMenuOpen ? "▲" : "▼"}
+                          </span>
+                        </button>
+
+                        {isAccountMenuOpen && (
+                          <div
+                            className="absolute left-0 top-[calc(100%+4px)] z-[130] w-full border border-solid"
+                            style={{
+                              backgroundColor: "var(--color-near-black)",
+                              borderColor: "var(--color-cyan)",
+                              borderTopColor: "var(--color-steel)",
+                              borderLeftColor: "var(--color-steel)",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAccountMenuOpen(false);
+                                setShowDynamicUserProfile(true);
+                              }}
+                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
+                              style={{
+                                fontFamily:
+                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                color: "var(--color-cyan)",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "var(--color-slate)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "transparent";
+                              }}
+                              title="Manage connected wallets, security, and passkeys"
+                            >
+                              My Account
+                            </button>
+                            <HeaderLogoutButton
+                              onBeforeLogOut={() => {
+                                setIsAccountMenuOpen(false);
+                                handleBeforeLogOut();
+                              }}
+                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
+                              style={{
+                                fontFamily:
+                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
+                                color: "var(--color-warning-red)",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "var(--color-slate)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  "transparent";
+                              }}
+                            >
+                              Log Out
+                            </HeaderLogoutButton>
+                          </div>
+                        )}
+                      </div>
                       {/* Address (moved here) */}
                       <div
                         className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"
@@ -1252,6 +1450,18 @@ const Header: React.FC = () => {
           onClose={() => setShowUTCPurchaseModalWeb2(false)}
         />
       )}
+      {showDroneStorefront && (
+        <DroneStorefront onClose={() => setShowDroneStorefront(false)} />
+      )}
+      {showDroneStorefrontWeb2 && (
+        <DroneStorefrontWeb2 onClose={() => setShowDroneStorefrontWeb2(false)} />
+      )}
+      {/* Dynamic's own profile modal (wallets, security, passkeys) — opened
+          via My Account in the [MENU] dropdown above. Mounted here since
+          Header renders on every page; Dynamic controls its own visibility
+          off showDynamicUserProfile. */}
+      <DynamicUserProfile />
+      <PasskeyEnablePrompt />
     </header>
   );
 };

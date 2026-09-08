@@ -1,6 +1,7 @@
 import type { Web2ShipEquipment, Web2ShipTraits } from "../types/web2Ship";
 import rawNames from "./shipNames.json";
 import { calcShipCost, CURRENT_COSTS_VERSION } from "./shipCosts";
+import { validSpecialsForVariant } from "../types/types";
 
 export { calcShipCost, CURRENT_COSTS_VERSION };
 
@@ -19,6 +20,12 @@ export function generateShip(
 ): { name: string; equipment: Web2ShipEquipment; traits: Web2ShipTraits; cost: number; costsVersion: number; shiny: boolean } {
   const seed = Date.now() + index * 997;
 
+  // Variant must be rolled before special — variant 2 ("Drone" faction) uses
+  // a disjoint Special value set (Slot 4/5/6, not variant 1's Slot 1/2/3),
+  // so which special values are even valid depends on the variant rolled.
+  const variant = rng(seed + 11, 3);
+  const validSpecials = validSpecialsForVariant(variant);
+
   // armor and shields are mutually exclusive: roll a shared defense level and a type
   const defenseLevel = rng(seed + 2, 4); // 0–3
   const preferArmor  = rng(seed + 3, 2) === 0; // 50/50 armor vs shields
@@ -26,7 +33,7 @@ export function generateShip(
     mainWeapon: rng(seed + 1, 4),
     armor:      defenseLevel > 0 && preferArmor  ? defenseLevel : 0,
     shields:    defenseLevel > 0 && !preferArmor ? defenseLevel : 0,
-    special:    rng(seed + 4, 4),
+    special:    validSpecials[rng(seed + 4, validSpecials.length)],
   };
 
   const traits: Web2ShipTraits = {
@@ -39,7 +46,7 @@ export function generateShip(
       s2: 40 + rng(seed + 9, 40),
       l2: 40 + rng(seed + 10, 30),
     },
-    variant:  rng(seed + 11, 3),
+    variant,
     accuracy: rng(seed + 12, 3),
     hull:     rng(seed + 13, 3),
     speed:    rng(seed + 14, 3),

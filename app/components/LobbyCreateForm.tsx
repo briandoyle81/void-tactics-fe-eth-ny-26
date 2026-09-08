@@ -20,7 +20,7 @@ interface CardCheckboxProps {
   compact?: boolean;
 }
 
-function CardCheckbox({ checked, onCheck, label, caption, compact }: CardCheckboxProps) {
+export function CardCheckbox({ checked, onCheck, label, caption, compact }: CardCheckboxProps) {
   return (
     <label
       className={`flex min-w-0 cursor-pointer items-start rounded-none border border-gunmetal bg-black/40 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-cyan ${
@@ -66,6 +66,17 @@ interface LobbyCreateFormProps {
   onClose?: () => void;
   extraFields?: React.ReactNode;
   footer: React.ReactNode;
+  // Web3-only: a real map picker, filtered to PvP-eligible maps by the
+  // caller (Maps.mapMode has no web2 equivalent). When omitted (web2's
+  // usage, or before the list has loaded), falls back to the original
+  // disabled/read-only display.
+  mapOptions?: { id: number; label: string }[];
+  onMapIdChange?: (id: string) => void;
+  /** Hide the turn-pace selector — for vs-AI lobbies, where turnTime is
+   * forced to the contract max regardless of this choice (see
+   * AI_GAME_TURN_SECONDS), so showing it would imply a choice that no
+   * longer does anything. */
+  hideTurnPace?: boolean;
 }
 
 export function LobbyCreateForm({
@@ -80,6 +91,9 @@ export function LobbyCreateForm({
   onClose,
   extraFields,
   footer,
+  hideTurnPace = false,
+  mapOptions,
+  onMapIdChange,
 }: LobbyCreateFormProps) {
   return (
     <div
@@ -119,34 +133,55 @@ export function LobbyCreateForm({
           </div>
         </div>
 
-        <div>
-          <span className="block text-sm text-text-muted mb-2">Turn timer</span>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-            <CardCheckbox
-              checked={turnPace === "immediate"}
-              onCheck={(c) => onTurnPaceChange(c ? "immediate" : "correspondence")}
-              label="Immediate game"
-              caption="5 minutes per turn"
-            />
-            <CardCheckbox
-              checked={turnPace === "correspondence"}
-              onCheck={(c) => onTurnPaceChange(c ? "correspondence" : "immediate")}
-              label="Correspondence game"
-              caption="24 hours per turn"
-            />
+        {!hideTurnPace && (
+          <div>
+            <span className="block text-sm text-text-muted mb-2">Turn timer</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+              <CardCheckbox
+                checked={turnPace === "immediate"}
+                onCheck={(c) => onTurnPaceChange(c ? "immediate" : "correspondence")}
+                label="Immediate game"
+                caption="5 minutes per turn"
+              />
+              <CardCheckbox
+                checked={turnPace === "correspondence"}
+                onCheck={(c) => onTurnPaceChange(c ? "correspondence" : "immediate")}
+                label="Correspondence game"
+                caption="24 hours per turn"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-sm text-text-muted mb-1">Map</label>
-          <input
-            type="text"
-            value={mapIdLabel}
-            disabled
-            readOnly
-            className="w-full cursor-not-allowed rounded-none border border-gunmetal bg-black/60 px-3 py-2 text-text-muted"
-            aria-readonly
-          />
+          {mapOptions && mapOptions.length > 0 ? (
+            <select
+              value={mapIdLabel}
+              onChange={(e) => onMapIdChange?.(e.target.value)}
+              className="w-full rounded-none border border-cyan bg-black/60 px-3 py-2 text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+            >
+              {mapOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          ) : mapOptions && mapOptions.length === 0 ? (
+            <p className="text-xs text-warning-red font-mono">
+              [!] No PvP-eligible maps configured — an admin needs to mark a map
+              &quot;PvP&quot; or &quot;Both&quot; before a lobby can be created.
+            </p>
+          ) : (
+            <input
+              type="text"
+              value={mapIdLabel}
+              disabled
+              readOnly
+              className="w-full cursor-not-allowed rounded-none border border-gunmetal bg-black/60 px-3 py-2 text-text-muted"
+              aria-readonly
+            />
+          )}
         </div>
 
         <div>

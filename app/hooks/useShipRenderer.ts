@@ -29,7 +29,7 @@ const renderedImageAccessOrder: string[] = [];
  * Get cache key for rendered image
  */
 function getRenderedImageKey(ship: Ship): string {
-  const key = `${ship.id.toString()}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
+  const key = `${ship.id.toString()}-${ship.traits.variant}-${ship.equipment.mainWeapon}-${ship.equipment.armor}-${ship.equipment.shields}-${ship.equipment.special}-${ship.traits.accuracy}-${ship.traits.hull}-${ship.traits.speed}-${ship.traits.colors.h1}-${ship.traits.colors.s1}-${ship.traits.colors.l1}-${ship.shipData.shiny}-${ship.shipData.constructed}`;
   return key;
 }
 
@@ -107,6 +107,7 @@ export function useShipRenderer(ship: Ship): ShipImageState {
   }, [
     isValidShip,
     ship?.id,
+    ship?.traits?.variant,
     ship?.equipment?.mainWeapon,
     ship?.equipment?.armor,
     ship?.equipment?.shields,

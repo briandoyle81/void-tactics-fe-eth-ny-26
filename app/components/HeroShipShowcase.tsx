@@ -1,17 +1,29 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { usePublicClient } from "wagmi";
+import type { Abi } from "viem";
 import { renderShip } from "../utils/shipRenderer";
 import { Ship, Attributes } from "../types/types";
 import { calculateShipRank } from "../utils/shipLevel";
 import { toShipVisual } from "../utils/toShipVisual";
 import { SHIP_IMAGE_RANK_STAR_BOX } from "./ShipImage";
+import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
+import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { WeaponIcon, DefenseIcon, SpecialIcon } from "./EquipmentTypeIcons";
 import {
   getMainWeaponName,
   getArmorName,
   getShieldName,
   getSpecialName,
+  validSpecialsForVariant,
 } from "../types/types";
+
+const DRONE_NAMES_ABI = CONTRACT_ABIS.DRONE_NAMES as Abi;
+
+// Equipment row labels are icon-only (category glyph + title tooltip)
+// instead of "Weapon:"/"Armor:"/"Shields:"/"Special:" text — the value
+// itself (e.g. "Plasma Cannon") stays full text.
 
 // Random ship names for hero showcase
 const SHIP_NAMES = [
@@ -69,8 +81,12 @@ const SHIP_NAMES = [
 
 import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 
-// Generate a random ship
-function generateRandomShip(index: number): Ship {
+// Generate a random ship. `name` is variant-1-style (mock real-world-style
+// name) by default — variant-2 ships get their real DroneNames-generated
+// name patched in asynchronously afterward (see fetchDroneName below), since
+// that generation lives on-chain and this function stays synchronous to
+// avoid a hydration mismatch (see the mount-only effect that calls it).
+function generateRandomShip(index: number, variant: number): Ship {
   const name = SHIP_NAMES[Math.floor(Math.random() * SHIP_NAMES.length)];
 
   // Every 5th ship gets rank 3-5
@@ -95,13 +111,19 @@ function generateRandomShip(index: number): Ship {
         ? Math.floor(Math.random() * 3) + 1
         : 0
       : 0;
-  const special = Math.floor(Math.random() * 4);
+  // Variant 2 ("Drone" faction) ships use a disjoint Special value set
+  // (Slot 4/5/6 instead of Slot 1/2/3) — picking from a flat 0-3 range here
+  // produced invalid values for variant-2 ships (getSpecialName falling
+  // through to "Unknown", and the art renderer having no matching special
+  // to draw). Must pick from the values actually valid for this ship's
+  // variant instead.
+  const validSpecials = validSpecialsForVariant(variant);
+  const special = validSpecials[Math.floor(Math.random() * validSpecials.length)];
 
   // Random traits
   const accuracy = Math.floor(Math.random() * 3);
   const hull = Math.floor(Math.random() * 3);
   const speed = Math.floor(Math.random() * 3);
-  const variant = Math.floor(Math.random() * 10);
 
   // Random colors
   const h1 = Math.floor(Math.random() * 360);
@@ -153,29 +175,50 @@ function generateRandomShip(index: number): Ship {
 
 type HeroShipShowcaseAlign = "start" | "center" | "end";
 
+// Non-cryptographic 32-byte hex, just to vary DroneNames' deterministic
+// output between rotations — no on-chain identity backs these mock ships.
+function randomBytes32(): `0x${string}` {
+  let hex = "0x";
+  for (let i = 0; i < 64; i++) {
+    hex += Math.floor(Math.random() * 16).toString(16);
+  }
+  return hex as `0x${string}`;
+}
+
 export const HeroShipShowcase: React.FC<{
   seedOffset?: number;
   intervalMs?: number;
   align?: HeroShipShowcaseAlign;
   side?: "allied" | "enemy";
   flipLayout?: boolean;
+  /** Pin the mock ship to a specific variant (1 or 2) instead of picking one
+   * at random — e.g. the Info page's Intel section always shows variant 1
+   * on the left and variant 2 on the right. */
+  forcedVariant?: number;
 }> = ({
   seedOffset = 0,
   intervalMs = 10000,
   align = "end",
   side = "allied",
   flipLayout = false,
+  forcedVariant,
 }) => {
   // Rotate ships every N milliseconds
   const [shipIndex, setShipIndex] = useState(seedOffset);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setShipIndex((prev) => prev + 1);
-    }, intervalMs);
+  const advanceShip = React.useCallback(() => {
+    setShipIndex((prev) => prev + 1);
+  }, []);
 
+  // Depending on shipIndex (not just intervalMs) restarts the countdown
+  // from zero whenever the ship changes for any reason — including a
+  // manual click via advanceShip below — so clicking to switch ships also
+  // resets the auto-rotation timer instead of leaving the old countdown
+  // running and immediately re-advancing a moment later.
+  useEffect(() => {
+    const interval = setInterval(advanceShip, intervalMs);
     return () => clearInterval(interval);
-  }, [intervalMs]);
+  }, [intervalMs, shipIndex, advanceShip]);
 
   // Generate current hero ship client-side only, after mount. `generateRandomShip`
   // uses Math.random(), so computing it during render (e.g. via useMemo) would give
@@ -184,9 +227,46 @@ export const HeroShipShowcase: React.FC<{
   // placeholder below; the real ship appears once this effect runs.
   const [heroShip, setHeroShip] = useState<Ship | null>(null);
 
+  const activeChainId = useSelectedChainId();
+  const contractAddresses = getContractAddresses(activeChainId);
+  const publicClient = usePublicClient({ chainId: activeChainId });
+
   useEffect(() => {
-    setHeroShip(generateRandomShip(shipIndex));
-  }, [shipIndex]);
+    const variant = forcedVariant ?? Math.floor(Math.random() * 10);
+    const ship = generateRandomShip(shipIndex, variant);
+    setHeroShip(ship);
+
+    // Variant 2 ("Drone" faction) names come from DroneNames.getRandomDroneName
+    // on-chain instead of the variant-1-style SHIP_NAMES mock — pure/no gas,
+    // called once per rotation. Patched in once resolved rather than
+    // blocking the initial render, so art/stats appear immediately.
+    if (variant !== 2 || !publicClient) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const droneName = await publicClient.readContract({
+          address: contractAddresses.DRONE_NAMES as `0x${string}`,
+          abi: DRONE_NAMES_ABI,
+          functionName: "getRandomDroneName",
+          args: [randomBytes32(), ship.equipment.mainWeapon],
+        });
+        if (!cancelled) {
+          setHeroShip((prev) =>
+            prev && prev.id === ship.id
+              ? { ...prev, name: droneName as string }
+              : prev,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch drone name:", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shipIndex, forcedVariant, publicClient, contractAddresses]);
 
   // Calculate attributes for the ship
   const shipAttributes = useMemo<Attributes | null>(
@@ -229,7 +309,6 @@ export const HeroShipShowcase: React.FC<{
   const accentInset = side === "enemy" ? "rgba(255, 77, 77, 0.1)" : "rgba(86, 214, 255, 0.1)";
   const flipSprite = side === "allied";
 
-
   /** Narrow stats column, wider art (~36% / ~64%). Flip column fr order when art is on the left. */
   const intelGridCols = flipLayout
     ? "grid-cols-[minmax(0,3.5fr)_minmax(0,2fr)]"
@@ -237,7 +316,17 @@ export const HeroShipShowcase: React.FC<{
 
   return (
     <div
-      className={`grid w-full min-w-0 items-stretch gap-2 sm:gap-3 ${intelGridCols} ${gridPlacementClass}`}
+      role="button"
+      tabIndex={0}
+      onClick={advanceShip}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          advanceShip();
+        }
+      }}
+      aria-label="Switch to next ship"
+      className={`grid w-full min-w-0 cursor-pointer items-stretch gap-2 sm:gap-3 ${intelGridCols} ${gridPlacementClass}`}
     >
       {/* Stats panel (left when not flipLayout; right when enemy flipLayout) */}
       <div
@@ -250,21 +339,28 @@ export const HeroShipShowcase: React.FC<{
             "--bracket-color": accent,
           } as React.CSSProperties}
         >
-          {/* Ship name */}
+          {/* Ship name — wraps to two lines instead of truncating; minHeight
+              reserves that two-line slot unconditionally (in em, so it
+              tracks the responsive text-size classes below) so a short
+              one-line name on one side of the Intel showcase doesn't leave
+              this card shorter than a sibling whose name wrapped. */}
           <div className="mb-1.5 md:mb-2">
             <h3
-              className="truncate text-lg font-bold sm:text-xl md:text-2xl lg:text-3xl"
+              className="break-words text-lg font-bold sm:text-xl md:text-2xl lg:text-3xl"
               style={{
                 fontFamily:
                   "var(--font-rajdhani), 'Arial Black', sans-serif",
                 color: accent,
+                lineHeight: 1.2,
+                minHeight: "2.4em",
               }}
             >
-              {heroShip?.name ?? " "}
+              {heroShip?.name ?? " "}
             </h3>
           </div>
 
-          {/* Equipment */}
+          {/* Equipment — icon labels (Weapon/Armor-Shields/Special), full
+              text values. */}
           <div
             className={`mb-1.5 border-b pb-1.5 md:mb-2 md:pb-2 ${accentDividerClass}`}
             style={{
@@ -272,19 +368,28 @@ export const HeroShipShowcase: React.FC<{
             }}
           >
             <div className="space-y-0.5 text-xs leading-tight sm:text-sm md:text-base">
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">Weapon:</span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
-                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon) : " "}
+              {/* Row labels are icon-only (title tooltip carries the word);
+                  values stay full text and wrap to a second line instead of
+                  truncating. */}
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span className="shrink-0 opacity-60" title="Weapon" aria-label="Weapon">
+                  <WeaponIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </span>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
+                  {heroShip ? getMainWeaponName(heroShip.equipment.mainWeapon, heroShip.traits.variant) : " "}
                 </span>
               </div>
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">
-                  {heroShip && heroShip.equipment.shields > 0 ? "Shields:" : "Armor:"}
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span
+                  className="shrink-0 opacity-60"
+                  title={heroShip && heroShip.equipment.shields > 0 ? "Shields" : "Armor"}
+                  aria-label={heroShip && heroShip.equipment.shields > 0 ? "Shields" : "Armor"}
+                >
+                  <DefenseIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
                   {!heroShip
-                    ? " "
+                    ? " "
                     : heroShip.equipment.armor > 0
                       ? getArmorName(heroShip.equipment.armor)
                       : heroShip.equipment.shields > 0
@@ -292,13 +397,15 @@ export const HeroShipShowcase: React.FC<{
                         : "None"}
                 </span>
               </div>
-              <div className="flex min-w-0 justify-between gap-2">
-                <span className="shrink-0 opacity-60">Special:</span>
-                <span className={`min-w-0 truncate text-right ${accentTextClass}`}>
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <span className="shrink-0 opacity-60" title="Special" aria-label="Special">
+                  <SpecialIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </span>
+                <span className={`min-w-0 text-right ${accentTextClass}`}>
                   {!heroShip
-                    ? " "
+                    ? " "
                     : heroShip.equipment.special > 0
-                      ? getSpecialName(heroShip.equipment.special)
+                      ? getSpecialName(heroShip.equipment.special, heroShip.traits.variant)
                       : "None"}
                 </span>
               </div>
@@ -310,13 +417,13 @@ export const HeroShipShowcase: React.FC<{
             <div className="data-readout">
               <span className="data-readout-label">Range</span>
               <span className="font-bold text-phosphor-green font-mono text-xs">
-                {shipAttributes?.range ?? " "}
+                {shipAttributes?.range ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Damage</span>
               <span className="font-bold text-warning-red font-mono text-xs">
-                {shipAttributes?.gunDamage ?? " "}
+                {shipAttributes?.gunDamage ?? " "}
               </span>
             </div>
             <div className="data-readout">
@@ -324,19 +431,19 @@ export const HeroShipShowcase: React.FC<{
               <span className="font-bold text-amber font-mono text-xs">
                 {shipAttributes
                   ? `${shipAttributes.hullPoints}/${shipAttributes.maxHullPoints}`
-                  : " "}
+                  : " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Move</span>
               <span className={`font-bold font-mono text-xs ${side === "enemy" ? "text-warning-red" : "text-cyan"}`}>
-                {shipAttributes?.movement ?? " "}
+                {shipAttributes?.movement ?? " "}
               </span>
             </div>
             <div className="data-readout">
               <span className="data-readout-label">Defense</span>
               <span className="font-bold text-amber font-mono text-xs">
-                {shipAttributes ? `${shipAttributes.damageReduction}%` : " "}
+                {shipAttributes ? `${shipAttributes.damageReduction}%` : " "}
               </span>
             </div>
           </div>
@@ -355,26 +462,35 @@ export const HeroShipShowcase: React.FC<{
               "--bracket-color": accent,
             } as React.CSSProperties}
           >
-            {/* Flip wrapper matches ShipCard tooltip: art + rank stars + glow mirror together */}
-            <div
-              className="relative h-full w-full min-h-0 flex-1 [container-type:size]"
-              style={flipSprite ? { transform: "scaleX(-1)" } : undefined}
-            >
-              <img
-                src={heroShipImage}
-                alt={heroShip.name}
-                className="h-full w-full object-contain"
-                style={{
-                  imageRendering: "pixelated",
-                  filter: `drop-shadow(0 0 20px ${accentGlow})`,
-                }}
-              />
+            {/* Only the art + glow overlay flip (scaleX(-1)) — the rank
+                star lives as a sibling outside that transform, matching
+                ShipImageView.tsx's own star-is-a-sibling-of-<img> pattern.
+                Nesting the star INSIDE the flipped wrapper made its
+                cqmin-based SHIP_IMAGE_RANK_STAR_BOX size compute near-zero
+                on flipped (allied-side) ships, even though container-type:size
+                lived on this outer, untransformed div — an intervening
+                transformed ancestor still threw off cqmin resolution. */}
+            <div className="relative h-full w-full min-h-0 flex-1 [container-type:size]">
               <div
-                className="pointer-events-none absolute inset-0 z-[1]"
-                style={{
-                  boxShadow: `inset 0 0 60px ${accentInset}`,
-                }}
-              />
+                className="relative h-full w-full"
+                style={flipSprite ? { transform: "scaleX(-1)" } : undefined}
+              >
+                <img
+                  src={heroShipImage}
+                  alt={heroShip.name}
+                  className="h-full w-full object-contain"
+                  style={{
+                    imageRendering: "pixelated",
+                    filter: `drop-shadow(0 0 20px ${accentGlow})`,
+                  }}
+                />
+                <div
+                  className="pointer-events-none absolute inset-0 z-[1]"
+                  style={{
+                    boxShadow: `inset 0 0 60px ${accentInset}`,
+                  }}
+                />
+              </div>
               {heroShip.shipData.constructed && (
                 <div
                   className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"

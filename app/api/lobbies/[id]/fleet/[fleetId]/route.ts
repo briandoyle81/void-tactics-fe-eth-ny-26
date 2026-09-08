@@ -40,11 +40,21 @@ export async function GET(
     .map((sid) => shipsById.get(sid))
     .filter((s): s is (typeof dbShips)[number] => !!s);
 
+  // Starting positions are stored indexed to match shipIds (see Fleet.
+  // startingPositions' schema comment) — zip them by index here so callers
+  // (e.g. the opponent-fleet grid preview during selection) don't need to
+  // reimplement the pairing themselves.
+  const rawPositions = (fleet.startingPositions as { row: number; col: number }[] | null) ?? [];
+  const positions = fleet.shipIds
+    .map((sid, i) => ({ shipId: sid, row: rawPositions[i]?.row, col: rawPositions[i]?.col }))
+    .filter((p): p is { shipId: number; row: number; col: number } => p.row !== undefined && p.col !== undefined);
+
   return new NextResponse(
     stringifyWithBigint({
       id: fleet.id,
       ownerId: fleet.ownerId,
       ships: orderedShips.map(dbShipToShip),
+      positions,
     }),
     { headers: { "Content-Type": "application/json" } },
   );

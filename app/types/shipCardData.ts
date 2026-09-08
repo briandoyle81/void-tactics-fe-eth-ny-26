@@ -20,6 +20,7 @@ export interface ShipCardData {
     special: number;
   };
   traits: {
+    variant: number;
     accuracy: number;
     hull: number;
     speed: number;

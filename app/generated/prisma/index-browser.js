@@ -125,6 +125,8 @@ exports.Prisma.UserScalarFieldEnum = {
   email: 'email',
   username: 'username',
   creditBalance: 'creditBalance',
+  decBalance: 'decBalance',
+  droneCoreTier: 'droneCoreTier',
   purchasedShipCount: 'purchasedShipCount',
   lobbiesCreatedCount: 'lobbiesCreatedCount',
   kickCount: 'kickCount',
@@ -179,7 +181,9 @@ exports.Prisma.LobbyScalarFieldEnum = {
   aiDifficulty: 'aiDifficulty',
   createdAt: 'createdAt',
   joinedAt: 'joinedAt',
-  joinerFleetSetAt: 'joinerFleetSetAt'
+  joinerFleetSetAt: 'joinerFleetSetAt',
+  campaignNodeId: 'campaignNodeId',
+  roguelikeRunId: 'roguelikeRunId'
 };
 
 exports.Prisma.GameScalarFieldEnum = {
@@ -214,7 +218,111 @@ exports.Prisma.MapScalarFieldEnum = {
   gridHeight: 'gridHeight',
   blockedTiles: 'blockedTiles',
   scoringTiles: 'scoringTiles',
+  mode: 'mode',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.AIShipConfigScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  equipment: 'equipment',
+  traits: 'traits',
+  archetype: 'archetype',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AIMapPlacementScalarFieldEnum = {
+  id: 'id',
+  mapId: 'mapId',
+  row: 'row',
+  col: 'col',
+  configId: 'configId'
+};
+
+exports.Prisma.AIFleetShipScalarFieldEnum = {
+  shipId: 'shipId',
+  configId: 'configId',
+  archetype: 'archetype'
+};
+
+exports.Prisma.CampaignScalarFieldEnum = {
+  id: 'id',
+  requiredVariant: 'requiredVariant',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CampaignNodeScalarFieldEnum = {
+  id: 'id',
+  campaignId: 'campaignId',
+  mapId: 'mapId',
+  prerequisites: 'prerequisites',
+  costLimit: 'costLimit',
+  turnTimeSeconds: 'turnTimeSeconds',
+  maxScore: 'maxScore',
+  creatorGoesFirst: 'creatorGoesFirst',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CampaignNodeCompletionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  nodeId: 'nodeId',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.RoguelikeCampaignScalarFieldEnum = {
+  id: 'id',
+  requiredVariant: 'requiredVariant',
+  autoHealPercent: 'autoHealPercent',
+  initialCostCap: 'initialCostCap',
+  rootNodeId: 'rootNodeId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.RoguelikeNodeScalarFieldEnum = {
+  id: 'id',
+  campaignId: 'campaignId',
+  kind: 'kind',
+  mapId: 'mapId',
+  turnTimeSeconds: 'turnTimeSeconds',
+  maxScore: 'maxScore',
+  creatorGoesFirst: 'creatorGoesFirst',
+  costCapOverride: 'costCapOverride',
+  winEffects: 'winEffects',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.RoguelikeEdgeScalarFieldEnum = {
+  id: 'id',
+  parentId: 'parentId',
+  childId: 'childId',
+  twoWay: 'twoWay'
+};
+
+exports.Prisma.RoguelikeRunScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generation: 'generation',
+  status: 'status',
+  campaignId: 'campaignId',
+  currentNodeId: 'currentNodeId',
+  currentCostCap: 'currentCostCap',
+  activeLobbyId: 'activeLobbyId',
+  createdAt: 'createdAt',
+  endedAt: 'endedAt'
+};
+
+exports.Prisma.RoguelikeRosterShipScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  shipId: 'shipId',
+  hp: 'hp'
+};
+
+exports.Prisma.RoguelikeNodeDefeatScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  nodeId: 'nodeId'
 };
 
 exports.Prisma.ConfigScalarFieldEnum = {
@@ -273,6 +381,18 @@ exports.Prisma.TournamentMatchScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.NodeContentScalarFieldEnum = {
+  id: 'id',
+  graphType: 'graphType',
+  nodeId: 'nodeId',
+  title: 'title',
+  description: 'description',
+  publishedTitle: 'publishedTitle',
+  publishedDescription: 'publishedDescription',
+  dirtyAt: 'dirtyAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -317,11 +437,22 @@ exports.GamePhase = exports.$Enums.GamePhase = {
   ABANDONED: 'ABANDONED'
 };
 
+exports.RoguelikeRunStatus = exports.$Enums.RoguelikeRunStatus = {
+  ACTIVE: 'ACTIVE',
+  WON: 'WON',
+  ENDED: 'ENDED'
+};
+
 exports.TournamentState = exports.$Enums.TournamentState = {
   REGISTRATION: 'REGISTRATION',
   ACTIVE: 'ACTIVE',
   COMPLETE: 'COMPLETE',
   CANCELLED: 'CANCELLED'
+};
+
+exports.NodeGraphType = exports.$Enums.NodeGraphType = {
+  CAMPAIGN: 'CAMPAIGN',
+  ROGUELIKE: 'ROGUELIKE'
 };
 
 exports.Prisma.ModelName = {
@@ -332,11 +463,24 @@ exports.Prisma.ModelName = {
   Game: 'Game',
   GameTurn: 'GameTurn',
   Map: 'Map',
+  AIShipConfig: 'AIShipConfig',
+  AIMapPlacement: 'AIMapPlacement',
+  AIFleetShip: 'AIFleetShip',
+  Campaign: 'Campaign',
+  CampaignNode: 'CampaignNode',
+  CampaignNodeCompletion: 'CampaignNodeCompletion',
+  RoguelikeCampaign: 'RoguelikeCampaign',
+  RoguelikeNode: 'RoguelikeNode',
+  RoguelikeEdge: 'RoguelikeEdge',
+  RoguelikeRun: 'RoguelikeRun',
+  RoguelikeRosterShip: 'RoguelikeRosterShip',
+  RoguelikeNodeDefeat: 'RoguelikeNodeDefeat',
   Config: 'Config',
   PlayerStats: 'PlayerStats',
   Tournament: 'Tournament',
   TournamentRegistrant: 'TournamentRegistrant',
-  TournamentMatch: 'TournamentMatch'
+  TournamentMatch: 'TournamentMatch',
+  NodeContent: 'NodeContent'
 };
 
 /**

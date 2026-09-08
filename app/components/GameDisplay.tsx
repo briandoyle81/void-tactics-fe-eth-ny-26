@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useAccount } from "wagmi";
+import { baseSepolia } from "viem/chains";
 import posthog from "posthog-js";
 import {
   GameDataView,
@@ -11,6 +12,7 @@ import {
   ActionType,
   LastMove,
   GRID_DIMENSIONS,
+  Ship,
 } from "../types/types";
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
@@ -22,11 +24,21 @@ import { GameTooltipShipCard } from "./GameTooltipShipCard";
 import { gameFleetPanelLabel } from "../utils/gameFleetPanelLabel";
 import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
 import { useGetGameMapState } from "../hooks/useMapsContract";
-import { useGameContract, useGetGame } from "../hooks/useGameContract";
+import {
+  useGameContract,
+  useGetGame,
+  usePvPMatchContract,
+} from "../hooks/useGameContract";
 import {
   useContractEvents,
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
+import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
+import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
+import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { RoundStartModal } from "./RoundStartModal";
+import { useAITurnLoop } from "../hooks/useAITurnLoop";
+import { useRoguelikeAITurnLoop } from "../hooks/useRoguelikeAITurnLoop";
 import { TransactionButton } from "./TransactionButton";
 import { toast } from "react-hot-toast";
 import { useTransaction } from "../providers/TransactionContext";
@@ -50,6 +62,7 @@ import {
   type GameEventsShipInfo,
 } from "./GameEvents";
 import { GameLastMovePanel } from "./GameLastMovePanel";
+import { GameReplayControls, GameReplayBanner } from "./GameReplayControls";
 import { GameBoardLayout } from "./GameBoardLayout";
 import { GameGrid } from "./GameGrid";
 import { GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -64,7 +77,7 @@ import {
 import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
-import { useTurnChangeAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
@@ -79,6 +92,66 @@ const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+
+// AI moves (takeAITurn) never set optimisticLastMove — only the human's own
+// submit does — so without this they rely entirely on an exact shipPositions
+// match against lastMove.newRow/newCol, which can miss for a render or two
+// right after refetch even though the move genuinely is fresh, confirmed
+// chain data. Give a short grace window based on lastMove.timestamp (real
+// chain data only here — this path is never hit while optimisticLastMove is
+// set) as a fallback, mirroring the unconditional trust already given to the
+// human's own optimistic move.
+const AI_LAST_MOVE_GRACE_MS = 5000;
+function isRecentChainLastMove(lastMove: LastMove | undefined): boolean {
+  if (!lastMove || lastMove.timestamp === 0n) return false;
+  const ageMs = Date.now() - Number(lastMove.timestamp) * 1000;
+  return ageMs >= 0 && ageMs < AI_LAST_MOVE_GRACE_MS;
+}
+
+// Shared by shouldShowLastMove/shouldShowLastMoveOnGrid — previously two
+// near-identical copies of this same decision (see
+// feedback_no_parallel_components memory). Also fixes a real bug found
+// there: the grace-window fallback used to apply whenever shipPositions
+// didn't exactly match lastMove's new row/col, without distinguishing "this
+// ship's position hasn't been re-fetched yet" (safe to trust briefly) from
+// "this ship is now confirmed at a DIFFERENT position" (e.g. a round
+// transition repositioned/reset it after the move was recorded — the old
+// lastMove target square is stale and must never be trusted again,
+// regardless of how recent its timestamp is). The latter case rendered a
+// ghost "ship" at the old, now-meaningless target square between rounds.
+function computeShouldShowLastMove(params: {
+  winner: string;
+  displayedLastMove: LastMove | undefined;
+  selectedShipId: bigint | null;
+  shipMap: Map<bigint, Ship>;
+  optimisticLastMove: LastMove | null;
+  shipPositions: readonly { shipId: bigint; position: { row: number; col: number } }[];
+}): boolean {
+  const { winner, displayedLastMove, selectedShipId, shipMap, optimisticLastMove, shipPositions } = params;
+  if (winner !== ZERO_ADDR) return false;
+  if (!displayedLastMove || displayedLastMove.shipId === 0n) return false;
+  if (selectedShipId !== null) return false;
+  if ((displayedLastMove.actionType as ActionType) === ActionType.Retreat) return true;
+
+  const lastMoveShip = shipMap.get(displayedLastMove.shipId);
+  if (!lastMoveShip) return false;
+  if (optimisticLastMove) return true;
+
+  const currentPosition = shipPositions.find((pos) => pos.shipId === displayedLastMove.shipId);
+  if (currentPosition) {
+    // Ship is present in current state — either it confirms the move (trust
+    // it) or it's been superseded by something since (never trust a stale
+    // square, no matter how recent the timestamp).
+    return (
+      currentPosition.position.row === displayedLastMove.newRow &&
+      currentPosition.position.col === displayedLastMove.newCol
+    );
+  }
+
+  // Ship not found in current positions at all — genuinely still catching
+  // up; fall back to the timestamp-based grace window.
+  return isRecentChainLastMove(displayedLastMove);
+}
 
 interface GameDisplayProps {
   game: GameDataView;
@@ -99,7 +172,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [disableTooltips, setDisableTooltips] = React.useState(false);
   const { address } = useAccount();
   const appChainId = useSelectedChainId();
-  const gameContract = useGameContract();
+  // Pinned to Base Sepolia — Game is currently only deployed there while
+  // multi-chain support is temporarily disabled (see networks.ts). Without
+  // this, a wallet connected to a different chain (still selectable via
+  // RainbowKit even though the in-app picker is locked to Base Sepolia)
+  // silently reads the wrong chain's Game contract.
+  const gameContract = useGameContract(baseSepolia.id);
+  const pvpMatchContract = usePvPMatchContract();
 
   // ── Game record (persisted to localStorage) ────────────────────────────────
   const gameRecordRef = React.useRef<GameRecord | null>(null);
@@ -157,7 +236,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     isLoading: gameLoading,
     error: gameError,
     refetch: refetchGame,
-  } = useGetGame(Number(initialGame.metadata.gameId));
+  } = useGetGame(Number(initialGame.metadata.gameId), baseSepolia.id);
 
   // Use the fetched game data if available, otherwise fall back to initial game
   const game = gameData || initialGame;
@@ -463,9 +542,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     return `${m}:${s}`;
   };
 
-  // Get game map state directly from the Maps contract
+  // Get game map state directly from the Maps contract. `chainSource:
+  // "picker"` avoids following a wallet connected to a stray chain (see
+  // gameContract/useGetGame above for the same reasoning) — currently
+  // equivalent to Base Sepolia since the picker is locked there.
   const { data: gameMapState, isLoading: mapLoading } = useGetGameMapState(
     Number(game.metadata.gameId),
+    { chainSource: "picker" },
   );
 
   // Create grids from contract map (same format as tutorial map grids)
@@ -547,8 +630,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Get special range data for the selected ship
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
   const specialType = selectedShip?.equipment.special || 0;
-  const { specialRange } = useSpecialRange(specialType);
-  const { data: specialData } = useSpecialData(specialType);
+  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const { specialRange } = useSpecialRange(specialType, selectedShipVariant);
+  const { data: specialData } = useSpecialData(specialType, selectedShipVariant);
 
   // Get ship attributes by ship ID from game data
   const getShipAttributes = React.useCallback(
@@ -578,8 +662,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const draggedShipForSpecialRange =
     draggedShipId != null ? shipMap.get(draggedShipId) : null;
   const draggedShipSpecialType = draggedShipForSpecialRange?.equipment.special ?? 0;
+  const draggedShipVariant = draggedShipForSpecialRange?.traits.variant ?? 0;
   const { specialRange: draggedShipSpecialRange } = useSpecialRange(
     draggedShipId != null ? draggedShipSpecialType : 0,
+    draggedShipVariant,
   );
 
   // Build a set of shipIds that have already moved this round (from game data)
@@ -611,13 +697,104 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       transactionState.activeTransactionId === moveShipTxId) ||
     awaitingTurnSyncAfterSubmit;
 
+  // Single-player games are regular Game sessions where the "opponent" is
+  // the SinglePlayerMatch contract — same read APIs as PvP, just a
+  // different currentTurn address to watch for. Roguelike run combat
+  // (docs/update/Frontend_Update_Guide_Roguelike_Campaign.md) is the same
+  // shape again, just orchestrated by RoguelikeMatch instead — a third
+  // case, not a variant of isSinglePlayerGame (different contract entirely,
+  // different "return to" destination).
+  const isSinglePlayerGame =
+    game.metadata.orchestrator?.toLowerCase() ===
+    SINGLE_PLAYER_MATCH_ADDRESS.toLowerCase();
+  const isRoguelikeGame =
+    game.metadata.orchestrator?.toLowerCase() ===
+    ROGUELIKE_MATCH_ADDRESS.toLowerCase();
+  const isVsAIGame = isSinglePlayerGame || isRoguelikeGame;
+  const aiOrchestratorAddress = isRoguelikeGame
+    ? ROGUELIKE_MATCH_ADDRESS
+    : SINGLE_PLAYER_MATCH_ADDRESS;
+  const isAITurn =
+    isVsAIGame &&
+    game.turnState.currentTurn?.toLowerCase() ===
+      aiOrchestratorAddress.toLowerCase();
+
+  // End-of-game result screen (GameResultModal) — node id lookup only
+  // matters for the original single-player campaign, where it drives the
+  // mission-appropriate copy/title and the "Return to Campaign" CTA.
+  // Roguelike games have no equivalent node-id lookup (they're not tied to
+  // NodeMap at all) — see the isRoguelikeGame-gated CTA below instead.
+  const { data: nodeIdForGame } = useGameIdToNodeId(
+    isSinglePlayerGame ? game.metadata.gameId : undefined,
+  );
+  const [isGameResultDismissed, setIsGameResultDismissed] = React.useState(false);
+
   const { recordPlayerMove } = useGamePolling({
     gameId: Number(game.metadata.gameId),
     turnTime: game.turnState.turnTime,
     gameData,
     refetchGame,
     onRefetch: () => interaction.setTargetShipId(null),
+    isSinglePlayerGame: isVsAIGame,
   });
+
+  const lastMoveSignal = game.lastMove
+    ? `${game.lastMove.shipId}-${game.lastMove.timestamp}`
+    : "";
+
+  // Both loops are always mounted (rules of hooks) — each is a no-op unless
+  // its own isAITurn flag is true, so only one is ever actually driving.
+  const singlePlayerAiTurnLoop = useAITurnLoop({
+    gameId: game.metadata.gameId,
+    isAITurn: isAITurn && !isRoguelikeGame,
+    isGameOver,
+    lastMoveSignal,
+    refetchGame,
+  });
+  const roguelikeAiTurnLoop = useRoguelikeAITurnLoop({
+    gameId: game.metadata.gameId,
+    isAITurn: isAITurn && isRoguelikeGame,
+    isGameOver,
+    lastMoveSignal,
+    refetchGame,
+  });
+  const aiTurnLoop = isRoguelikeGame ? roguelikeAiTurnLoop : singlePlayerAiTurnLoop;
+
+  // "AI is taking its turn..." as a toast rather than a sticky banner over
+  // the grid. Fixed id so successive updates (move count ticking up) replace
+  // the same toast instead of stacking new ones.
+  const aiTurnToastId = `ai-turn-${game.metadata.gameId.toString()}`;
+  React.useEffect(() => {
+    if (!isVsAIGame) return;
+    if (aiTurnLoop.error) {
+      toast.error(aiTurnLoop.error, { id: aiTurnToastId });
+      return;
+    }
+    if (aiTurnLoop.isAIThinking) {
+      toast.loading(
+        `AI is taking its turn${
+          aiTurnLoop.moveCount > 0 ? ` (move ${aiTurnLoop.moveCount})` : ""
+        }...`,
+        { id: aiTurnToastId },
+      );
+    } else {
+      toast.dismiss(aiTurnToastId);
+    }
+  }, [
+    isVsAIGame,
+    aiTurnLoop.isAIThinking,
+    aiTurnLoop.moveCount,
+    aiTurnLoop.error,
+    aiTurnToastId,
+  ]);
+
+  // Don't leave the loading toast stuck on screen after leaving this game.
+  React.useEffect(() => {
+    return () => {
+      toast.dismiss(aiTurnToastId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── GameGrid interaction boundary adapter ─────────────────────────────
   // `useGameplayInteraction` (shared with GameDisplayWeb2.tsx) works on
@@ -645,9 +822,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     (shipId: number) => getShipAttributes(BigInt(shipId)),
     [getShipAttributes],
   );
+  // useGameplayInteraction's own internal optimistic-move state (which is
+  // what actually keeps a just-moved ship rendered at its destination while
+  // chain data is stale) is cleared once this "authoritative" lastMove
+  // matches it. Feeding it displayedLastMove — which already includes our
+  // own optimistic overlay — makes that check trivially true on the very
+  // next render, clearing the hook's optimistic state a full tick before
+  // real chain confirmation lands, and the ship falls back to a stale
+  // position in the meantime. Feed it real chain data only.
   const lastMoveForInteraction = React.useMemo(
-    () => toGridLastMove(displayedLastMove),
-    [displayedLastMove],
+    () => toGridLastMove(game.lastMove),
+    [game.lastMove],
   );
   const setSelectedShipIdForInteraction = React.useCallback(
     (id: number | null) => setSelectedShipId(displayIdToBigint(id)),
@@ -786,6 +971,64 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     interactionHandleGridRightClickDeselect();
   }, [interactionHandleGridRightClickDeselect]);
 
+  // Shared moveShip failure handler for both submit buttons (toolbar/rail
+  // button and the on-grid confirm widget) — surfaces a specific toast for
+  // the failure and resets the move UI (selection/preview/target) rather
+  // than leaving it to silently fall back to "waiting for submit", which
+  // read as an unexplained flash back to the pre-submit state.
+  const handleMoveSubmitError = React.useCallback(
+    (error: unknown) => {
+      // Clear the selection first so the confirm widget (gated on
+      // selectedShipId via isShowingProposedMove/showConfirmWidget) is
+      // removed from the tree immediately. Flipping
+      // awaitingTurnSyncAfterSubmit back to false re-enables
+      // isCurrentPlayerTurn — doing that before the selection clears let
+      // the widget briefly re-render in its normal enabled "ready to
+      // submit" appearance before disappearing, which read as a flash back
+      // to the pre-submit state instead of a clean vanish.
+      handleCancelMove();
+      setAwaitingTurnSyncAfterSubmit(false);
+
+      const errorMessage =
+        (error as Error)?.message || String(error) || "Unknown error";
+
+      if (
+        errorMessage.includes("User rejected") ||
+        errorMessage.includes("User denied")
+      ) {
+        toast.error("Transaction declined by user");
+      } else if (errorMessage.includes("insufficient funds")) {
+        toast.error("Insufficient funds for transaction");
+      } else if (errorMessage.includes("gas")) {
+        toast.error("Transaction failed due to gas estimation error");
+      } else if (errorMessage.includes("execution reverted")) {
+        toast.error(
+          "Transaction reverted - check if it's your turn and ship is valid",
+        );
+      } else if (errorMessage.includes("NotYourTurn")) {
+        toast.error("It's not your turn to move");
+      } else if (errorMessage.includes("ShipNotFound")) {
+        toast.error("Ship not found in this game");
+      } else if (errorMessage.includes("InvalidMove")) {
+        toast.error(
+          "Invalid move - check ship position and movement range",
+        );
+      } else if (errorMessage.includes("PositionOccupied")) {
+        toast.error("Target position is already occupied");
+      } else if (
+        errorMessage.includes("TargetNotFound") ||
+        errorMessage.includes("InvalidRamTarget")
+      ) {
+        toast.error(
+          "That target is no longer in the game — select a new target",
+        );
+      } else {
+        toast.error(`Transaction failed: ${errorMessage}`);
+      }
+    },
+    [handleCancelMove],
+  );
+
   /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
   const shouldPulseSubmitMoveButton = React.useMemo(() => false, []);
 
@@ -793,104 +1036,47 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Show to both players UNLESS:
   // - They have a ship selected, OR
   // - It's their turn AND they have proposed but not submitted a move
-  const shouldShowLastMove = React.useMemo(() => {
-    // Don't show if game is won
-    if (game.metadata.winner !== "0x0000000000000000000000000000000000000000") {
-      return false;
-    }
-
-    // Don't show if no last move exists
-    if (!displayedLastMove || displayedLastMove.shipId === 0n) {
-      return false;
-    }
-
-    // Don't show if player has a ship selected
-    if (selectedShipId !== null) {
-      return false;
-    }
-
-    // For Retreat, the ship has left the board. Use only last move data (oldRow, oldCol); do not require ship in shipMap or shipPositions.
-    if (
-      (displayedLastMove.actionType as ActionType) === ActionType.Retreat
-    ) {
-      return true;
-    }
-
-    // For other actions, the last move ship must exist in cache
-    const lastMoveShip = shipMap.get(displayedLastMove.shipId);
-    if (!lastMoveShip) {
-      return false;
-    }
-
-    // If we are optimistically displaying the last move, don't require the
-    // contract state to have caught up yet (shipPositions will lag).
-    if (optimisticLastMove) {
-      return true;
-    }
-
-    // Verify the ship is actually at the new position in the current game state
-    const currentPosition = game.shipPositions.find(
-      (pos) => pos.shipId === displayedLastMove.shipId,
-    );
-    if (
-      currentPosition &&
-      currentPosition.position.row === displayedLastMove.newRow &&
-      currentPosition.position.col === displayedLastMove.newCol
-    ) {
-      return true;
-    }
-
-    return false;
-  }, [
-    game.metadata.winner,
-    displayedLastMove,
-    optimisticLastMove,
-    game.shipPositions,
-    selectedShipId,
-    shipMap,
-  ]);
+  const shouldShowLastMove = React.useMemo(
+    () =>
+      computeShouldShowLastMove({
+        winner: game.metadata.winner,
+        displayedLastMove,
+        selectedShipId,
+        shipMap,
+        optimisticLastMove,
+        shipPositions: game.shipPositions,
+      }),
+    [
+      game.metadata.winner,
+      displayedLastMove,
+      optimisticLastMove,
+      game.shipPositions,
+      selectedShipId,
+      shipMap,
+    ],
+  );
 
   // Last-move arrow, borders, and replay overlays: same visibility as ghost tiles.
   // Hide whenever any ship is selected so the grid focuses on the active selection.
-  const shouldShowLastMoveOnGrid = React.useMemo(() => {
-    if (game.metadata.winner !== "0x0000000000000000000000000000000000000000") {
-      return false;
-    }
-    if (!displayedLastMove || displayedLastMove.shipId === 0n) {
-      return false;
-    }
-    if (selectedShipId !== null) {
-      return false;
-    }
-    if ((displayedLastMove.actionType as ActionType) === ActionType.Retreat) {
-      return true;
-    }
-    const lastMoveShip = shipMap.get(displayedLastMove.shipId);
-    if (!lastMoveShip) {
-      return false;
-    }
-    if (optimisticLastMove) {
-      return true;
-    }
-    const currentPosition = game.shipPositions.find(
-      (pos) => pos.shipId === displayedLastMove.shipId,
-    );
-    if (
-      currentPosition &&
-      currentPosition.position.row === displayedLastMove.newRow &&
-      currentPosition.position.col === displayedLastMove.newCol
-    ) {
-      return true;
-    }
-    return false;
-  }, [
-    game.metadata.winner,
-    displayedLastMove,
-    optimisticLastMove,
-    game.shipPositions,
-    shipMap,
-    selectedShipId,
-  ]);
+  const shouldShowLastMoveOnGrid = React.useMemo(
+    () =>
+      computeShouldShowLastMove({
+        winner: game.metadata.winner,
+        displayedLastMove,
+        selectedShipId,
+        shipMap,
+        optimisticLastMove,
+        shipPositions: game.shipPositions,
+      }),
+    [
+      game.metadata.winner,
+      displayedLastMove,
+      optimisticLastMove,
+      game.shipPositions,
+      shipMap,
+      selectedShipId,
+    ],
+  );
 
   // Check if a ship belongs to the current player
   const isShipOwnedByCurrentPlayer = React.useCallback(
@@ -973,7 +1159,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         }
         if (displayedLastMove.actionType === ActionType.Shoot) {
           setWeaponTypeFromGrid("weapon");
-        } else if (displayedLastMove.actionType === ActionType.Special) {
+        } else if (
+          displayedLastMove.actionType === ActionType.Special ||
+          displayedLastMove.actionType === ActionType.FactionAbility
+        ) {
           setWeaponTypeFromGrid("special");
         }
       }
@@ -996,6 +1185,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setWeaponTypeFromGrid,
   ]);
 
+  // Track previous turn state — shared with useTurnChangeAlertSound below
+  // (which relies on this effect running first and updating the ref before
+  // it reads it — see that hook's doc) and with the "still my turn" cue
+  // right below, which stamps this ref itself to suppress the hook's own
+  // transition detection from double-firing the same cue a render later.
+  const prevTurnRef = React.useRef<boolean | null>(null);
+
   // Clear optimistic last move once the contract state catches up.
   React.useEffect(() => {
     if (!optimisticLastMove) return;
@@ -1017,12 +1213,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       // Clear local proposal UI now (not immediately on submit) so the
       // previewed board state remains visible during the sync gap.
       interaction.handleCancelMove();
+      // A same-turn multi-move sequence (still my turn after this move)
+      // plays the cue directly here rather than waiting on
+      // useTurnChangeAlertSound's own false->true transition detection —
+      // that transition (isMyTurnEffective dipped false for the submit's
+      // "awaiting sync" window and is about to flip back true next render)
+      // would otherwise ALSO fire a render later and double the sound.
+      // Stamping the ref now marks that transition as already handled so
+      // the hook's own effect sees prevTurnRef.current === true next render
+      // and stays silent — this also correctly skips the "opponent just
+      // finished" cleanup in the effect below, since no real hand-off
+      // happened here.
+      if (!readOnly && game.turnState.currentTurn === address) {
+        playTurnAlertSound();
+        prevTurnRef.current = true;
+      }
     }
     // interaction is a fresh object every render; depend on the stable handler only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     optimisticLastMove,
     game.lastMove,
+    game.turnState.currentTurn,
+    address,
+    readOnly,
     optimisticLastMove?.shipId,
     optimisticLastMove?.actionType,
     optimisticLastMove?.targetShipId,
@@ -1086,7 +1300,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     displayedLastMove &&
     !isShowingProposedMove &&
     ((displayedLastMove.actionType as ActionType) === ActionType.Special ||
-      (displayedLastMove.actionType as ActionType) === ActionType.Shoot) &&
+      (displayedLastMove.actionType as ActionType) === ActionType.Shoot ||
+      (displayedLastMove.actionType as ActionType) ===
+        ActionType.FactionAbility) &&
     displayedLastMove.targetShipId !== 0n
       ? displayedLastMove.targetShipId
       : null;
@@ -1107,7 +1323,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
     const isTargetingAction =
       displayedLastMove.actionType === ActionType.Shoot ||
-      displayedLastMove.actionType === ActionType.Special;
+      displayedLastMove.actionType === ActionType.Special ||
+      displayedLastMove.actionType === ActionType.FactionAbility;
     if (!isTargetingAction) return false;
 
     return !game.shipPositions.some(
@@ -1141,10 +1358,60 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
-  // Track previous turn state — shared with the pending-transaction-clearing
-  // effect below, which relies on this hook's effect running first and
-  // updating the ref before it reads it (see useTurnChangeAlertSound's doc).
-  const prevTurnRef = React.useRef<boolean | null>(null);
+  // Round-start announcement — fires on the very first render (game start)
+  // and again every time currentRound changes (new round). Gated on
+  // !isGameOver so the last round's end doesn't pop this alongside (or
+  // instead of) GameResultModal. Also captures how many points each side
+  // gained during the round that just ended, by diffing the cumulative
+  // score against a snapshot taken the last time a round started —
+  // undefined on the very first showing (game start), where there's no
+  // prior round to diff against.
+  const [roundStartInfo, setRoundStartInfo] = React.useState<{
+    round: bigint;
+    isMyTurnFirst: boolean;
+    myRoundScore?: number;
+    opponentRoundScore?: number;
+    myScore: number;
+    opponentScore: number;
+    maxScore?: number;
+  } | null>(null);
+  const prevRoundForModalRef = React.useRef<bigint | undefined>(undefined);
+  const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
+    undefined,
+  );
+  React.useEffect(() => {
+    if (isGameOver) return;
+    const round = game.turnState.currentRound;
+    if (prevRoundForModalRef.current === round) return;
+    prevRoundForModalRef.current = round;
+
+    const isCreatorNow = game.metadata.creator === address;
+    const myScoreNow = Number(isCreatorNow ? game.creatorScore : game.joinerScore);
+    const opponentScoreNow = Number(isCreatorNow ? game.joinerScore : game.creatorScore);
+    const maxScoreNow = Number(game.maxScore);
+
+    const prevScores = prevRoundScoreRef.current;
+    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+
+    setRoundStartInfo({
+      round,
+      isMyTurnFirst: game.turnState.currentTurn === address,
+      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+      myScore: myScoreNow,
+      opponentScore: opponentScoreNow,
+      maxScore: maxScoreNow,
+    });
+  }, [
+    game.turnState.currentRound,
+    game.turnState.currentTurn,
+    game.creatorScore,
+    game.joinerScore,
+    game.maxScore,
+    game.metadata.creator,
+    address,
+    isGameOver,
+  ]);
 
   // Play alert sound when it becomes the player's turn
   useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
@@ -1375,43 +1642,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     recordPlayerMove();
                     refetchGame();
                     refetch?.();
+                    // Retire the proposed-move UI (confirm/submit button)
+                    // now that the move is confirmed successful, instead of
+                    // waiting for the later chain-sync effect to notice
+                    // game.lastMove matches and clear it — that wait could
+                    // take a while (poll interval, RPC lag), during which
+                    // the button sat there re-enabled, looking like nothing
+                    // had been submitted. optimisticLastMove (just set
+                    // above) already hands display duty to the "last move"
+                    // ghost/arrow system in the same render, so there's no
+                    // visual gap. awaitingTurnSyncAfterSubmit is left alone
+                    // — it still guards against acting again before the
+                    // chain genuinely reflects the new turn state.
+                    handleCancelMove();
                   }}
-                  onError={(error) => {
-                    setAwaitingTurnSyncAfterSubmit(false);
-                    const errorMessage =
-                      (error as Error)?.message ||
-                      String(error) ||
-                      "Unknown error";
-
-                    if (
-                      errorMessage.includes("User rejected") ||
-                      errorMessage.includes("User denied")
-                    ) {
-                      toast.error("Transaction declined by user");
-                    } else if (errorMessage.includes("insufficient funds")) {
-                      toast.error("Insufficient funds for transaction");
-                    } else if (errorMessage.includes("gas")) {
-                      toast.error(
-                        "Transaction failed due to gas estimation error",
-                      );
-                    } else if (errorMessage.includes("execution reverted")) {
-                      toast.error(
-                        "Transaction reverted - check if it's your turn and ship is valid",
-                      );
-                    } else if (errorMessage.includes("NotYourTurn")) {
-                      toast.error("It's not your turn to move");
-                    } else if (errorMessage.includes("ShipNotFound")) {
-                      toast.error("Ship not found in this game");
-                    } else if (errorMessage.includes("InvalidMove")) {
-                      toast.error(
-                        "Invalid move - check ship position and movement range",
-                      );
-                    } else if (errorMessage.includes("PositionOccupied")) {
-                      toast.error("Target position is already occupied");
-                    } else {
-                      toast.error(`Transaction failed: ${errorMessage}`);
-                    }
-                  }}
+                  onError={handleMoveSubmitError}
                   validateBeforeTransaction={() => {
                     if (!selectedShipId) {
                       return "No ship selected";
@@ -1796,10 +2041,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   }}
                 >
                   <option value="weapon">
-                    {getMainWeaponName(ship.equipment.mainWeapon)}
+                    {getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant)}
                   </option>
                   <option value="special">
-                    {getSpecialName(ship.equipment.special)}
+                    {getSpecialName(ship.equipment.special, ship.traits.variant)}
                   </option>
                 </select>
               </div>
@@ -1945,6 +2190,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const gameScoreData = toGameScoreData(game, address);
   const { myScore, opponentScore, maxScore } = gameScoreData;
+
+  // Best-effort loss explanation for GameResultModal's mission copy — only
+  // meaningful for single-player, since PvP defeats just show the score
+  // (see GameResultModal.tsx's MissionLossReason doc). "fled" is omitted
+  // here: single-player has no whole-match flee (FleeSafetySwitch is never
+  // shown for it below), only the reliably-inferrable "enemyScore" (they
+  // hit the target first) vs. the fallback "fleetDestroyed" (covers both
+  // genuine combat losses and the rare all-ships-retreated-individually
+  // case — no on-chain field distinguishes the two).
+  const missionLossReason: MissionLossReason | undefined =
+    isVsAIGame && gameWinnerResult === "opponent"
+      ? opponentScore >= maxScore
+        ? "enemyScore"
+        : "fleetDestroyed"
+      : undefined;
   const mobileTurnLabel =
     game.metadata.winner !== "0x0000000000000000000000000000000000000000"
       ? game.metadata.winner === address
@@ -1978,9 +2238,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         : "none";
   const mobileWeaponDisplayName =
     selectedShip && selectedWeaponType === "weapon"
-      ? getMainWeaponName(selectedShip.equipment.mainWeapon)
+      ? getMainWeaponName(selectedShip.equipment.mainWeapon, selectedShipVariant)
       : selectedShip && selectedWeaponType === "special"
-        ? getSpecialName(selectedShip.equipment.special)
+        ? getSpecialName(selectedShip.equipment.special, selectedShipVariant)
         : "Weapon";
   const tutorialDefaultLabel = isLandscapeMobile ? "Tap here" : "Click here";
 
@@ -2269,7 +2529,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         >
                           <span className="truncate">
                             {selectedShip
-                              ? getMainWeaponName(selectedShip.equipment.mainWeapon)
+                              ? getMainWeaponName(selectedShip.equipment.mainWeapon, selectedShipVariant)
                               : "Weapon"}
                           </span>
                         </button>
@@ -2295,7 +2555,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         >
                           <span className="truncate">
                             {selectedShip
-                              ? getSpecialName(selectedShip.equipment.special)
+                              ? getSpecialName(selectedShip.equipment.special, selectedShipVariant)
                               : "Special"}
                           </span>
                         </button>
@@ -2440,7 +2700,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       renderShipCard={renderShipCard}
                     />
                   </div>
-                {game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
+                {!isVsAIGame &&
+                game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
                   <div
                     className={`pointer-events-none absolute top-1 z-[230] ${
                       isMobileJoiner ? "left-1" : "right-1"
@@ -2558,6 +2819,51 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </div>
           </div>
         ) : null}
+        {isGameOver && !isGameResultDismissed && (
+          <GameResultModal
+            isVictory={gameWinnerResult === "me"}
+            myScore={myScore}
+            opponentScore={opponentScore}
+            maxScore={maxScore}
+            missionLossReason={missionLossReason}
+            nodeId={
+              isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
+                ? nodeIdForGame
+                : undefined
+            }
+            onClose={() => setIsGameResultDismissed(true)}
+            primaryActionLabel={
+              isRoguelikeGame
+                ? "Return to Run"
+                : isSinglePlayerGame
+                  ? "Return to Campaign"
+                  : "Back to Games"
+            }
+            onPrimaryAction={() => {
+              if (isRoguelikeGame) {
+                window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+                document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+              } else if (isSinglePlayerGame) {
+                window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+                document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+              }
+              onBack();
+            }}
+          />
+        )}
+        {roundStartInfo && !isGameOver && (
+          <RoundStartModal
+            key={roundStartInfo.round.toString()}
+            round={roundStartInfo.round}
+            isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+            myRoundScore={roundStartInfo.myRoundScore}
+            opponentRoundScore={roundStartInfo.opponentRoundScore}
+            myScore={roundStartInfo.myScore}
+            opponentScore={roundStartInfo.opponentScore}
+            maxScore={roundStartInfo.maxScore}
+            onClose={() => setRoundStartInfo(null)}
+          />
+        )}
       </div>
     );
   }
@@ -2717,7 +3023,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                {gameWinnerResult === null && (
+                {gameWinnerResult === null && !isVsAIGame && (
                   <FleeSafetySwitch
                     onFlee={() => {
                       toast.success("You have fled the battle!");
@@ -2774,15 +3080,26 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 const isParticipant =
                   game.metadata.creator === address ||
                   game.metadata.joiner === address;
+                // PvPMatch.endGameOnTimeout has no single-player
+                // equivalent — never offer to seize the turn on timeout
+                // there (see useAITurnLoop's own error/cap handling for
+                // the single-player "AI is stuck" case instead).
                 const canSeizeTurn =
                   !readOnly &&
                   !isMyTurnEffective &&
+                  !isVsAIGame &&
                   isParticipant &&
                   turnSecondsLeft <= 0;
+                // Game.sol never self-enforces turnTime and
+                // SinglePlayerMatch has no timeout function, so vs-AI turns
+                // are already unlimited on-chain — don't show the "opponent
+                // can claim victory" warning for a timer that can't actually
+                // cost the player anything.
                 const hasExceededTime =
                   !readOnly &&
                   isMyTurnEffective &&
                   isParticipant &&
+                  !isVsAIGame &&
                   turnSecondsLeft <= 0;
 
                 return (
@@ -2796,8 +3113,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     claimTimeoutButton={
                       <TransactionButton
                         transactionId={`timeout-${game.metadata.gameId.toString()}`}
-                        contractAddress={gameContract.address}
-                        abi={gameContract.abi}
+                        contractAddress={pvpMatchContract.address}
+                        abi={pvpMatchContract.abi}
                         functionName="endGameOnTimeout"
                         args={[game.metadata.gameId]}
                         className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
@@ -3047,8 +3364,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   recordPlayerMove();
                   refetchGame();
                   refetch?.();
+                  // See the toolbar submit button's onSuccess for why this
+                  // is called here rather than waiting on the chain-sync
+                  // effect.
+                  handleCancelMove();
                 }}
-                onError={() => setAwaitingTurnSyncAfterSubmit(false)}
+                onError={handleMoveSubmitError}
               >
                 {confirmWidgetLabel}
               </TransactionButton>
@@ -3058,17 +3379,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             </div>
           {/* Replay banner */}
           {isReplaying && (
-            <div
-              className="pointer-events-none absolute top-1 left-1 z-[230] px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
-              style={{
-                ...STYLE_LABEL,
-                color: "var(--color-cyan)",
-                backgroundColor: "color-mix(in srgb, var(--color-near-black) 85%, transparent)",
-                border: "1px solid var(--color-steel)",
-              }}
-            >
-              {replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
-            </div>
+            <GameReplayBanner
+              label={replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
+            />
           )}
           {/* Replay controls (bottom-left) */}
           <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
@@ -3110,57 +3423,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </div>
               )}
               {isReplaying && (
-                <div
-                  className="flex items-center gap-2 flex-wrap border-2 border-solid px-2 py-1"
-                  style={{
-                    borderColor: "var(--color-steel)",
-                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                    borderRadius: 0,
-                  }}
-                >
-                  <button
-                    onClick={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
-                    disabled={replayStep <= -1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    ◀ Prev
-                  </button>
-                  <span className="text-[11px] font-mono text-text-muted min-w-[5rem] text-center">
-                    {replayStep < 0
+                <GameReplayControls
+                  stepLabel={
+                    replayStep < 0
                       ? "Start"
-                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`}
-                  </span>
-                  <button
-                    onClick={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
-                    disabled={replayStep >= replayTurns.length - 1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-steel)", color: "var(--color-cyan)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    Next ▶
-                  </button>
-                  <button
-                    onClick={() => setReplayAutoPlay((p) => !p)}
-                    disabled={replayStep >= replayTurns.length - 1}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid disabled:opacity-40"
-                    style={{
-                      ...STYLE_LABEL,
-                      borderColor: replayAutoPlay ? "var(--color-cyan)" : "var(--color-steel)",
-                      color: replayAutoPlay ? "var(--color-cyan)" : "var(--color-text-muted)",
-                      backgroundColor: "transparent",
-                      borderRadius: 0,
-                    }}
-                  >
-                    {replayAutoPlay ? "⏸ Pause" : "▶▶ Play"}
-                  </button>
-                  <button
-                    onClick={exitReplay}
-                    className="px-2 py-0.5 text-[11px] uppercase tracking-wider border border-solid"
-                    style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-                  >
-                    ✕ Exit
-                  </button>
-                </div>
+                      : `Move ${replayStep + 1}/${replayTurns.length} · Rd ${replayTurns[replayStep]?.round ?? ""}`
+                  }
+                  onPrev={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                  canPrev={replayStep > -1}
+                  onNext={() => setReplayStep((s) => (s === null ? null : Math.min(replayTurns.length - 1, s + 1)))}
+                  canNext={replayStep < replayTurns.length - 1}
+                  isPlaying={replayAutoPlay}
+                  onTogglePlay={() => setReplayAutoPlay((p) => !p)}
+                  onExit={exitReplay}
+                />
               )}
             </div>
           </div>
@@ -3371,11 +3647,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     : "var(--color-warning-red)",
                 }}
               >
-                {isMyTurnEffective ? "Your turn" : "Opponent turn"} |{" "}
-                {formatSeconds(Math.max(0, turnSecondsLeft))}
+                {isMyTurnEffective
+                  ? "Your turn"
+                  : isVsAIGame
+                    ? "AI's turn"
+                    : "Opponent turn"}{" "}
+                | {formatSeconds(Math.max(0, turnSecondsLeft))}
               </div>
-              {game.metadata.winner ===
-              "0x0000000000000000000000000000000000000000" ? (
+              {!isVsAIGame &&
+              game.metadata.winner ===
+                "0x0000000000000000000000000000000000000000" ? (
                 <FleeSafetySwitch
                   onFlee={() => {
                     toast.success("You have fled the battle!");
@@ -3527,6 +3808,51 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           />
         );
       })()}
+      {isGameOver && !isGameResultDismissed && (
+        <GameResultModal
+          isVictory={gameWinnerResult === "me"}
+          myScore={myScore}
+          opponentScore={opponentScore}
+          maxScore={maxScore}
+          missionLossReason={missionLossReason}
+          nodeId={
+            isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
+              ? nodeIdForGame
+              : undefined
+          }
+          onClose={() => setIsGameResultDismissed(true)}
+          primaryActionLabel={
+            isRoguelikeGame
+              ? "Return to Run"
+              : isSinglePlayerGame
+                ? "Return to Campaign"
+                : "Back to Games"
+          }
+          onPrimaryAction={() => {
+            if (isRoguelikeGame) {
+              window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+              document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+            } else if (isSinglePlayerGame) {
+              window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+              document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+            }
+            onBack();
+          }}
+        />
+      )}
+      {roundStartInfo && !isGameOver && (
+        <RoundStartModal
+          key={roundStartInfo.round.toString()}
+          round={roundStartInfo.round}
+          isMyTurnFirst={roundStartInfo.isMyTurnFirst}
+          myRoundScore={roundStartInfo.myRoundScore}
+          opponentRoundScore={roundStartInfo.opponentRoundScore}
+          myScore={roundStartInfo.myScore}
+          opponentScore={roundStartInfo.opponentScore}
+          maxScore={roundStartInfo.maxScore}
+          onClose={() => setRoundStartInfo(null)}
+        />
+      )}
     </div>
   );
 };

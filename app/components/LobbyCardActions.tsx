@@ -25,6 +25,11 @@ interface LobbyCardActionsProps {
   leaveButton: React.ReactNode;
   creatorExtraControls?: React.ReactNode;
   joinerExtraControls?: React.ReactNode;
+  /** pruneStaleLobby is permissionless (not creator/joiner-specific), so it
+   * doesn't fit creatorExtraControls/joinerExtraControls — rendered
+   * whenever the lobby is Open, regardless of viewer role. Caller passes
+   * undefined when the lobby isn't stale-eligible. */
+  pruneButton?: React.ReactNode;
 }
 
 // Shared lobby-card action block for `Lobbies.tsx` (web3) and
@@ -51,6 +56,7 @@ export const LobbyCardActions: React.FC<LobbyCardActionsProps> = ({
   leaveButton,
   creatorExtraControls,
   joinerExtraControls,
+  pruneButton,
 }) => {
   const isInGame = status === LOBBY_STATUS_IN_GAME;
 
@@ -98,6 +104,8 @@ export const LobbyCardActions: React.FC<LobbyCardActionsProps> = ({
             )}
           </div>
         )}
+
+      {status === LOBBY_STATUS_OPEN && !hasJoiner && pruneButton}
 
       {(isCreatorMe || isJoinerMe) && (
         <div className="flex flex-col gap-2">

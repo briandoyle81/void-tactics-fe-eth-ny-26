@@ -24,6 +24,10 @@ export interface FleetCreateButtonState {
   isUnder90Percent: boolean;
   hasMovedShip: boolean;
   hasStaleCosts: boolean;
+  /** Overrides the default "CREATE FLEET (n)" label once nothing else
+   * (busy/over-limit/etc.) applies — e.g. "LAUNCH MISSION (n)" for a
+   * campaign node match, which isn't creating a Lobbies fleet at all. */
+  readyLabel?: string;
 }
 
 function getCreateButtonLabel(state: FleetCreateButtonState): string {
@@ -35,7 +39,7 @@ function getCreateButtonLabel(state: FleetCreateButtonState): string {
   if (state.isUnder90Percent) return `NEED ${Math.round(state.costLimit * 0.9)} POINTS`;
   if (!state.hasMovedShip) return "MOVE AT LEAST ONE SHIP FORWARD";
   if (state.hasStaleCosts) return "COST VERSION OUT OF DATE (MANAGE NAVY)";
-  return `CREATE FLEET (${state.selectedCount})`;
+  return state.readyLabel ?? `CREATE FLEET (${state.selectedCount})`;
 }
 
 function isCreateButtonDisabled(state: FleetCreateButtonState): boolean {
@@ -54,6 +58,14 @@ export interface FleetSelectionModalProps {
   participantHasFleet: boolean;
   opponentHasFleet: boolean;
   onGoToGames: () => void;
+
+  /** True when the opponent is the on-chain AI orchestrator rather than a
+   * human — lets us offer an active "deploy AI fleet" action instead of a
+   * passive "waiting for opposing admiral" placeholder, since the human
+   * viewing this modal can trigger the AI's fleet themselves. */
+  isAiOpponent?: boolean;
+  onDeployAiFleet?: () => void;
+  isDeployingAiFleet?: boolean;
 
   createButtonState: FleetCreateButtonState;
   onCreateFleet: () => void;
@@ -85,12 +97,19 @@ export interface FleetSelectionModalProps {
   isCreator: boolean;
   shipListItems: FleetShipListItemData[];
   mapDisplay: ReactNode;
+  /** Dragging a placed ship off the grid and dropping it here unplaces it —
+   * see FleetShipListPanel's onDropShip for the mechanics. Omit to leave
+   * the list a drag source only (removal still works via click-to-toggle). */
+  onDropShip?: (shipId: string) => void;
 }
 
 export function FleetSelectionModal({
   participantHasFleet,
   opponentHasFleet,
   onGoToGames,
+  isAiOpponent = false,
+  onDeployAiFleet,
+  isDeployingAiFleet = false,
   createButtonState,
   onCreateFleet,
   onCancel,
@@ -117,6 +136,7 @@ export function FleetSelectionModal({
   isCreator,
   shipListItems,
   mapDisplay,
+  onDropShip,
 }: FleetSelectionModalProps) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[400]">
@@ -131,9 +151,14 @@ export function FleetSelectionModal({
                 FLEET SELECTED
               </span>
             )}
-            {participantHasFleet && !opponentHasFleet && (
+            {participantHasFleet && !opponentHasFleet && !isAiOpponent && (
               <span className="px-3 py-1 text-xs font-bold text-amber bg-amber/10 border border-amber/40 rounded-none whitespace-nowrap">
                 WAITING FOR OPPOSING ADMIRAL
+              </span>
+            )}
+            {participantHasFleet && !opponentHasFleet && isAiOpponent && (
+              <span className="px-3 py-1 text-xs font-bold text-cyan bg-cyan/10 border border-cyan/40 rounded-none whitespace-nowrap">
+                AI FLEET NOT YET DEPLOYED
               </span>
             )}
           </div>
@@ -166,6 +191,15 @@ export function FleetSelectionModal({
                 className="w-full px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 md:w-auto md:whitespace-nowrap"
               >
                 GO TO GAMES
+              </button>
+            ) : isAiOpponent ? (
+              <button
+                type="button"
+                onClick={onDeployAiFleet}
+                disabled={isDeployingAiFleet}
+                className="w-full px-4 py-2 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto md:whitespace-nowrap"
+              >
+                {isDeployingAiFleet ? "[DEPLOYING AI FLEET...]" : "[DEPLOY AI FLEET]"}
               </button>
             ) : (
               <button
@@ -266,7 +300,7 @@ export function FleetSelectionModal({
             {isCreator ? (
               <>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} />
+                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
                 )}
                 <div
                   className={`${participantHasFleet ? "w-full" : "w-3/4"} h-full flex items-center justify-center`}
@@ -282,7 +316,7 @@ export function FleetSelectionModal({
                   {mapDisplay}
                 </div>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} />
+                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
                 )}
               </>
             )}

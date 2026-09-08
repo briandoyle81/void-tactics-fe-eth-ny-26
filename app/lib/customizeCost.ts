@@ -1,4 +1,5 @@
 import { PURCHASE_TIERS } from "./purchaseTiers";
+import { validSpecialsForVariant } from "../types/types";
 
 export interface ShipEquipmentInput {
   mainWeapon: number;
@@ -43,6 +44,7 @@ export function calculateCustomizeCost(modifiedCount: number, newMods: number): 
 export function validateCustomization(
   equipment: ShipEquipmentInput,
   traits: ShipTraitsInput,
+  variant: number,
 ): string | null {
   if (!Number.isInteger(traits.accuracy) || traits.accuracy < 0 || traits.accuracy > 2) return "Accuracy must be 0, 1, or 2";
   if (!Number.isInteger(traits.hull) || traits.hull < 0 || traits.hull > 2) return "Hull must be 0, 1, or 2";
@@ -50,7 +52,10 @@ export function validateCustomization(
   if (!Number.isInteger(equipment.mainWeapon) || equipment.mainWeapon < 0 || equipment.mainWeapon > 3) return "mainWeapon must be 0–3";
   if (!Number.isInteger(equipment.armor) || equipment.armor < 0 || equipment.armor > 3) return "armor must be 0–3";
   if (!Number.isInteger(equipment.shields) || equipment.shields < 0 || equipment.shields > 3) return "shields must be 0–3";
-  if (!Number.isInteger(equipment.special) || equipment.special < 0 || equipment.special > 3) return "special must be 0–3";
+  const validSpecials = validSpecialsForVariant(variant);
+  if (!Number.isInteger(equipment.special) || !validSpecials.includes(equipment.special)) {
+    return `special must be one of: ${validSpecials.join(", ")}`;
+  }
   if (equipment.armor > 0 && equipment.shields > 0) return "Cannot equip both armor and shields";
   return null;
 }

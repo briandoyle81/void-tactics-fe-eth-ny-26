@@ -36,6 +36,9 @@ const Info: React.FC = () => {
     nextClaimInFormatted: nextClaimInFormattedWeb3,
     cooldownSeconds,
     error: freeShipError,
+    claimFreeShips,
+    isPending: isClaimFreeShipsPending,
+    isConfirmed: isClaimFreeShipsConfirmed,
   } = useFreeShipClaiming();
   const {
     isEligible: isEligibleWeb2,
@@ -242,10 +245,13 @@ const Info: React.FC = () => {
                   !hasClaimStatusError &&
                   isEligible &&
                   (appMode === "web2" ? (
-                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} />
+                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} analyticsSurface="info" />
                   ) : (
                     <FreeShipClaimButton
                       isEligible={isEligible}
+                      isPending={isClaimFreeShipsPending}
+                      isConfirmed={isClaimFreeShipsConfirmed}
+                      claimFreeShips={claimFreeShips}
                       analyticsSurface="info"
                       className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wide md:tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto text-xs sm:text-sm"
                       onSuccess={() => refetch()}
@@ -366,6 +372,7 @@ const Info: React.FC = () => {
               seedOffset={0}
               align="start"
               side="allied"
+              forcedVariant={1}
             />
           </div>
           <div
@@ -377,6 +384,7 @@ const Info: React.FC = () => {
               align="start"
               side="enemy"
               flipLayout={true}
+              forcedVariant={2}
             />
           </div>
         </div>

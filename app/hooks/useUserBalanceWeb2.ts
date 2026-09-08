@@ -15,13 +15,16 @@ export function useUserBalanceWeb2() {
   const { isLoggedIn } = useCurrentUser();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: USER_BALANCE_QUERY_KEY,
-    queryFn: () => apiFetch<{ creditBalance: number }>("/api/user/me"),
+    queryFn: () =>
+      apiFetch<{ creditBalance: number; decBalance: number; droneCoreTier: number }>("/api/user/me"),
     enabled: isLoggedIn,
     refetchInterval: 30_000,
   });
 
   return {
     creditBalance: data?.creditBalance ?? 0,
+    decBalance: data?.decBalance ?? 0,
+    droneCoreTier: data?.droneCoreTier ?? 0,
     isLoading,
     error: error?.message ?? null,
     refetch,

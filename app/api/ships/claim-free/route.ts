@@ -53,6 +53,10 @@ export async function POST() {
   }
 
   const costs = await getCurrentCosts();
+  // Drone Storefront's permanent claim bonus (docs/faction-2.md §4) —
+  // mirrors web3's FreeShipClaim minting 10 + DroneStorefront.droneCoreTier.
+  const user = await prisma.user.findUnique({ where: { id: userId! }, select: { droneCoreTier: true } });
+  const shipsToMint = FREE_SHIPS_PER_CLAIM + (user?.droneCoreTier ?? 0);
 
   try {
     const ships = await prisma.$transaction(
@@ -72,7 +76,7 @@ export async function POST() {
         }
 
         return Promise.all(
-          Array.from({ length: FREE_SHIPS_PER_CLAIM }, (_, i) => {
+          Array.from({ length: shipsToMint }, (_, i) => {
             const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
             return tx.ship.create({
               data: {

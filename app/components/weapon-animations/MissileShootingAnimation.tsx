@@ -55,7 +55,11 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   const missileIdRef = useRef(0);
   const impactIdRef = useRef(0);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const animationFrameRef = useRef<number | null>(null);
   const impactAnimationRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,7 +98,9 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
 
   // Select target spot and spawn missile
   const spawnMissile = useCallback(() => {
-    if (!gridContainerRef.current) return;
+    if (!gridContainerRef.current) {
+      return;
+    }
 
     const attackerCenter = getAttackerOrigin();
     const targetCenter = getCellCenter(targetRow, targetCol);
@@ -218,7 +224,7 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
         }
       };
     }
-  }, [missiles.length, spawnMissile]);
+  }, [missiles.length, spawnMissile, attackerRow, attackerCol, targetRow, targetCol]);
 
   // Animate missile movement
   useEffect(() => {

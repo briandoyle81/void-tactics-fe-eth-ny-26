@@ -75,11 +75,16 @@ export type ShipAttributesWriteFunction =
   | "addEngineSpeed"
   | "setCosts";
 
+// `chainIdOverride` pins the read to a specific chain instead of following
+// the header network picker — needed by the campaign flow (Base-Sepolia-
+// only, like every other campaign hook).
 export function useShipAttributesRead(
   functionName: ShipAttributesReadFunction,
-  args?: readonly unknown[]
+  args?: readonly unknown[],
+  chainIdOverride?: number,
 ) {
-  const chainId = useSelectedChainId();
+  const pickerChainId = useSelectedChainId();
+  const chainId = chainIdOverride ?? pickerChainId;
   const shipAttributes = getContractAddresses(chainId)
     .SHIP_ATTRIBUTES as `0x${string}`;
 
@@ -115,8 +120,8 @@ export function useCurrentAttributesVersion() {
   return useShipAttributesRead("getCurrentAttributesVersion");
 }
 
-export function useCurrentCostsVersion() {
-  return useShipAttributesRead("getCurrentCostsVersion");
+export function useCurrentCostsVersion(chainIdOverride?: number) {
+  return useShipAttributesRead("getCurrentCostsVersion", undefined, chainIdOverride);
 }
 
 export function useCosts() {
@@ -143,7 +148,10 @@ export function useShieldData(shieldIndex: number) {
   return useShipAttributesRead("getShieldData", args);
 }
 
-export function useSpecialData(specialIndex: number) {
-  const args = useMemo(() => [specialIndex] as const, [specialIndex]);
+// `getSpecialData` takes a `_variant` argument (ship traits.variant) as of
+// the contract redeploy that added per-variant special stats — see
+// useSpecialRange.ts's matching doc for the failure mode when it's omitted.
+export function useSpecialData(specialIndex: number, variant: number = 0) {
+  const args = useMemo(() => [specialIndex, variant] as const, [specialIndex, variant]);
   return useShipAttributesRead("getSpecialData", args);
 }
