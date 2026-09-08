@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { useWinEffectsAdminWeb2 } from "../hooks/useWinEffectsAdminWeb2";
 import { WinEffectsPickerWeb2 } from "./WinEffectsPickerWeb2";
-import type { WinEffectKey } from "../lib/winEffectsWeb2";
+import type { WinEffectKey } from "../lib/winEffectsCatalog";
 
 // Web2 counterpart to PvPMatchAdminPanel.tsx — assigns which win effects
 // fire for the winner of a plain PvP game (not AI, campaign, roguelike, or

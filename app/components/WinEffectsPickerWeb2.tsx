@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { WIN_EFFECT_KEYS, WIN_EFFECT_LABELS, IMPLEMENTED_WIN_EFFECT_KEYS, type WinEffectKey } from "../lib/winEffectsWeb2";
+import { WIN_EFFECT_KEYS, WIN_EFFECT_LABELS, IMPLEMENTED_WIN_EFFECT_KEYS, type WinEffectKey } from "../lib/winEffectsCatalog";
 
 interface WinEffectsPickerWeb2Props {
   currentEffects: string[] | undefined;

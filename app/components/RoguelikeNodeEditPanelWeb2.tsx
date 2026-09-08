@@ -9,7 +9,7 @@ import type { RoguelikeNodeWeb2 } from "../hooks/useRoguelikeWeb2";
 import { useRoguelikeAdminWeb2, type RoguelikeNodeWeb2Input } from "../hooks/useRoguelikeAdminWeb2";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { WinEffectsPickerWeb2 } from "./WinEffectsPickerWeb2";
-import type { WinEffectKey } from "../lib/winEffectsWeb2";
+import type { WinEffectKey } from "../lib/winEffectsCatalog";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPlacementsEditorWeb2 } from "./MapPlacementsEditorWeb2";

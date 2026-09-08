@@ -4,41 +4,31 @@ import { generateShip, calcShipCost } from "./shipGen";
 import { getCurrentCosts } from "./getCurrentCosts";
 import { validSpecialsForVariant } from "../types/types";
 import type { Web2ShipEquipment } from "../types/web2Ship";
+import {
+  WIN_EFFECT_KEYS,
+  WIN_EFFECT_LABELS,
+  IMPLEMENTED_WIN_EFFECT_KEYS,
+  isWinEffectKey,
+  type WinEffectKey,
+} from "./winEffectsCatalog";
 
 // Web2 counterpart to the on-chain pluggable win effects (contracts/
 // IWinEffect.sol — DECBonusWinEffect/HealAboveFloorWinEffect/
 // ShipGrantWinEffect), assignable to roguelike combat nodes
 // (RoguelikeNode.winEffects), PvP games, and tournament champions. Same
 // three keys as useWinEffects.ts's WIN_EFFECT_CATALOG so admin UI and node
-// config speak one vocabulary across both flows.
+// config speak one vocabulary across both flows. The catalog itself lives
+// in winEffectsCatalog.ts (re-exported below) since this file imports
+// prisma and can't be pulled into a client bundle.
 //
-// HEAL_ABOVE_FLOOR_WIN_EFFECT is defined here for config/UI parity only —
-// applyWinEffects() does not act on it yet. The on-chain onWin()'s second
-// argument (whether it targets one ship or the whole winning fleet) needs
-// confirming against the Solidity source (not in this repo) before its
-// targeting can be replicated correctly; wiring it in now would guess at
-// game-balance-affecting behavior.
-export const WIN_EFFECT_KEYS = [
-  "DEC_BONUS_WIN_EFFECT",
-  "HEAL_ABOVE_FLOOR_WIN_EFFECT",
-  "SHIP_GRANT_WIN_EFFECT",
-] as const;
-export type WinEffectKey = (typeof WIN_EFFECT_KEYS)[number];
-
-export const WIN_EFFECT_LABELS: Record<WinEffectKey, string> = {
-  DEC_BONUS_WIN_EFFECT: "DEC Bonus",
-  HEAL_ABOVE_FLOOR_WIN_EFFECT: "Heal Above Floor",
-  SHIP_GRANT_WIN_EFFECT: "Grant Ship",
-};
-
-export const IMPLEMENTED_WIN_EFFECT_KEYS: readonly WinEffectKey[] = [
-  "DEC_BONUS_WIN_EFFECT",
-  "SHIP_GRANT_WIN_EFFECT",
-];
-
-export function isWinEffectKey(value: unknown): value is WinEffectKey {
-  return typeof value === "string" && (WIN_EFFECT_KEYS as readonly string[]).includes(value);
-}
+// HEAL_ABOVE_FLOOR_WIN_EFFECT is defined in the catalog for config/UI
+// parity only — applyWinEffects() does not act on it yet. The on-chain
+// onWin()'s second argument (whether it targets one ship or the whole
+// winning fleet) needs confirming against the Solidity source (not in this
+// repo) before its targeting can be replicated correctly; wiring it in now
+// would guess at game-balance-affecting behavior.
+export { WIN_EFFECT_KEYS, WIN_EFFECT_LABELS, IMPLEMENTED_WIN_EFFECT_KEYS, isWinEffectKey };
+export type { WinEffectKey };
 
 export interface WinEffectsSettings {
   decBonusAmount: number;
