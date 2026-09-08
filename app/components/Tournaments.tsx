@@ -10,6 +10,7 @@ import { TournamentCard } from "./TournamentCard";
 import { TournamentRegister } from "./TournamentRegister";
 import { TournamentBracket } from "./TournamentBracket";
 import { TournamentAdminPanel } from "./TournamentAdminPanel";
+import { TournamentWinEffectsAdminPanel } from "./TournamentWinEffectsAdminPanel";
 import { TournamentDetailHeader } from "./TournamentDetailHeader";
 import { TournamentDetailStatsRow } from "./TournamentDetailStatsRow";
 import { TournamentCreateForm } from "./TournamentCreateForm";
@@ -72,6 +73,24 @@ function TournamentDetail({
     [refetch, actions.publicClient],
   );
 
+  // Start is its own handler, not routed through run() above: it already
+  // waits for its own start() receipt internally and then auto-retries
+  // buildBracket() for a bit (see useTournamentActions.startAndBuildBracket)
+  // — it returns void, not a hash, and must not surface a timed-out
+  // auto-retry as an error since start() itself already succeeded.
+  const runStart = useCallback(async () => {
+    setActionPending(true);
+    setActionError(null);
+    try {
+      await actions.startAndBuildBracket(tournamentId);
+      void refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Transaction failed");
+    } finally {
+      setActionPending(false);
+    }
+  }, [actions, tournamentId, refetch]);
+
   if (isLoading || !summary || !config) {
     return (
       <div className="flex items-center gap-2 py-12 text-xs text-text-muted font-mono">
@@ -114,7 +133,7 @@ function TournamentDetail({
         <div className="mb-5">
           <button
             disabled={actionPending}
-            onClick={() => void run(() => actions.start(tournamentId))}
+            onClick={() => void runStart()}
             className="border border-gunmetal/60 px-4 py-2 text-xs text-text-muted hover:border-steel hover:text-text-secondary transition-colors disabled:opacity-50"
           >
             {actionPending ? "Starting…" : "Start Tournament"}
@@ -125,10 +144,36 @@ function TournamentDetail({
         </div>
       )}
 
+      {/* Building bracket (start() succeeded, buildBracket() reveals the
+          round-1 pairing shuffle and hasn't landed yet — usually the Start
+          button above already auto-retries this; shown as a manual
+          fallback for anyone viewing the page if that auto-retry window
+          closes, e.g. the starter's tab closed). Permissionless — not
+          gated to whoever clicked Start. */}
+      {summary.state === TournamentState.Starting && (
+        <div className="mb-5 border border-cyan/30 bg-cyan/5 p-4">
+          <div className="text-xs text-cyan mb-2">
+            Shuffling round-1 pairings… this needs one more transaction a
+            few seconds after Start. Anyone can trigger it.
+          </div>
+          <button
+            disabled={actionPending}
+            onClick={() => void run(() => actions.buildBracket(tournamentId))}
+            className="border border-cyan px-4 py-2 text-xs text-cyan hover:bg-cyan/10 transition-colors disabled:opacity-50"
+          >
+            {actionPending ? "Building…" : "Build Bracket"}
+          </button>
+        </div>
+      )}
+
       {/* Bracket */}
       <div className="mb-5">
         <div className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Bracket</div>
-        <TournamentBracket tournamentId={tournamentId} bracket={bracket} />
+        <TournamentBracket
+          tournamentId={tournamentId}
+          bracket={bracket}
+          isBuildingBracket={summary.state === TournamentState.Starting}
+        />
       </div>
 
       {/* Admin */}
@@ -337,7 +382,10 @@ function TournamentList({
   onCreate: () => void;
 }) {
   const active = tournaments.filter(
-    (t) => t.state === TournamentState.Registration || t.state === TournamentState.Active,
+    (t) =>
+      t.state === TournamentState.Registration ||
+      t.state === TournamentState.Starting ||
+      t.state === TournamentState.Active,
   );
   const finished = tournaments.filter(
     (t) => t.state === TournamentState.Complete || t.state === TournamentState.Cancelled,
@@ -397,11 +445,14 @@ export function Tournaments() {
   }
 
   return (
-    <TournamentList
-      tournaments={tournaments}
-      isLoading={isLoading}
-      onSelect={(id) => setView({ type: "detail", tournamentId: id })}
-      onCreate={() => setView({ type: "create" })}
-    />
+    <>
+      <TournamentList
+        tournaments={tournaments}
+        isLoading={isLoading}
+        onSelect={(id) => setView({ type: "detail", tournamentId: id })}
+        onCreate={() => setView({ type: "create" })}
+      />
+      <TournamentWinEffectsAdminPanel />
+    </>
   );
 }

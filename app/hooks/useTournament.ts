@@ -20,6 +20,17 @@ export const BASE_SEPOLIA_TOURNAMENT_ADDRESS =
 const TOURNAMENT_ABI = CONTRACT_ABIS.TOURNAMENT as Abi;
 const CHAIN_ID = baseSepolia.id;
 
+/** owner()-gated admin controls (Tournament.setWinEffects) check this before rendering, same gate LobbyAdminPanel.tsx uses. */
+export function useTournamentOwner() {
+  const result = useReadContract({
+    address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
+    abi: TOURNAMENT_ABI,
+    chainId: CHAIN_ID,
+    functionName: "owner",
+  });
+  return { ...result, data: result.data as Address | undefined };
+}
+
 export function useTournament(tournamentId: bigint | null) {
   const { address } = useAccount();
   const enabled = tournamentId !== null;
@@ -140,6 +151,7 @@ export function useTournament(tournamentId: bigint | null) {
   const onEvent = useCallback(() => { void refetch(); }, [refetch]);
 
   useWatchContractEvent({ ...watchConfig, eventName: "Registered", onLogs: onEvent });
+  useWatchContractEvent({ ...watchConfig, eventName: "TournamentClosing", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "TournamentStarted", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "MatchGameAssigned", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "MatchResolved", onLogs: onEvent });

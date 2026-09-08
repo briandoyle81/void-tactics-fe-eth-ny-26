@@ -41,6 +41,24 @@ export function usePvPMatchContract() {
   };
 }
 
+/** owner()-gated admin controls (Game.setHealCapPercent, PvPMatch.setWinEffects) check this before rendering, same gate LobbyAdminPanel.tsx uses. */
+export function useGameOwner() {
+  const result = useGameRead("owner");
+  return { ...result, data: result.data as `0x${string}` | undefined };
+}
+
+export function usePvPMatchOwner() {
+  const { address, abi, chainId } = usePvPMatchContract();
+  const result = useReadContract({ address, abi, chainId, functionName: "owner" });
+  return { ...result, data: result.data as `0x${string}` | undefined };
+}
+
+/** Global heal ceiling (see contracts/SpecialEffectsLib.sol) — caps any heal effect, in any mode, at this % of a ship's max HP. Defaults to 100 (no extra cap). */
+export function useHealCapPercent() {
+  const result = useGameRead("healCapPercent");
+  return { ...result, data: result.data as number | undefined };
+}
+
 // Hook for reading contract data with proper typing
 // `chainIdOverride` — see useGameContract above.
 export function useGameRead(

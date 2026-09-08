@@ -12,6 +12,12 @@ import {
 import { useRoguelikeNodeMapAdmin } from "../hooks/useRoguelikeNodeMapAdmin";
 import { useAIEncountersAdmin } from "../hooks/useAIEncountersAdmin";
 import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
+import {
+  useDECBonusAmount,
+  useHealAboveFloorPercent,
+  useShipGrantConfig,
+} from "../hooks/useWinEffects";
+import { useWinEffectsAdmin } from "../hooks/useWinEffectsAdmin";
 
 interface RoguelikeSettingsModalProps {
   campaignId: bigint;
@@ -42,6 +48,16 @@ export function RoguelikeSettingsModal({
   const { data: currentCostCap, refetch: refetchCostCap } =
     useRoguelikeCampaignInitialCostCap(campaignId);
 
+  const winEffectsAdmin = useWinEffectsAdmin();
+  const { data: currentDecBonus, refetch: refetchDecBonus } = useDECBonusAmount();
+  const { data: currentHealAbovePercent, refetch: refetchHealAbovePercent } =
+    useHealAboveFloorPercent();
+  const {
+    variant: currentShipGrantVariant,
+    tier: currentShipGrantTier,
+    refetch: refetchShipGrantConfig,
+  } = useShipGrantConfig();
+
   const [rootNodeId, setRootNodeId] = React.useState("");
   const [autoHealPercent, setAutoHealPercent] = React.useState(0);
   const [variant, setVariant] = React.useState(0);
@@ -49,6 +65,10 @@ export function RoguelikeSettingsModal({
   const [repairCostPerHp, setRepairCostPerHp] = React.useState("0");
   const [withdrawTo, setWithdrawTo] = React.useState("");
   const [editorAddress, setEditorAddress] = React.useState("");
+  const [decBonusAmount, setDecBonusAmount] = React.useState("0");
+  const [healAbovePercent, setHealAbovePercent] = React.useState(0);
+  const [shipGrantVariant, setShipGrantVariant] = React.useState(0);
+  const [shipGrantTier, setShipGrantTier] = React.useState(0);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -60,6 +80,18 @@ export function RoguelikeSettingsModal({
   React.useEffect(() => {
     if (currentVariant != null) setVariant(currentVariant);
   }, [currentVariant]);
+  React.useEffect(() => {
+    if (currentDecBonus != null) setDecBonusAmount(currentDecBonus.toString());
+  }, [currentDecBonus]);
+  React.useEffect(() => {
+    if (currentHealAbovePercent != null) setHealAbovePercent(currentHealAbovePercent);
+  }, [currentHealAbovePercent]);
+  React.useEffect(() => {
+    if (currentShipGrantVariant != null) setShipGrantVariant(currentShipGrantVariant);
+  }, [currentShipGrantVariant]);
+  React.useEffect(() => {
+    if (currentShipGrantTier != null) setShipGrantTier(currentShipGrantTier);
+  }, [currentShipGrantTier]);
   React.useEffect(() => {
     if (currentCostCap != null) setInitialCostCap(currentCostCap.toString());
   }, [currentCostCap]);
@@ -248,6 +280,85 @@ export function RoguelikeSettingsModal({
                 [REVOKE]
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-steel pt-4">
+            <label className="text-xs text-text-muted">
+              Win effect configuration — global per resolver, shared across every
+              campaign/node it&apos;s assigned to (see a node&apos;s own edit panel to
+              assign which effects run there)
+            </label>
+
+            <SettingRow label="DEC Bonus — amount minted per win">
+              <input
+                type="number"
+                min={0}
+                value={decBonusAmount}
+                onChange={(e) => setDecBonusAmount(e.target.value)}
+                className="flex-1 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <SaveButton
+                busy={busy === "decBonus"}
+                onClick={() =>
+                  run("decBonus", async () => {
+                    await winEffectsAdmin.setDecBonusAmount(BigInt(decBonusAmount || "0"));
+                    await refetchDecBonus();
+                  })
+                }
+              />
+            </SettingRow>
+
+            <SettingRow label="Heal Above Floor — heals to this % of max HP">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={healAbovePercent}
+                onChange={(e) =>
+                  setHealAbovePercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                }
+                className="flex-1 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <SaveButton
+                busy={busy === "healAbove"}
+                onClick={() =>
+                  run("healAbove", async () => {
+                    await winEffectsAdmin.setHealAboveFloorPercent(healAbovePercent);
+                    await refetchHealAbovePercent();
+                  })
+                }
+              />
+            </SettingRow>
+
+            <SettingRow label="Grant Ship — variant / tier">
+              <input
+                type="number"
+                min={1}
+                value={shipGrantVariant}
+                onChange={(e) => setShipGrantVariant(Math.max(1, Number(e.target.value) || 1))}
+                className="w-20 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <input
+                type="number"
+                min={0}
+                value={shipGrantTier}
+                onChange={(e) => setShipGrantTier(Math.max(0, Number(e.target.value) || 0))}
+                className="w-20 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <SaveButton
+                busy={busy === "shipGrant"}
+                onClick={() =>
+                  run("shipGrant", async () => {
+                    await winEffectsAdmin.setShipGrantConfig(shipGrantVariant, shipGrantTier);
+                    await refetchShipGrantConfig();
+                  })
+                }
+              />
+            </SettingRow>
           </div>
 
           <NodeContentPublishPanel graphType="ROGUELIKE" nodeIds={nodeIds} />

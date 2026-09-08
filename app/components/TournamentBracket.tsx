@@ -13,9 +13,10 @@ function shortAddr(addr: string) {
 interface Props {
   tournamentId: bigint;
   bracket: TournamentMatch[];
+  isBuildingBracket?: boolean;
 }
 
-export function TournamentBracket({ tournamentId, bracket }: Props) {
+export function TournamentBracket({ tournamentId, bracket, isBuildingBracket }: Props) {
   const matches: BracketMatchData[] = bracket.map((match) => {
     const noPlayer1 = match.player1 === ZERO_ADDRESS;
     const noPlayer2 = match.player2 === ZERO_ADDRESS;
@@ -41,6 +42,7 @@ export function TournamentBracket({ tournamentId, bracket }: Props) {
   return (
     <TournamentBracketView
       bracket={matches}
+      isBuildingBracket={isBuildingBracket}
       renderReplayLink={(m) => {
         const match = matchById.get(m.id);
         if (!match || !match.resolved || match.walrusBlobId === ZERO_BLOB) return null;

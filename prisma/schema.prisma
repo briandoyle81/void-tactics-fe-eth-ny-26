@@ -341,6 +341,10 @@ model RoguelikeNode {
   maxScore         Int?
   creatorGoesFirst Boolean?
   costCapOverride  Int?
+  // Web2 counterpart to RoguelikeNodeMap.getNodeWinEffects — keys into
+  // WIN_EFFECT_KEYS (app/lib/winEffectsWeb2.ts), run in order on a human win
+  // at this node. Combat nodes only.
+  winEffects       String[]          @default([])
   createdAt        DateTime          @default(now())
 
   childEdges  RoguelikeEdge[]       @relation("RoguelikeEdgeParent")

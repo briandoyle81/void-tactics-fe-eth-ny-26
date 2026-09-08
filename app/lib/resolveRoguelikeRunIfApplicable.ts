@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { AI_USER_ID } from "./aiUser";
+import { applyWinEffects } from "./winEffectsWeb2";
 import type { Web2GameDataView } from "../types/web2Game";
 
 // Web2 counterpart to RoguelikeMatch.onGameEnded — called from every path
@@ -78,4 +79,10 @@ export async function resolveRoguelikeRunIfApplicable(
       data: { activeLobbyId: null },
     }),
   ]);
+
+  const node = await prisma.roguelikeNode.findUnique({
+    where: { id: run.currentNodeId },
+    select: { winEffects: true },
+  });
+  await applyWinEffects(node?.winEffects ?? [], winnerId);
 }

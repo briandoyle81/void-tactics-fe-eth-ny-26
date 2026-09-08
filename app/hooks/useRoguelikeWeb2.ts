@@ -74,6 +74,7 @@ export interface RoguelikeNodeWeb2 {
   maxScore: number | null;
   creatorGoesFirst: boolean | null;
   costCapOverride: number | null;
+  winEffects: string[];
   childEdges: Array<{ id: number; parentId: number; childId: number; twoWay: boolean }>;
 }
 

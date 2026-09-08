@@ -8,6 +8,8 @@ import { RoguelikeNodeKind } from "../types/roguelike";
 import type { RoguelikeNodeWeb2 } from "../hooks/useRoguelikeWeb2";
 import { useRoguelikeAdminWeb2, type RoguelikeNodeWeb2Input } from "../hooks/useRoguelikeAdminWeb2";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
+import { WinEffectsPickerWeb2 } from "./WinEffectsPickerWeb2";
+import type { WinEffectKey } from "../lib/winEffectsWeb2";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPlacementsEditorWeb2 } from "./MapPlacementsEditorWeb2";
@@ -163,6 +165,18 @@ export function RoguelikeNodeEditPanelWeb2({
     } catch (error) {
       console.error("Failed to save node content:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save node content");
+    }
+  };
+
+  const handleSaveWinEffects = async (effects: WinEffectKey[]) => {
+    if (!node) return;
+    try {
+      await admin.setNodeWinEffects(node.id, effects);
+      toast.success("Win effects updated.");
+      onSaved();
+    } catch (error) {
+      console.error("Failed to save win effects:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save win effects");
     }
   };
 
@@ -323,6 +337,16 @@ export function RoguelikeNodeEditPanelWeb2({
           >
             [EDIT ENEMY FLEET]
           </button>
+        )}
+
+        {mode === "edit" && node && isCombat && (
+          <div className="flex flex-col gap-2 border-t border-steel pt-4">
+            <label className="text-xs text-text-muted">
+              Win effects — run in order after every win at this node, on top of the
+              campaign&apos;s ordinary auto-heal floor
+            </label>
+            <WinEffectsPickerWeb2 currentEffects={node.winEffects} onSave={handleSaveWinEffects} />
+          </div>
         )}
       </div>
 

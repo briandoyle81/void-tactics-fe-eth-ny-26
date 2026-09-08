@@ -4,6 +4,7 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import type { RoguelikeCampaignWeb2 } from "../hooks/useRoguelikeWeb2";
 import { useRoguelikeAdminWeb2 } from "../hooks/useRoguelikeAdminWeb2";
+import { useWinEffectsAdminWeb2 } from "../hooks/useWinEffectsAdminWeb2";
 import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
 
 interface RoguelikeSettingsModalWeb2Props {
@@ -28,18 +29,31 @@ export function RoguelikeSettingsModalWeb2({
   onSaved,
 }: RoguelikeSettingsModalWeb2Props) {
   const admin = useRoguelikeAdminWeb2();
+  const winEffectsAdmin = useWinEffectsAdminWeb2();
 
   const [rootNodeId, setRootNodeId] = React.useState(campaign.rootNodeId?.toString() ?? "");
   const [autoHealPercent, setAutoHealPercent] = React.useState(campaign.autoHealPercent);
   const [variant, setVariant] = React.useState(campaign.requiredVariant);
   const [initialCostCap, setInitialCostCap] = React.useState(campaign.initialCostCap.toString());
   const [repairCostPerHp, setRepairCostPerHp] = React.useState("0");
+  const [decBonusAmount, setDecBonusAmount] = React.useState("0");
+  const [healAbovePercent, setHealAbovePercent] = React.useState(100);
+  const [shipGrantVariant, setShipGrantVariant] = React.useState(0);
+  const [shipGrantTier, setShipGrantTier] = React.useState(0);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     void admin.getRepairCostPerHp().then((s) => setRepairCostPerHp(s.repairCostPerHp.toString()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  React.useEffect(() => {
+    if (winEffectsAdmin.settings == null) return;
+    setDecBonusAmount(winEffectsAdmin.settings.decBonusAmount.toString());
+    setHealAbovePercent(winEffectsAdmin.settings.healAboveFloorPercent);
+    setShipGrantVariant(winEffectsAdmin.settings.shipGrantVariant);
+    setShipGrantTier(winEffectsAdmin.settings.shipGrantTier);
+  }, [winEffectsAdmin.settings]);
 
   const saveCampaignFields = async (label: string, overrides: Partial<RoguelikeCampaignWeb2>) => {
     setBusy(label);
@@ -63,6 +77,22 @@ export function RoguelikeSettingsModalWeb2({
     } catch (error) {
       console.error("Failed to save repair cost:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save repair cost");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveWinEffectSetting = async (
+    label: string,
+    patch: Parameters<typeof winEffectsAdmin.update>[0],
+  ) => {
+    setBusy(label);
+    try {
+      await winEffectsAdmin.update(patch);
+      toast.success(`${label} saved.`);
+    } catch (error) {
+      console.error(`Failed to save ${label}:`, error);
+      toast.error(error instanceof Error ? error.message : `Failed to save ${label}`);
     } finally {
       setBusy(null);
     }
@@ -160,6 +190,75 @@ export function RoguelikeSettingsModalWeb2({
             />
             <SaveButton busy={busy === "repairCost"} onClick={() => void handleSaveRepairCost()} />
           </SettingRow>
+
+          <div className="flex flex-col gap-2 border-t border-steel pt-4">
+            <label className="text-xs text-text-muted">
+              Win effect configuration — global per resolver, shared across every
+              campaign/node it&apos;s assigned to (see a node&apos;s own edit panel to
+              assign which effects run there)
+            </label>
+
+            <SettingRow label="DEC Bonus — amount credited per win">
+              <input
+                type="number"
+                min={0}
+                value={decBonusAmount}
+                onChange={(e) => setDecBonusAmount(e.target.value)}
+                className="flex-1 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <SaveButton
+                busy={busy === "decBonus"}
+                onClick={() =>
+                  void saveWinEffectSetting("decBonus", {
+                    decBonusAmount: Math.max(0, Number(decBonusAmount) || 0),
+                  })
+                }
+              />
+            </SettingRow>
+
+            <SettingRow label="Heal Above Floor — heals to this % of max HP (not yet implemented)">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                disabled
+                value={healAbovePercent}
+                onChange={(e) =>
+                  setHealAbovePercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                }
+                className="flex-1 px-3 py-2 bg-near-black border text-cyan opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+            </SettingRow>
+
+            <SettingRow label="Grant Ship — variant / tier">
+              <input
+                type="number"
+                min={0}
+                max={2}
+                value={shipGrantVariant}
+                onChange={(e) => setShipGrantVariant(Math.max(0, Math.min(2, Number(e.target.value) || 0)))}
+                className="w-20 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <input
+                type="number"
+                min={0}
+                max={3}
+                value={shipGrantTier}
+                onChange={(e) => setShipGrantTier(Math.max(0, Math.min(3, Number(e.target.value) || 0)))}
+                className="w-20 px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+                style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
+              />
+              <SaveButton
+                busy={busy === "shipGrant"}
+                onClick={() =>
+                  void saveWinEffectSetting("shipGrant", { shipGrantVariant, shipGrantTier })
+                }
+              />
+            </SettingRow>
+          </div>
 
           <NodeContentPublishPanel graphType="ROGUELIKE" nodeIds={nodeIds} />
         </div>

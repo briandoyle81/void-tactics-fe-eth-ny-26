@@ -55,6 +55,9 @@ export function useRoguelikeAdminWeb2() {
   const setRepairCostPerHp = (repairCostPerHp: number) =>
     apiMutate("/api/admin/roguelike-settings", "PUT", { repairCostPerHp });
 
+  const setNodeWinEffects = (nodeId: number, winEffects: string[]) =>
+    apiMutate(`/api/admin/roguelike/nodes/${nodeId}/win-effects`, "PUT", { winEffects });
+
   return {
     createCampaign,
     updateCampaign,
@@ -64,5 +67,6 @@ export function useRoguelikeAdminWeb2() {
     removeChild,
     getRepairCostPerHp,
     setRepairCostPerHp,
+    setNodeWinEffects,
   };
 }

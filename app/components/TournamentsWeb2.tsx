@@ -9,6 +9,7 @@ import { TournamentCardWeb2 } from "./TournamentCardWeb2";
 import { TournamentRegisterWeb2 } from "./TournamentRegisterWeb2";
 import { TournamentBracketWeb2 } from "./TournamentBracketWeb2";
 import { TournamentAdminPanelWeb2 } from "./TournamentAdminPanelWeb2";
+import { TournamentWinEffectsAdminPanelWeb2 } from "./TournamentWinEffectsAdminPanelWeb2";
 import { TournamentDetailHeader } from "./TournamentDetailHeader";
 import { TournamentDetailStatsRow } from "./TournamentDetailStatsRow";
 import { TournamentCreateForm } from "./TournamentCreateForm";
@@ -90,6 +91,7 @@ function TournamentDetail({ tournamentId, onBack }: { tournamentId: number; onBa
         idLabel={`Tournament #${tournamentId}`}
         state={summary.state}
         onBack={onBack}
+        flow="web2"
       />
 
       <TournamentDetailStatsRow
@@ -363,12 +365,15 @@ export function TournamentsWeb2() {
   }
 
   return (
-    <TournamentList
-      tournaments={tournaments}
-      currentUserId={userId}
-      isLoading={isLoading}
-      onSelect={(id) => setView({ type: "detail", tournamentId: id })}
-      onCreate={() => setView({ type: "create" })}
-    />
+    <>
+      <TournamentList
+        tournaments={tournaments}
+        currentUserId={userId}
+        isLoading={isLoading}
+        onSelect={(id) => setView({ type: "detail", tournamentId: id })}
+        onCreate={() => setView({ type: "create" })}
+      />
+      <TournamentWinEffectsAdminPanelWeb2 />
+    </>
   );
 }

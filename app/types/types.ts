@@ -575,9 +575,13 @@ export interface Game {
 
 export enum TournamentState {
   Registration = 0,
-  Active = 1,
-  Complete = 2,
-  Cancelled = 3,
+  // Registration closed, round-1 pairing randomness requested but not yet
+  // revealed/applied — buildBracket() moves a tournament from here to
+  // Active. See Tournament.sol's TournamentState for the source of truth.
+  Starting = 1,
+  Active = 2,
+  Complete = 3,
+  Cancelled = 4,
 }
 
 export interface TournamentConfig {

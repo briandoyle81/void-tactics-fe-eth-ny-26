@@ -30,6 +30,9 @@ import RoguelikeMatchContract from "../contracts/artifacts/DeployModule#Roguelik
 import RoguelikeResupplyContract from "../contracts/artifacts/DeployModule#RoguelikeResupply.json";
 import RandomManagerContract from "../contracts/artifacts/DeployModule#RandomManager.json";
 import NodeContentRegistryContract from "../contracts/artifacts/DeployModule#NodeContentRegistry.json";
+import DECBonusWinEffectContract from "../contracts/artifacts/DeployModule#DECBonusWinEffect.json";
+import HealAboveFloorWinEffectContract from "../contracts/artifacts/DeployModule#HealAboveFloorWinEffect.json";
+import ShipGrantWinEffectContract from "../contracts/artifacts/DeployModule#ShipGrantWinEffect.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -224,6 +227,18 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   NODE_CONTENT_REGISTRY:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeContentRegistry"] ??
     ZERO_ADDRESS,
+  // Pluggable roguelike win effects (see IRoguelikeWinEffect.sol) — not yet
+  // deployed to Base Sepolia, falls back to ZERO_ADDRESS until a real
+  // deploy populates deployed_addresses.json.
+  DEC_BONUS_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#DECBonusWinEffect"] ??
+    ZERO_ADDRESS,
+  HEAL_ABOVE_FLOOR_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#HealAboveFloorWinEffect"] ??
+    ZERO_ADDRESS,
+  SHIP_GRANT_WIN_EFFECT:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipGrantWinEffect"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const XAI_TESTNET_CONTRACT_ADDRESSES = {
@@ -341,6 +356,9 @@ export const CONTRACT_ABIS = {
   ROGUELIKE_RESUPPLY: RoguelikeResupplyContract.abi,
   RANDOM_MANAGER: RandomManagerContract.abi,
   NODE_CONTENT_REGISTRY: NodeContentRegistryContract.abi,
+  DEC_BONUS_WIN_EFFECT: DECBonusWinEffectContract.abi,
+  HEAL_ABOVE_FLOOR_WIN_EFFECT: HealAboveFloorWinEffectContract.abi,
+  SHIP_GRANT_WIN_EFFECT: ShipGrantWinEffectContract.abi,
 } as const;
 
 // Contract types for wagmi

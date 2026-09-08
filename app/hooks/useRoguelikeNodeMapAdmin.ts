@@ -160,6 +160,19 @@ export function useRoguelikeNodeMapAdmin() {
     [writeContractAsync, nodeMapContract, publicClient],
   );
 
+  const setNodeWinEffects = useCallback(
+    async (nodeId: bigint, effects: Address[]) => {
+      const hash = await writeContractAsync({
+        ...nodeMapContract,
+        functionName: "setNodeWinEffects",
+        args: [nodeId, effects],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, nodeMapContract, publicClient],
+  );
+
   const setNodeEditor = useCallback(
     async (editor: Address, allowed: boolean) => {
       const hash = await writeContractAsync({
@@ -209,6 +222,7 @@ export function useRoguelikeNodeMapAdmin() {
     updateNode,
     addChild,
     removeChild,
+    setNodeWinEffects,
     setNodeEditor,
     setRepairCostPerHP,
     withdrawResupplyFees,

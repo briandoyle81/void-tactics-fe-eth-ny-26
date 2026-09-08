@@ -12,6 +12,8 @@ import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
 import { resolveTournamentMatchIfApplicable } from "./resolveTournamentMatchIfApplicable";
 import { resolveCampaignNodeIfApplicable } from "./resolveCampaignNodeIfApplicable";
 import { resolveRoguelikeRunIfApplicable } from "./resolveRoguelikeRunIfApplicable";
+import { applyPvpWinEffectsIfApplicable } from "./resolvePvpWinEffectsIfApplicable";
+import { getWinEffectsSettings } from "./winEffectsWeb2";
 import { AI_USER_ID } from "../config/aiUser";
 
 // Server-side turn-processing engine — ported from `explore-traditional`'s
@@ -36,6 +38,17 @@ export interface GameActionInput {
   actionType: number;
   targetShipId: number;
   specialType?: number;
+}
+
+// Web2 counterpart to Game.healCapPercent — caps any heal effect (currently
+// just the Repair special; win-effect heals will route through this too
+// once wired) at `capPercent`% of max HP. Never heals below the ship's
+// current HP even if it's already past the cap.
+function applyHealCap(currentHp: number, desiredHp: number, maxHp: number, capPercent: number): number {
+  const clamped = Math.min(maxHp, desiredHp);
+  if (capPercent >= 100) return clamped;
+  const capValue = Math.floor((maxHp * capPercent) / 100);
+  return Math.max(currentHp, Math.min(clamped, capValue));
 }
 
 function applyShootDamage(
@@ -213,12 +226,13 @@ export async function applyGameAction(
   const { shipId, row, col, actionType, targetShipId } = input;
   const specialType = input.specialType ?? 0;
 
-  const [game, economy] = await Promise.all([
+  const [game, economy, winEffectsSettings] = await Promise.all([
     prisma.game.findFirst({
       where: { id: gameId, OR: [{ player1Id: userId }, { player2Id: userId }] },
       include: { lobby: true },
     }),
     getEconomyConfig(),
+    getWinEffectsSettings(),
   ]);
 
   if (!game) throw new GameActionError(404, "Not found");
@@ -356,7 +370,12 @@ export async function applyGameAction(
           const newAttrs = [...newState.shipAttributes];
           const targetAttrs = { ...newAttrs[targetIdx]! };
           const healAmount = SPECIAL_CONFIG[2]!.strength;
-          targetAttrs.hullPoints = Math.min(targetAttrs.maxHullPoints, targetAttrs.hullPoints + healAmount);
+          targetAttrs.hullPoints = applyHealCap(
+            targetAttrs.hullPoints,
+            targetAttrs.hullPoints + healAmount,
+            targetAttrs.maxHullPoints,
+            winEffectsSettings.healCapPercent,
+          );
           targetAttrs.reactorCriticalTimer = 0;
           newAttrs[targetIdx] = targetAttrs;
           newState = { ...newState, shipAttributes: newAttrs };
@@ -702,6 +721,7 @@ export async function applyGameAction(
     await resolveTournamentMatchIfApplicable(game.lobbyId, finalWinnerId);
     await resolveCampaignNodeIfApplicable(game.lobbyId, finalWinnerId);
     await resolveRoguelikeRunIfApplicable(game.lobbyId, finalWinnerId);
+    await applyPvpWinEffectsIfApplicable(game.lobbyId, finalWinnerId);
   }
 
   return finalState;

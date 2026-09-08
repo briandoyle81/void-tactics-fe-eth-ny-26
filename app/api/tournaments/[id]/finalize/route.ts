@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
+import { applyWinEffects, getWinEffectsSettings } from "@/app/lib/winEffectsWeb2";
 
 // Matches web3's config/tournament.ts CHAMPION_SHARE_PCT/RUNNER_UP_SHARE_PCT
 // (60/40). No protocol-fee equivalent — nothing for it to fund in a closed
@@ -66,6 +67,9 @@ export async function POST(
       },
     }),
   ]);
+
+  const winEffectsSettings = await getWinEffectsSettings();
+  await applyWinEffects(winEffectsSettings.tournamentWinEffects, championId);
 
   return NextResponse.json({ championId, runnerUpId });
 }

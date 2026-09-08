@@ -8,6 +8,11 @@ import { useGetAllPresetMaps } from "../hooks/useMapsContract";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
+import {
+  WIN_EFFECT_CATALOG,
+  useWinEffectAddresses,
+  useRoguelikeNodeWinEffects,
+} from "../hooks/useWinEffects";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
@@ -56,6 +61,11 @@ export function RoguelikeNodeEditPanel({
   const { isEditor: isEncounterEditor } = useIsEncounterEditor();
   const { contentById, refetch: refetchContent } = useAllNodeContent("ROGUELIKE");
   const saveContent = useSaveNodeContent();
+  const winEffectAddresses = useWinEffectAddresses();
+  const {
+    data: currentWinEffects,
+    refetch: refetchWinEffects,
+  } = useRoguelikeNodeWinEffects(node?.id);
 
   const [kind, setKind] = React.useState<RoguelikeNodeKind>(node?.kind ?? RoguelikeNodeKind.Combat);
   const [mapId, setMapId] = React.useState<bigint>(node?.mapId ?? 0n);
@@ -73,6 +83,12 @@ export function RoguelikeNodeEditPanel({
   const resolvedContent = node ? resolveNodeContent("ROGUELIKE", contentById, node.id) : null;
   const [title, setTitle] = React.useState(resolvedContent?.title ?? "");
   const [description, setDescription] = React.useState(resolvedContent?.description ?? "");
+
+  const [selectedWinEffects, setSelectedWinEffects] = React.useState<string[]>([]);
+  const [isSavingWinEffects, setIsSavingWinEffects] = React.useState(false);
+  React.useEffect(() => {
+    setSelectedWinEffects((currentWinEffects ?? []).map((a) => a.toLowerCase()));
+  }, [currentWinEffects]);
 
   const seededNodeIdRef = React.useRef<bigint | null>(null);
   React.useEffect(() => {
@@ -156,6 +172,31 @@ export function RoguelikeNodeEditPanel({
     } catch (error) {
       console.error("Failed to save node content:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save node content");
+    }
+  };
+
+  const toggleWinEffect = (address: string) => {
+    const lower = address.toLowerCase();
+    setSelectedWinEffects((prev) =>
+      prev.includes(lower) ? prev.filter((a) => a !== lower) : [...prev, lower],
+    );
+  };
+
+  const handleSaveWinEffects = async () => {
+    if (!node) return;
+    setIsSavingWinEffects(true);
+    try {
+      const hash = await admin.setNodeWinEffects(
+        node.id,
+        selectedWinEffects as `0x${string}`[],
+      );
+      await refetchWinEffects();
+      toast.success(`Win effects updated. (tx: ${hash.slice(0, 10)}…)`);
+    } catch (error) {
+      console.error("Failed to save win effects:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save win effects");
+    } finally {
+      setIsSavingWinEffects(false);
     }
   };
 
@@ -316,6 +357,47 @@ export function RoguelikeNodeEditPanel({
           >
             [EDIT ENEMY FLEET]
           </button>
+        )}
+
+        {mode === "edit" && node && isCombat && (
+          <div className="flex flex-col gap-2 border-t border-steel pt-4">
+            <label className="text-xs text-text-muted">
+              Win effects — run in order after every win at this node, on top of the
+              campaign&apos;s ordinary auto-heal floor
+            </label>
+            <div className="flex flex-col gap-1">
+              {WIN_EFFECT_CATALOG.map(({ key, label }) => {
+                const address = winEffectAddresses[key];
+                const checked = !!address && selectedWinEffects.includes(address.toLowerCase());
+                return (
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 text-xs text-text-secondary"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!address}
+                      onChange={() => address && toggleWinEffect(address)}
+                    />
+                    {label}
+                    {!address && (
+                      <span className="text-warning-red">(not deployed on this chain)</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              disabled={isSavingWinEffects}
+              onClick={() => void handleSaveWinEffects()}
+              className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ borderRadius: 0 }}
+            >
+              {isSavingWinEffects ? "[SAVING...]" : "[SAVE WIN EFFECTS]"}
+            </button>
+          </div>
         )}
       </div>
 

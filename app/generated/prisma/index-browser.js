@@ -288,6 +288,7 @@ exports.Prisma.RoguelikeNodeScalarFieldEnum = {
   maxScore: 'maxScore',
   creatorGoesFirst: 'creatorGoesFirst',
   costCapOverride: 'costCapOverride',
+  winEffects: 'winEffects',
   createdAt: 'createdAt'
 };
 

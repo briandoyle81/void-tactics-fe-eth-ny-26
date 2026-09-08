@@ -13,6 +13,8 @@ import { MapsListShell } from "./MapsListShell";
 import { MapPosition, ScoringPosition, MapMode } from "../types/types";
 import { AIEncountersAdminPanelWeb2 } from "./AIEncountersAdminPanelWeb2";
 import { LobbyAdminPanelWeb2 } from "./LobbyAdminPanelWeb2";
+import { GameAdminPanelWeb2 } from "./GameAdminPanelWeb2";
+import { PvPMatchAdminPanelWeb2 } from "./PvPMatchAdminPanelWeb2";
 import { AdminSettingsExportWeb2 } from "./AdminSettingsExportWeb2";
 
 interface Web2Map {
@@ -267,6 +269,8 @@ export default function MapsWeb2() {
         mapIds={maps.filter((m) => m.mode !== MapMode.PvP).map((m) => m.id)}
       />
       <LobbyAdminPanelWeb2 />
+      <GameAdminPanelWeb2 />
+      <PvPMatchAdminPanelWeb2 />
       <AdminSettingsExportWeb2 maps={maps} />
     </div>
   );

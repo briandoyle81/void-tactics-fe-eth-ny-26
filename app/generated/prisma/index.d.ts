@@ -20695,6 +20695,7 @@ export namespace Prisma {
     maxScore: number
     creatorGoesFirst: number
     costCapOverride: number
+    winEffects: number
     createdAt: number
     _all: number
   }
@@ -20753,6 +20754,7 @@ export namespace Prisma {
     maxScore?: true
     creatorGoesFirst?: true
     costCapOverride?: true
+    winEffects?: true
     createdAt?: true
     _all?: true
   }
@@ -20852,6 +20854,7 @@ export namespace Prisma {
     maxScore: number | null
     creatorGoesFirst: boolean | null
     costCapOverride: number | null
+    winEffects: string[]
     createdAt: Date
     _count: RoguelikeNodeCountAggregateOutputType | null
     _avg: RoguelikeNodeAvgAggregateOutputType | null
@@ -20883,6 +20886,7 @@ export namespace Prisma {
     maxScore?: boolean
     creatorGoesFirst?: boolean
     costCapOverride?: boolean
+    winEffects?: boolean
     createdAt?: boolean
     campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
     map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
@@ -20901,6 +20905,7 @@ export namespace Prisma {
     maxScore?: boolean
     creatorGoesFirst?: boolean
     costCapOverride?: boolean
+    winEffects?: boolean
     createdAt?: boolean
     campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
     map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
@@ -20915,6 +20920,7 @@ export namespace Prisma {
     maxScore?: boolean
     creatorGoesFirst?: boolean
     costCapOverride?: boolean
+    winEffects?: boolean
     createdAt?: boolean
     campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
     map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
@@ -20929,10 +20935,11 @@ export namespace Prisma {
     maxScore?: boolean
     creatorGoesFirst?: boolean
     costCapOverride?: boolean
+    winEffects?: boolean
     createdAt?: boolean
   }
 
-  export type RoguelikeNodeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "campaignId" | "kind" | "mapId" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "costCapOverride" | "createdAt", ExtArgs["result"]["roguelikeNode"]>
+  export type RoguelikeNodeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "campaignId" | "kind" | "mapId" | "turnTimeSeconds" | "maxScore" | "creatorGoesFirst" | "costCapOverride" | "winEffects" | "createdAt", ExtArgs["result"]["roguelikeNode"]>
   export type RoguelikeNodeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     campaign?: boolean | RoguelikeCampaignDefaultArgs<ExtArgs>
     map?: boolean | RoguelikeNode$mapArgs<ExtArgs>
@@ -20968,6 +20975,7 @@ export namespace Prisma {
       maxScore: number | null
       creatorGoesFirst: boolean | null
       costCapOverride: number | null
+      winEffects: string[]
       createdAt: Date
     }, ExtArgs["result"]["roguelikeNode"]>
     composites: {}
@@ -21405,6 +21413,7 @@ export namespace Prisma {
     readonly maxScore: FieldRef<"RoguelikeNode", 'Int'>
     readonly creatorGoesFirst: FieldRef<"RoguelikeNode", 'Boolean'>
     readonly costCapOverride: FieldRef<"RoguelikeNode", 'Int'>
+    readonly winEffects: FieldRef<"RoguelikeNode", 'String[]'>
     readonly createdAt: FieldRef<"RoguelikeNode", 'DateTime'>
   }
     
@@ -33604,6 +33613,7 @@ export namespace Prisma {
     maxScore: 'maxScore',
     creatorGoesFirst: 'creatorGoesFirst',
     costCapOverride: 'costCapOverride',
+    winEffects: 'winEffects',
     createdAt: 'createdAt'
   };
 
@@ -35093,6 +35103,7 @@ export namespace Prisma {
     maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
     creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
     costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    winEffects?: StringNullableListFilter<"RoguelikeNode">
     createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
     campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
     map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
@@ -35110,6 +35121,7 @@ export namespace Prisma {
     maxScore?: SortOrderInput | SortOrder
     creatorGoesFirst?: SortOrderInput | SortOrder
     costCapOverride?: SortOrderInput | SortOrder
+    winEffects?: SortOrder
     createdAt?: SortOrder
     campaign?: RoguelikeCampaignOrderByWithRelationInput
     map?: MapOrderByWithRelationInput
@@ -35130,6 +35142,7 @@ export namespace Prisma {
     maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
     creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
     costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    winEffects?: StringNullableListFilter<"RoguelikeNode">
     createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
     campaign?: XOR<RoguelikeCampaignScalarRelationFilter, RoguelikeCampaignWhereInput>
     map?: XOR<MapNullableScalarRelationFilter, MapWhereInput> | null
@@ -35147,6 +35160,7 @@ export namespace Prisma {
     maxScore?: SortOrderInput | SortOrder
     creatorGoesFirst?: SortOrderInput | SortOrder
     costCapOverride?: SortOrderInput | SortOrder
+    winEffects?: SortOrder
     createdAt?: SortOrder
     _count?: RoguelikeNodeCountOrderByAggregateInput
     _avg?: RoguelikeNodeAvgOrderByAggregateInput
@@ -35167,6 +35181,7 @@ export namespace Prisma {
     maxScore?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
     creatorGoesFirst?: BoolNullableWithAggregatesFilter<"RoguelikeNode"> | boolean | null
     costCapOverride?: IntNullableWithAggregatesFilter<"RoguelikeNode"> | number | null
+    winEffects?: StringNullableListFilter<"RoguelikeNode">
     createdAt?: DateTimeWithAggregatesFilter<"RoguelikeNode"> | Date | string
   }
 
@@ -37061,6 +37076,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
     map?: MapCreateNestedOneWithoutRoguelikeNodesInput
@@ -37078,6 +37094,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
     parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
@@ -37090,6 +37107,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
     map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
@@ -37107,6 +37125,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
     parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
@@ -37122,6 +37141,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
   }
 
@@ -37131,6 +37151,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -37143,6 +37164,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -39047,6 +39069,14 @@ export namespace Prisma {
     rootNodeId?: SortOrder
   }
 
+  export type StringNullableListFilter<$PrismaModel = never> = {
+    equals?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    has?: string | StringFieldRefInput<$PrismaModel> | null
+    hasEvery?: string[] | ListStringFieldRefInput<$PrismaModel>
+    hasSome?: string[] | ListStringFieldRefInput<$PrismaModel>
+    isEmpty?: boolean
+  }
+
   export type RoguelikeCampaignScalarRelationFilter = {
     is?: RoguelikeCampaignWhereInput
     isNot?: RoguelikeCampaignWhereInput
@@ -39081,6 +39111,7 @@ export namespace Prisma {
     maxScore?: SortOrder
     creatorGoesFirst?: SortOrder
     costCapOverride?: SortOrder
+    winEffects?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -41192,6 +41223,10 @@ export namespace Prisma {
     deleteMany?: RoguelikeRunScalarWhereInput | RoguelikeRunScalarWhereInput[]
   }
 
+  export type RoguelikeNodeCreatewinEffectsInput = {
+    set: string[]
+  }
+
   export type RoguelikeCampaignCreateNestedOneWithoutNodesInput = {
     create?: XOR<RoguelikeCampaignCreateWithoutNodesInput, RoguelikeCampaignUncheckedCreateWithoutNodesInput>
     connectOrCreate?: RoguelikeCampaignCreateOrConnectWithoutNodesInput
@@ -41244,6 +41279,11 @@ export namespace Prisma {
     connectOrCreate?: RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput | RoguelikeNodeDefeatCreateOrConnectWithoutNodeInput[]
     createMany?: RoguelikeNodeDefeatCreateManyNodeInputEnvelope
     connect?: RoguelikeNodeDefeatWhereUniqueInput | RoguelikeNodeDefeatWhereUniqueInput[]
+  }
+
+  export type RoguelikeNodeUpdatewinEffectsInput = {
+    set?: string[]
+    push?: string | string[]
   }
 
   export type RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput = {
@@ -44885,6 +44925,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
     childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
@@ -44900,6 +44941,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
     parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
@@ -45018,6 +45060,7 @@ export namespace Prisma {
     maxScore?: IntNullableFilter<"RoguelikeNode"> | number | null
     creatorGoesFirst?: BoolNullableFilter<"RoguelikeNode"> | boolean | null
     costCapOverride?: IntNullableFilter<"RoguelikeNode"> | number | null
+    winEffects?: StringNullableListFilter<"RoguelikeNode">
     createdAt?: DateTimeFilter<"RoguelikeNode"> | Date | string
   }
 
@@ -45649,6 +45692,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     map?: MapCreateNestedOneWithoutRoguelikeNodesInput
     childEdges?: RoguelikeEdgeCreateNestedManyWithoutParentInput
@@ -45664,6 +45708,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
     parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
@@ -46009,6 +46054,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
     map?: MapCreateNestedOneWithoutRoguelikeNodesInput
@@ -46025,6 +46071,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
     defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
@@ -46041,6 +46088,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
     map?: MapCreateNestedOneWithoutRoguelikeNodesInput
@@ -46057,6 +46105,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
     defeats?: RoguelikeNodeDefeatUncheckedCreateNestedManyWithoutNodeInput
@@ -46084,6 +46133,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
     map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
@@ -46100,6 +46150,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
     defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
@@ -46122,6 +46173,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
     map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
@@ -46138,6 +46190,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
     defeats?: RoguelikeNodeDefeatUncheckedUpdateManyWithoutNodeNestedInput
@@ -46674,6 +46727,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     campaign: RoguelikeCampaignCreateNestedOneWithoutNodesInput
     map?: MapCreateNestedOneWithoutRoguelikeNodesInput
@@ -46690,6 +46744,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
     childEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutParentInput
     parentEdges?: RoguelikeEdgeUncheckedCreateNestedManyWithoutChildInput
@@ -46757,6 +46812,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
     map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
@@ -46773,6 +46829,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
     parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
@@ -48727,6 +48784,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
   }
 
@@ -48854,6 +48912,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     campaign?: RoguelikeCampaignUpdateOneRequiredWithoutNodesNestedInput
     childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
@@ -48869,6 +48928,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
     parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
@@ -48883,6 +48943,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -49072,6 +49133,7 @@ export namespace Prisma {
     maxScore?: number | null
     creatorGoesFirst?: boolean | null
     costCapOverride?: number | null
+    winEffects?: RoguelikeNodeCreatewinEffectsInput | string[]
     createdAt?: Date | string
   }
 
@@ -49093,6 +49155,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     map?: MapUpdateOneWithoutRoguelikeNodesNestedInput
     childEdges?: RoguelikeEdgeUpdateManyWithoutParentNestedInput
@@ -49108,6 +49171,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     childEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutParentNestedInput
     parentEdges?: RoguelikeEdgeUncheckedUpdateManyWithoutChildNestedInput
@@ -49122,6 +49186,7 @@ export namespace Prisma {
     maxScore?: NullableIntFieldUpdateOperationsInput | number | null
     creatorGoesFirst?: NullableBoolFieldUpdateOperationsInput | boolean | null
     costCapOverride?: NullableIntFieldUpdateOperationsInput | number | null
+    winEffects?: RoguelikeNodeUpdatewinEffectsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
