@@ -9,6 +9,7 @@ import { useTournamentActions } from "../hooks/useTournamentActions";
 import { TournamentCard } from "./TournamentCard";
 import { TournamentRegister } from "./TournamentRegister";
 import { TournamentBracket } from "./TournamentBracket";
+import { TournamentStartControls } from "./TournamentStartControls";
 import { TournamentAdminPanel } from "./TournamentAdminPanel";
 import { TournamentWinEffectsAdminPanel } from "./TournamentWinEffectsAdminPanel";
 import { TournamentDetailHeader } from "./TournamentDetailHeader";
@@ -73,24 +74,6 @@ function TournamentDetail({
     [refetch, actions.publicClient],
   );
 
-  // Start is its own handler, not routed through run() above: it already
-  // waits for its own start() receipt internally and then auto-retries
-  // buildBracket() for a bit (see useTournamentActions.startAndBuildBracket)
-  // — it returns void, not a hash, and must not surface a timed-out
-  // auto-retry as an error since start() itself already succeeded.
-  const runStart = useCallback(async () => {
-    setActionPending(true);
-    setActionError(null);
-    try {
-      await actions.startAndBuildBracket(tournamentId);
-      void refetch();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Transaction failed");
-    } finally {
-      setActionPending(false);
-    }
-  }, [actions, tournamentId, refetch]);
-
   if (isLoading || !summary || !config) {
     return (
       <div className="flex items-center gap-2 py-12 text-xs text-text-muted font-mono">
@@ -128,43 +111,13 @@ function TournamentDetail({
         />
       </div>
 
-      {/* Start (permissionless) */}
-      {summary.state === TournamentState.Registration && (
-        <div className="mb-5">
-          <button
-            disabled={actionPending}
-            onClick={() => void runStart()}
-            className="border border-gunmetal/60 px-4 py-2 text-xs text-text-muted hover:border-steel hover:text-text-secondary transition-colors disabled:opacity-50"
-          >
-            {actionPending ? "Starting…" : "Start Tournament"}
-          </button>
-          <p className="mt-1 text-[10px] text-text-muted">
-            Anyone can start once conditions are met (full roster or past deadline + min players).
-          </p>
-        </div>
-      )}
-
-      {/* Building bracket (start() succeeded, buildBracket() reveals the
-          round-1 pairing shuffle and hasn't landed yet — usually the Start
-          button above already auto-retries this; shown as a manual
-          fallback for anyone viewing the page if that auto-retry window
-          closes, e.g. the starter's tab closed). Permissionless — not
-          gated to whoever clicked Start. */}
-      {summary.state === TournamentState.Starting && (
-        <div className="mb-5 border border-cyan/30 bg-cyan/5 p-4">
-          <div className="text-xs text-cyan mb-2">
-            Shuffling round-1 pairings… this needs one more transaction a
-            few seconds after Start. Anyone can trigger it.
-          </div>
-          <button
-            disabled={actionPending}
-            onClick={() => void run(() => actions.buildBracket(tournamentId))}
-            className="border border-cyan px-4 py-2 text-xs text-cyan hover:bg-cyan/10 transition-colors disabled:opacity-50"
-          >
-            {actionPending ? "Building…" : "Build Bracket"}
-          </button>
-        </div>
-      )}
+      {/* Start / building bracket / reroll — shared with the standalone
+          /tournaments/[tournamentId] page (TournamentStartControls). */}
+      <TournamentStartControls
+        tournamentId={tournamentId}
+        state={summary.state}
+        onAction={() => void refetch()}
+      />
 
       {/* Bracket */}
       <div className="mb-5">

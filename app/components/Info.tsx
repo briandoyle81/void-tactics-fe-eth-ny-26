@@ -17,6 +17,8 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useOwnedShipsWeb2 } from "../hooks/useOwnedShipsWeb2";
 import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
+import { useSelfieCheckEligibility } from "../hooks/useSelfieCheckEligibility";
+import { SelfieCheckVerifyButton } from "./SelfieCheckVerifyButton";
 
 // Matches `CLAIM_COOLDOWN_MS` in app/api/ships/claim-free/route.ts (web2's
 // cooldown is a fixed server-side constant, not exposed by the eligibility
@@ -47,8 +49,16 @@ const Info: React.FC = () => {
     nextClaimInFormatted: nextClaimInFormattedWeb2,
   } = useClaimFreeEligibilityWeb2();
 
+  // Gates the web3 claim on Selfie Check verification (see
+  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3) — web2 has no
+  // analogous concept, same as the rest of this file's web2/web3 split.
+  const selfieCheckEligibility = useSelfieCheckEligibility("freeShipClaim", address);
+  const isSelfieCheckBlocking =
+    appMode !== "web2" && selfieCheckEligibility.isEligible === false;
+
   const isSignedIn = appMode === "web2" ? isLoggedIn : isConnected;
-  const isEligible = appMode === "web2" ? isEligibleWeb2 : isEligibleWeb3;
+  const isEligible =
+    (appMode === "web2" ? isEligibleWeb2 : isEligibleWeb3) && !isSelfieCheckBlocking;
   const isLoadingClaimStatus =
     appMode === "web2" ? isLoadingClaimStatusWeb2 : isLoadingClaimStatusWeb3;
   const nextClaimInFormatted =
@@ -279,13 +289,23 @@ const Info: React.FC = () => {
                       >
                         [VIEW FLEET]
                       </button>
-                      {nextClaimInFormatted != null && (
-                        <div
-                          className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-amber/80 text-amber font-mono font-bold tracking-wide md:tracking-wider bg-amber/5 rounded-none w-full md:w-auto text-xs sm:text-sm text-center"
-                          title="Time until you can claim free ships again"
+                      {isSelfieCheckBlocking && address ? (
+                        <SelfieCheckVerifyButton
+                          address={address}
+                          onVerified={() => void selfieCheckEligibility.refetchIsEligible()}
+                          className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-amber text-amber font-mono font-bold tracking-wide md:tracking-wider hover:bg-amber/10 transition-all duration-200 rounded-none w-full md:w-auto text-xs sm:text-sm"
                         >
-                          NEXT CLAIM IN: {nextClaimInFormatted}
-                        </div>
+                          [VERIFY WITH SELFIE CHECK TO CLAIM]
+                        </SelfieCheckVerifyButton>
+                      ) : (
+                        nextClaimInFormatted != null && (
+                          <div
+                            className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-amber/80 text-amber font-mono font-bold tracking-wide md:tracking-wider bg-amber/5 rounded-none w-full md:w-auto text-xs sm:text-sm text-center"
+                            title="Time until you can claim free ships again"
+                          >
+                            NEXT CLAIM IN: {nextClaimInFormatted}
+                          </div>
+                        )
                       )}
                     </>
                   )}

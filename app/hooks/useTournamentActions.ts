@@ -73,6 +73,23 @@ export function useTournamentActions() {
     [writeContractAsync],
   );
 
+  // Escape hatch — only needed if buildBracket()'s SHUFFLE_REVEAL_WINDOW
+  // (10 min) expires before anyone calls it. Requests a fresh randomness
+  // value and resets the reveal window; permissionless, like buildBracket.
+  // Reverts NotStarting outside the Starting state, ShuffleWindowNotExpired
+  // if the current window hasn't lapsed yet (call buildBracket instead).
+  const rerollBracketShuffle = useCallback(
+    (tournamentId: bigint) =>
+      writeContractAsync({
+        address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
+        abi: TOURNAMENT_ABI,
+        functionName: "rerollBracketShuffle",
+        args: [tournamentId],
+        chainId: CHAIN_ID,
+      }),
+    [writeContractAsync],
+  );
+
   // Chains start() -> buildBracket() so clicking "Start Tournament" still
   // feels like one action. buildBracket can't succeed in the same block as
   // start() (RandomManager can't reveal in the same transaction as the
@@ -181,6 +198,7 @@ export function useTournamentActions() {
     register,
     start,
     buildBracket,
+    rerollBracketShuffle,
     startAndBuildBracket,
     cancel,
     claimPrize,

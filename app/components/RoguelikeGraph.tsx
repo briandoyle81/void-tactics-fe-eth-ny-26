@@ -272,6 +272,10 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
         toast.error("This node isn't reachable from your current position.");
       } else if (message.includes("WrongNodeKind")) {
         toast.error("This node isn't a resupply node.");
+      } else if (message.includes("ActiveGameInProgress")) {
+        toast.error(
+          "A match is still in progress — return to it or let it finish before entering resupply.",
+        );
       } else {
         toast.error(`Failed to enter resupply node: ${message}`);
       }

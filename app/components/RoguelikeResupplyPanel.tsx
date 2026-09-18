@@ -147,6 +147,10 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
         toast.error("That ship can't be added right now.");
       } else if (message.includes("WrongCampaignVariant")) {
         toast.error("That ship's faction doesn't match this run's roster.");
+      } else if (message.includes("ActiveGameInProgress")) {
+        toast.error(
+          "A match is still in progress — return to it or let it finish before changing your roster.",
+        );
       } else {
         toast.error(`Failed to add ship: ${message}`);
       }
@@ -166,6 +170,10 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("ShipNotInRoster")) {
         toast.error("That ship isn't in your current roster.");
+      } else if (message.includes("ActiveGameInProgress")) {
+        toast.error(
+          "A match is still in progress — return to it or let it finish before changing your roster.",
+        );
       } else {
         toast.error(`Failed to remove ship: ${message}`);
       }
@@ -278,7 +286,14 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
                 }}
                 onError={(error) => {
                   console.error("Failed to repair roster:", error);
-                  toast.error("Failed to repair roster");
+                  const message = error instanceof Error ? error.message : String(error);
+                  if (message.includes("ActiveGameInProgress")) {
+                    toast.error(
+                      "A match is still in progress — return to it or let it finish before repairing.",
+                    );
+                  } else {
+                    toast.error("Failed to repair roster");
+                  }
                 }}
               >
                 [REPAIR {totalMissingHP} HP]

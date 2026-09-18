@@ -33,6 +33,8 @@ import NodeContentRegistryContract from "../contracts/artifacts/DeployModule#Nod
 import DECBonusWinEffectContract from "../contracts/artifacts/DeployModule#DECBonusWinEffect.json";
 import HealAboveFloorWinEffectContract from "../contracts/artifacts/DeployModule#HealAboveFloorWinEffect.json";
 import ShipGrantWinEffectContract from "../contracts/artifacts/DeployModule#ShipGrantWinEffect.json";
+import FactionRewardTokenRegistryContract from "../contracts/artifacts/DeployModule#FactionRewardTokenRegistry.json";
+import SelfieCheckEligibilityProviderContract from "../contracts/artifacts/DeployModule#SelfieCheckEligibilityProvider.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -239,6 +241,17 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   SHIP_GRANT_WIN_EFFECT:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#ShipGrantWinEffect"] ??
     ZERO_ADDRESS,
+  // Keyed by destroyed ship's traits.variant — see
+  // docs/update/Frontend_Updates_2026-09-17.md §2. Base Sepolia only today.
+  FACTION_REWARD_TOKEN_REGISTRY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#FactionRewardTokenRegistry"] ??
+    ZERO_ADDRESS,
+  // Gates FreeShipClaim/TutorialClaim — see
+  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3.
+  // Base Sepolia only today.
+  SELFIE_CHECK_ELIGIBILITY_PROVIDER:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#SelfieCheckEligibilityProvider"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const XAI_TESTNET_CONTRACT_ADDRESSES = {
@@ -359,6 +372,8 @@ export const CONTRACT_ABIS = {
   DEC_BONUS_WIN_EFFECT: DECBonusWinEffectContract.abi,
   HEAL_ABOVE_FLOOR_WIN_EFFECT: HealAboveFloorWinEffectContract.abi,
   SHIP_GRANT_WIN_EFFECT: ShipGrantWinEffectContract.abi,
+  FACTION_REWARD_TOKEN_REGISTRY: FactionRewardTokenRegistryContract.abi,
+  SELFIE_CHECK_ELIGIBILITY_PROVIDER: SelfieCheckEligibilityProviderContract.abi,
 } as const;
 
 // Contract types for wagmi

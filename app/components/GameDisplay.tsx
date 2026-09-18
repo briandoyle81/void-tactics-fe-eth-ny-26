@@ -1011,7 +1011,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         toast.error("Ship not found in this game");
       } else if (errorMessage.includes("InvalidMove")) {
         toast.error(
-          "Invalid move - check ship position and movement range",
+          "Invalid move — target may have fled or been destroyed, or check ship position and movement range",
         );
       } else if (errorMessage.includes("PositionOccupied")) {
         toast.error("Target position is already occupied");
@@ -3332,6 +3332,31 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 }}
                 loadingText="[...]"
                 errorText="[ERR]"
+                validateBeforeTransaction={() => {
+                  if (!selectedShipId) {
+                    return "No ship selected";
+                  }
+                  if (!game.metadata.gameId || game.metadata.gameId === 0n) {
+                    return "Invalid game ID";
+                  }
+                  if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
+                    return "You can only move your own ships";
+                  }
+                  if ((computedActionType as ActionType) !== ActionType.Retreat) {
+                    if (movedShipIdsSet.has(selectedShipId)) {
+                      return "This ship has already moved this round";
+                    }
+                    if (
+                      computedRow < 0 ||
+                      computedRow >= GRID_HEIGHT ||
+                      computedCol < 0 ||
+                      computedCol >= GRID_WIDTH
+                    ) {
+                      return "Invalid position coordinates";
+                    }
+                  }
+                  return true;
+                }}
                 onTransactionSent={() => setAwaitingTurnSyncAfterSubmit(true)}
                 onSuccess={() => {
                   const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);

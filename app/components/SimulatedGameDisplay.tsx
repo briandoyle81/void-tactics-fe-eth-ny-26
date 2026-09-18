@@ -91,6 +91,8 @@ import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { useSelfieCheckEligibility } from "../hooks/useSelfieCheckEligibility";
+import { useSelfieCheckVerifyFlow } from "./SelfieCheckVerifyButton";
 import { useSwitchToSelectedChainIfNeeded } from "../hooks/useSwitchToSelectedChainIfNeeded";
 import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
 import posthog from "posthog-js";
@@ -289,6 +291,21 @@ export function SimulatedGameDisplay({
     error: tutorialClaimWriteError,
   } = useWriteContract();
 
+  // Gates completeTutorialWinPath/completeTutorialLossPath on Selfie Check verification (see
+  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3) — fully open
+  // until TutorialClaim.eligibilityProvider is actually set. Checked before submitting, not just
+  // left to revert.
+  const tutorialSelfieCheckEligibility = useSelfieCheckEligibility("tutorialClaim", address);
+  const isTutorialSelfieCheckBlocking =
+    tutorialSelfieCheckEligibility.isEligible === false;
+  const {
+    openWidget: openSelfieCheckWidget,
+    widgetElement: selfieCheckWidgetElement,
+    isBusy: isSelfieCheckVerifying,
+  } = useSelfieCheckVerifyFlow(address, () => {
+    void tutorialSelfieCheckEligibility.refetchIsEligible();
+  });
+
   const {
     gameState,
     currentStep,
@@ -452,6 +469,10 @@ export function SimulatedGameDisplay({
         toast.error("Tutorial claim is unavailable on this network");
         return;
       }
+      if (isTutorialSelfieCheckBlocking) {
+        toast.error("Verify with Selfie Check to claim this reward");
+        return;
+      }
       if (isTutorialClaimPending || isTutorialClaimConfirming) {
         return;
       }
@@ -488,6 +509,7 @@ export function SimulatedGameDisplay({
       isTutorialClaimPending,
       isTutorialClaimConfirming,
       isTutorialRewardAlreadyClaimed,
+      isTutorialSelfieCheckBlocking,
       onBack,
       publicClient,
       switchToSelectedChainIfNeeded,
@@ -2850,11 +2872,17 @@ export function SimulatedGameDisplay({
             ? "Reward Claimed / View Ships"
             : !address
               ? "Log in"
-              : pendingTutorialClaimPath === "win" &&
-                  (isTutorialClaimPending || isTutorialClaimConfirming)
-                ? "Claiming..."
-                : "Claim 2 ships + win",
-          onClick: () => void runTutorialClaimTx("win", "completeTutorialWinPath"),
+              : isTutorialSelfieCheckBlocking
+                ? isSelfieCheckVerifying
+                  ? "Verifying…"
+                  : "Verify with Selfie Check to claim"
+                : pendingTutorialClaimPath === "win" &&
+                    (isTutorialClaimPending || isTutorialClaimConfirming)
+                  ? "Claiming..."
+                  : "Claim 2 ships + win",
+          onClick: isTutorialSelfieCheckBlocking
+            ? openSelfieCheckWidget
+            : () => void runTutorialClaimTx("win", "completeTutorialWinPath"),
         },
       };
     }
@@ -2869,12 +2897,17 @@ export function SimulatedGameDisplay({
             ? "Reward Claimed / View Ships"
             : !address
               ? "Log in"
-              : pendingTutorialClaimPath === "loss" &&
-                  (isTutorialClaimPending || isTutorialClaimConfirming)
-                ? "Claiming..."
-                : "Claim 3 ships + loss record",
-          onClick: () =>
-            void runTutorialClaimTx("loss", "completeTutorialLossPath"),
+              : isTutorialSelfieCheckBlocking
+                ? isSelfieCheckVerifying
+                  ? "Verifying…"
+                  : "Verify with Selfie Check to claim"
+                : pendingTutorialClaimPath === "loss" &&
+                    (isTutorialClaimPending || isTutorialClaimConfirming)
+                  ? "Claiming..."
+                  : "Claim 3 ships + loss record",
+          onClick: isTutorialSelfieCheckBlocking
+            ? openSelfieCheckWidget
+            : () => void runTutorialClaimTx("loss", "completeTutorialLossPath"),
         },
       };
     }
@@ -2885,6 +2918,9 @@ export function SimulatedGameDisplay({
     isTutorialRewardAlreadyClaimed,
     isTutorialClaimConfirming,
     isTutorialClaimPending,
+    isTutorialSelfieCheckBlocking,
+    isSelfieCheckVerifying,
+    openSelfieCheckWidget,
     pendingTutorialClaimPath,
     runTutorialClaimTx,
   ]);
@@ -4122,6 +4158,7 @@ export function SimulatedGameDisplay({
           : undefined
       }
     >
+      {selfieCheckWidgetElement}
       <div
         className={
           chromeOnSide

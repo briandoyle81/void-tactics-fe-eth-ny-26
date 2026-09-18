@@ -9,6 +9,7 @@ import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
 import UTCPurchaseModal from "./UTCPurchaseModal";
 import UTCPurchaseModalWeb2 from "./UTCPurchaseModalWeb2";
+import { UtcLotteryPanel } from "./UtcLotteryPanel";
 import DroneStorefront from "./DroneStorefront";
 import DroneStorefrontWeb2 from "./DroneStorefrontWeb2";
 import {
@@ -454,6 +455,7 @@ const Header: React.FC = () => {
   const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] =
     useState(false);
   const [showDroneStorefrontWeb2, setShowDroneStorefrontWeb2] = useState(false);
+  const [showUtcLotteryPanel, setShowUtcLotteryPanel] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -1168,6 +1170,37 @@ const Header: React.FC = () => {
                               : "0.00 UTC"}
                           </span>
                         </button>
+                        {/* UTC Lottery status/results (docs/update/Frontend_Updates_2026-09-17.md §4) */}
+                        <button
+                          onClick={() => setShowUtcLotteryPanel(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 justify-center border border-solid transition-colors duration-150 cursor-pointer"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-amber)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-near-black)";
+                          }}
+                          title="UTC Lottery — draw status and recent results"
+                        >
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-amber)",
+                            }}
+                          >
+                            Lottery
+                          </span>
+                        </button>
                         {/* Network (moved here) */}
                         <div
                           ref={networkMenuRef}
@@ -1455,6 +1488,9 @@ const Header: React.FC = () => {
       )}
       {showDroneStorefrontWeb2 && (
         <DroneStorefrontWeb2 onClose={() => setShowDroneStorefrontWeb2(false)} />
+      )}
+      {showUtcLotteryPanel && (
+        <UtcLotteryPanel onClose={() => setShowUtcLotteryPanel(false)} />
       )}
       {/* Dynamic's own profile modal (wallets, security, passkeys) — opened
           via My Account in the [MENU] dropdown above. Mounted here since

@@ -1,13 +1,21 @@
 import { prisma } from "./prisma";
 import { createTtlCache } from "./ttlCache";
 
+export type KillRewardToken = "DEC" | "UTC";
+
 export type EconomyConfig = {
   recycleRewardUtc: number;
+  // Paid per kill when the destroyed ship belongs to a human opponent (PvP)
+  // — currency depends on the *victim's* ownership for this direction, never
+  // the ship's variant (docs/faction-2.md §1).
   killRewardUtc: number;
-  // DEC paid per kill when the destroyed ship belongs to the AI opponent
-  // (docs/faction-2.md §1 — currency depends on the *victim's* ownership,
-  // never the ship's variant). PvP kills still pay killRewardUtc.
-  killRewardDec: number;
+  // AI-kill reward, keyed by the *destroyed* ship's variant — mirrors
+  // FactionRewardTokenRegistry.rewardToken(variant) on-chain (see
+  // docs/update/Frontend_Updates_2026-09-17.md §2). A variant with no entry
+  // here pays nothing, mirroring the contract's RewardSkipped event. Only
+  // applies to AI-owned-ship-destroyed kills; PvP always pays killRewardUtc
+  // regardless of variant.
+  killRewardByVariant: Record<number, { token: KillRewardToken; amount: number }>;
   lobbyCreationCostUtc: number;
   reservationFeeUtc: number; // extra UTC charged when reserving a lobby for a specific player — matches web3's fixed 1 UTC reservation fee
   purchaseThresholdForRewards: number;
@@ -17,7 +25,11 @@ export type EconomyConfig = {
 export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   recycleRewardUtc: 1,
   killRewardUtc: 1,
-  killRewardDec: 1,
+  // Matches today's live FactionRewardTokenRegistry config on Base Sepolia:
+  // variant 2 -> DEC, variant 1 (and anything else unregistered) -> no reward.
+  killRewardByVariant: {
+    2: { token: "DEC", amount: 1 },
+  },
   lobbyCreationCostUtc: 1,
   reservationFeeUtc: 1,
   purchaseThresholdForRewards: 10,

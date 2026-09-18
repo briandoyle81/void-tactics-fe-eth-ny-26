@@ -11,6 +11,13 @@ export const WORLD_EXTERNAL_NULLIFIER =
   318078722027557965998987370672697888390534537434722412480399796468873891570n;
 export const WORLD_ID_ROUTER = "0x42FF98C4E85212a5D31358ACbFe76a621b50fC02" as `0x${string}`;
 
+// Selfie Check — off-chain-only REST verification (no on-chain WorldIDRouter path, unlike Orb
+// above). Same WORLD_APP_ID/WORLD_RP_ID, separate action so its nullifier scope never overlaps
+// with tournament registration. See
+// docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3. This action
+// must exist in the World Developer Portal for this app before verification will succeed.
+export const WORLD_SELFIE_CHECK_ACTION = "selfie-check-verify" as const;
+
 // Prize split (informational — enforced on-chain)
 export const PROTOCOL_FEE_BPS = 100; // 1%
 export const CHAMPION_SHARE_PCT = 60;

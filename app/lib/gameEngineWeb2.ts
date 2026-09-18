@@ -611,11 +611,12 @@ export async function applyGameAction(
   const opponentActivesAfter = new Set<number>(
     isCreator ? newState.joinerActiveShipIds : newState.creatorActiveShipIds,
   );
-  const killCount = [...opponentActivesBefore].filter((id) => {
+  const destroyedShipIds = [...opponentActivesBefore].filter((id) => {
     if (opponentActivesAfter.has(id)) return false;
     if (actionType === ActionType.Ram && id === targetShipId) return false;
     return true;
-  }).length;
+  });
+  const killCount = destroyedShipIds.length;
 
   const submittedRound = state.turnState.currentRound;
   const finalState = newState;
@@ -656,9 +657,11 @@ export async function applyGameAction(
     });
 
     // Award kill reward and increment shipsDestroyed on attacking ship.
-    // Currency depends only on the *victim's* ownership (docs/faction-2.md
-    // §1) — destroying the AI opponent pays DEC, destroying a human
-    // opponent (PvP) pays UTC, never both and never based on ship variant.
+    // PvP (destroying a human opponent) always pays flat killRewardUtc,
+    // regardless of variant. Destroying an AI-owned ship pays whatever
+    // killRewardByVariant maps the *destroyed* ship's variant to — mirrors
+    // FactionRewardTokenRegistry.rewardToken(variant) on-chain; a variant
+    // with no entry pays nothing (see docs/update/Frontend_Updates_2026-09-17.md §2).
     if (killCount > 0) {
       const attacker = await tx.user.findUnique({
         where: { id: userId },
@@ -666,12 +669,36 @@ export async function applyGameAction(
       });
       if ((attacker?.purchasedShipCount ?? 0) >= economy.purchaseThresholdForRewards) {
         const opponentIsAI = game.player1Id === AI_USER_ID || game.player2Id === AI_USER_ID;
-        await tx.user.update({
-          where: { id: userId },
-          data: opponentIsAI
-            ? { decBalance: { increment: killCount * economy.killRewardDec } }
-            : { creditBalance: { increment: killCount * economy.killRewardUtc } },
-        });
+        if (opponentIsAI) {
+          const destroyedShips = await tx.ship.findMany({
+            where: { id: { in: destroyedShipIds } },
+            select: { id: true, traits: true },
+          });
+          let decReward = 0;
+          let utcReward = 0;
+          for (const ship of destroyedShips) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const variant = (ship.traits as any)?.variant ?? 0;
+            const reward = economy.killRewardByVariant[variant];
+            if (!reward) continue; // unregistered variant — no reward (mirrors RewardSkipped)
+            if (reward.token === "DEC") decReward += reward.amount;
+            else utcReward += reward.amount;
+          }
+          if (decReward > 0 || utcReward > 0) {
+            await tx.user.update({
+              where: { id: userId },
+              data: {
+                ...(decReward > 0 ? { decBalance: { increment: decReward } } : {}),
+                ...(utcReward > 0 ? { creditBalance: { increment: utcReward } } : {}),
+              },
+            });
+          }
+        } else {
+          await tx.user.update({
+            where: { id: userId },
+            data: { creditBalance: { increment: killCount * economy.killRewardUtc } },
+          });
+        }
       }
       await tx.ship.update({
         where: { id: shipId, ownerId: userId },

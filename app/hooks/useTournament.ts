@@ -153,6 +153,7 @@ export function useTournament(tournamentId: bigint | null) {
   useWatchContractEvent({ ...watchConfig, eventName: "Registered", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "TournamentClosing", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "TournamentStarted", onLogs: onEvent });
+  useWatchContractEvent({ ...watchConfig, eventName: "BracketShuffleRerolled", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "MatchGameAssigned", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "MatchResolved", onLogs: onEvent });
   useWatchContractEvent({ ...watchConfig, eventName: "NextRoundMatchCreated", onLogs: onEvent });

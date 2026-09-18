@@ -78,7 +78,7 @@ export const MAIN_WEAPON_NAMES = {
 // Variant 2 ("Drone" faction) display names for the same MainWeapon enum
 // values, per docs/faction-2.md §6 (art-matching, not a new enum).
 export const MAIN_WEAPON_NAMES_V2 = {
-  0: "Medium Mining Laser",
+  0: "Mining Laser",
   1: "Linear Accelerator",
   2: "Torpedo Launcher",
   3: "Mining Drill",
@@ -86,16 +86,16 @@ export const MAIN_WEAPON_NAMES_V2 = {
 
 export const ARMOR_NAMES = {
   0: "None",
-  1: "Light",
-  2: "Medium",
-  3: "Heavy",
+  1: "Light Armor",
+  2: "Medium Armor",
+  3: "Heavy Armor",
 } as const;
 
 export const SHIELD_NAMES = {
   0: "None",
-  1: "Basic",
-  2: "Enhanced",
-  3: "Advanced",
+  1: "Basic Shield",
+  2: "Enhanced Shield",
+  3: "Advanced Shield",
 } as const;
 
 // Variant 1's Special enum: None/EMP/RepairDrones/FlakArray. Verified

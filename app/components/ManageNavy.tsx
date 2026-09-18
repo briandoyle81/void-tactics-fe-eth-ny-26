@@ -43,6 +43,8 @@ import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { useSelfieCheckEligibility } from "../hooks/useSelfieCheckEligibility";
+import { SelfieCheckVerifyButton } from "./SelfieCheckVerifyButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { fetchAndPersistShipAttributesCaches } from "../utils/shipAttributesLocalCache";
 import {
@@ -182,6 +184,15 @@ const ManageNavy: React.FC = () => {
     isPending: isClaimFreeShipsPending,
     isConfirmed: isClaimFreeShipsConfirmed,
   } = useFreeShipClaiming();
+
+  // Gates the claim on Selfie Check verification (see
+  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3) — fully open
+  // (isEligible === true) until the redeploy that wires eligibilityProvider on FreeShipClaim
+  // actually sets it, same "not configured yet" convention as droneStorefront elsewhere in that
+  // contract. Only block on a definitive `false`, not while still loading.
+  const selfieCheckEligibility = useSelfieCheckEligibility("freeShipClaim", address);
+  const isSelfieCheckBlocking = selfieCheckEligibility.isEligible === false;
+  const isEligibleForClaim = isEligible && !isSelfieCheckBlocking;
 
   const shouldForceDroneFactoryTutorial =
     !hasShips || (shipCount > 0 && shipCount <= 3);
@@ -727,45 +738,56 @@ const ManageNavy: React.FC = () => {
       : ("[CONSTRUCT ALL SHIPS]" as const);
 
   const claimFreeShipControls = (
-    <ClaimFreeShipsControls
-      isLoadingClaimStatus={isLoadingClaimStatus}
-      error={freeShipError}
-      claimStatusError={claimStatusError}
-      isEligible={isEligible}
-      nextClaimInFormatted={nextClaimInFormatted}
-      tryClaimButton={
-        <FreeShipClaimButton
-          isEligible={true}
-          isPending={isClaimFreeShipsPending}
-          isConfirmed={isClaimFreeShipsConfirmed}
-          claimFreeShips={claimFreeShips}
-          analyticsSurface="manage_navy"
-          className={manageNavyActionButtonClassName("amber")}
-          onPress={markFreeShipClaimClickedForTutorial}
-          onSuccess={() => {
-            refetch();
-          }}
+    <>
+      {isSelfieCheckBlocking && address && (
+        <SelfieCheckVerifyButton
+          address={address}
+          onVerified={() => void selfieCheckEligibility.refetchIsEligible()}
+          className="w-full justify-center px-6 py-3 rounded-none border-2 border-amber text-amber font-mono font-bold tracking-wider hover:bg-amber/10 transition-colors md:w-auto"
         >
-          [TRY CLAIM FREE SHIPS]
-        </FreeShipClaimButton>
-      }
-      claimButton={
-        <FreeShipClaimButton
-          isEligible={isEligible}
-          isPending={isClaimFreeShipsPending}
-          isConfirmed={isClaimFreeShipsConfirmed}
-          claimFreeShips={claimFreeShips}
-          analyticsSurface="manage_navy"
-          className={manageNavyActionButtonClassName("green")}
-          onPress={markFreeShipClaimClickedForTutorial}
-          onSuccess={() => {
-            refetch();
-          }}
-        >
-          [CLAIM FREE SHIPS]
-        </FreeShipClaimButton>
-      }
-    />
+          [VERIFY WITH SELFIE CHECK TO CLAIM FREE SHIPS]
+        </SelfieCheckVerifyButton>
+      )}
+      <ClaimFreeShipsControls
+        isLoadingClaimStatus={isLoadingClaimStatus}
+        error={freeShipError}
+        claimStatusError={claimStatusError}
+        isEligible={isEligibleForClaim}
+        nextClaimInFormatted={nextClaimInFormatted}
+        tryClaimButton={
+          <FreeShipClaimButton
+            isEligible={true}
+            isPending={isClaimFreeShipsPending}
+            isConfirmed={isClaimFreeShipsConfirmed}
+            claimFreeShips={claimFreeShips}
+            analyticsSurface="manage_navy"
+            className={manageNavyActionButtonClassName("amber")}
+            onPress={markFreeShipClaimClickedForTutorial}
+            onSuccess={() => {
+              refetch();
+            }}
+          >
+            [TRY CLAIM FREE SHIPS]
+          </FreeShipClaimButton>
+        }
+        claimButton={
+          <FreeShipClaimButton
+            isEligible={isEligibleForClaim}
+            isPending={isClaimFreeShipsPending}
+            isConfirmed={isClaimFreeShipsConfirmed}
+            claimFreeShips={claimFreeShips}
+            analyticsSurface="manage_navy"
+            className={manageNavyActionButtonClassName("green")}
+            onPress={markFreeShipClaimClickedForTutorial}
+            onSuccess={() => {
+              refetch();
+            }}
+          >
+            [CLAIM FREE SHIPS]
+          </FreeShipClaimButton>
+        }
+      />
+    </>
   );
 
   const staleCostBulkButton =
