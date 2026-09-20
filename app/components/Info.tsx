@@ -19,6 +19,7 @@ import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
 import { useSelfieCheckEligibility } from "../hooks/useSelfieCheckEligibility";
 import { SelfieCheckVerifyButton } from "./SelfieCheckVerifyButton";
+import { TacticalTargetingPreview } from "./TacticalTargetingPreview";
 
 // Matches `CLAIM_COOLDOWN_MS` in app/api/ships/claim-free/route.ts (web2's
 // cooldown is a fixed server-side constant, not exposed by the eligibility
@@ -350,19 +351,8 @@ const Info: React.FC = () => {
 
           {/* Right side - Gameplay clip (above the fold) */}
           <div className="flex justify-center px-0 md:col-span-7 md:justify-end md:pr-8 md:pl-0">
-            <div
-              className="w-full max-w-2xl border-2 bg-black/40 p-2"
-              style={{
-                borderRadius: 0,
-                borderColor: "var(--color-cyan)",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/img/missile-clip.gif"
-                alt="Missiles firing at target ships with damage numbers and health bars"
-                className="w-full h-auto block"
-              />
+            <div className="w-full">
+              <TacticalTargetingPreview />
             </div>
           </div>
         </div>

@@ -60,7 +60,7 @@ export function useSelfieCheckVerifyFlow(address: `0x${string}` | undefined, onV
 
   const handleResult = useCallback(
     async (result: IDKitResult) => {
-      if (!address) return;
+      if (!address || !rpContext) return;
       const fields = extractProofFields(result);
       if (!fields) {
         toast.error("Unexpected proof format from World ID.");
@@ -71,7 +71,7 @@ export function useSelfieCheckVerifyFlow(address: `0x${string}` | undefined, onV
         const res = await fetch("/api/selfie-check/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player: address, ...fields }),
+          body: JSON.stringify({ player: address, nonce: rpContext.nonce, ...fields }),
         });
         const body = (await res.json()) as { success?: boolean; error?: string };
         if (!res.ok || !body.success) {
@@ -86,7 +86,7 @@ export function useSelfieCheckVerifyFlow(address: `0x${string}` | undefined, onV
         setRpContext(null);
       }
     },
-    [address, onVerified],
+    [address, rpContext, onVerified],
   );
 
   const widgetElement = rpContext ? (

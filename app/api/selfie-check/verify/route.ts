@@ -2,16 +2,21 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createWalletClient, createPublicClient, http, isAddress, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
-import { WORLD_APP_ID, WORLD_SELFIE_CHECK_ACTION } from "@/app/config/tournament";
+import { WORLD_RP_ID, WORLD_SELFIE_CHECK_ACTION } from "@/app/config/tournament";
 import { CONTRACT_ADDRESSES_BY_CHAIN_ID } from "@/app/config/contracts";
 
 // Selfie Check has no on-chain proof-verification path (unlike Orb-level World ID, which
 // Tournament.sol verifies on-chain directly) — verification is this one off-chain REST call
 // against World's own API. See
-// docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3 and the request/
-// response shape confirmed 2026-09-18 against docs.world.org's own OpenAPI spec
-// (api-reference/developer-portal/verify-legacy): POST /api/v2/verify/{app_id}.
-const WORLD_VERIFY_URL = `https://developer.world.org/api/v2/verify/${WORLD_APP_ID}`;
+// docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3.
+//
+// Uses the v4 RP-based endpoint (POST /api/v4/verify/{rp_id}), not the legacy v2 one — confirmed
+// 2026-09-19 the hard way: the "World ID 4.0" action created via the developer portal
+// (create_world_id_action) is only visible to this endpoint, not to legacy v2's app_id-scoped
+// action lookup, which rejected it with invalid_action/"Action not found." This matches how the
+// rest of this project already does World ID (app/api/world-id/rp-context/route.ts's signed
+// rp_context, same rp_id) — v2 was the wrong endpoint from the start, not a config gap.
+const WORLD_VERIFY_URL = `https://developer.world.org/api/v4/verify/${WORLD_RP_ID}`;
 
 // Same backend wallet already authorized to mint ships (app/api/flow/fulfill/route.ts) is also
 // granted setAuthorizedVerifier on SelfieCheckEligibilityProvider per
@@ -33,11 +38,18 @@ const MARK_VERIFIED_ABI = [
   },
 ] as const;
 
+interface WorldVerifyResultItem {
+  identifier: string;
+  success: boolean;
+  nullifier?: string;
+  code?: string;
+  detail?: string;
+}
+
 interface WorldVerifySuccess {
   success: true;
-  action: string;
-  nullifier_hash: string;
-  created_at: string;
+  results: WorldVerifyResultItem[];
+  nullifier?: string;
 }
 
 interface WorldVerifyFailure {
@@ -47,8 +59,9 @@ interface WorldVerifyFailure {
 }
 
 export async function POST(req: NextRequest) {
-  const { player, merkle_root, nullifier_hash, proof } = (await req.json()) as {
+  const { player, nonce, merkle_root, nullifier_hash, proof } = (await req.json()) as {
     player?: string;
+    nonce?: string;
     merkle_root?: string;
     nullifier_hash?: string;
     proof?: string;
@@ -57,7 +70,7 @@ export async function POST(req: NextRequest) {
   if (!player || !isAddress(player)) {
     return NextResponse.json({ error: "Missing or invalid player address" }, { status: 400 });
   }
-  if (!merkle_root || !nullifier_hash || !proof) {
+  if (!nonce || !merkle_root || !nullifier_hash || !proof) {
     return NextResponse.json({ error: "Missing proof fields" }, { status: 400 });
   }
   if (!isHex(nullifier_hash) || nullifier_hash.length !== 66) {
@@ -65,18 +78,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Malformed nullifier_hash" }, { status: 400 });
   }
 
-  // Verify the Selfie Check proof off-chain against World's API.
+  // Verify the Selfie Check proof off-chain against World's API — "Legacy Proofs (v3)" request
+  // shape (protocol_version 3.0 + nonce + responses[]), matching what IDKit's
+  // allow_legacy_proofs=true actually produces.
   let verifyRes: Response;
   try {
     verifyRes = await fetch(WORLD_VERIFY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nullifier_hash,
-        proof,
-        merkle_root,
-        verification_level: "selfie",
+        protocol_version: "3.0",
+        nonce,
         action: WORLD_SELFIE_CHECK_ACTION,
+        environment: "staging",
+        responses: [
+          {
+            identifier: "selfie",
+            merkle_root,
+            nullifier: nullifier_hash,
+            proof,
+          },
+        ],
       }),
     });
   } catch (err) {
@@ -85,10 +107,19 @@ export async function POST(req: NextRequest) {
   }
 
   const verifyBody = (await verifyRes.json()) as WorldVerifySuccess | WorldVerifyFailure;
-  if (!verifyRes.ok || !("success" in verifyBody) || !verifyBody.success) {
-    const detail = "detail" in verifyBody ? verifyBody.detail : "Verification failed";
+  const resultItem =
+    "results" in verifyBody ? verifyBody.results.find((r) => r.identifier === "selfie") : undefined;
+  if (!verifyRes.ok || !("success" in verifyBody) || !verifyBody.success || !resultItem?.success) {
+    const detail =
+      resultItem?.detail ?? ("detail" in verifyBody ? verifyBody.detail : "Verification failed");
     console.error("[selfie-check/verify] World verification rejected:", verifyBody);
     return NextResponse.json({ error: detail }, { status: 400 });
+  }
+
+  const verifiedNullifier = resultItem.nullifier ?? verifyBody.nullifier;
+  if (!verifiedNullifier) {
+    console.error("[selfie-check/verify] World response missing nullifier:", verifyBody);
+    return NextResponse.json({ error: "Verification succeeded but no nullifier returned" }, { status: 502 });
   }
 
   if (!VERIFIER_KEY || VERIFIER_KEY === "0x") {
@@ -114,7 +145,7 @@ export async function POST(req: NextRequest) {
       address: providerAddress,
       abi: MARK_VERIFIED_ABI,
       functionName: "markVerified",
-      args: [player as `0x${string}`, verifyBody.nullifier_hash as `0x${string}`],
+      args: [player as `0x${string}`, verifiedNullifier as `0x${string}`],
     });
 
     await publicClient.waitForTransactionReceipt({ hash });
