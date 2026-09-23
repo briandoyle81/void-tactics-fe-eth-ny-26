@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { createTtlCache } from "./ttlCache";
 import { generateShip, calcShipCost } from "./shipGen";
-import { getCurrentCosts } from "./getCurrentCosts";
+import { getCurrentCosts, getCurrentCostsByVariant } from "./getCurrentCosts";
 import { validSpecialsForVariant } from "../types/types";
 import type { Web2ShipEquipment } from "../types/web2Ship";
 import {
@@ -69,8 +69,7 @@ export const invalidateWinEffectsSettingsCache = cache.invalidate;
  * always meets a minimum quality floor.
  */
 async function grantShip(ownerId: string, variant: number, tier: number): Promise<void> {
-  const costs = await getCurrentCosts();
-  const rolled = generateShip(ownerId, Date.now() % 1000);
+  const rolled = generateShip(ownerId, Date.now() % 1000, await getCurrentCostsByVariant());
 
   const clampedVariant = Math.min(2, Math.max(0, variant));
   const clampedTier = Math.min(3, Math.max(0, tier));
@@ -84,6 +83,10 @@ async function grantShip(ownerId: string, variant: number, tier: number): Promis
     special: validSpecials.includes(rolled.equipment.special) ? rolled.equipment.special : validSpecials[0]!,
   };
   const traits = { ...rolled.traits, variant: clampedVariant };
+  // The grant forces `traits.variant` to `clampedVariant` AFTER generateShip
+  // already picked costs for whatever variant it happened to roll — refetch
+  // for the variant this ship actually ends up as.
+  const costs = await getCurrentCosts(clampedVariant);
   const cost = calcShipCost(equipment, traits, costs);
 
   await prisma.ship.create({

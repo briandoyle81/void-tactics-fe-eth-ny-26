@@ -15,7 +15,15 @@ export function useNodeFleetSelection(costLimit: number, requiredVariant?: numbe
   // player's ships/costs-version must come from that chain regardless of
   // what the header network picker is set to (see useOwnedShips.ts).
   const { ships, isLoading: shipsLoading } = useOwnedShips(baseSepolia.id);
-  const { data: currentCostsVersion } = useCurrentCostsVersion(baseSepolia.id);
+  // Costs are per-variant — a roguelike node can require variant 1 (its
+  // first three missions) or variant 2 (every later one), so the costs
+  // version checked against the fleet's ships must be that node's own
+  // variant, not the chain's default. Falls back to the chain default when
+  // no specific variant is required (e.g. a mode that accepts either).
+  const { data: currentCostsVersion } = useCurrentCostsVersion(
+    baseSepolia.id,
+    requiredVariant,
+  );
   const globalCostsVersion =
     currentCostsVersion !== undefined && currentCostsVersion !== null
       ? Number(currentCostsVersion)

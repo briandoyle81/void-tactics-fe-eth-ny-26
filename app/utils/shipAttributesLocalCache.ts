@@ -1,6 +1,7 @@
 import type { Abi, PublicClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID, getContractAddresses } from "../config/contracts";
+import { getVariantForChainId } from "../config/networks";
 import type { Attributes } from "../types/types";
 
 const SHIP_ATTRIBUTES_BY_IDS_CACHE_KEY_PREFIX =
@@ -206,6 +207,14 @@ export async function fetchAndPersistShipAttributesCaches(
   if (typeof window === "undefined") return;
   const { chainId, shipAttributesAddress, shipIds } = params;
   const abi = CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi;
+  // Costs/attributes versions are per-variant as of the 2026-09-20/21
+  // redesign (getCurrentCostsVersion/getCurrentAttributesVersion both now
+  // require `_variant` — omitting it reverts). This snapshot is only a
+  // point-in-time display value (not used to compute the cached
+  // attributes below, which come from `calculateShipAttributesByIds` and
+  // already resolve each ship's own traits.variant correctly), so the
+  // chain's default variant is a reasonable stand-in here.
+  const variant = getVariantForChainId(chainId);
   try {
     const [currentCostsVersion, currentAttributesVersion, costsTuple] =
       await Promise.all([
@@ -213,16 +222,19 @@ export async function fetchAndPersistShipAttributesCaches(
           address: shipAttributesAddress,
           abi,
           functionName: "getCurrentCostsVersion",
+          args: [variant],
         }),
         publicClient.readContract({
           address: shipAttributesAddress,
           abi,
           functionName: "getCurrentAttributesVersion",
+          args: [variant],
         }),
         publicClient.readContract({
           address: shipAttributesAddress,
           abi,
           functionName: "getCosts",
+          args: [variant],
         }),
       ]);
 

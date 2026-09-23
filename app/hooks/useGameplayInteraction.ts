@@ -92,6 +92,18 @@ export interface UseGameplayInteractionParams {
   selectedShipSpecialData: { strength: number } | null;
   /** Pre-resolved special range for the *dragged* ship's equipped special — drag preview uses the dragged ship's own weapon plan, not the selected ship's. */
   draggedShipSpecialRange: number | undefined;
+  /**
+   * Every ship's innate faction ability (Ram/variant 1, Repair/variant 2 —
+   * see useFactionAbilityConfig.ts), resolved by the caller the same way as
+   * selectedShipSpecialRange above. `isSupported` gates the real
+   * FactionAbility flow on vs. the legacy auto-ram-on-plain-move behavior
+   * some chains still run (see this hook's computedActionType doc) —
+   * false there disables faction-ability targeting entirely and falls back
+   * unchanged to the old behavior.
+   */
+  selectedShipFactionAbilityRange: number | undefined;
+  selectedShipFactionAbilityIsHeal: boolean;
+  isFactionAbilitySupported: boolean;
 }
 
 export function useGameplayInteraction({
@@ -116,6 +128,9 @@ export function useGameplayInteraction({
   selectedShipSpecialRange,
   selectedShipSpecialData,
   draggedShipSpecialRange,
+  selectedShipFactionAbilityRange,
+  selectedShipFactionAbilityIsHeal,
+  isFactionAbilitySupported,
 }: UseGameplayInteractionParams) {
   const [previewPosition, setPreviewPosition] = useState<{ row: number; col: number } | null>(null);
   const [targetShipId, setTargetShipId] = useState<number | null>(null);
@@ -247,14 +262,24 @@ export function useGameplayInteraction({
   const specialRange = selectedShipSpecialRange;
   const specialData = selectedShipSpecialData;
 
+  // Legacy auto-ram-on-plain-move detection — only meaningful on chains
+  // without the FactionAbility/resolver system (Flow/Ronin/Xai today,
+  // running the older Game.sol where ramming is an automatic side effect of
+  // landing on a disabled enemy's tile, per RamResolver.sol's own header
+  // comment). Where the resolver system exists (isFactionAbilitySupported),
+  // this must stay false: landing on another ship's tile is no longer a
+  // legal plain move at all (Game.sol reverts InvalidMove for it), and
+  // ramming/repairing goes through the real "ram" weapon-type targeting
+  // below instead — see computedActionType.
   const isRammingMovePreview = useMemo(() => {
+    if (isFactionAbilitySupported) return false;
     if (!selectedShipId || !previewPosition) return false;
     const occupying = aliveShipPositions.find(
       (p) => p.position.row === previewPosition.row && p.position.col === previewPosition.col && p.shipId !== selectedShipId,
     );
     if (!occupying) return false;
     return isEnemyDisabledShipId(occupying.shipId);
-  }, [selectedShipId, previewPosition, aliveShipPositions, isEnemyDisabledShipId]);
+  }, [isFactionAbilitySupported, selectedShipId, previewPosition, aliveShipPositions, isEnemyDisabledShipId]);
 
   React.useEffect(() => {
     if (!isRammingMovePreview) return;
@@ -289,10 +314,15 @@ export function useGameplayInteraction({
         getShipAttributes,
         shipPositions: aliveShipPositions,
         previewPosition,
+        // Only the legacy chains allow moving directly onto a disabled
+        // enemy's tile (see isRammingMovePreview's doc) — where the real
+        // resolver system exists, this would revert on-chain, so normal
+        // movement rules apply and the faction ability is dispatched
+        // separately via "ram"-mode targeting instead.
         canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
-          occupyingShipId !== selectedShipId && isEnemyDisabledShipId(occupyingShipId),
+          !isFactionAbilitySupported && occupyingShipId !== selectedShipId && isEnemyDisabledShipId(occupyingShipId),
       }),
-    [gridWidth, gridHeight, selectedShipId, shipMap, aliveShipPositions, getShipAttributes, previewPosition, isEnemyDisabledShipId],
+    [gridWidth, gridHeight, selectedShipId, shipMap, aliveShipPositions, getShipAttributes, previewPosition, isEnemyDisabledShipId, isFactionAbilitySupported],
   );
 
   const validTargets = useMemo(() => {
@@ -301,7 +331,12 @@ export function useGameplayInteraction({
     const attributes = getShipAttributes(selectedShipId);
     if (attributes && attributes.hullPoints === 0) return [];
 
-    const shootRange = selectedWeaponType === "special" && specialRange !== undefined ? specialRange : attributes?.range || 1;
+    const shootRange =
+      selectedWeaponType === "special" && specialRange !== undefined
+        ? specialRange
+        : selectedWeaponType === "ram" && selectedShipFactionAbilityRange !== undefined
+          ? selectedShipFactionAbilityRange
+          : attributes?.range || 1;
     const currentPosition = aliveShipPositions.find((pos) => pos.shipId === selectedShipId);
     if (!currentPosition) return [];
 
@@ -321,6 +356,14 @@ export function useGameplayInteraction({
         } else {
           if (ship.owner !== playerAddress) return;
         }
+      } else if (selectedWeaponType === "ram") {
+        if (!isFactionAbilitySupported) return;
+        const targetHp = getShipAttributes(shipPosition.shipId)?.hullPoints;
+        const isHeal = selectedShipFactionAbilityIsHeal;
+        const isValid = isHeal
+          ? ship.owner === playerAddress
+          : ship.owner !== playerAddress && targetHp === 0;
+        if (!isValid) return;
       } else {
         if (ship.owner === playerAddress) return;
       }
@@ -329,7 +372,9 @@ export function useGameplayInteraction({
       const targetCol = shipPosition.position.col;
       const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
       const canShoot = distance === 1 || distance <= shootRange;
-      const isSelfRepair = selectedWeaponType === "special" && specialType === 2 && distance === 0;
+      const isSelfRepair =
+        (selectedWeaponType === "special" && specialType === 2 && distance === 0) ||
+        (selectedWeaponType === "ram" && selectedShipFactionAbilityIsHeal && distance === 0);
 
       if ((canShoot && distance > 0) || isSelfRepair) {
         const shouldCheckLineOfSight =
@@ -341,7 +386,7 @@ export function useGameplayInteraction({
     });
 
     return targets;
-  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview]);
+  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview, isFactionAbilitySupported, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal]);
 
   const labelTargets = useMemo(
     () =>
@@ -356,11 +401,13 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
+        factionAbilityRange: selectedShipFactionAbilityRange,
+        factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
         gridWidth,
         gridHeight,
       }),
-    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight],
+    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal],
   );
 
   // Assist isn't exposed in the UI (removed from web3's contract; kept as
@@ -384,9 +431,10 @@ export function useGameplayInteraction({
             selectedWeaponType,
             specialRange,
             specialType,
+            factionAbilityRange: selectedShipFactionAbilityRange,
             blockedGrid,
           }),
-    [gridWidth, gridHeight, selectedShipId, isRammingMovePreview, shipMap, getShipAttributes, aliveShipPositions, previewPosition, selectedWeaponType, specialRange, specialType, blockedGrid],
+    [gridWidth, gridHeight, selectedShipId, isRammingMovePreview, shipMap, getShipAttributes, aliveShipPositions, previewPosition, selectedWeaponType, specialRange, specialType, blockedGrid, selectedShipFactionAbilityRange],
   );
 
   // Drag preview uses the DRAGGED ship's own remembered weapon preference
@@ -508,9 +556,11 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
+        factionAbilityRange: selectedShipFactionAbilityRange,
+        factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
       }),
-    [selectedShipId, hoverPreviewPosition, shipMap, playerAddress, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid],
+    [selectedShipId, hoverPreviewPosition, shipMap, playerAddress, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal],
   );
 
   const hoverShootingRange = useMemo(
@@ -524,11 +574,12 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
+        factionAbilityRange: selectedShipFactionAbilityRange,
         blockedGrid,
         gridWidth,
         gridHeight,
       }),
-    [selectedShipId, hoverPreviewPosition, shipMap, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, gridWidth, gridHeight],
+    [selectedShipId, hoverPreviewPosition, shipMap, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, gridWidth, gridHeight, selectedShipFactionAbilityRange],
   );
 
   const isShowingProposedMove = useMemo(() => {
@@ -546,26 +597,30 @@ export function useGameplayInteraction({
   const retreatPrepShipId = actionOverride === ActionType.Retreat && selectedShipId != null && isShipOwnedByCurrentPlayer(selectedShipId) ? selectedShipId : null;
   const retreatPrepIsCreator = retreatPrepShipId != null ? (shipMap.get(retreatPrepShipId) ? aliveShipPositions.find((p) => p.shipId === retreatPrepShipId)?.isCreator ?? null : null) : null;
 
-  // Note: this preserves GameDisplay.tsx's current (tested-against-the-live-
-  // contract) behavior of submitting Pass, not Ram, for a ramming move — the
-  // contract infers the ram from "moved onto a disabled enemy's tile"
-  // itself. GameDisplayWeb2.tsx's own submit step overrides this to Ram
-  // (with the occupying ship as target) since its engine requires it
-  // explicitly — see buildActionPayload below and its web2 call site.
+  // isFactionAbilitySupported (Base Sepolia today — see this hook's params
+  // doc) submits the real ActionType.FactionAbility for a chosen ram/repair
+  // target. Where it's false (Flow/Ronin/Xai, still on the older Game.sol),
+  // isRammingMovePreview stays the only ramming path and this preserves the
+  // old submitted-Pass behavior — that contract infers the ram from "moved
+  // onto a disabled enemy's tile" itself and has no FactionAbility action at
+  // all. GameDisplayWeb2.tsx's own submit step maps this the same way, via
+  // its own engine's ActionType.FactionAbility handler.
   const computedActionType = useMemo(
     () =>
       actionOverride != null
         ? actionOverride
         : isRammingMovePreview
           ? ActionType.Pass
-          : targetShipId !== null && targetShipId !== 0
-            ? selectedWeaponType === "special"
-              ? ActionType.Special
-              : ActionType.Shoot
-            : targetShipId === 0 && selectedWeaponType === "special" && specialType === 3
-              ? ActionType.Special
-              : ActionType.Pass,
-    [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType],
+          : selectedWeaponType === "ram" && isFactionAbilitySupported && targetShipId != null && targetShipId !== 0
+            ? ActionType.FactionAbility
+            : targetShipId !== null && targetShipId !== 0
+              ? selectedWeaponType === "special"
+                ? ActionType.Special
+                : ActionType.Shoot
+              : targetShipId === 0 && selectedWeaponType === "special" && specialType === 3
+                ? ActionType.Special
+                : ActionType.Pass,
+    [actionOverride, isRammingMovePreview, targetShipId, selectedWeaponType, specialType, isFactionAbilitySupported],
   );
 
   const computedMoveCoords = useMemo(() => {
@@ -590,11 +645,13 @@ export function useGameplayInteraction({
         ? "HOLD FIRE"
         : computedActionType === ActionType.Ram
           ? "RAM"
-          : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
-            ? "REPAIR"
-            : targetShipId != null && targetShipId !== 0
-              ? "FIRE"
-              : "SUBMIT";
+          : computedActionType === ActionType.FactionAbility
+            ? (selectedShipFactionAbilityIsHeal ? "REPAIR" : "RAM")
+            : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+              ? "REPAIR"
+              : targetShipId != null && targetShipId !== 0
+                ? "FIRE"
+                : "SUBMIT";
 
   const buildActionPayload = useCallback((): GameplayActionPayload | null => {
     if (!selectedShipId) return null;

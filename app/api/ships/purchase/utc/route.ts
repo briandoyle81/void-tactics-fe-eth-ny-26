@@ -4,7 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
 import { getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
 import { getPurchaseTiers } from "@/app/lib/getPurchaseTiers";
-import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+import { getCurrentCostsByVariant } from "@/app/lib/getCurrentCosts";
 import { InsufficientBalanceError } from "@/app/lib/InsufficientBalanceError";
 
 export async function POST(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Insufficient UTC balance" }, { status: 402 });
   }
 
-  const costs = await getCurrentCosts();
+  const costsByVariant = await getCurrentCostsByVariant();
 
   let ships;
   try {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
       return Promise.all(
         Array.from({ length: tierConfig.shipCount }, (_, i) => {
-          const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
+          const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costsByVariant);
           const shipsDestroyed = getGuaranteedKillsForTierShip(tierConfig.tier, i);
           return tx.ship.create({
             data: {

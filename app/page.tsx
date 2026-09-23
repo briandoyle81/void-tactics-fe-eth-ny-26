@@ -29,6 +29,7 @@ import Info from "./components/Info";
 import Maps from "./components/Maps";
 import MapsWeb2 from "./components/MapsWeb2";
 import ShipAttributes from "./components/ShipAttributes";
+import EligibilityControls from "./components/EligibilityControls";
 import ShipAttributesWeb2 from "./components/ShipAttributesWeb2";
 import ShipConstructor from "./components/ShipConstructor";
 import ShipConstructorWeb2 from "./components/ShipConstructorWeb2";
@@ -752,7 +753,14 @@ export default function Home() {
                 (appMode === "web2" ? <ProfileWeb2 /> : <Profile />)}
               {activeTab === "Info" && <Info />}
               {activeTab === "Ship Attributes" &&
-                (appMode === "web2" ? <ShipAttributesWeb2 /> : <ShipAttributes />)}
+                (appMode === "web2" ? (
+                  <ShipAttributesWeb2 />
+                ) : (
+                  <div className="space-y-6">
+                    <ShipAttributes />
+                    <EligibilityControls />
+                  </div>
+                ))}
               {activeTab === "Purchase Prices" &&
                 (appMode === "web2" ? (
                   <ShipPurchasePricesWeb2 />

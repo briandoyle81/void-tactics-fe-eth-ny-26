@@ -41,7 +41,10 @@ import { useShipsRead } from "../hooks/useShipsContract";
 import { TransactionButton } from "./TransactionButton";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import type { Abi } from "viem";
-import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
+import {
+  useCurrentCostsVersion,
+  useMaxVariant,
+} from "../hooks/useShipAttributesContract";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useSelfieCheckEligibility } from "../hooks/useSelfieCheckEligibility";
 import { SelfieCheckVerifyButton } from "./SelfieCheckVerifyButton";
@@ -105,26 +108,48 @@ const ManageNavy: React.FC = () => {
   // Read the recycle reward amount from the contract
   const { data: recycleReward } = useShipsRead("recycleReward");
 
-  const { data: currentCostsVersion } = useCurrentCostsVersion();
-  const globalCostsVersion =
-    currentCostsVersion !== undefined && currentCostsVersion !== null
-      ? Number(currentCostsVersion)
-      : null;
+  // Costs versions are per variant (faction) — a navy can hold ships of more
+  // than one variant, and each variant's costs version bumps independently,
+  // so staleness must be checked against the SHIP's OWN variant's version,
+  // not a single chain-wide number. Only variants 1-2 are ever minted today
+  // (see VALID_SPECIALS_BY_VARIANT in types.ts for the same assumption); a
+  // third variant would need another read added here.
+  const { data: maxVariantData } = useMaxVariant();
+  const maxVariant = Math.max(Number(maxVariantData ?? 0), 1);
+  const { data: costsVersionV1 } = useCurrentCostsVersion(undefined, 1);
+  const { data: costsVersionV2 } = useCurrentCostsVersion(
+    undefined,
+    maxVariant >= 2 ? 2 : 1,
+  );
+  const costsVersionByVariant = React.useMemo(() => {
+    const map = new Map<number, number>();
+    if (costsVersionV1 !== undefined && costsVersionV1 !== null) {
+      map.set(1, Number(costsVersionV1));
+    }
+    if (maxVariant >= 2 && costsVersionV2 !== undefined && costsVersionV2 !== null) {
+      map.set(2, Number(costsVersionV2));
+    }
+    return map;
+  }, [costsVersionV1, costsVersionV2, maxVariant]);
 
   const staleCostSyncShipIds = React.useMemo(() => {
-    if (globalCostsVersion === null) return [] as bigint[];
+    if (costsVersionByVariant.size === 0) return [] as bigint[];
     return ships
       .filter((ship) => {
         const shipCv = Number(ship.shipData.costsVersion);
+        const currentForVariant = costsVersionByVariant.get(
+          ship.traits.variant,
+        );
         return (
           ship.shipData.constructed &&
           ship.shipData.timestampDestroyed === 0n &&
           !ship.shipData.inFleet &&
-          shipCv !== globalCostsVersion
+          currentForVariant !== undefined &&
+          shipCv !== currentForVariant
         );
       })
       .map((s) => s.id);
-  }, [ships, globalCostsVersion]);
+  }, [ships, costsVersionByVariant]);
 
   // Read the user's purchase count
   const { data: amountPurchased } = useShipsRead(
@@ -1413,12 +1438,15 @@ const ManageNavy: React.FC = () => {
           >
             {paginatedShips.map((ship: Ship) => {
               const shipCv = Number(ship.shipData.costsVersion);
+              const currentCostsVersionForShip = costsVersionByVariant.get(
+                ship.traits.variant,
+              );
               const costsVersionStale =
-                globalCostsVersion !== null &&
+                currentCostsVersionForShip !== undefined &&
                 ship.shipData.constructed &&
                 ship.shipData.timestampDestroyed === 0n &&
                 !ship.shipData.inFleet &&
-                shipCv !== globalCostsVersion;
+                shipCv !== currentCostsVersionForShip;
 
               return (
                 <ShipCard

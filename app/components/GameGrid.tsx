@@ -131,6 +131,9 @@ interface GameGridProps {
   rammingPreviewPosition?: { row: number; col: number } | null;
   /** True when the staged move is a ramming move. */
   isRammingMovePreview?: boolean;
+  /** See useFactionAbilityConfig.ts — gates the real Ram/Repair targeting flow vs. the legacy auto-ram chains still run. */
+  isFactionAbilitySupported?: boolean;
+  factionAbilityRange?: number | undefined;
   /** When set, last-move EMP replay still shows while a ship is selected (e.g. tutorial ship-destruction). */
   showLastMoveEmpReplayWhenSelected?: boolean;
   retreatPrepShipId?: number | null;
@@ -226,6 +229,8 @@ export function GameGrid({
   lastMoveIsCurrentPlayer,
   rammingPreviewPosition = null,
   isRammingMovePreview = false,
+  isFactionAbilitySupported = false,
+  factionAbilityRange,
   showLastMoveEmpReplayWhenSelected = false,
   retreatPrepShipId,
   retreatPrepIsCreator,
@@ -564,6 +569,8 @@ export function GameGrid({
             getShipAttributes={getShipAttributes}
             showConfirmWidget={showConfirmWidget}
             isRammingMovePreview={isRammingMovePreview}
+            isFactionAbilitySupported={isFactionAbilitySupported}
+            factionAbilityRange={factionAbilityRange}
             retreatPrepShipId={retreatPrepShipId}
             setSelectedWeaponType={setSelectedWeaponType}
             setTargetShipId={setTargetShipId}

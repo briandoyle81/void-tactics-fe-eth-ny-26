@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
-import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+import { getCurrentCostsByVariant } from "@/app/lib/getCurrentCosts";
 import { recalcStaleShips } from "@/app/lib/recalcStaleShips";
 
 export async function POST(
@@ -38,9 +38,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid ship selection" }, { status: 400 });
   }
 
-  const costs = await getCurrentCosts();
-  const updatedCosts = await recalcStaleShips(ships, costs);
-  const totalCost = ships.reduce((sum, s) => sum + (updatedCosts.get(s.id) ?? s.cost), 0);
+  const costsByVariant = await getCurrentCostsByVariant();
+  const updatedCosts = await recalcStaleShips(ships, costsByVariant);
+  const totalCost = ships.reduce((sum, s) => sum + (updatedCosts.get(s.id)?.cost ?? s.cost), 0);
 
   // Validate cost limit
   if (lobby.costLimit > 0 && totalCost > lobby.costLimit) {

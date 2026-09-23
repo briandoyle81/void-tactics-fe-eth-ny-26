@@ -4,28 +4,30 @@
  */
 
 import { ShipVisual } from "../../../types/shipVisual";
-import { renderSpecial4V2 } from "./RenderSpecial4V2";
-import { renderSpecial5V2 } from "./RenderSpecial5V2";
-import { renderSpecial6V2 } from "./RenderSpecial6V2";
+import { renderSpecial1V2 } from "./RenderSpecial1V2";
+import { renderSpecial2V2 } from "./RenderSpecial2V2";
+import { renderSpecial3V2 } from "./RenderSpecial3V2";
 
-// Special enum values (from contract) — variant 2 uses Slot4/5/6, not the
-// EMP/RepairDrones/FlakArray values variant 1 uses.
+// Special enum values (from contract) — as of the 2026-09-20/21 attributes
+// redesign, variant 2's three real specials moved from Slot4/5/6 to
+// Slot1/2/3 (a generic Special.Slot1..Slot7 enum shared by every variant;
+// meaning is per-(variant, slot), see types.ts's SPECIAL_NAMES_V2).
 const Special = {
   None: 0,
-  Slot4: 4,
-  Slot5: 5,
-  Slot6: 6,
+  Slot1: 1,
+  Slot2: 2,
+  Slot3: 3,
 } as const;
 
 export function renderSpecialV2(ship: ShipVisual): string {
   if (ship.equipment.special === Special.None) {
     return "";
-  } else if (ship.equipment.special === Special.Slot4) {
-    return renderSpecial4V2(ship);
-  } else if (ship.equipment.special === Special.Slot5) {
-    return renderSpecial5V2(ship);
-  } else if (ship.equipment.special === Special.Slot6) {
-    return renderSpecial6V2(ship);
+  } else if (ship.equipment.special === Special.Slot1) {
+    return renderSpecial1V2(ship);
+  } else if (ship.equipment.special === Special.Slot2) {
+    return renderSpecial2V2(ship);
+  } else if (ship.equipment.special === Special.Slot3) {
+    return renderSpecial3V2(ship);
   }
   return "";
 }

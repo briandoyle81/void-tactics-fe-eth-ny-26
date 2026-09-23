@@ -45,11 +45,15 @@ export function aiConfigToPreviewShip(config: AIShipConfig, idOverride?: bigint)
       costsVersion: 0,
       // Same threat/cost formula as real player ships (ShipAttributes.calculateShipCost) —
       // AI ships never construct on-chain, so there's no stored cost to read.
-      cost: calculateTutorialThreatPoints(config.equipment, {
-        accuracy: config.traits.accuracy,
-        hull: config.traits.hull,
-        speed: config.traits.speed,
-      }),
+      cost: calculateTutorialThreatPoints(
+        config.equipment,
+        {
+          accuracy: config.traits.accuracy,
+          hull: config.traits.hull,
+          speed: config.traits.speed,
+        },
+        config.traits.variant,
+      ),
       shiny: false,
       constructed: true,
       inFleet: false,

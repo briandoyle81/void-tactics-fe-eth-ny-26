@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   calculateShipRank,
   getRankProgressInfo,
@@ -6,6 +6,7 @@ import {
   getRankColor,
   getTierColor,
 } from "../shipLevel";
+import { setRankConfig, DEFAULT_RANK_CONFIG } from "../rankConfigCache";
 import { ShipVisual } from "../../types/shipVisual";
 
 function makeShip(overrides: {
@@ -13,12 +14,13 @@ function makeShip(overrides: {
   accuracy?: number;
   hull?: number;
   speed?: number;
+  variant?: number;
 }): ShipVisual {
   return {
     equipment: { mainWeapon: 0, armor: 0, shields: 0, special: 0 },
     traits: {
       colors: { h1: 0, s1: 0, l1: 0, h2: 0, s2: 0, l2: 0 },
-      variant: 0,
+      variant: overrides.variant ?? 0,
       accuracy: overrides.accuracy ?? 50,
       hull: overrides.hull ?? 50,
       speed: overrides.speed ?? 50,
@@ -74,6 +76,41 @@ describe("getRankProgressInfo", () => {
     // Exactly at threshold boundary
     const info = getRankProgressInfo(makeShip({ shipsDestroyed: 10 }));
     expect(info.killsToNextRank).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// Regression coverage for the rank-hardcoding fix (see rankConfigCache.ts):
+// rank used to be permanently pinned to a hardcoded 10/30/100/300/1000
+// ladder no matter what an admin published on-chain/in the DB for a
+// variant. It must now track that variant's live rankConfigCache entry.
+describe("calculateShipRank / getRankProgressInfo — live per-variant config", () => {
+  const CUSTOM_VARIANT = 42;
+
+  afterEach(() => {
+    setRankConfig(CUSTOM_VARIANT, DEFAULT_RANK_CONFIG);
+  });
+
+  it("uses a variant's own published thresholds instead of the default ladder", () => {
+    setRankConfig(CUSTOM_VARIANT, { thresholds: [5, 15], bonusPct: [0, 50, 100] });
+
+    // 4 kills is below variant 42's custom rank-2 threshold (5) but well
+    // past the default ladder's would-be rank-1 range too — the point is
+    // it must resolve against variant 42's numbers, not the default's.
+    expect(calculateShipRank(makeShip({ shipsDestroyed: 4, variant: CUSTOM_VARIANT })).rank).toBe(1);
+    expect(calculateShipRank(makeShip({ shipsDestroyed: 5, variant: CUSTOM_VARIANT })).rank).toBe(2);
+    expect(calculateShipRank(makeShip({ shipsDestroyed: 15, variant: CUSTOM_VARIANT })).rank).toBe(3);
+
+    // A ship of an untouched variant is unaffected by variant 42's override.
+    expect(calculateShipRank(makeShip({ shipsDestroyed: 5, variant: 0 })).rank).toBe(1);
+  });
+
+  it("caps nextRank/killsToNextRank at the variant's own tier count", () => {
+    setRankConfig(CUSTOM_VARIANT, { thresholds: [5, 15], bonusPct: [0, 50, 100] });
+
+    const info = getRankProgressInfo(makeShip({ shipsDestroyed: 15, variant: CUSTOM_VARIANT }));
+    expect(info.rank).toBe(3);
+    expect(info.nextRank).toBeNull(); // rank 3 is variant 42's max (bonusPct has 3 entries)
+    expect(info.killsToNextRank).toBeNull();
   });
 });
 

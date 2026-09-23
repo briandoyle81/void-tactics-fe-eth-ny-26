@@ -109,13 +109,19 @@ export const SPECIAL_NAMES = {
   3: "Flak Array",
 } as const;
 
-// Variant 2 uses a disjoint set of Special values (Slot4/5/6), per
-// docs/faction-2.md §6.
+// As of the 2026-09-20/21 attributes/costs redesign, the Special enum is a
+// generic slot list (None, Slot1..Slot7) shared by every variant — a slot's
+// meaning (and therefore its name) is per-(variant, slot), not a disjoint
+// enum range any more. Variant 2's three real specials moved from the old
+// Slot4/5/6 to Slot1/2/3 (variant 1 already occupied 1/2/3 for its own
+// specials); see docs/eth-global-remote/frontend-handoff-attributes-costs-and-ai-2026-09-21.md §3.
+// Display strings themselves are unchanged (still set via
+// RenderMetadata.setSpecialName(2, slot, ...) in the deploy script).
 export const SPECIAL_NAMES_V2 = {
   0: "None",
-  4: "Lightening Field",
-  5: "Attack Drones",
-  6: "Aux Engine",
+  1: "Lightening Field",
+  2: "Attack Drones",
+  3: "Aux Engine",
 } as const;
 
 // Helper functions to get equipment names. `variant` defaults to 1 for call
@@ -146,14 +152,14 @@ export function getSpecialName(value: number, variant: number = 1): string {
   );
 }
 
-// Which raw Special values are valid for a given variant — variant 2's
-// Special enum is disjoint from variant 1's (Slot 4/5/6 vs Slot 1/2/3), so a
-// value valid for one variant can be meaningless/invalid for the other.
-// Shared by customize-ship forms (option lists) and validation
-// (app/lib/customizeCost.ts) so both stay in sync with SPECIAL_NAMES/
-// SPECIAL_NAMES_V2 above.
+// Which raw Special values are valid for a given variant. Both variants now
+// use Slot1/2/3 for their three real specials (Slot4-7 are unused filler for
+// both) — the enum values are no longer disjoint between variants, only
+// their meaning/name is (see SPECIAL_NAMES_V2 above). Shared by
+// customize-ship forms (option lists) and validation (app/lib/customizeCost.ts)
+// so both stay in sync with SPECIAL_NAMES/SPECIAL_NAMES_V2 above.
 const VALID_SPECIALS_BY_VARIANT: Record<number, readonly number[]> = {
-  2: [0, 4, 5, 6],
+  2: [0, 1, 2, 3],
 };
 const DEFAULT_VALID_SPECIALS: readonly number[] = [0, 1, 2, 3];
 

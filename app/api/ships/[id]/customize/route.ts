@@ -114,8 +114,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Insufficient UTC balance", required: cost, available: user.creditBalance }, { status: 402 });
   }
 
-  // Recalculate fleet cost with new traits/equipment
-  const costs = await getCurrentCosts();
+  // Recalculate fleet cost with new traits/equipment. Costs are per-variant;
+  // customization never changes a ship's variant, so its existing one applies.
+  const costs = await getCurrentCosts(existingTraitsRaw.variant ?? 1);
   const newCost = calcShipCost(equipment, traits, costs);
 
   // Preserve serial number, colors, variant from existing traits

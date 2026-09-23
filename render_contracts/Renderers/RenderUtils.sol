@@ -58,38 +58,66 @@ function toHexString(uint8 value) pure returns (string memory) {
     return string(buffer);
 }
 
-function blendHSL(
-    uint h,
-    uint s,
-    uint l,
+// Parses an "hsl(200, 40%, 47%)"-format string into its three numbers.
+// Factored out of blendHSL so blendHSLV2 (see below) can reuse the same
+// parsing without duplicating it.
+function parseHSL(
     string memory hslString
-) pure returns (string memory) {
-    // Parse the HSL string (format: "hsl(200, 40%, 47%)")
+) pure returns (uint h2, uint s2, uint l2) {
     bytes memory b = bytes(hslString);
     require(b.length >= 10, "Invalid HSL string format");
 
-    // Find the numbers in the string
     uint start = 4; // Skip "hsl("
     uint end = start;
     while (end < b.length && b[end] != ",") end++;
-    uint h2 = parseUint(b, start, end);
+    h2 = parseUint(b, start, end);
 
     start = end + 1;
     while (start < b.length && (b[start] == " " || b[start] == ",")) start++;
     end = start;
     while (end < b.length && b[end] != "%") end++;
-    uint s2 = parseUint(b, start, end);
+    s2 = parseUint(b, start, end);
 
     start = end + 1;
     while (start < b.length && (b[start] == " " || b[start] == ",")) start++;
     end = start;
     while (end < b.length && b[end] != "%") end++;
-    uint l2 = parseUint(b, start, end);
+    l2 = parseUint(b, start, end);
+}
 
-    // Blend the values according to the specified ratios
-    // H: 50/50 blend
-    // Don't change hue too much if saturation is > 40
-    uint blendedH;
+// Shared by blendHSL and blendHSLV2 so neither pulls the other's bytecode
+// into a contract that only calls one of them -- Solidity inlines each
+// free function's own body into every contract that reaches it in its call
+// graph, so blendHSLV2 calling blendHSL as a fallback (an earlier version
+// of this file did exactly that) meant every variant-2 leaf paid for BOTH
+// functions' full string-building logic, ~4.5KB extra per contract,
+// pushing several leaves back over budget. Splitting the "build the
+// output string" and "compute a 50/50-ish blend" pieces out here means
+// each of blendHSL/blendHSLV2 only pulls in the specific math it needs.
+function hslString(uint h, uint s, uint l) pure returns (string memory) {
+    return
+        string(
+            abi.encodePacked(
+                "hsl(",
+                uintToString(h),
+                ", ",
+                uintToString(s),
+                "%, ",
+                uintToString(l),
+                "%)"
+            )
+        );
+}
+
+function blendValues(
+    uint h,
+    uint s,
+    uint l,
+    uint h2,
+    uint s2,
+    uint l2
+) pure returns (uint blendedH, uint blendedS, uint blendedL) {
+    // H: 50/50 blend, but don't change hue too much if saturation is > 40
     if (s2 > 40) {
         blendedH = (h2 * 95 + h * 5) / 100;
     } else {
@@ -97,29 +125,81 @@ function blendHSL(
     }
 
     // S: Blend the two values with different ratios based on base saturation
-    uint blendedS;
     if (s2 > 40) {
         blendedS = (s2 * 95 + s * 5) / 100;
     } else {
         blendedS = (s2 * 35 + s * 65) / 100;
     }
 
-    // L: 95% old, 5% new
-    uint blendedL = (l2 * 85 + l * 15) / 100;
+    // L: 85% old, 15% new
+    blendedL = (l2 * 85 + l * 15) / 100;
+}
 
-    // Return the blended HSL string
-    return
-        string(
-            abi.encodePacked(
-                "hsl(",
-                uintToString(blendedH),
-                ", ",
-                uintToString(blendedS),
-                "%, ",
-                uintToString(blendedL),
-                "%)"
-            )
-        );
+function blendHSL(
+    uint h,
+    uint s,
+    uint l,
+    string memory hslStringIn
+) pure returns (string memory) {
+    (uint h2, uint s2, uint l2) = parseHSL(hslStringIn);
+    (uint blendedH, uint blendedS, uint blendedL) = blendValues(
+        h,
+        s,
+        l,
+        h2,
+        s2,
+        l2
+    );
+    return hslString(blendedH, blendedS, blendedL);
+}
+
+// True for colors in variant 2's dense orange/amber accent-highlight range
+// (weapon glows, engine lights, etc.) -- calibrated against the actual
+// generated palette in contracts/RenderersV2/*.sol: vivid accents cluster
+// at hue 10-36 with saturation 89-100%, while structural greys/browns that
+// merely lean warm sit under ~30% saturation in the same hue range. The
+// wide gap to the next color cluster (steel-blue hulls at hue 180+) means
+// this threshold isn't fragile to small palette changes on re-runs of the
+// renderer pipeline.
+function isOrangeAccent(uint h2, uint s2) pure returns (bool) {
+    return h2 <= 45 && s2 >= 55;
+}
+
+// Variant 2's shiny tint: blendHSL barely moves a highly-saturated color's
+// hue (only a 5% pull toward the new color when the base saturation is
+// already > 40, see above), which is exactly backwards for variant 2's
+// vivid orange accents -- they're the most visually dominant color on
+// every piece, so under blendHSL they stay orange on every shiny ship
+// instead of taking on a distinct identity. For those specific colors,
+// this fully replaces hue and saturation with the ship's own (h, s)
+// instead of blending -- equivalent to desaturating the orange to grey
+// first, then recoloring it, since stripping a color's hue/saturation and
+// reapplying new values *is* going through a grey midpoint -- while
+// keeping the original lightness so shading/gradient detail across
+// multiple orange-family COLOR_n values on the same piece stays intact.
+// Every other color (structural greys, blues, etc.) keeps today's
+// blendHSL behavior unchanged.
+function blendHSLV2(
+    uint h,
+    uint s,
+    uint l,
+    string memory hslStringIn
+) pure returns (string memory) {
+    (uint h2, uint s2, uint l2) = parseHSL(hslStringIn);
+
+    if (isOrangeAccent(h2, s2)) {
+        return hslString(h, s, l2);
+    }
+
+    (uint blendedH, uint blendedS, uint blendedL) = blendValues(
+        h,
+        s,
+        l,
+        h2,
+        s2,
+        l2
+    );
+    return hslString(blendedH, blendedS, blendedL);
 }
 
 function parseUint(bytes memory b, uint start, uint end) pure returns (uint) {

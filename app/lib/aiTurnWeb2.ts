@@ -58,8 +58,10 @@ export async function takeAiTurn(gameId: number): Promise<AiTurnResult> {
   const fleetShip = await prisma.aIFleetShip.findUnique({ where: { shipId } });
   const archetype: Archetype = fleetShip?.archetype ?? Archetype.Grunt;
 
-  const dbShip = await prisma.ship.findUnique({ where: { id: shipId }, select: { equipment: true } });
-  const hasRepairDrones = (dbShip?.equipment as { special?: number } | null)?.special === 2;
+  const dbShip = await prisma.ship.findUnique({ where: { id: shipId }, select: { equipment: true, traits: true } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const shipVariant = (dbShip?.traits as any)?.variant ?? 1;
+  const equipment = dbShip?.equipment as { mainWeapon?: number; special?: number } | null;
 
   const mapId = state.mapId || game.lobby.mapId || 0;
   const mapData = mapId ? await getMapTiles(mapId) : null;
@@ -78,7 +80,9 @@ export async function takeAiTurn(gameId: number): Promise<AiTurnResult> {
     shipId,
     archetype,
     isCreatorSide: false, // AI is always the joiner (see aiFleetWeb2.ts / vs-ai lobby creation)
-    hasRepairDrones,
+    variant: shipVariant,
+    mainWeapon: equipment?.mainWeapon ?? 0,
+    special: equipment?.special ?? 0,
   });
 
   const shipPos = state.shipPositions.find((p) => p.shipId === shipId);

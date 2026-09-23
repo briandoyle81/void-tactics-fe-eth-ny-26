@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
 import { PosthogAppChainSync } from "./components/PosthogAppChainSync";
+import { useRankConfigSync } from "./hooks/useRankConfigSync";
+import { useRankConfigSyncWeb2 } from "./hooks/useRankConfigSyncWeb2";
 
 // TEMPORARY: hardcoded Ankr key to get off the public sepolia.base.org RPC,
 // which was rate-limiting us (403s) under normal AI-turn polling load. Move
@@ -33,6 +35,16 @@ const wagmiConfig = createConfig({
     [xaiTestnet.id]: http(),
   },
 });
+
+// Keeps rankConfigCache.ts warm from both modes' live sources (see
+// useRankConfigSync.ts / useRankConfigSyncWeb2.ts) — mounted once here
+// rather than per ship-display component, since neither hook's data
+// depends on which page is currently open.
+function RankConfigSync() {
+  useRankConfigSync();
+  useRankConfigSyncWeb2();
+  return null;
+}
 
 function InvalidateQueriesOnChainChange() {
   const queryClient = useQueryClient();
@@ -80,6 +92,7 @@ const AppContent = memo(function AppContent({ children }: { children: ReactNode 
   return (
     <>
       <InvalidateQueriesOnChainChange />
+      <RankConfigSync />
       <PosthogAppChainSync />
       <TransactionProvider>
         {children}

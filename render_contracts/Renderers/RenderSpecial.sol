@@ -22,11 +22,11 @@ contract RenderSpecial is IRenderComponent {
     function render(Ship memory ship) external view returns (string memory) {
         if (ship.equipment.special == Special.None) {
             return "";
-        } else if (ship.equipment.special == Special.EMP) {
+        } else if (ship.equipment.special == Special.Slot1) {
             return renderSpecial1.render(ship);
-        } else if (ship.equipment.special == Special.RepairDrones) {
+        } else if (ship.equipment.special == Special.Slot2) {
             return renderSpecial2.render(ship);
-        } else if (ship.equipment.special == Special.FlakArray) {
+        } else if (ship.equipment.special == Special.Slot3) {
             return renderSpecial3.render(ship);
         }
         return "";

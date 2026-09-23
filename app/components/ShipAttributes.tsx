@@ -5,19 +5,25 @@ import { useAccount } from "wagmi";
 import {
   useShipAttributesOwner,
   useCurrentAttributesVersion,
+  useLatestAttributesVersion,
+  useVariantAttributes,
   useCurrentCostsVersion,
+  useChainVariant,
+  useMaxVariant,
   useCosts,
-  useAttributesVersionBase,
-  useGunData,
-  useArmorData,
-  useShieldData,
-  useSpecialData,
   GunData,
   ArmorData,
   ShieldData,
   SpecialData,
+  VariantAttributeData,
   Costs,
 } from "../hooks/useShipAttributesContract";
+import {
+  getMainWeaponName,
+  getArmorName,
+  getShieldName,
+  getSpecialName,
+} from "../types/types";
 import { TransactionButton } from "./TransactionButton";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
@@ -25,32 +31,96 @@ import type { Abi } from "viem";
 
 type CostArrayKey = Exclude<keyof Costs, "version" | "baseCost">;
 
+// Array shapes the contract enforces (InvalidArrayLength/InvalidRankConfig
+// otherwise) — see docs/eth-global-remote/frontend-handoff-attributes-costs-and-ai-2026-09-21.md §1.4/§2.
+const TIER_ARRAY_LENGTH = 3;
+const EQUIPMENT_ARRAY_LENGTH = 8;
+const RANK_THRESHOLDS_LENGTH = 5;
+const RANK_BONUS_LENGTH = 6;
+const COST_TIER_LENGTH = 3;
+const COST_EQUIPMENT_LENGTH = 8;
+
+function clamp(n: number, min: number, max: number): number {
+  if (Number.isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+// Custom errors ShipAttributes writes can revert with (docs/eth-global-remote/
+// frontend-handoff-attributes-costs-and-ai-2026-09-21.md §1.3/§8). viem
+// decodes these into the thrown error's message when the ABI has them
+// (it does, via CONTRACT_ABIS.SHIP_ATTRIBUTES) — this just picks the
+// specific name back out so the toast says something more useful than a
+// generic "failed" message.
+const SHIP_ATTRIBUTES_ERROR_NAMES = [
+  "VariantNotConfigured",
+  "InvalidArrayLength",
+  "InvalidRankConfig",
+  "InvalidAttributesVersion",
+  "InvalidCostsVersion",
+] as const;
+
+function contractErrorReason(error: Error): string {
+  const match = SHIP_ATTRIBUTES_ERROR_NAMES.find((name) =>
+    error.message.includes(name),
+  );
+  if (match) return match;
+  return error.message.split("\n")[0];
+}
+
 function SavedOnChainValue({
   show,
   children,
-  multiline = false,
   title,
 }: {
   show: boolean;
   children: React.ReactNode;
-  multiline?: boolean;
   title?: string;
 }) {
   if (!show) return null;
-  const defaultTitle = multiline
-    ? "Snapshot when you opened edit (contract does not expose these arrays for read)"
-    : "Onchain until you submit";
   return (
     <span
-      className={
-        multiline
-          ? "text-amber/90 font-mono text-[10px] leading-tight text-left max-w-[min(12rem,42vw)] break-all shrink-0 border-l border-gunmetal pl-2"
-          : "text-amber/90 font-mono text-xs tabular-nums text-right min-w-[2.75rem] shrink-0 border-l border-gunmetal pl-2"
-      }
-      title={title ?? defaultTitle}
+      className="text-amber/90 font-mono text-xs tabular-nums text-right min-w-[2.75rem] shrink-0 border-l border-gunmetal pl-2"
+      title={title ?? "Onchain (live) until you submit"}
     >
       {children}
     </span>
+  );
+}
+
+function NumberField({
+  value,
+  onChange,
+  min,
+  max,
+  liveValue,
+  editing,
+  width = "w-[4.25rem]",
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  liveValue?: number;
+  editing: boolean;
+  width?: string;
+}) {
+  if (!editing) {
+    return <span className="text-white ml-auto">{value}</span>;
+  }
+  return (
+    <div className="flex items-center gap-2 ml-auto shrink-0">
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(clamp(Number(e.target.value), min, max))}
+        className={`min-w-0 ${width} px-1 py-0.5 bg-slate text-white rounded-none text-xs`}
+      />
+      {liveValue !== undefined && (
+        <SavedOnChainValue show>{liveValue}</SavedOnChainValue>
+      )}
+    </div>
   );
 }
 
@@ -84,36 +154,23 @@ function CostsArrayCard({
             className="flex justify-between items-center gap-2 min-h-[2rem]"
           >
             <span className="text-text-muted shrink-0">{getLabel(index)}:</span>
-            {editing ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <input
-                  type="number"
-                  min={0}
-                  max={255}
-                  value={cost}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    const num = raw === "" ? 0 : Number(raw);
-                    const v = Number.isNaN(num)
-                      ? 0
-                      : Math.max(0, Math.min(255, num));
-                    setNewCosts((prev) => {
-                      const base =
-                        (prev[field] as number[] | undefined)?.slice() ??
-                        [...(costs[field] as number[])];
-                      base[index] = v;
-                      return { ...prev, [field]: base };
-                    });
-                  }}
-                  className="min-w-[5.5rem] w-[5.5rem] px-2 py-1 bg-steel text-white rounded-none font-mono text-left"
-                />
-                <SavedOnChainValue show>
-                  {(costs[field] as number[])[index]}
-                </SavedOnChainValue>
-              </div>
-            ) : (
-              <span className="text-white">{cost}</span>
-            )}
+            <NumberField
+              value={cost}
+              min={0}
+              max={255}
+              editing={editing}
+              liveValue={(costs[field] as number[])[index]}
+              width="w-[5.5rem]"
+              onChange={(v) => {
+                setNewCosts((prev) => {
+                  const base =
+                    (prev[field] as number[] | undefined)?.slice() ??
+                    [...(costs[field] as number[])];
+                  base[index] = v;
+                  return { ...prev, [field]: base };
+                });
+              }}
+            />
           </div>
         ))}
       </div>
@@ -121,73 +178,313 @@ function CostsArrayCard({
   );
 }
 
+// Slots 0-3 of guns/armors/shields/specials are the real, nameable
+// equipment; 4-7 are inert `future*` filler (zero stats, never equippable)
+// on every variant today.
+function slotLabel(
+  kind: "gun" | "armor" | "shield" | "special",
+  index: number,
+  variant: number,
+): string {
+  if (index >= 4) return `Future ${index} (unused)`;
+  switch (kind) {
+    case "gun":
+      return getMainWeaponName(index, variant);
+    case "armor":
+      return getArmorName(index);
+    case "shield":
+      return getShieldName(index);
+    case "special":
+      return getSpecialName(index, variant);
+  }
+}
+
+function GunSlotCard({
+  index,
+  variant,
+  live,
+  draft,
+  editing,
+  onChange,
+}: {
+  index: number;
+  variant: number;
+  live: GunData;
+  draft: GunData;
+  editing: boolean;
+  onChange: (next: GunData) => void;
+}) {
+  return (
+    <div
+      className={`bg-gunmetal rounded-none p-2 ${index >= 4 ? "opacity-60" : ""}`}
+    >
+      <h5 className="text-white font-mono text-sm mb-2">
+        {slotLabel("gun", index, variant)}
+      </h5>
+      <div className="space-y-1 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Range:</span>
+          <NumberField
+            value={draft.range}
+            min={0}
+            max={255}
+            editing={editing}
+            liveValue={live.range}
+            onChange={(range) => onChange({ ...draft, range })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Damage:</span>
+          <NumberField
+            value={draft.damage}
+            min={0}
+            max={255}
+            editing={editing}
+            liveValue={live.damage}
+            onChange={(damage) => onChange({ ...draft, damage })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Movement:</span>
+          <NumberField
+            value={draft.movement}
+            min={-128}
+            max={127}
+            editing={editing}
+            liveValue={live.movement}
+            onChange={(movement) => onChange({ ...draft, movement })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ArmorOrShieldSlotCard({
+  kind,
+  index,
+  live,
+  draft,
+  editing,
+  onChange,
+}: {
+  kind: "armor" | "shield";
+  index: number;
+  live: ArmorData | ShieldData;
+  draft: ArmorData | ShieldData;
+  editing: boolean;
+  onChange: (next: ArmorData | ShieldData) => void;
+}) {
+  return (
+    <div
+      className={`bg-gunmetal rounded-none p-2 ${index >= 4 ? "opacity-60" : ""}`}
+    >
+      <h5 className="text-white font-mono text-sm mb-2">
+        {slotLabel(kind, index, 1)}
+      </h5>
+      <div className="space-y-1 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">DR:</span>
+          <NumberField
+            value={draft.damageReduction}
+            min={0}
+            max={255}
+            editing={editing}
+            liveValue={live.damageReduction}
+            onChange={(damageReduction) =>
+              onChange({ ...draft, damageReduction })
+            }
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Movement:</span>
+          <NumberField
+            value={draft.movement}
+            min={-128}
+            max={127}
+            editing={editing}
+            liveValue={live.movement}
+            onChange={(movement) => onChange({ ...draft, movement })}
+          />
+        </div>
+      </div>
+      {index === 0 && (
+        <p className="text-text-muted text-[10px] mt-1 leading-tight">
+          {kind === "armor"
+            ? "Once-only no-gear bonus (applies only when neither armor nor shields are equipped)."
+            : "Movement here is never read by the contract."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SpecialSlotCard({
+  index,
+  variant,
+  live,
+  draft,
+  editing,
+  onChange,
+}: {
+  index: number;
+  variant: number;
+  live: SpecialData;
+  draft: SpecialData;
+  editing: boolean;
+  onChange: (next: SpecialData) => void;
+}) {
+  return (
+    <div
+      className={`bg-gunmetal rounded-none p-2 ${index >= 4 ? "opacity-60" : ""}`}
+    >
+      <h5 className="text-white font-mono text-sm mb-2">
+        {slotLabel("special", index, variant)}
+      </h5>
+      <div className="space-y-1 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Range:</span>
+          <NumberField
+            value={draft.range}
+            min={0}
+            max={255}
+            editing={editing}
+            liveValue={live.range}
+            onChange={(range) => onChange({ ...draft, range })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Strength:</span>
+          <NumberField
+            value={draft.strength}
+            min={0}
+            max={255}
+            editing={editing}
+            liveValue={live.strength}
+            onChange={(strength) => onChange({ ...draft, strength })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted shrink-0">Movement:</span>
+          <NumberField
+            value={draft.movement}
+            min={-128}
+            max={127}
+            editing={editing}
+            liveValue={live.movement}
+            onChange={(movement) => onChange({ ...draft, movement })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TierArrayCard({
+  title,
+  values,
+  liveValues,
+  editing,
+  getLabel,
+  onChange,
+}: {
+  title: string;
+  values: number[];
+  liveValues: number[];
+  editing: boolean;
+  getLabel: (i: number) => string;
+  onChange: (index: number, v: number) => void;
+}) {
+  return (
+    <div className="bg-steel rounded-none p-3">
+      <h4 className="text-white font-mono mb-2">{title}</h4>
+      <div className="space-y-1 text-sm">
+        {values.map((v, i) => (
+          <div key={i} className="flex justify-between items-center gap-2 min-h-[2rem]">
+            <span className="text-text-muted shrink-0">{getLabel(i)}:</span>
+            <NumberField
+              value={v}
+              min={0}
+              max={255}
+              editing={editing}
+              liveValue={liveValues[i]}
+              onChange={(next) => onChange(i, next)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function validateDraft(draft: VariantAttributeData): string[] {
+  const errors: string[] = [];
+  if (draft.rankThresholds.length !== RANK_THRESHOLDS_LENGTH) {
+    errors.push(`rankThresholds must have exactly ${RANK_THRESHOLDS_LENGTH} entries.`);
+  } else {
+    if (draft.rankThresholds[0] <= 0) {
+      errors.push("The first rank threshold must be greater than 0.");
+    }
+    for (let i = 1; i < draft.rankThresholds.length; i++) {
+      if (draft.rankThresholds[i] <= draft.rankThresholds[i - 1]) {
+        errors.push("Rank thresholds must be strictly ascending.");
+        break;
+      }
+    }
+  }
+  if (draft.rankBonusPct.length !== RANK_BONUS_LENGTH) {
+    errors.push(`rankBonusPct must have exactly ${RANK_BONUS_LENGTH} entries.`);
+  } else if (draft.rankBonusPct.some((p) => p > 100)) {
+    errors.push("Every rank bonus % must be ≤ 100.");
+  }
+  return errors;
+}
+
 const ShipAttributes: React.FC = () => {
   const { address, isConnected } = useAccount();
   const { owner, isOwner } = useShipAttributesOwner();
 
-  // Current versions
-  const { data: currentAttributesVersion } = useCurrentAttributesVersion();
-  const { data: currentCostsVersion } = useCurrentCostsVersion();
+  // Costs and attributes are stored per ship variant (faction); the picker
+  // drives both panels below.
+  const chainVariant = useChainVariant();
+  const [pickedVariant, setPickedVariant] = useState<number | null>(null);
+  const variant = pickedVariant ?? chainVariant;
+  const { data: maxVariantData } = useMaxVariant();
+  const maxVariant = Math.max(Number(maxVariantData ?? 0), variant, 2);
+  const variantOptions = Array.from({ length: maxVariant }, (_, i) => i + 1);
+  const otherVariant = variant === 1 ? 2 : 1;
 
-  // Costs data
-  const { data: costsData } = useCosts();
+  // --- Costs (per-variant version; model unchanged, only validation added) ---
+  const { data: currentCostsVersion } = useCurrentCostsVersion(undefined, variant);
+  const { data: costsData, error: costsError } = useCosts(variant);
   const costs =
     Array.isArray(costsData) && costsData.length > 1
       ? (costsData[1] as Costs)
       : undefined;
 
-  // Attributes version base data
-  const { data: attributesBaseData } = useAttributesVersionBase(
-    Number(currentAttributesVersion) || 1
-  );
-
-  // Equipment data - individual hooks for each equipment type
-  const gun0 = useGunData(0); // Laser
-  const gun1 = useGunData(1); // Railgun
-  const gun2 = useGunData(2); // Missile Launcher
-  const gun3 = useGunData(3); // Plasma Cannon
-
-  const armor0 = useArmorData(0); // None
-  const armor1 = useArmorData(1); // Light
-  const armor2 = useArmorData(2); // Medium
-  const armor3 = useArmorData(3); // Heavy
-
-  const shield0 = useShieldData(0); // None
-  const shield1 = useShieldData(1); // Light
-  const shield2 = useShieldData(2); // Medium
-  const shield3 = useShieldData(3); // Heavy
-
-  const special0 = useSpecialData(0); // None
-  const special1 = useSpecialData(1); // EMP
-  const special2 = useSpecialData(2); // Repair Drones
-  const special3 = useSpecialData(3); // Flak Array
-
-  // Special data hooks are ready for use
+  // --- Attributes (versioned per variant; no global version any more) ---
+  const { data: currentAttributesVersion, error: currentVersionError } =
+    useCurrentAttributesVersion(variant);
+  const { data: latestAttributesVersion } = useLatestAttributesVersion(variant);
+  const isConfigured = Number(currentAttributesVersion ?? 0) > 0;
+  const { data: liveAttributes, error: liveAttributesError } =
+    useVariantAttributes(variant, 0);
+  // Only fetched to offer "seed from the other variant" when unconfigured.
+  const { data: otherVariantAttributes } = useVariantAttributes(otherVariant, 0);
 
   // State for editing
   const [editingCosts, setEditingCosts] = useState(false);
-  const [editingAttributes, setEditingAttributes] = useState(false);
   const [newCosts, setNewCosts] = useState<Partial<Costs>>({});
-  const [newAttributesVersion, setNewAttributesVersion] = useState<{
-    baseHull?: number;
-    baseSpeed?: number;
-  }>({});
-  const [newGunData, setNewGunData] = useState<Partial<GunData>[]>([]);
-  const [newArmorData, setNewArmorData] = useState<Partial<ArmorData>[]>([]);
-  const [newShieldData, setNewShieldData] = useState<Partial<ShieldData>[]>([]);
-  const [newSpecialData, setNewSpecialData] = useState<Partial<SpecialData>[]>(
-    []
+  const [editingAttributes, setEditingAttributes] = useState(false);
+  const [draft, setDraft] = useState<VariantAttributeData | null>(null);
+
+  // Version history / rollback
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState<number | null>(null);
+  const { data: historyAttributes } = useVariantAttributes(
+    variant,
+    historyVersion ?? 0,
   );
-  // Editable arrays for attributes
-  const [newForeAccuracy, setNewForeAccuracy] = useState<number[] | null>(null);
-  const [newHullBonuses, setNewHullBonuses] = useState<number[] | null>(null);
-  const [newEngineSpeeds, setNewEngineSpeeds] = useState<number[] | null>(null);
-    /** Comma strings as shown when Edit Attributes was opened (no onchain getter for these arrays). */
-  const [globalArraysAtEditStart, setGlobalArraysAtEditStart] = useState<{
-    fore: string;
-    hull: string;
-    engine: string;
-  } | null>(null);
 
   if (!isConnected) {
     return (
@@ -211,32 +508,46 @@ const ShipAttributes: React.FC = () => {
     );
   }
 
-  // Check if any critical data is still loading
-  const isDataLoading =
-    gun0.isLoading ||
-    gun1.isLoading ||
-    gun2.isLoading ||
-    gun3.isLoading ||
-    armor0.isLoading ||
-    armor1.isLoading ||
-    armor2.isLoading ||
-    armor3.isLoading ||
-    shield0.isLoading ||
-    shield1.isLoading ||
-    shield2.isLoading ||
-    shield3.isLoading ||
-    special0.isLoading ||
-    special1.isLoading ||
-    special2.isLoading ||
-    special3.isLoading;
+  const startEditing = () => {
+    if (liveAttributes) {
+      setDraft(structuredClone(liveAttributes as VariantAttributeData));
+      setEditingAttributes(true);
+    }
+  };
 
-  if (isDataLoading) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-text-muted">Loading ship attributes data...</p>
-      </div>
-    );
-  }
+  const seedFromOtherVariant = () => {
+    if (otherVariantAttributes) {
+      setDraft(structuredClone(otherVariantAttributes as VariantAttributeData));
+      setEditingAttributes(true);
+    }
+  };
+
+  const seedBlank = () => {
+    const blankGun: GunData = { range: 0, damage: 0, movement: 0 };
+    const blankArmorOrShield: ArmorData = { damageReduction: 0, movement: 0 };
+    const blankSpecial: SpecialData = { range: 0, strength: 0, movement: 0 };
+    setDraft({
+      baseHull: 0,
+      baseSpeed: 0,
+      foreAccuracy: new Array(TIER_ARRAY_LENGTH).fill(0),
+      hull: new Array(TIER_ARRAY_LENGTH).fill(0),
+      engineSpeeds: new Array(TIER_ARRAY_LENGTH).fill(0),
+      guns: new Array(EQUIPMENT_ARRAY_LENGTH).fill(null).map(() => ({ ...blankGun })),
+      armors: new Array(EQUIPMENT_ARRAY_LENGTH).fill(null).map(() => ({ ...blankArmorOrShield })),
+      shields: new Array(EQUIPMENT_ARRAY_LENGTH).fill(null).map(() => ({ ...blankArmorOrShield })),
+      specials: new Array(EQUIPMENT_ARRAY_LENGTH).fill(null).map(() => ({ ...blankSpecial })),
+      rankThresholds: [10, 30, 100, 300, 1000],
+      rankBonusPct: [0, 10, 20, 30, 40, 50],
+    });
+    setEditingAttributes(true);
+  };
+
+  const cancelEditingAttributes = () => {
+    setEditingAttributes(false);
+    setDraft(null);
+  };
+
+  const validationErrors = draft ? validateDraft(draft) : [];
 
   return (
     <div className="space-y-6">
@@ -245,14 +556,38 @@ const ShipAttributes: React.FC = () => {
           Ship Attributes Management
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-steel rounded-none p-3">
+            <h3 className="text-white font-mono mb-2">Faction Variant</h3>
+            <div className="flex items-center gap-2 text-sm">
+              <select
+                value={variant}
+                disabled={editingCosts || editingAttributes}
+                onChange={(e) => setPickedVariant(Number(e.target.value))}
+                className="px-2 py-1 bg-near-black text-white border border-gunmetal rounded-none font-mono disabled:opacity-50"
+              >
+                {variantOptions.map((v) => (
+                  <option key={v} value={v}>
+                    Variant {v}
+                  </option>
+                ))}
+              </select>
+              <span className="text-text-muted text-xs">
+                Costs and attributes below are for this variant.
+              </span>
+            </div>
+          </div>
           <div className="bg-steel rounded-none p-3">
             <h3 className="text-white font-mono mb-2">Current Versions</h3>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-text-muted">Attributes Version:</span>
+                <span className="text-text-muted">Attributes:</span>
                 <span className="text-white">
-                  {currentAttributesVersion?.toString() || "--"}
+                  {currentVersionError
+                    ? "read failed"
+                    : isConfigured
+                      ? `v${currentAttributesVersion} (latest v${latestAttributesVersion ?? "?"})`
+                      : "not configured"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -302,33 +637,24 @@ const ShipAttributes: React.FC = () => {
             {editingCosts && (
               <p className="text-xs text-text-muted font-mono">
                 Right column: onchain value until Update Costs succeeds.
+                Publishing bumps this variant&apos;s costs version, which
+                makes every existing ship of this variant stale until synced
+                (Manage Navy shows a per-ship sync button).
               </p>
             )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-steel rounded-none p-3">
                 <h4 className="text-white font-mono mb-2">Base Cost</h4>
-                {editingCosts ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={255}
-                      value={newCosts.baseCost ?? costs.baseCost}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        const num = raw === "" ? 0 : Number(raw);
-                        const v = Number.isNaN(num)
-                          ? 0
-                          : Math.max(0, Math.min(255, num));
-                        setNewCosts((prev) => ({ ...prev, baseCost: v }));
-                      }}
-                      className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                    />
-                    <SavedOnChainValue show>{costs.baseCost}</SavedOnChainValue>
-                  </div>
-                ) : (
-                  <span className="text-white">{costs.baseCost}</span>
-                )}
+                <div className="flex items-center gap-2">
+                  <NumberField
+                    value={newCosts.baseCost ?? costs.baseCost}
+                    min={0}
+                    max={255}
+                    editing={editingCosts}
+                    liveValue={editingCosts ? costs.baseCost : undefined}
+                    onChange={(v) => setNewCosts((prev) => ({ ...prev, baseCost: v }))}
+                  />
+                </div>
               </div>
 
               <CostsArrayCard
@@ -370,7 +696,7 @@ const ShipAttributes: React.FC = () => {
                 newCosts={newCosts}
                 setNewCosts={setNewCosts}
                 editing={editingCosts}
-                getLabel={(i) => `Weapon ${i}`}
+                getLabel={(i) => slotLabel("gun", i, variant)}
               />
 
               <CostsArrayCard
@@ -380,7 +706,7 @@ const ShipAttributes: React.FC = () => {
                 newCosts={newCosts}
                 setNewCosts={setNewCosts}
                 editing={editingCosts}
-                getLabel={(i) => `Armor ${i}`}
+                getLabel={(i) => slotLabel("armor", i, variant)}
               />
 
               <CostsArrayCard
@@ -390,7 +716,7 @@ const ShipAttributes: React.FC = () => {
                 newCosts={newCosts}
                 setNewCosts={setNewCosts}
                 editing={editingCosts}
-                getLabel={(i) => `Shield ${i}`}
+                getLabel={(i) => slotLabel("shield", i, variant)}
               />
 
               <CostsArrayCard
@@ -400,1088 +726,431 @@ const ShipAttributes: React.FC = () => {
                 newCosts={newCosts}
                 setNewCosts={setNewCosts}
                 editing={editingCosts}
-                getLabel={(i) => `Special ${i}`}
+                getLabel={(i) => slotLabel("special", i, variant)}
               />
             </div>
 
-            {editingCosts && (
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setEditingCosts(false);
-                    setNewCosts({});
-                  }}
-                  className="px-4 py-2 bg-gunmetal text-white rounded-none font-mono hover:bg-steel transition-colors"
-                >
-                  Cancel
-                </button>
-                <TransactionButton
-                  transactionId="update-costs"
-                  contractAddress={
-                    CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`
-                  }
-                  abi={CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi}
-                  functionName="setCosts"
-                  args={[
-                    {
-                      ...costs,
-                      ...newCosts,
-                      version: costs.version + 1,
-                    },
-                  ]}
-                  className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors"
-                  onSuccess={() => {
-                    toast.success("Costs updated successfully!");
-                    setEditingCosts(false);
-                    setNewCosts({});
-                  }}
-                  onError={(error) => {
-                    console.error("Failed to update costs:", error);
-                    toast.error("Failed to update costs");
-                  }}
-                >
-                  Update Costs
-                </TransactionButton>
-              </div>
-            )}
+            {editingCosts &&
+              (() => {
+                const merged: Costs = { ...costs, ...newCosts };
+                const costErrors: string[] = [];
+                if (merged.accuracy.length !== COST_TIER_LENGTH) costErrors.push("accuracy must have 3 entries.");
+                if (merged.hull.length !== COST_TIER_LENGTH) costErrors.push("hull must have 3 entries.");
+                if (merged.speed.length !== COST_TIER_LENGTH) costErrors.push("speed must have 3 entries.");
+                if (merged.mainWeapon.length !== COST_EQUIPMENT_LENGTH) costErrors.push("mainWeapon must have 8 entries.");
+                if (merged.armor.length !== COST_EQUIPMENT_LENGTH) costErrors.push("armor must have 8 entries.");
+                if (merged.shields.length !== COST_EQUIPMENT_LENGTH) costErrors.push("shields must have 8 entries.");
+                if (merged.special.length !== COST_EQUIPMENT_LENGTH) costErrors.push("special must have 8 entries.");
+                return (
+                  <div className="space-y-2">
+                    {costErrors.length > 0 && (
+                      <div className="text-warning-red text-xs font-mono space-y-0.5">
+                        {costErrors.map((e, i) => (
+                          <p key={i}>⚠ {e}</p>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingCosts(false);
+                          setNewCosts({});
+                        }}
+                        className="px-4 py-2 bg-gunmetal text-white rounded-none font-mono hover:bg-steel transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <TransactionButton
+                        transactionId="update-costs"
+                        contractAddress={CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`}
+                        abi={CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi}
+                        functionName="setCosts"
+                        disabled={costErrors.length > 0}
+                        args={[
+                          variant,
+                          {
+                            ...merged,
+                            // Contract ignores this and bumps the stored version itself.
+                            version: costs.version,
+                          },
+                        ]}
+                        className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors disabled:opacity-50"
+                        onSuccess={() => {
+                          toast.success("Costs updated successfully!");
+                          setEditingCosts(false);
+                          setNewCosts({});
+                        }}
+                        onError={(error) => {
+                          console.error("Failed to update costs:", error);
+                          toast.error(`Failed to update costs: ${contractErrorReason(error)}`);
+                        }}
+                      >
+                        Update Costs
+                      </TransactionButton>
+                    </div>
+                  </div>
+                );
+              })()}
           </div>
+        )}
+        {!costs && (
+          <p className="text-sm text-warning-red font-mono">
+            Could not read costs for variant {variant}
+            {costsError
+              ? costsError.message.includes("InvalidCostsVersion")
+                ? ": costs have never been set for this variant."
+                : `: ${costsError.message.split("\n")[0]}`
+              : "."}
+          </p>
         )}
       </div>
 
       {/* Attributes Management */}
       <div className="bg-near-black rounded-none p-4 border border-gunmetal">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-mono text-white">
-            Attributes Management
-          </h3>
-          <button
-            onClick={() => {
-              if (!editingAttributes) {
-                setGlobalArraysAtEditStart({
-                  fore: (newForeAccuracy ?? [0, 25, 50]).join(", "),
-                  hull: (newHullBonuses ?? [0, 10, 20]).join(", "),
-                  engine: (newEngineSpeeds ?? [0, 1, 2]).join(", "),
-                });
-              } else {
-                setGlobalArraysAtEditStart(null);
-                setNewAttributesVersion({});
-                setNewGunData([]);
-                setNewArmorData([]);
-                setNewShieldData([]);
-                setNewSpecialData([]);
-                setNewForeAccuracy(null);
-                setNewHullBonuses(null);
-                setNewEngineSpeeds(null);
-              }
-              setEditingAttributes(!editingAttributes);
-            }}
-            className="px-4 py-2 border border-cyan text-cyan rounded-none font-mono hover:bg-cyan/10 transition-colors"
-          >
-            {editingAttributes ? "Cancel" : "Edit Attributes"}
-          </button>
+          <h3 className="text-lg font-mono text-white">Attributes Management</h3>
+          {isConfigured && !editingAttributes && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHistory((s) => !s)}
+                className="px-3 py-2 border border-gunmetal text-text-muted rounded-none font-mono hover:bg-steel transition-colors text-sm"
+              >
+                {showHistory ? "Hide History" : "History"}
+              </button>
+              <button
+                onClick={startEditing}
+                disabled={!liveAttributes}
+                className="px-4 py-2 border border-cyan text-cyan rounded-none font-mono hover:bg-cyan/10 transition-colors disabled:opacity-50"
+              >
+                Edit Attributes
+              </button>
+            </div>
+          )}
+          {editingAttributes && (
+            <button
+              onClick={cancelEditingAttributes}
+              className="px-4 py-2 border border-cyan text-cyan rounded-none font-mono hover:bg-cyan/10 transition-colors"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
-        {(() => {
-          if (
-            !attributesBaseData ||
-            !Array.isArray(attributesBaseData) ||
-            attributesBaseData.length < 3
-          ) {
-            return null;
-          }
-          const baseData = attributesBaseData as [number, number, number];
-          return (
-            <div className="space-y-4">
-              {editingAttributes && (
-                <p className="text-xs text-text-muted font-mono">
-                  Right column: onchain until submit. Comma-separated fields
-                  show the string when you opened edit (contract does not expose
-                  those arrays for read).
-                </p>
+        {!isConfigured && !editingAttributes && (
+          <div className="space-y-3">
+            <p className="text-sm text-warning-red font-mono">
+              Variant {variant} has never been configured
+              {liveAttributesError && !liveAttributesError.message.includes("VariantNotConfigured")
+                ? `: ${liveAttributesError.message.split("\n")[0]}`
+                : "."}{" "}
+              Publishing is the only way to make it live — there is no
+              separate &quot;start version&quot; step.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={seedFromOtherVariant}
+                disabled={!otherVariantAttributes}
+                className="px-4 py-2 border border-cyan text-cyan rounded-none font-mono hover:bg-cyan/10 transition-colors disabled:opacity-50"
+              >
+                Copy from Variant {otherVariant} to start
+              </button>
+              <button
+                onClick={seedBlank}
+                className="px-4 py-2 border border-gunmetal text-text-muted rounded-none font-mono hover:bg-steel transition-colors"
+              >
+                Start blank (all zeros)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showHistory && isConfigured && !editingAttributes && (
+          <div className="bg-steel rounded-none p-3 mb-4 space-y-2">
+            <h4 className="text-white font-mono mb-1">Version History</h4>
+            <div className="flex items-center gap-2 text-sm flex-wrap">
+              <select
+                value={historyVersion ?? Number(currentAttributesVersion) ?? 1}
+                onChange={(e) => setHistoryVersion(Number(e.target.value))}
+                className="px-2 py-1 bg-near-black text-white border border-gunmetal rounded-none font-mono"
+              >
+                {Array.from(
+                  { length: Number(latestAttributesVersion ?? 0) },
+                  (_, i) => i + 1,
+                ).map((v) => (
+                  <option key={v} value={v}>
+                    v{v}
+                    {v === Number(currentAttributesVersion) ? " (live)" : ""}
+                  </option>
+                ))}
+              </select>
+              {!!historyAttributes && (
+                <span className="text-text-muted text-xs font-mono">
+                  Base Hull {(historyAttributes as VariantAttributeData).baseHull} · Base
+                  Speed {(historyAttributes as VariantAttributeData).baseSpeed}
+                </span>
               )}
-              {/* Base Attributes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-steel rounded-none p-3">
-                  <h4 className="text-white font-mono mb-2">Base Attributes</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-text-muted text-sm">
-                        Base Hull:
-                      </label>
-                      {editingAttributes ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            type="number"
-                            value={
-                              newAttributesVersion.baseHull ?? baseData[1]
-                            }
-                            onChange={(e) =>
-                              setNewAttributesVersion({
-                                ...newAttributesVersion,
-                                baseHull: Number(e.target.value),
-                              })
-                            }
-                            className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                          />
-                          <SavedOnChainValue show>
-                            {baseData[1]}
-                          </SavedOnChainValue>
-                        </div>
-                      ) : (
-                        <div className="text-white">{baseData[1]}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-text-muted text-sm">
-                        Base Speed:
-                      </label>
-                      {editingAttributes ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            type="number"
-                            value={
-                              newAttributesVersion.baseSpeed ?? baseData[2]
-                            }
-                            onChange={(e) =>
-                              setNewAttributesVersion({
-                                ...newAttributesVersion,
-                                baseSpeed: Number(e.target.value),
-                              })
-                            }
-                            className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                          />
-                          <SavedOnChainValue show>
-                            {baseData[2]}
-                          </SavedOnChainValue>
-                        </div>
-                      ) : (
-                        <div className="text-white">{baseData[2]}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {editingAttributes && (
-                  <div className="bg-steel rounded-none p-3">
-                    <h4 className="text-white font-mono mb-2">Global Arrays</h4>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <label className="text-text-muted">
-                          Fore Accuracy (comma-separated):
-                        </label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            type="text"
-                            value={(newForeAccuracy ?? [0, 25, 50]).join(",")}
-                            onChange={(e) => {
-                              const parts = e.target.value
-                                .split(",")
-                                .map((p) => p.trim())
-                                .filter((p) => p.length > 0)
-                                .map((p) => Number(p));
-                              setNewForeAccuracy(parts);
-                            }}
-                            className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                          />
-                          <SavedOnChainValue show multiline>
-                            {globalArraysAtEditStart?.fore ?? "—"}
-                          </SavedOnChainValue>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-text-muted">
-                          Hull Bonuses (comma-separated):
-                        </label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            type="text"
-                            value={(newHullBonuses ?? [0, 10, 20]).join(",")}
-                            onChange={(e) => {
-                              const parts = e.target.value
-                                .split(",")
-                                .map((p) => p.trim())
-                                .filter((p) => p.length > 0)
-                                .map((p) => Number(p));
-                              setNewHullBonuses(parts);
-                            }}
-                            className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                          />
-                          <SavedOnChainValue show multiline>
-                            {globalArraysAtEditStart?.hull ?? "—"}
-                          </SavedOnChainValue>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-text-muted">
-                          Engine Speeds (comma-separated):
-                        </label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <input
-                            type="text"
-                            value={(newEngineSpeeds ?? [0, 1, 2]).join(",")}
-                            onChange={(e) => {
-                              const parts = e.target.value
-                                .split(",")
-                                .map((p) => p.trim())
-                                .filter((p) => p.length > 0)
-                                .map((p) => Number(p));
-                              setNewEngineSpeeds(parts);
-                            }}
-                            className="min-w-0 flex-1 px-2 py-1 bg-steel text-white rounded-none font-mono"
-                          />
-                          <SavedOnChainValue show multiline>
-                            {globalArraysAtEditStart?.engine ?? "—"}
-                          </SavedOnChainValue>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Gun Data */}
-              <div className="bg-steel rounded-none p-3">
-                <h4 className="text-white font-mono mb-2">Gun Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { gun: gun0, name: "Laser", index: 0 },
-                    { gun: gun1, name: "Railgun", index: 1 },
-                    { gun: gun2, name: "Missile Launcher", index: 2 },
-                    { gun: gun3, name: "Plasma Cannon", index: 3 },
-                  ].map(({ gun, name, index }) => {
-                    const gunData = gun.data as GunData | undefined;
-                    const currentGunData = newGunData[index] || {};
-
-                    if (!gunData) {
-                      return (
-                        <div key={index} className="bg-gunmetal rounded-none p-2">
-                          <h5 className="text-white font-mono text-sm mb-2">
-                            {name} ...
-                          </h5>
-                          <div className="text-text-muted text-xs">
-                            &gt;&gt; acquiring...
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={index} className="bg-gunmetal rounded-none p-2">
-                        <h5 className="text-white font-mono text-sm mb-2">
-                          {name}
-                        </h5>
-                        {gunData && (
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Range:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentGunData.range ?? gunData.range
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newGunData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        range: Number(e.target.value),
-                                      };
-                                      setNewGunData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {gunData.range}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {gunData.range}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Damage:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentGunData.damage ?? gunData.damage
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newGunData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        damage: Number(e.target.value),
-                                      };
-                                      setNewGunData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {gunData.damage}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {gunData.damage}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Movement:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentGunData.movement ??
-                                      gunData.movement
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newGunData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        movement: Number(e.target.value),
-                                      };
-                                      setNewGunData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {gunData.movement}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {gunData.movement}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Armor Data */}
-              <div className="bg-steel rounded-none p-3">
-                <h4 className="text-white font-mono mb-2">Armor Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { armor: armor0, name: "None", index: 0 },
-                    { armor: armor1, name: "Light", index: 1 },
-                    { armor: armor2, name: "Medium", index: 2 },
-                    { armor: armor3, name: "Heavy", index: 3 },
-                  ].map(({ armor, name, index }) => {
-                    const armorData = armor.data as ArmorData | undefined;
-                    const currentArmorData = newArmorData[index] || {};
-
-                    if (!armorData) {
-                      return (
-                        <div key={index} className="bg-gunmetal rounded-none p-2">
-                          <h5 className="text-white font-mono text-sm mb-2">
-                            {name} ...
-                          </h5>
-                          <div className="text-text-muted text-xs">
-                            &gt;&gt; acquiring...
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={index} className="bg-gunmetal rounded-none p-2">
-                        <h5 className="text-white font-mono text-sm mb-2">
-                          {name}
-                        </h5>
-                        {armorData && (
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                DR:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentArmorData.damageReduction ??
-                                      armorData.damageReduction
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newArmorData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        damageReduction: Number(
-                                          e.target.value,
-                                        ),
-                                      };
-                                      setNewArmorData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {armorData.damageReduction}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {armorData.damageReduction}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Movement:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentArmorData.movement ??
-                                      armorData.movement
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newArmorData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        movement: Number(e.target.value),
-                                      };
-                                      setNewArmorData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {armorData.movement}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {armorData.movement}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Shield Data */}
-              <div className="bg-steel rounded-none p-3">
-                <h4 className="text-white font-mono mb-2">Shield Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { shield: shield0, name: "None", index: 0 },
-                    { shield: shield1, name: "Light", index: 1 },
-                    { shield: shield2, name: "Medium", index: 2 },
-                    { shield: shield3, name: "Heavy", index: 3 },
-                  ].map(({ shield, name, index }) => {
-                    const shieldData = shield.data as ShieldData | undefined;
-                    const currentShieldData = newShieldData[index] || {};
-
-                    if (!shieldData) {
-                      return (
-                        <div key={index} className="bg-gunmetal rounded-none p-2">
-                          <h5 className="text-white font-mono text-sm mb-2">
-                            {name} ...
-                          </h5>
-                          <div className="text-text-muted text-xs">
-                            &gt;&gt; acquiring...
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={index} className="bg-gunmetal rounded-none p-2">
-                        <h5 className="text-white font-mono text-sm mb-2">
-                          {name}
-                        </h5>
-                        {shieldData && (
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                DR:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentShieldData.damageReduction ??
-                                      shieldData.damageReduction
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newShieldData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        damageReduction: Number(
-                                          e.target.value,
-                                        ),
-                                      };
-                                      setNewShieldData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {shieldData.damageReduction}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {shieldData.damageReduction}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Movement:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    value={
-                                      currentShieldData.movement ??
-                                      shieldData.movement
-                                    }
-                                    onChange={(e) => {
-                                      const updated = [...newShieldData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        movement: Number(e.target.value),
-                                      };
-                                      setNewShieldData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {shieldData.movement}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {shieldData.movement}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Special Data */}
-              <div className="bg-steel rounded-none p-3">
-                <h4 className="text-white font-mono mb-2">Special Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { special: special0, name: "None", index: 0 },
-                    { special: special1, name: "EMP", index: 1 },
-                    { special: special2, name: "Repair Drones", index: 2 },
-                    { special: special3, name: "Flak Array", index: 3 },
-                  ].map(({ special, name, index }) => {
-                    const specialData = special.data as SpecialData | undefined;
-                    const currentSpecialData = newSpecialData[index] || {};
-
-                    if (!specialData) {
-                      return (
-                        <div key={index} className="bg-gunmetal rounded-none p-2">
-                          <h5 className="text-white font-mono text-sm mb-2">
-                            {name} ...
-                          </h5>
-                          <div className="text-text-muted text-xs">
-                            &gt;&gt; acquiring...
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={index} className="bg-gunmetal rounded-none p-2">
-                        <h5 className="text-white font-mono text-sm mb-2">
-                          {name}
-                        </h5>
-                        {specialData && (
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Range:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="255"
-                                    value={
-                                      currentSpecialData.range ??
-                                      specialData.range
-                                    }
-                                    onChange={(e) => {
-                                      const value = Math.max(
-                                        0,
-                                        Math.min(255, Number(e.target.value)),
-                                      );
-                                      const updated = [...newSpecialData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        range: value,
-                                      };
-                                      setNewSpecialData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {specialData.range}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {specialData.range}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Strength:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="255"
-                                    value={
-                                      currentSpecialData.strength ??
-                                      specialData.strength
-                                    }
-                                    onChange={(e) => {
-                                      const value = Math.max(
-                                        0,
-                                        Math.min(255, Number(e.target.value)),
-                                      );
-                                      const updated = [...newSpecialData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        strength: value,
-                                      };
-                                      setNewSpecialData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {specialData.strength}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {specialData.strength}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-text-muted shrink-0">
-                                Movement:
-                              </span>
-                              {editingAttributes ? (
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
-                                  <input
-                                    type="number"
-                                    min="-128"
-                                    max="127"
-                                    value={
-                                      currentSpecialData.movement ??
-                                      specialData.movement
-                                    }
-                                    onChange={(e) => {
-                                      const value = Math.max(
-                                        -128,
-                                        Math.min(127, Number(e.target.value)),
-                                      );
-                                      const updated = [...newSpecialData];
-                                      updated[index] = {
-                                        ...updated[index],
-                                        movement: value,
-                                      };
-                                      setNewSpecialData(updated);
-                                    }}
-                                    className="min-w-[4.25rem] w-[4.25rem] px-1 py-0.5 bg-slate text-white rounded-none text-xs"
-                                  />
-                                  <SavedOnChainValue show>
-                                    {specialData.movement}
-                                  </SavedOnChainValue>
-                                </div>
-                              ) : (
-                                <span className="text-white ml-auto">
-                                  {specialData.movement}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {editingAttributes && (
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => {
-                      setEditingAttributes(false);
-                      setGlobalArraysAtEditStart(null);
-                      setNewAttributesVersion({});
-                      setNewGunData([]);
-                      setNewArmorData([]);
-                      setNewShieldData([]);
-                      setNewSpecialData([]);
-                      setNewForeAccuracy(null);
-                      setNewHullBonuses(null);
-                      setNewEngineSpeeds(null);
-                    }}
-                    className="px-4 py-2 bg-gunmetal text-white rounded-none font-mono hover:bg-steel transition-colors"
-                  >
-                    Cancel
-                  </button>
+              {historyVersion != null &&
+                historyVersion !== Number(currentAttributesVersion) && (
                   <TransactionButton
-                    transactionId="update-attributes-base"
-                    contractAddress={
-                      CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`
-                    }
+                    transactionId="rollback-attributes-version"
+                    contractAddress={CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`}
                     abi={CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi}
-                    functionName="setAttributesVersionBase"
-                    args={[
-                      Number(currentAttributesVersion) || 1,
-                      newAttributesVersion.baseHull ?? baseData[1],
-                      newAttributesVersion.baseSpeed ?? baseData[2],
-                    ]}
-                    className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors"
+                    functionName="setCurrentAttributesVersion"
+                    args={[variant, historyVersion]}
+                    className="px-3 py-1.5 border border-amber text-amber rounded-none font-mono hover:bg-amber/10 transition-colors text-sm"
                     onSuccess={() => {
-                      toast.success("Base attributes updated successfully!");
-                      setEditingAttributes(false);
-                      setGlobalArraysAtEditStart(null);
-                      setNewAttributesVersion({});
-                      setNewGunData([]);
-                      setNewArmorData([]);
-                      setNewShieldData([]);
-                      setNewSpecialData([]);
-                      setNewForeAccuracy(null);
-                      setNewHullBonuses(null);
-                      setNewEngineSpeeds(null);
+                      toast.success(`Variant ${variant} rolled back to v${historyVersion}`);
                     }}
                     onError={(error) => {
-                      console.error("Failed to update base attributes:", error);
-                      toast.error("Failed to update base attributes");
+                      console.error("Failed to roll back attributes version:", error);
+                      toast.error(`Failed to roll back: ${contractErrorReason(error)}`);
                     }}
                   >
-                    Update Base Attributes
+                    Rollback to v{historyVersion}
                   </TransactionButton>
-
-                  {/* Update All Attributes */}
-                  {(newGunData.some(
-                    (gun) => gun && Object.keys(gun).length > 0
-                  ) ||
-                    newArmorData.some(
-                      (armor) => armor && Object.keys(armor).length > 0
-                    ) ||
-                    newShieldData.some(
-                      (shield) => shield && Object.keys(shield).length > 0
-                    ) ||
-                    newSpecialData.some(
-                      (special) => special && Object.keys(special).length > 0
-                    ) ||
-                    Object.keys(newAttributesVersion).length > 0 ||
-                    (newForeAccuracy && newForeAccuracy.length > 0) ||
-                    (newHullBonuses && newHullBonuses.length > 0) ||
-                    (newEngineSpeeds && newEngineSpeeds.length > 0)) && (
-                    <TransactionButton
-                      transactionId="update-all-attributes"
-                      contractAddress={
-                        CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`
-                      }
-                      abi={CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi}
-                      functionName="setAllAttributes"
-                      args={[
-                        // Base attributes
-                        newAttributesVersion.baseHull ??
-                          (
-                            attributesBaseData as [number, number, number]
-                          )?.[1] ??
-                          100,
-                        newAttributesVersion.baseSpeed ??
-                          (
-                            attributesBaseData as [number, number, number]
-                          )?.[2] ??
-                          3,
-
-                        // Gun data array
-                        [
-                          {
-                            range:
-                              newGunData[0]?.range ??
-                              (gun0.data as GunData)?.range ??
-                              6,
-                            damage:
-                              newGunData[0]?.damage ??
-                              (gun0.data as GunData)?.damage ??
-                              25,
-                            movement:
-                              newGunData[0]?.movement ??
-                              (gun0.data as GunData)?.movement ??
-                              0,
-                          },
-                          {
-                            range:
-                              newGunData[1]?.range ??
-                              (gun1.data as GunData)?.range ??
-                              10,
-                            damage:
-                              newGunData[1]?.damage ??
-                              (gun1.data as GunData)?.damage ??
-                              20,
-                            movement:
-                              newGunData[1]?.movement ??
-                              (gun1.data as GunData)?.movement ??
-                              0,
-                          },
-                          {
-                            range:
-                              newGunData[2]?.range ??
-                              (gun2.data as GunData)?.range ??
-                              8,
-                            damage:
-                              newGunData[2]?.damage ??
-                              (gun2.data as GunData)?.damage ??
-                              30,
-                            movement:
-                              newGunData[2]?.movement ??
-                              (gun2.data as GunData)?.movement ??
-                              -1,
-                          },
-                          {
-                            range:
-                              newGunData[3]?.range ??
-                              (gun3.data as GunData)?.range ??
-                              3,
-                            damage:
-                              newGunData[3]?.damage ??
-                              (gun3.data as GunData)?.damage ??
-                              40,
-                            movement:
-                              newGunData[3]?.movement ??
-                              (gun3.data as GunData)?.movement ??
-                              0,
-                          },
-                        ],
-
-                        // Armor data array
-                        [
-                          {
-                            damageReduction:
-                              newArmorData[0]?.damageReduction ??
-                              (armor0.data as ArmorData)?.damageReduction ??
-                              0,
-                            movement:
-                              newArmorData[0]?.movement ??
-                              (armor0.data as ArmorData)?.movement ??
-                              1,
-                          },
-                          {
-                            damageReduction:
-                              newArmorData[1]?.damageReduction ??
-                              (armor1.data as ArmorData)?.damageReduction ??
-                              15,
-                            movement:
-                              newArmorData[1]?.movement ??
-                              (armor1.data as ArmorData)?.movement ??
-                              0,
-                          },
-                          {
-                            damageReduction:
-                              newArmorData[2]?.damageReduction ??
-                              (armor2.data as ArmorData)?.damageReduction ??
-                              30,
-                            movement:
-                              newArmorData[2]?.movement ??
-                              (armor2.data as ArmorData)?.movement ??
-                              -1,
-                          },
-                          {
-                            damageReduction:
-                              newArmorData[3]?.damageReduction ??
-                              (armor3.data as ArmorData)?.damageReduction ??
-                              45,
-                            movement:
-                              newArmorData[3]?.movement ??
-                              (armor3.data as ArmorData)?.movement ??
-                              -2,
-                          },
-                        ],
-
-                        // Shield data array
-                        [
-                          {
-                            damageReduction:
-                              newShieldData[0]?.damageReduction ??
-                              (shield0.data as ShieldData)?.damageReduction ??
-                              0,
-                            movement:
-                              newShieldData[0]?.movement ??
-                              (shield0.data as ShieldData)?.movement ??
-                              1,
-                          },
-                          {
-                            damageReduction:
-                              newShieldData[1]?.damageReduction ??
-                              (shield1.data as ShieldData)?.damageReduction ??
-                              15,
-                            movement:
-                              newShieldData[1]?.movement ??
-                              (shield1.data as ShieldData)?.movement ??
-                              1,
-                          },
-                          {
-                            damageReduction:
-                              newShieldData[2]?.damageReduction ??
-                              (shield2.data as ShieldData)?.damageReduction ??
-                              30,
-                            movement:
-                              newShieldData[2]?.movement ??
-                              (shield2.data as ShieldData)?.movement ??
-                              0,
-                          },
-                          {
-                            damageReduction:
-                              newShieldData[3]?.damageReduction ??
-                              (shield3.data as ShieldData)?.damageReduction ??
-                              45,
-                            movement:
-                              newShieldData[3]?.movement ??
-                              (shield3.data as ShieldData)?.movement ??
-                              -1,
-                          },
-                        ],
-
-                        // Special data array
-                        [
-                          {
-                            range:
-                              newSpecialData[0]?.range ??
-                              (special0.data as SpecialData)?.range ??
-                              0,
-                            strength:
-                              newSpecialData[0]?.strength ??
-                              (special0.data as SpecialData)?.strength ??
-                              0,
-                            movement:
-                              newSpecialData[0]?.movement ??
-                              (special0.data as SpecialData)?.movement ??
-                              0,
-                          },
-                          {
-                            range:
-                              newSpecialData[1]?.range ??
-                              (special1.data as SpecialData)?.range ??
-                              1,
-                            strength:
-                              newSpecialData[1]?.strength ??
-                              (special1.data as SpecialData)?.strength ??
-                              1,
-                            movement:
-                              newSpecialData[1]?.movement ??
-                              (special1.data as SpecialData)?.movement ??
-                              0,
-                          },
-                          {
-                            range:
-                              newSpecialData[2]?.range ??
-                              (special2.data as SpecialData)?.range ??
-                              6,
-                            strength:
-                              newSpecialData[2]?.strength ??
-                              (special2.data as SpecialData)?.strength ??
-                              20,
-                            movement:
-                              newSpecialData[2]?.movement ??
-                              (special2.data as SpecialData)?.movement ??
-                              0,
-                          },
-                          {
-                            range:
-                              newSpecialData[3]?.range ??
-                              (special3.data as SpecialData)?.range ??
-                              4,
-                            strength:
-                              newSpecialData[3]?.strength ??
-                              (special3.data as SpecialData)?.strength ??
-                              15,
-                            movement:
-                              newSpecialData[3]?.movement ??
-                              (special3.data as SpecialData)?.movement ??
-                              0,
-                          },
-                        ],
-
-                        // Fore accuracy array (editable or default)
-                        newForeAccuracy && newForeAccuracy.length > 0
-                          ? newForeAccuracy
-                          : [0, 25, 50],
-                        // Hull bonuses array (editable or default)
-                        newHullBonuses && newHullBonuses.length > 0
-                          ? newHullBonuses
-                          : [0, 10, 20],
-                        // Engine speeds array (editable or default)
-                        newEngineSpeeds && newEngineSpeeds.length > 0
-                          ? newEngineSpeeds
-                          : [0, 1, 2],
-                      ]}
-                      className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors"
-                      onSuccess={() => {
-                        toast.success("All attributes updated successfully!");
-                        setGlobalArraysAtEditStart(null);
-                        setNewGunData([]);
-                        setNewArmorData([]);
-                        setNewShieldData([]);
-                        setNewSpecialData([]);
-                        setNewAttributesVersion({});
-                        setNewForeAccuracy(null);
-                        setNewHullBonuses(null);
-                        setNewEngineSpeeds(null);
-                      }}
-                      onError={(error) => {
-                        console.error(
-                          "Failed to update all attributes:",
-                          error
-                        );
-                        toast.error("Failed to update all attributes");
-                      }}
-                    >
-                      Update All Attributes
-                    </TransactionButton>
-                  )}
-                </div>
-              )}
+                )}
             </div>
-          );
-        })()}
+            <p className="text-text-muted text-[10px] font-mono">
+              Rollback only changes what NEW calculations use — no version is
+              ever deleted, and in-flight games keep the version pinned when
+              they started.
+            </p>
+          </div>
+        )}
+
+        {editingAttributes && draft && (
+          <div className="space-y-4">
+            <p className="text-xs text-text-muted font-mono">
+              Right column: the live table until you publish. Publishing
+              overwrites variant {variant}&apos;s data as a brand-new version
+              (latest + 1) and makes it live immediately — every field below
+              is a full table, not a delta.
+            </p>
+
+            {/* Base Attributes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-steel rounded-none p-3">
+                <h4 className="text-white font-mono mb-2">Base Attributes</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-text-muted">Base Hull:</span>
+                    <NumberField
+                      value={draft.baseHull}
+                      min={0}
+                      max={255}
+                      editing
+                      liveValue={(liveAttributes as VariantAttributeData | undefined)?.baseHull}
+                      onChange={(baseHull) => setDraft({ ...draft, baseHull })}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-text-muted">Base Speed:</span>
+                    <NumberField
+                      value={draft.baseSpeed}
+                      min={0}
+                      max={255}
+                      editing
+                      liveValue={(liveAttributes as VariantAttributeData | undefined)?.baseSpeed}
+                      onChange={(baseSpeed) => setDraft({ ...draft, baseSpeed })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <TierArrayCard
+                title="Fore Accuracy % (tier 0-2)"
+                values={draft.foreAccuracy}
+                liveValues={(liveAttributes as VariantAttributeData | undefined)?.foreAccuracy ?? []}
+                editing
+                getLabel={(i) => `Tier ${i}`}
+                onChange={(i, v) => {
+                  const next = [...draft.foreAccuracy];
+                  next[i] = v;
+                  setDraft({ ...draft, foreAccuracy: next });
+                }}
+              />
+
+              <TierArrayCard
+                title="Hull Bonus (tier 0-2)"
+                values={draft.hull}
+                liveValues={(liveAttributes as VariantAttributeData | undefined)?.hull ?? []}
+                editing
+                getLabel={(i) => `Tier ${i}`}
+                onChange={(i, v) => {
+                  const next = [...draft.hull];
+                  next[i] = v;
+                  setDraft({ ...draft, hull: next });
+                }}
+              />
+
+              <TierArrayCard
+                title="Engine Speeds (tier 0-2)"
+                values={draft.engineSpeeds}
+                liveValues={(liveAttributes as VariantAttributeData | undefined)?.engineSpeeds ?? []}
+                editing
+                getLabel={(i) => `Tier ${i}`}
+                onChange={(i, v) => {
+                  const next = [...draft.engineSpeeds];
+                  next[i] = v;
+                  setDraft({ ...draft, engineSpeeds: next });
+                }}
+              />
+            </div>
+
+            {/* Gun Data */}
+            <div className="bg-steel rounded-none p-3">
+              <h4 className="text-white font-mono mb-2">Gun Data (8 slots)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {draft.guns.map((g, i) => (
+                  <GunSlotCard
+                    key={i}
+                    index={i}
+                    variant={variant}
+                    live={(liveAttributes as VariantAttributeData | undefined)?.guns[i] ?? g}
+                    draft={g}
+                    editing
+                    onChange={(next) => {
+                      const guns = [...draft.guns];
+                      guns[i] = next;
+                      setDraft({ ...draft, guns });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Armor Data */}
+            <div className="bg-steel rounded-none p-3">
+              <h4 className="text-white font-mono mb-2">Armor Data (8 slots)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {draft.armors.map((a, i) => (
+                  <ArmorOrShieldSlotCard
+                    key={i}
+                    kind="armor"
+                    index={i}
+                    live={(liveAttributes as VariantAttributeData | undefined)?.armors[i] ?? a}
+                    draft={a}
+                    editing
+                    onChange={(next) => {
+                      const armors = [...draft.armors];
+                      armors[i] = next as ArmorData;
+                      setDraft({ ...draft, armors });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Shield Data */}
+            <div className="bg-steel rounded-none p-3">
+              <h4 className="text-white font-mono mb-2">Shield Data (8 slots)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {draft.shields.map((s, i) => (
+                  <ArmorOrShieldSlotCard
+                    key={i}
+                    kind="shield"
+                    index={i}
+                    live={(liveAttributes as VariantAttributeData | undefined)?.shields[i] ?? s}
+                    draft={s}
+                    editing
+                    onChange={(next) => {
+                      const shields = [...draft.shields];
+                      shields[i] = next as ShieldData;
+                      setDraft({ ...draft, shields });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Special Data */}
+            <div className="bg-steel rounded-none p-3">
+              <h4 className="text-white font-mono mb-2">Special Data (8 slots)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {draft.specials.map((s, i) => (
+                  <SpecialSlotCard
+                    key={i}
+                    index={i}
+                    variant={variant}
+                    live={(liveAttributes as VariantAttributeData | undefined)?.specials[i] ?? s}
+                    draft={s}
+                    editing
+                    onChange={(next) => {
+                      const specials = [...draft.specials];
+                      specials[i] = next;
+                      setDraft({ ...draft, specials });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Rank Table */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TierArrayCard
+                title="Rank Thresholds (kills for ranks 2-6)"
+                values={draft.rankThresholds}
+                liveValues={(liveAttributes as VariantAttributeData | undefined)?.rankThresholds ?? []}
+                editing
+                getLabel={(i) => `Rank ${i + 2}`}
+                onChange={(i, v) => {
+                  const next = [...draft.rankThresholds];
+                  next[i] = v;
+                  setDraft({ ...draft, rankThresholds: next });
+                }}
+              />
+              <TierArrayCard
+                title="Rank Bonus % (ranks 1-6)"
+                values={draft.rankBonusPct}
+                liveValues={(liveAttributes as VariantAttributeData | undefined)?.rankBonusPct ?? []}
+                editing
+                getLabel={(i) => `Rank ${i + 1}`}
+                onChange={(i, v) => {
+                  const next = [...draft.rankBonusPct];
+                  next[i] = v;
+                  setDraft({ ...draft, rankBonusPct: next });
+                }}
+              />
+            </div>
+
+            {validationErrors.length > 0 && (
+              <div className="text-warning-red text-xs font-mono space-y-0.5">
+                {validationErrors.map((e, i) => (
+                  <p key={i}>⚠ {e}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={cancelEditingAttributes}
+                className="px-4 py-2 bg-gunmetal text-white rounded-none font-mono hover:bg-steel transition-colors"
+              >
+                Cancel
+              </button>
+              <TransactionButton
+                transactionId="publish-attributes"
+                contractAddress={CONTRACT_ADDRESSES.SHIP_ATTRIBUTES as `0x${string}`}
+                abi={CONTRACT_ABIS.SHIP_ATTRIBUTES as Abi}
+                functionName="setVariantAttributes"
+                disabled={validationErrors.length > 0}
+                args={[{ variant, ...draft }]}
+                className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors disabled:opacity-50"
+                onSuccess={() => {
+                  toast.success(`Variant ${variant} attributes published!`);
+                  setEditingAttributes(false);
+                  setDraft(null);
+                }}
+                onError={(error) => {
+                  console.error("Failed to publish attributes:", error);
+                  toast.error(`Failed to publish attributes: ${contractErrorReason(error)}`);
+                }}
+              >
+                Publish (new version)
+              </TransactionButton>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

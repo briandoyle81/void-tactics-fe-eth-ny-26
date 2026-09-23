@@ -26,6 +26,9 @@ interface GameGridWeaponSelectorProps {
    * healthy one. Either way the ship can only Retreat this turn, so no
    * weapon/special/ram choice applies. */
   retreatPrepShipId?: number | null;
+  /** See useFactionAbilityConfig.ts — gates the real Ram/Repair targeting flow vs. the legacy auto-ram chains still run. */
+  isFactionAbilitySupported?: boolean;
+  factionAbilityRange?: number | undefined;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setTargetShipId: (shipId: number | null) => void;
 }
@@ -51,6 +54,8 @@ export function GameGridWeaponSelector({
   showConfirmWidget = false,
   isRammingMovePreview = false,
   retreatPrepShipId = null,
+  isFactionAbilitySupported = false,
+  factionAbilityRange,
   setSelectedWeaponType,
   setTargetShipId,
 }: GameGridWeaponSelectorProps) {
@@ -111,14 +116,46 @@ export function GameGridWeaponSelector({
   }
 
   const hasSpecial = ship.equipment.special > 0;
-  const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
-    const cell = grid[r]?.[c];
-    if (!cell || cell.isPreview) return false;
-    if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
-    return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
-  });
+  // Where the chain still runs the legacy auto-ram-on-move model (see
+  // useFactionAbilityConfig.ts), a target is "a disabled enemy sitting on a
+  // tile I could move onto" — landing there IS the ram. Where the real
+  // FactionAbility/resolver system exists, ramming/repairing no longer
+  // moves the ship onto the target's tile at all (see
+  // useGameplayInteraction.ts's isRammingMovePreview doc), so this checks
+  // range-based reachability instead: is an eligible target within
+  // factionAbilityRange of the ship's current tile or anywhere it could
+  // move to? Repair's target is any friendly (including itself); Ram's is a
+  // disabled enemy.
+  const hasFactionAbilityTarget = isFactionAbilitySupported
+    ? (() => {
+        const range = factionAbilityRange ?? 1;
+        const origins = [{ row: shipRow, col: shipCol }, ...movementRange];
+        for (const origin of origins) {
+          for (let r = 0; r < grid.length; r++) {
+            const rowCells = grid[r] ?? [];
+            for (let c = 0; c < rowCells.length; c++) {
+              if (Math.abs(r - origin.row) + Math.abs(c - origin.col) > range) continue;
+              const cell = rowCells[c];
+              if (!cell || cell.isPreview) continue;
+              const isOwn = isShipOwnedByCurrentPlayer(cell.shipId);
+              if (factionAbilityIsHeal) {
+                if (isOwn) return true;
+              } else if (!isOwn && (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      })()
+    : movementRange.some(({ row: r, col: c }) => {
+        const cell = grid[r]?.[c];
+        if (!cell || cell.isPreview) return false;
+        if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
+        return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
+      });
   const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-    ...(hasRamTarget
+    ...(hasFactionAbilityTarget
       ? [{ value: "ram" as const, label: factionAbilityIsHeal ? "REPAIR" : "RAM" }]
       : []),
     { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant) },

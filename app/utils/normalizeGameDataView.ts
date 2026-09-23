@@ -25,3 +25,17 @@ export function normalizeGameDataView(data: GameDataView): GameDataView {
     },
   };
 }
+
+/**
+ * The write-side inverse of the above: `moveShip`'s `actionType` parameter
+ * is a raw uint8 that Solidity casts straight to `Game.ActionType`, which
+ * reverts on any value it doesn't define (0-5). Our shared enum's
+ * `FactionAbility` is numbered 7 to avoid colliding with `ClaimPoints`/`Ram`
+ * (web2-only values, never submitted on-chain) — submitting that 7 directly
+ * would revert. Every real web3 `moveShip` call must pass its
+ * `computedActionType` through this first.
+ */
+export function toOnChainActionType(actionType: ActionType): number {
+  if (actionType === ActionType.FactionAbility) return RAW_ONCHAIN_FACTION_ABILITY;
+  return actionType;
+}

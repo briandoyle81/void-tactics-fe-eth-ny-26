@@ -7,23 +7,34 @@ import type {
   ShipTraits,
 } from "../types/types";
 
-/** Matches `ShipAttributes` constructor `costs` (v1). */
+/**
+ * Matches `ShipAttributes.setCosts` for variant 1 (ignition/modules/DeployAndConfig.ts).
+ * Costs are identical between variant 1 and 2 except the special-slot
+ * column (see docs/eth-global-remote/frontend-handoff-attributes-costs-and-ai-2026-09-21.md
+ * §2) — only `COST_SPECIAL` is branched by variant below. Slots 4-7 are the
+ * inert `future*` filler equipment can never actually select.
+ */
 const COST_BASE = 50;
 const COST_ACCURACY = [0, 10, 25];
 const COST_HULL = [0, 10, 25];
 const COST_SPEED = [0, 10, 25];
-const COST_MAIN_WEAPON = [25, 30, 40, 40];
-const COST_ARMOR = [0, 5, 10, 15];
-const COST_SHIELDS = [0, 10, 20, 30];
-const COST_SPECIAL = [0, 10, 20, 15];
+const COST_MAIN_WEAPON = [25, 30, 40, 40, 25, 25, 25, 25];
+const COST_ARMOR = [0, 5, 10, 15, 0, 0, 0, 0];
+const COST_SHIELDS = [0, 10, 20, 30, 0, 0, 0, 0];
+const COST_SPECIAL_V1 = [0, 10, 20, 15, 0, 0, 0, 0];
+const COST_SPECIAL_V2 = [0, 15, 20, 10, 0, 0, 0, 0];
 
 /**
  * Threat points for UI (same formula as `ShipAttributes.calculateShipCost` onchain).
+ * `variant` defaults to 1 for callers that only have a bare equipment/traits
+ * pair in scope (matches getMainWeaponName's own default-variant convention).
  */
 export function calculateTutorialThreatPoints(
   equipment: ShipEquipment,
   traits: Pick<ShipTraits, "accuracy" | "hull" | "speed">,
+  variant: number = 1,
 ): number {
+  const costSpecial = variant === 2 ? COST_SPECIAL_V2 : COST_SPECIAL_V1;
   return (
     COST_BASE +
     COST_ACCURACY[traits.accuracy] +
@@ -32,7 +43,7 @@ export function calculateTutorialThreatPoints(
     COST_MAIN_WEAPON[equipment.mainWeapon] +
     COST_ARMOR[equipment.armor] +
     COST_SHIELDS[equipment.shields] +
-    COST_SPECIAL[equipment.special]
+    costSpecial[equipment.special]
   );
 }
 
@@ -83,7 +94,7 @@ export function buildTutorialShip(input: {
     );
   }
   assertContractTraitTiers(rest.name, traits);
-  const threat = calculateTutorialThreatPoints(rest.equipment, traits);
+  const threat = calculateTutorialThreatPoints(rest.equipment, traits, visual.variant);
 
   return {
     name: rest.name,

@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { dbShipToShip } from "./dbToType";
 import { calculateAttributesFromContractsWeb2 } from "../utils/shipAttributesCalculatorWeb2";
-import { getShipAttributeTables } from "./getShipAttributeTables";
+import { getShipAttributeTablesByVariant } from "./getShipAttributeTables";
 import type { Web2GameDataView, Web2ShipPosition } from "../types/web2Game";
 
 type FleetWithShips = {
@@ -40,9 +40,9 @@ export async function createGameFromLobby(
   const creatorShips = creatorFleet.shipIds.map((id) => dbShipToShip(shipMap.get(id)!));
   const joinerShips = joinerFleet.shipIds.map((id) => dbShipToShip(shipMap.get(id)!));
   const allShips = [...creatorShips, ...joinerShips];
-  const attributeTables = await getShipAttributeTables();
+  const attributeTablesByVariant = await getShipAttributeTablesByVariant();
   const allAttributes = allShips.map((ship) => {
-    const attrs = calculateAttributesFromContractsWeb2(ship, attributeTables);
+    const attrs = calculateAttributesFromContractsWeb2(ship, attributeTablesByVariant);
     const damage = startingDamageByShipId?.get(ship.id) ?? 0;
     if (damage > 0) {
       attrs.hullPoints = Math.max(0, attrs.hullPoints - damage);

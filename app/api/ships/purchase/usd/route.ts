@@ -4,7 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
 import { getGuaranteedKillsForTierShip } from "@/app/lib/purchaseTiers";
 import { getPurchaseTiers } from "@/app/lib/getPurchaseTiers";
-import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+import { getCurrentCostsByVariant } from "@/app/lib/getCurrentCosts";
 
 export async function POST(req: NextRequest) {
   const { userId, error } = await requireAuth();
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
   }
 
-  const costs = await getCurrentCosts();
+  const costsByVariant = await getCurrentCostsByVariant();
 
   const [, ...ships] = await prisma.$transaction([
     prisma.user.update({
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       data: { purchasedShipCount: { increment: tierConfig.shipCount } },
     }),
     ...Array.from({ length: tierConfig.shipCount }, (_, i) => {
-      const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
+      const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costsByVariant);
       const shipsDestroyed = getGuaranteedKillsForTierShip(tierConfig.tier, i);
       return prisma.ship.create({
         data: {

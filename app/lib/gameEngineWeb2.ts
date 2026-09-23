@@ -8,7 +8,12 @@ import { ActionType, ScoringPosition } from "../types/types";
 import type { Web2GameDataView, Web2LastMove } from "../types/web2Game";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import { GamePhase } from "../generated/prisma";
-import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
+import {
+  getSpecialConfigWeb2,
+  isAoeSpecialWeb2,
+  isActivatableSpecialWeb2,
+} from "../utils/specialConfigWeb2";
+import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 import { resolveTournamentMatchIfApplicable } from "./resolveTournamentMatchIfApplicable";
 import { resolveCampaignNodeIfApplicable } from "./resolveCampaignNodeIfApplicable";
 import { resolveRoguelikeRunIfApplicable } from "./resolveRoguelikeRunIfApplicable";
@@ -94,6 +99,58 @@ function applyShootDamage(
   return { ...state, shipAttributes: newAttrs, shipPositions: newPositions, creatorActiveShipIds: newCreatorActive, joinerActiveShipIds: newJoinerActive };
 }
 
+/**
+ * Adds `delta` to a ship's reactor-critical timer, removing it from the
+ * game once it reaches 3 — shared by EMP (variant 1 slot 1, single target)
+ * and Electric Storm (variant 2 slot 1, self-centered AoE). Status effect
+ * code 1 is the same debuff marker both use for the client's icon.
+ */
+function applyReactorTimerDelta(
+  state: Web2GameDataView,
+  targetShipId: number,
+  delta: number,
+): Web2GameDataView {
+  const targetIdx = state.shipIds.findIndex((id) => id === targetShipId);
+  if (targetIdx === -1) return state;
+  const newAttrs = [...state.shipAttributes];
+  const targetAttrs = { ...newAttrs[targetIdx]! };
+  targetAttrs.statusEffects = [...(targetAttrs.statusEffects ?? []), 1];
+  targetAttrs.reactorCriticalTimer = Math.max(0, (targetAttrs.reactorCriticalTimer || 0) + delta);
+  newAttrs[targetIdx] = targetAttrs;
+  if (targetAttrs.reactorCriticalTimer >= 3) {
+    return {
+      ...state,
+      shipAttributes: newAttrs,
+      shipPositions: state.shipPositions.filter((p) => p.shipId !== targetShipId),
+      creatorActiveShipIds: state.creatorActiveShipIds.filter((id) => id !== targetShipId),
+      joinerActiveShipIds: state.joinerActiveShipIds.filter((id) => id !== targetShipId),
+    };
+  }
+  return { ...state, shipAttributes: newAttrs };
+}
+
+/**
+ * Reduces a ship's hull by `damage` (floored at 0). Distinct from
+ * `applyShootDamage`: matches DroneSwarmResolver/FlakArrayResolver's
+ * hullDelta path on-chain, which never bumps the reactor-critical timer
+ * even against an already-disabled (0 HP) target — that "keep shooting a
+ * downed ship to finish it off" mechanic is specific to gun damage
+ * (Game.sol's normal Shoot path), not special-effect hull damage.
+ */
+function applySpecialHullDamage(
+  state: Web2GameDataView,
+  targetShipId: number,
+  damage: number,
+): Web2GameDataView {
+  const targetIdx = state.shipIds.findIndex((id) => id === targetShipId);
+  if (targetIdx === -1) return state;
+  const newAttrs = [...state.shipAttributes];
+  const targetAttrs = { ...newAttrs[targetIdx]! };
+  targetAttrs.hullPoints = Math.max(0, targetAttrs.hullPoints - damage);
+  newAttrs[targetIdx] = targetAttrs;
+  return { ...state, shipAttributes: newAttrs };
+}
+
 function checkWinConditions(state: Web2GameDataView): { winner: string | null; reason: string | null } {
   if (state.creatorActiveShipIds.length === 0) {
     return { winner: state.metadata.joiner, reason: "all_destroyed" };
@@ -124,18 +181,25 @@ function checkWinConditions(state: Web2GameDataView): { winner: string | null; r
 /**
  * Reject a move destination that isn't actually reachable, a shot whose
  * target is out of weapon range or lacks line of sight, a ram whose
- * destination isn't the target's own tile, and an EMP/Repair special whose
- * target is out of the special's range. (Flak needs no separate target-range
- * check — its blast radius is self-contained, computed server-side from the
- * ship's own destination tile; see the Special/specialType===3 case in
- * applyGameAction.) Ram/EMP/Repair range enforcement was intentionally
- * deferred when this engine was first ported (the source branch's handlers
- * only ever validated ownership/team constraints, never range) — closing
- * that gap here since it let a ship ram/EMP/repair a target anywhere on the
- * board regardless of position. Uses the same shared
- * `gameGridRangesWeb2.ts`/`hasLineOfSight` module the client uses for range
- * highlighting, and the same `SPECIAL_CONFIG` range table the client reads
- * for EMP/Repair — no duplicated/diverging logic.
+ * destination isn't the target's own tile, a single-target special (EMP/
+ * Repair Drones for variant 1, Drone Swarm for variant 2) whose target is
+ * out of the special's range, and any attempt to activate a passive-only
+ * special (variant 2's Additional Thruster — no on-chain resolver either).
+ * (Self-centered AoE specials — Flak Array/Electric Storm — need no
+ * separate target-range check; their blast radius is self-contained,
+ * computed server-side from the ship's own destination tile; see the
+ * ActionType.Special case in applyGameAction.) Ram/special range
+ * enforcement was intentionally deferred when this engine was first ported
+ * (the source branch's handlers only ever validated ownership/team
+ * constraints, never range) — closing that gap here since it let a ship
+ * ram/special a target anywhere on the board regardless of position. Uses
+ * the same shared `gameGridRangesWeb2.ts`/`hasLineOfSight` module the
+ * client uses for range highlighting, and the same `specialConfigWeb2.ts`
+ * range table the client reads — no duplicated/diverging logic.
+ *
+ * `variant` is the ACTING ship's own traits.variant — a special's slot
+ * number is per-faction, so which ability (and which range) applies
+ * depends on it (docs/eth-global-remote/frontend-handoff-attributes-costs-and-ai-2026-09-21.md §3).
  */
 function validateDestinationAndTarget(params: {
   state: Web2GameDataView;
@@ -145,9 +209,10 @@ function validateDestinationAndTarget(params: {
   actionType: number;
   targetShipId: number;
   specialType: number;
+  variant: number;
   blockedGrid: boolean[][];
 }) {
-  const { state, shipId, row, col, actionType, targetShipId, specialType, blockedGrid } = params;
+  const { state, shipId, row, col, actionType, targetShipId, specialType, variant, blockedGrid } = params;
 
   if (actionType === ActionType.Retreat) return; // no destination to validate
 
@@ -164,6 +229,14 @@ function validateDestinationAndTarget(params: {
     const opponentActiveIds = shipPos.isCreator
       ? state.joinerActiveShipIds
       : state.creatorActiveShipIds;
+    // ActionType.Ram (legacy, variant-unrestricted) is the one action that
+    // may move directly onto an occupied tile — matches the old on-chain
+    // auto-ram-on-move model. ActionType.FactionAbility (the real, unified
+    // Ram/Repair action new submissions use — see gameGridWeaponSelector's
+    // client-side counterpart) is NOT exempted here: it moves to a normal,
+    // legal tile like any other action, and the ability's own effect
+    // (below) relocates the rammer onto the victim's tile afterward,
+    // mirroring RamResolver.sol exactly.
     const reachable = computeMovementRange({
       gridWidth: state.gridDimensions.gridWidth,
       gridHeight: state.gridDimensions.gridHeight,
@@ -207,13 +280,42 @@ function validateDestinationAndTarget(params: {
     }
   }
 
-  if (actionType === ActionType.Special && (specialType === 1 || specialType === 2)) {
+  if (actionType === ActionType.FactionAbility) {
+    // Every ship's innate ability — Ram (variant 1, evict a downed enemy)
+    // or Repair (variant 2, heal a friendly incl. self) — always needs a
+    // real target, unlike Special's Flak/Electric Storm AoE case.
     const targetPos = state.shipPositions.find((p) => p.shipId === targetShipId);
-    if (!targetPos) throw new GameActionError(400, "Invalid special target");
+    if (!targetPos) throw new GameActionError(400, "Invalid target");
     const distance = Math.abs(targetPos.position.row - row) + Math.abs(targetPos.position.col - col);
-    const range = SPECIAL_CONFIG[specialType]!.range;
-    if (distance > range) {
-      throw new GameActionError(400, "Target out of special range");
+    const { range, isHeal } = getFactionAbilityConfigWeb2(variant);
+    if (distance > range) throw new GameActionError(400, "Target out of range");
+    const targetIsOwnSide = targetPos.isCreator === shipPos.isCreator;
+    if (isHeal) {
+      if (!targetIsOwnSide) throw new GameActionError(400, "Can only repair your own ships");
+    } else {
+      if (targetIsOwnSide) throw new GameActionError(400, "Can only ram enemy ships");
+      const targetAttrs = state.shipAttributes[state.shipIds.findIndex((id) => id === targetShipId)];
+      if (!targetAttrs || targetAttrs.hullPoints !== 0) {
+        throw new GameActionError(400, "Can only ram disabled ships");
+      }
+    }
+  }
+
+  if (actionType === ActionType.Special) {
+    if (specialType !== 0 && !isActivatableSpecialWeb2(variant, specialType)) {
+      // Matches the on-chain revert: variant 2's Additional Thruster has no
+      // registered resolver, so trying to *use* it (rather than just
+      // benefit from its passive movement) is rejected outright.
+      throw new GameActionError(400, "This special cannot be activated — it's passive-only");
+    }
+    if (specialType !== 0 && !isAoeSpecialWeb2(variant, specialType)) {
+      const targetPos = state.shipPositions.find((p) => p.shipId === targetShipId);
+      if (!targetPos) throw new GameActionError(400, "Invalid special target");
+      const distance = Math.abs(targetPos.position.row - row) + Math.abs(targetPos.position.col - col);
+      const range = getSpecialConfigWeb2(variant, specialType)?.range ?? 0;
+      if (distance > range) {
+        throw new GameActionError(400, "Target out of special range");
+      }
     }
   }
 }
@@ -226,14 +328,22 @@ export async function applyGameAction(
   const { shipId, row, col, actionType, targetShipId } = input;
   const specialType = input.specialType ?? 0;
 
-  const [game, economy, winEffectsSettings] = await Promise.all([
+  const [game, economy, winEffectsSettings, actingShip] = await Promise.all([
     prisma.game.findFirst({
       where: { id: gameId, OR: [{ player1Id: userId }, { player2Id: userId }] },
       include: { lobby: true },
     }),
     getEconomyConfig(),
     getWinEffectsSettings(),
+    // Only needed for the ActionType.Special branch (a special's slot
+    // number is per-faction — see validateDestinationAndTarget's doc), but
+    // fetched unconditionally alongside the other lookups above rather than
+    // gated on actionType, to keep this a single Promise.all with no
+    // action-shaped branching before the game record is even loaded.
+    prisma.ship.findUnique({ where: { id: shipId }, select: { traits: true } }),
   ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const variant = (actingShip?.traits as any)?.variant ?? 1;
 
   if (!game) throw new GameActionError(404, "Not found");
   if (game.phase !== GamePhase.ACTIVE) throw new GameActionError(409, "Game not active");
@@ -281,7 +391,7 @@ export async function applyGameAction(
     state.gridDimensions.gridHeight,
   );
 
-  validateDestinationAndTarget({ state, shipId, row, col, actionType, targetShipId, specialType, blockedGrid });
+  validateDestinationAndTarget({ state, shipId, row, col, actionType, targetShipId, specialType, variant, blockedGrid });
 
   const now = Date.now();
   let newState: Web2GameDataView = {
@@ -330,38 +440,21 @@ export async function applyGameAction(
     }
 
     case ActionType.Special: {
-      if (!targetShipId && specialType !== 3) {
+      if (!targetShipId && !isAoeSpecialWeb2(variant, specialType)) {
         throw new GameActionError(400, "Target required for special");
       }
       moveShipTo(shipId, row, col);
 
-      if (specialType === 1) {
+      if (variant !== 2 && specialType === 1) {
         // EMP: target must be an enemy ship
         const opponentActiveIds = isCreator ? state.joinerActiveShipIds : state.creatorActiveShipIds;
         if (!opponentActiveIds.some((id) => id === targetShipId)) {
           throw new GameActionError(400, "Can only use EMP on enemy ships");
         }
-        const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
-        if (targetIdx !== -1) {
-          const newAttrs = [...newState.shipAttributes];
-          const targetAttrs = { ...newAttrs[targetIdx]! };
-          targetAttrs.statusEffects = [...(targetAttrs.statusEffects ?? []), 1];
-          targetAttrs.reactorCriticalTimer = (targetAttrs.reactorCriticalTimer || 0) + 1;
-          newAttrs[targetIdx] = targetAttrs;
-          if (targetAttrs.reactorCriticalTimer >= 3) {
-            newState = {
-              ...newState,
-              shipAttributes: newAttrs,
-              shipPositions: newState.shipPositions.filter((p) => p.shipId !== targetShipId),
-              creatorActiveShipIds: newState.creatorActiveShipIds.filter((id) => id !== targetShipId),
-              joinerActiveShipIds: newState.joinerActiveShipIds.filter((id) => id !== targetShipId),
-            };
-          } else {
-            newState = { ...newState, shipAttributes: newAttrs };
-          }
-        }
-      } else if (specialType === 2) {
-        // Repair: target must be your own ship
+        const strength = getSpecialConfigWeb2(1, 1)!.strength;
+        newState = applyReactorTimerDelta(newState, targetShipId, strength);
+      } else if (variant !== 2 && specialType === 2) {
+        // Repair Drones: target must be your own ship
         if (!myActiveShipIds.some((id) => id === targetShipId)) {
           throw new GameActionError(400, "Can only repair your own ships");
         }
@@ -369,7 +462,7 @@ export async function applyGameAction(
         if (targetIdx !== -1) {
           const newAttrs = [...newState.shipAttributes];
           const targetAttrs = { ...newAttrs[targetIdx]! };
-          const healAmount = SPECIAL_CONFIG[2]!.strength;
+          const healAmount = getSpecialConfigWeb2(1, 2)!.strength;
           targetAttrs.hullPoints = applyHealCap(
             targetAttrs.hullPoints,
             targetAttrs.hullPoints + healAmount,
@@ -380,9 +473,9 @@ export async function applyGameAction(
           newAttrs[targetIdx] = targetAttrs;
           newState = { ...newState, shipAttributes: newAttrs };
         }
-      } else if (specialType === 3) {
-        // Flak: deal gun damage to every active ship within range except the firing ship — no LOS check, friendly fire included
-        const flakRange = SPECIAL_CONFIG[3]!.range;
+      } else if (variant !== 2 && specialType === 3) {
+        // Flak Array: deal gun damage to every active ship within range except the firing ship — no LOS check, friendly fire included
+        const flakRange = getSpecialConfigWeb2(1, 3)!.range;
         const allActiveIds = [
           ...newState.creatorActiveShipIds,
           ...newState.joinerActiveShipIds,
@@ -400,7 +493,47 @@ export async function applyGameAction(
             newState = applyShootDamage(newState, shipId, targetId);
           }
         }
+      } else if (variant === 2 && specialType === 1) {
+        // Electric Storm: self-centered AoE reactor-timer damage against
+        // EVERY active ship within range — both sides, AND the caster
+        // itself (unlike Flak/Drone Swarm, which exclude the caster).
+        const strength = getSpecialConfigWeb2(2, 1)!.strength;
+        const range = getSpecialConfigWeb2(2, 1)!.range;
+        const allActiveIds = [
+          ...newState.creatorActiveShipIds,
+          ...newState.joinerActiveShipIds,
+        ];
+        for (const targetId of allActiveIds) {
+          const targetPos = newState.shipPositions.find((p) => p.shipId === targetId);
+          if (!targetPos) continue;
+          const dist =
+            Math.abs(targetPos.position.row - row) +
+            Math.abs(targetPos.position.col - col);
+          if (dist <= range) {
+            newState = applyReactorTimerDelta(newState, targetId, strength);
+          }
+        }
+      } else if (variant === 2 && specialType === 2) {
+        // Drone Swarm: single-target hull damage against an enemy within
+        // range, reduced by the target's damage reduction (same formula as
+        // Flak Array's per-ship damage, no minimum-1 floor).
+        const opponentActiveIds = isCreator ? state.joinerActiveShipIds : state.creatorActiveShipIds;
+        if (!opponentActiveIds.some((id) => id === targetShipId)) {
+          throw new GameActionError(400, "Can only use Drone Swarm on enemy ships");
+        }
+        const strength = getSpecialConfigWeb2(2, 2)!.strength;
+        const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
+        const targetAttrs = targetIdx !== -1 ? newState.shipAttributes[targetIdx] : undefined;
+        if (targetAttrs) {
+          const damage = Math.max(
+            0,
+            strength - Math.floor((strength * targetAttrs.damageReduction) / 100),
+          );
+          newState = applySpecialHullDamage(newState, targetShipId, damage);
+        }
       }
+      // variant === 2 && specialType === 3 (Additional Thruster) can't reach
+      // here — validateDestinationAndTarget rejects it as passive-only.
 
       lastMove = { shipId, oldRow, oldCol, newRow: row, newCol: col, actionType: ActionType.Special, targetShipId: targetShipId ?? 0, timestamp: now };
       break;
@@ -418,6 +551,11 @@ export async function applyGameAction(
     }
 
     case ActionType.Ram: {
+      // Legacy action, kept for any stale client still sending it (current
+      // clients submit the unified ActionType.FactionAbility above
+      // instead) — restricted to variant 1, which is the only faction with
+      // Ram at all; variant 2's innate ability is Repair.
+      if (variant === 2) throw new GameActionError(400, "This faction cannot ram");
       if (!targetShipId) throw new GameActionError(400, "Target required for ram");
       // Must be an enemy ship, not one of the ramming player's own —
       // ramming your own disabled ship has no legitimate use (it can only
@@ -465,6 +603,62 @@ export async function applyGameAction(
       }
 
       lastMove = { shipId, oldRow, oldCol, newRow: row, newCol: col, actionType: ActionType.Ram, targetShipId, timestamp: now };
+      break;
+    }
+
+    case ActionType.FactionAbility: {
+      // Every ship's innate ability — Ram (variant 1) or Repair (variant
+      // 2) — dispatched uniformly, mirroring Game.sol's
+      // _performFactionAbility exactly: the ship moves to its own
+      // (already-validated legal) destination first, same as any other
+      // action; the ability's effect is layered on afterward.
+      if (!targetShipId) throw new GameActionError(400, "Target required");
+      moveShipTo(shipId, row, col);
+
+      if (variant === 2) {
+        // Repair: heal the target (including self) — mirrors
+        // RepairResolver.sol (strength 50, capped like the equipped Repair
+        // Drones special).
+        const { strength } = getFactionAbilityConfigWeb2(2);
+        const targetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
+        if (targetIdx !== -1) {
+          const newAttrs = [...newState.shipAttributes];
+          const targetAttrs = { ...newAttrs[targetIdx]! };
+          targetAttrs.hullPoints = applyHealCap(
+            targetAttrs.hullPoints,
+            targetAttrs.hullPoints + (strength ?? 0),
+            targetAttrs.maxHullPoints,
+            winEffectsSettings.healCapPercent,
+          );
+          newAttrs[targetIdx] = targetAttrs;
+          newState = { ...newState, shipAttributes: newAttrs };
+        }
+      } else {
+        // Ram: evict the downed enemy (unconditional retreat, not destroy —
+        // mirrors RamResolver.sol), then relocate the rammer onto its
+        // now-vacated tile and tick the rammer's own reactor timer by 1.
+        const targetPos = newState.shipPositions.find((p) => p.shipId === targetShipId);
+        newState = {
+          ...newState,
+          shipPositions: newState.shipPositions.filter((p) => p.shipId !== targetShipId),
+          creatorActiveShipIds: newState.creatorActiveShipIds.filter((id) => id !== targetShipId),
+          joinerActiveShipIds: newState.joinerActiveShipIds.filter((id) => id !== targetShipId),
+        };
+        newState = applyReactorTimerDelta(newState, shipId, 1);
+        // If that 3rd ram just destroyed the rammer, it never occupies the
+        // vacated tile — matches RamResolver's own comment on this exact case.
+        const rammerStillActive = newState.shipPositions.some((p) => p.shipId === shipId);
+        if (targetPos && rammerStillActive) {
+          newState = {
+            ...newState,
+            shipPositions: newState.shipPositions.map((p) =>
+              p.shipId === shipId ? { ...p, position: targetPos.position } : p,
+            ),
+          };
+        }
+      }
+
+      lastMove = { shipId, oldRow, oldCol, newRow: row, newCol: col, actionType: ActionType.FactionAbility, targetShipId, timestamp: now };
       break;
     }
 
@@ -614,6 +808,7 @@ export async function applyGameAction(
   const destroyedShipIds = [...opponentActivesBefore].filter((id) => {
     if (opponentActivesAfter.has(id)) return false;
     if (actionType === ActionType.Ram && id === targetShipId) return false;
+    if (actionType === ActionType.FactionAbility && variant !== 2 && id === targetShipId) return false;
     return true;
   });
   const killCount = destroyedShipIds.length;

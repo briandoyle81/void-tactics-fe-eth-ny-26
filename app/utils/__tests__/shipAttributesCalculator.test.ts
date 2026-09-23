@@ -177,6 +177,52 @@ describe("calculateAttributesFromContracts — fore accuracy bonus", () => {
   });
 });
 
+describe("calculateAttributesFromContracts — variant 2", () => {
+  function makeV2Ship(overrides: Parameters<typeof makeShip>[0]): Ship {
+    const ship = makeShip(overrides);
+    ship.traits.variant = 2;
+    return ship;
+  }
+
+  it("Mining Drill (Close, index 3): range=1, damage=95", () => {
+    const attrs = calculateAttributesFromContracts(makeV2Ship({ mainWeapon: 3 }));
+    expect(attrs.range).toBe(1);
+    expect(attrs.gunDamage).toBe(95);
+  });
+
+  it("base hull is 125 with no hull trait", () => {
+    const attrs = calculateAttributesFromContracts(makeV2Ship({ hull: 0 }));
+    expect(attrs.hullPoints).toBe(125);
+  });
+
+  it("no equipment → movement 4 (base 3 + none-armor +1, shields.None movement never read)", () => {
+    const attrs = calculateAttributesFromContracts(makeV2Ship({}));
+    expect(attrs.movement).toBe(4);
+  });
+
+  it("Additional Thruster (special slot 3) adds +3 movement", () => {
+    const base = calculateAttributesFromContracts(makeV2Ship({ special: 0 }));
+    const thruster = calculateAttributesFromContracts(makeV2Ship({ special: 3 }));
+    expect(thruster.movement).toBe(base.movement + 3);
+  });
+
+  it("heavy armor: 60% damage reduction", () => {
+    const attrs = calculateAttributesFromContracts(makeV2Ship({ armor: 3 }));
+    expect(attrs.damageReduction).toBe(60);
+  });
+
+  it("only shields equipped (armor None) does not double-count the none-armor bonus", () => {
+    // Regression test for the None-movement double-count bug fixed
+    // alongside the 2026-09-20/21 redesign: equipping only shields must NOT
+    // also add the armor table's None-slot movement bonus.
+    const attrs = calculateAttributesFromContracts(
+      makeV2Ship({ armor: 0, shields: 1 }) // shields Light: dr 20, movement 0
+    );
+    // base 3 + none-armor-and-shields bonus NOT applied (shields equipped) + shield movement 0
+    expect(attrs.movement).toBe(3);
+  });
+});
+
 describe("calculateAttributesFromContracts — output shape", () => {
   it("always returns version 1", () => {
     const attrs = calculateAttributesFromContracts(makeShip({}));

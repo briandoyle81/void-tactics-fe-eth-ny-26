@@ -5,10 +5,10 @@ import "../Types.sol";
 import "../IRenderer.sol";
 
 contract RenderWeapon is IRenderComponent {
-    IReturnSVG public immutable renderWeapon1; // Laser
-    IReturnSVG public immutable renderWeapon2; // Railgun
-    IReturnSVG public immutable renderWeapon3; // Missile Launcher
-    IReturnSVG public immutable renderWeapon4; // Plasma Cannon
+    IReturnSVG public immutable renderWeapon1; // Generic
+    IReturnSVG public immutable renderWeapon2; // Sniper
+    IReturnSVG public immutable renderWeapon3; // Missile
+    IReturnSVG public immutable renderWeapon4; // Close
 
     constructor(address[] memory renderers) {
         require(
@@ -24,13 +24,13 @@ contract RenderWeapon is IRenderComponent {
     function render(
         Ship memory ship
     ) external view override returns (string memory) {
-        if (ship.equipment.mainWeapon == MainWeapon.Laser) {
+        if (ship.equipment.mainWeapon == MainWeapon.Generic) {
             return renderWeapon1.render(ship);
-        } else if (ship.equipment.mainWeapon == MainWeapon.Railgun) {
+        } else if (ship.equipment.mainWeapon == MainWeapon.Sniper) {
             return renderWeapon2.render(ship);
-        } else if (ship.equipment.mainWeapon == MainWeapon.MissileLauncher) {
+        } else if (ship.equipment.mainWeapon == MainWeapon.Missile) {
             return renderWeapon3.render(ship);
-        } else if (ship.equipment.mainWeapon == MainWeapon.PlasmaCannon) {
+        } else if (ship.equipment.mainWeapon == MainWeapon.Close) {
             return renderWeapon4.render(ship);
         }
         return "";

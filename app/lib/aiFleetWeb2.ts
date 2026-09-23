@@ -27,7 +27,6 @@ export async function generateAiFleetForMap(
     throw new NoAIPlacementsError(`No AI placements configured for map ${mapId}`);
   }
 
-  const costs = await getCurrentCosts();
   const shipIds: number[] = [];
   const startingPositions: Array<{ row: number; col: number }> = [];
   let totalCost = 0;
@@ -36,6 +35,10 @@ export async function generateAiFleetForMap(
     const config = placement.config;
     const equipment = config.equipment as unknown as ShipEquipment;
     const traits = config.traits as unknown as ShipTraits;
+    // Costs are per-variant — a map's AI placements can mix variant 1 and 2
+    // configs (getCurrentCosts is itself TTL-cached, so per-ship calls here
+    // cost nothing extra beyond the first per variant).
+    const costs = await getCurrentCosts(traits.variant);
     const cost = calcShipCost(equipment, traits, costs);
     totalCost += cost;
 

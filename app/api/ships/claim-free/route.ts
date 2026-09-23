@@ -3,7 +3,7 @@ import { prisma } from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { generateShip } from "@/app/lib/shipGen";
-import { getCurrentCosts } from "@/app/lib/getCurrentCosts";
+import { getCurrentCostsByVariant } from "@/app/lib/getCurrentCosts";
 
 const FREE_SHIPS_PER_CLAIM = 10;
 // Cooldown before a user can claim again (28 days in ms)
@@ -52,7 +52,7 @@ export async function POST() {
     }
   }
 
-  const costs = await getCurrentCosts();
+  const costsByVariant = await getCurrentCostsByVariant();
   // Drone Storefront's permanent claim bonus (docs/faction-2.md §4) —
   // mirrors web3's FreeShipClaim minting 10 + DroneStorefront.droneCoreTier.
   const user = await prisma.user.findUnique({ where: { id: userId! }, select: { droneCoreTier: true } });
@@ -77,7 +77,7 @@ export async function POST() {
 
         return Promise.all(
           Array.from({ length: shipsToMint }, (_, i) => {
-            const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costs);
+            const { name, equipment, traits, cost, costsVersion, shiny } = generateShip(userId!, i, costsByVariant);
             return tx.ship.create({
               data: {
                 ownerId: userId!,

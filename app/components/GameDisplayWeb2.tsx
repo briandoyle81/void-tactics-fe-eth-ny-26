@@ -32,7 +32,8 @@ import {
 } from "../hooks/useGameplayInteraction";
 import { apiMutate } from "../lib/apiMutate";
 import { apiFetch } from "../lib/apiFetch";
-import { SPECIAL_CONFIG } from "../utils/specialConfigWeb2";
+import { getSpecialConfigWeb2 } from "../utils/specialConfigWeb2";
+import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 import { AI_USER_ID } from "../config/aiUser";
 import { useAITurnLoopWeb2 } from "../hooks/useAITurnLoopWeb2";
 import { GameBoardLayout } from "./GameBoardLayout";
@@ -367,18 +368,29 @@ export default function GameDisplayWeb2({
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
-  // needed, unlike web3's useSpecialRange/useSpecialData), but still computed
-  // before the shared hook call per its params contract.
-  const selectedShipSpecialType =
-    selectedShipId != null ? (shipMap.get(selectedShipId)?.equipment.special ?? 0) : 0;
-  const selectedShipSpecialRange = SPECIAL_CONFIG[selectedShipSpecialType]?.range;
+  // needed, unlike web3's useSpecialRangeAt/useSpecialStrengthAt), but still
+  // computed before the shared hook call per its params contract. A
+  // special's slot number is per-faction (see specialConfigWeb2.ts), so the
+  // ship's own variant must come along with its equipped special.
+  const selectedShip = selectedShipId != null ? shipMap.get(selectedShipId) : undefined;
+  const selectedShipSpecialType = selectedShip?.equipment.special ?? 0;
+  const selectedShipVariant = selectedShip?.traits.variant ?? 1;
+  const selectedShipSpecialRange = getSpecialConfigWeb2(selectedShipVariant, selectedShipSpecialType)?.range;
   const selectedShipSpecialData = useMemo(
-    () => ({ strength: SPECIAL_CONFIG[selectedShipSpecialType]?.strength ?? 0 }),
-    [selectedShipSpecialType],
+    () => ({
+      strength: getSpecialConfigWeb2(selectedShipVariant, selectedShipSpecialType)?.strength ?? 0,
+    }),
+    [selectedShipVariant, selectedShipSpecialType],
   );
-  const draggedShipSpecialType =
-    draggedShipId != null ? (shipMap.get(draggedShipId)?.equipment.special ?? 0) : 0;
-  const draggedShipSpecialRange = SPECIAL_CONFIG[draggedShipSpecialType]?.range;
+  const draggedShip = draggedShipId != null ? shipMap.get(draggedShipId) : undefined;
+  const draggedShipSpecialType = draggedShip?.equipment.special ?? 0;
+  const draggedShipVariant = draggedShip?.traits.variant ?? 1;
+  const draggedShipSpecialRange = getSpecialConfigWeb2(draggedShipVariant, draggedShipSpecialType)?.range;
+
+  // Every ship's innate faction ability (Ram/variant 1, Repair/variant 2) —
+  // web2's own engine, so (unlike web3, which is chain-gated) this is
+  // always supported.
+  const selectedShipFactionAbility = getFactionAbilityConfigWeb2(selectedShipVariant);
 
   const interaction = useGameplayInteraction({
     gridWidth: GRID_WIDTH,
@@ -402,6 +414,9 @@ export default function GameDisplayWeb2({
     selectedShipSpecialRange,
     selectedShipSpecialData,
     draggedShipSpecialRange,
+    selectedShipFactionAbilityRange: selectedShipFactionAbility.range,
+    selectedShipFactionAbilityIsHeal: selectedShipFactionAbility.isHeal,
+    isFactionAbilitySupported: true,
   });
 
   const {
@@ -481,22 +496,13 @@ export default function GameDisplayWeb2({
     if (!payload) return;
     setIsSubmitting(true);
     try {
-      let finalActionType = payload.actionType;
-      let finalTargetShipId = payload.targetShipId;
-      // The server engine requires an explicit Ram action (with the occupying
-      // ship as target) — the shared hook returns Pass for rams to match
-      // web3's contract-inferred behavior (see useGameplayInteraction.ts's
-      // buildActionPayload doc), so override here at web2's own submit step.
-      if (isRammingMovePreview && previewPosition) {
-        const occupying = aliveShipPositions.find(
-          (p) =>
-            p.position.row === previewPosition.row &&
-            p.position.col === previewPosition.col &&
-            p.shipId !== payload.shipId,
-        );
-        finalActionType = ActionType.Ram;
-        finalTargetShipId = occupying?.shipId ?? 0;
-      }
+      // buildActionPayload already returns ActionType.FactionAbility (with
+      // the real target) for a ram/repair move — web2's engine implements
+      // that action directly (see gameEngineWeb2.ts), no override needed
+      // (isFactionAbilitySupported is always true for web2, so
+      // isRammingMovePreview's legacy auto-ram path never applies here).
+      const finalActionType = payload.actionType;
+      const finalTargetShipId = payload.targetShipId;
       await apiMutate(`/api/games/${gameId}/action`, "POST", {
         shipId: payload.shipId,
         row: payload.row,
@@ -512,12 +518,22 @@ export default function GameDisplayWeb2({
         ...(finalTargetShipId ? { target_ship_id: String(finalTargetShipId) } : {}),
       });
       const currentPosition = aliveShipPositions.find((p) => p.shipId === payload.shipId);
+      // Ram relocates the acting ship onto the victim's (now-vacated) tile
+      // as an effect — its final position is NOT the submitted
+      // row/col (only a legal staging tile within range of the target; see
+      // RamResolver.sol / gameEngineWeb2.ts's FactionAbility case). Repair
+      // never relocates anyone.
+      const isRamRelocate =
+        finalActionType === ActionType.FactionAbility && !selectedShipFactionAbility.isHeal;
+      const ramTargetPosition = isRamRelocate
+        ? aliveShipPositions.find((p) => p.shipId === finalTargetShipId)?.position
+        : undefined;
       const optimisticMove: Web2LastMove = {
         shipId: payload.shipId,
         oldRow: currentPosition?.position.row ?? payload.row,
         oldCol: currentPosition?.position.col ?? payload.col,
-        newRow: finalActionType === ActionType.Retreat ? -1 : payload.row,
-        newCol: finalActionType === ActionType.Retreat ? -1 : payload.col,
+        newRow: finalActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.row ?? payload.row),
+        newCol: finalActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.col ?? payload.col),
         actionType: finalActionType,
         targetShipId: finalTargetShipId,
         timestamp: Date.now(),
@@ -540,9 +556,8 @@ export default function GameDisplayWeb2({
     }
   }, [
     buildActionPayload,
-    isRammingMovePreview,
-    previewPosition,
     aliveShipPositions,
+    selectedShipFactionAbility,
     gameId,
     recordOptimisticMove,
     handleCancelMove,
@@ -784,6 +799,8 @@ export default function GameDisplayWeb2({
       lastMoveTargetShipId={lastMoveTargetShipId}
       lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
       isRammingMovePreview={isRammingMovePreview}
+      isFactionAbilitySupported
+      factionAbilityRange={selectedShipFactionAbility.range}
       retreatPrepShipId={retreatPrepShipId}
       retreatPrepIsCreator={retreatPrepIsCreator}
       onGridRightClickDeselect={handleGridRightClickDeselect}

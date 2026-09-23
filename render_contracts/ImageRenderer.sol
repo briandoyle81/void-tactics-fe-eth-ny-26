@@ -11,7 +11,7 @@ import "./Renderers/RenderFore.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
-contract ImageRenderer {
+contract ImageRenderer is IImageRenderer {
     using Strings for string;
 
     // Base SVG template with viewBox and dimensions
@@ -45,7 +45,7 @@ contract ImageRenderer {
         renderFore = IRenderComponent(_renderFore);
     }
 
-    function renderShip(Ship memory ship) public view returns (string memory) {
+    function renderShip(Ship memory ship) public view override returns (string memory) {
         // Return appropriate image URI based on ship state
         if (ship.shipData.timestampDestroyed > 0) {
             return DESTROYED_IMAGE;

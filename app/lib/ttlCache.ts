@@ -37,3 +37,45 @@ export function createTtlCache<T>(fetcher: () => Promise<T>, ttlMs: number) {
 
   return { get, invalidate };
 }
+
+/**
+ * Same shape as `createTtlCache`, but keyed — one independent cache entry
+ * (and one independent in-flight de-dup) per key, e.g. one per ship
+ * variant. `key` must be a primitive usable as a Map key (a number or
+ * string) since entries are looked up by strict equality.
+ */
+export function createKeyedTtlCache<K extends string | number, T>(
+  fetcher: (key: K) => Promise<T>,
+  ttlMs: number,
+) {
+  const cached = new Map<K, { value: T; expiresAt: number }>();
+  const pending = new Map<K, Promise<T>>();
+
+  const get = async (key: K): Promise<T> => {
+    const now = Date.now();
+    const entry = cached.get(key);
+    if (entry && entry.expiresAt > now) return entry.value;
+    const inFlight = pending.get(key);
+    if (inFlight) return inFlight;
+    const promise = fetcher(key)
+      .then((value) => {
+        cached.set(key, { value, expiresAt: Date.now() + ttlMs });
+        return value;
+      })
+      .finally(() => {
+        pending.delete(key);
+      });
+    pending.set(key, promise);
+    return promise;
+  };
+
+  const invalidate = (key?: K) => {
+    if (key === undefined) {
+      cached.clear();
+      return;
+    }
+    cached.delete(key);
+  };
+
+  return { get, invalidate };
+}

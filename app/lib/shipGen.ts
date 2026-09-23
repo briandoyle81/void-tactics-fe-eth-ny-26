@@ -1,6 +1,6 @@
 import type { Web2ShipEquipment, Web2ShipTraits } from "../types/web2Ship";
 import rawNames from "./shipNames.json";
-import { calcShipCost, CURRENT_COSTS_VERSION } from "./shipCosts";
+import { calcShipCost, CURRENT_COSTS_VERSION, defaultCostsForVariant } from "./shipCosts";
 import { validSpecialsForVariant } from "../types/types";
 
 export { calcShipCost, CURRENT_COSTS_VERSION };
@@ -16,13 +16,14 @@ function rng(seed: number, max: number): number {
 export function generateShip(
   ownerId: string,
   index: number,
-  costs?: import("./shipCosts").CostsConfig,
+  costsByVariant?: Record<number, import("./shipCosts").CostsConfig>,
 ): { name: string; equipment: Web2ShipEquipment; traits: Web2ShipTraits; cost: number; costsVersion: number; shiny: boolean } {
   const seed = Date.now() + index * 997;
 
-  // Variant must be rolled before special — variant 2 ("Drone" faction) uses
-  // a disjoint Special value set (Slot 4/5/6, not variant 1's Slot 1/2/3),
-  // so which special values are even valid depends on the variant rolled.
+  // Variant must be rolled before special — variant 2 ("Drone" faction)'s
+  // three real specials are only valid at variant 2 (see
+  // validSpecialsForVariant), so which special values are even valid
+  // depends on the variant rolled.
   const variant = rng(seed + 11, 3);
   const validSpecials = validSpecialsForVariant(variant);
 
@@ -57,12 +58,18 @@ export function generateShip(
 
   void ownerId; // used by callers for ownership context
 
+  // Costs are per-variant — this function rolls its OWN random variant
+  // above, so a caller can't know in advance which variant's costs to
+  // fetch. Callers instead pass every variant's costs pre-fetched, keyed by
+  // variant number, and the right one is picked here once the roll lands.
+  const costs = costsByVariant?.[variant] ?? defaultCostsForVariant(variant);
+
   return {
     name: SHIP_NAMES[nameIdx] ?? "Ship",
     equipment,
     traits,
     cost: calcShipCost(equipment, traits, costs),
-    costsVersion: costs?.version ?? CURRENT_COSTS_VERSION,
+    costsVersion: costs.version,
     shiny,
   };
 }

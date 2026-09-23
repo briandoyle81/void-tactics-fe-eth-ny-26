@@ -2,6 +2,22 @@ import { Attributes } from "../types/types";
 import { Web2ShipPosition } from "../types/web2Game";
 import { hasLineOfSight } from "./gameGridRanges";
 
+// "ram" mode covers both faction abilities (Ram/variant 1, Repair/variant
+// 2 — see useFactionAbilityConfig.ts): a valid target is a downed enemy for
+// Ram, or a friendly ship (including self) for Repair. `factionAbilityRange`
+// stands in for `specialRange` in that mode; both abilities are range 1, so
+// the existing "adjacent tiles skip line-of-sight" behavior already covers
+// them without a dedicated exemption.
+function isValidFactionAbilityTarget(
+  targetOwner: string,
+  playerAddress: string | null,
+  isHeal: boolean,
+  targetHullPoints: number | undefined,
+): boolean {
+  if (isHeal) return targetOwner === playerAddress;
+  return targetOwner !== playerAddress && targetHullPoints === 0;
+}
+
 // `number`-typed parallel of the five `bigint`-typed range functions in
 // `gameGridRanges.ts` (`hasLineOfSight` is already pure/id-free and stays
 // shared, imported above rather than duplicated). Isomorphic — no browser
@@ -37,6 +53,7 @@ interface ShootingRangeParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  factionAbilityRange?: number | undefined;
   blockedGrid: boolean[][];
 }
 
@@ -125,6 +142,7 @@ export function computeShootingRange({
   selectedWeaponType,
   specialRange,
   specialType,
+  factionAbilityRange,
   blockedGrid,
 }: ShootingRangeParams): { row: number; col: number }[] {
   if (!selectedShipId || !hasShips) return [];
@@ -137,11 +155,14 @@ export function computeShootingRange({
   if (attributes && attributes.hullPoints === 0) return [];
 
   const movementRange = attributes?.movement || 1;
-  // Use special range if special is selected, otherwise use weapon range
+  // Use special range if special is selected, faction-ability range in ram
+  // mode, otherwise weapon range.
   const shootingRange =
     selectedWeaponType === "special" && specialRange !== undefined
       ? specialRange
-      : attributes?.range || 1;
+      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
+        ? factionAbilityRange
+        : attributes?.range || 1;
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -419,6 +440,8 @@ interface LabelTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  factionAbilityRange?: number | undefined;
+  factionAbilityIsHeal?: boolean;
   blockedGrid: boolean[][];
   gridWidth: number;
   gridHeight: number;
@@ -435,6 +458,8 @@ export function computeLabelTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  factionAbilityRange,
+  factionAbilityIsHeal = false,
   blockedGrid,
   gridWidth,
   gridHeight,
@@ -449,7 +474,9 @@ export function computeLabelTargets({
   const shootingRangeAttr =
     selectedWeaponType === "special" && specialRange !== undefined
       ? specialRange
-      : attributes?.range || 1;
+      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
+        ? factionAbilityRange
+        : attributes?.range || 1;
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -502,6 +529,9 @@ export function computeLabelTargets({
         } else {
           if (ship.owner !== playerAddress) return;
         }
+      } else if (selectedWeaponType === "ram") {
+        const targetHp = getShipAttributes(shipPosition.shipId)?.hullPoints;
+        if (!isValidFactionAbilityTarget(ship.owner, playerAddress, factionAbilityIsHeal, targetHp)) return;
       } else {
         if (ship.owner === playerAddress) return;
       }
@@ -509,9 +539,10 @@ export function computeLabelTargets({
       const targetRow = shipPosition.position.row;
       const targetCol = shipPosition.position.col;
       const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+      const isSelfRepair = selectedWeaponType === "ram" && factionAbilityIsHeal && shipPosition.shipId === selectedShipId && distance === 0;
       const canShoot = distance === 1 || distance <= shootingRangeAttr;
 
-      if (canShoot && distance > 0) {
+      if ((canShoot && distance > 0) || isSelfRepair) {
         const shouldCheckLineOfSight =
           distance > 1 &&
           (selectedWeaponType !== "special" ||
@@ -544,6 +575,8 @@ interface HoverValidTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  factionAbilityRange?: number | undefined;
+  factionAbilityIsHeal?: boolean;
   blockedGrid: boolean[][];
 }
 
@@ -558,6 +591,8 @@ export function computeHoverValidTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  factionAbilityRange,
+  factionAbilityIsHeal = false,
   blockedGrid,
 }: HoverValidTargetsParams): { shipId: number; position: { row: number; col: number } }[] {
   if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
@@ -566,7 +601,9 @@ export function computeHoverValidTargets({
   const range =
     selectedWeaponType === "special" && specialRange !== undefined
       ? specialRange
-      : attributes.range || 1;
+      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
+        ? factionAbilityRange
+        : attributes.range || 1;
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const targets: { shipId: number; position: { row: number; col: number } }[] = [];
@@ -581,6 +618,9 @@ export function computeHoverValidTargets({
       } else {
         if (ship.owner !== playerAddress) return;
       }
+    } else if (selectedWeaponType === "ram") {
+      const targetHp = getShipAttributes(shipPosition.shipId)?.hullPoints;
+      if (!isValidFactionAbilityTarget(ship.owner, playerAddress, factionAbilityIsHeal, targetHp)) return;
     } else {
       if (ship.owner === playerAddress) return;
     }
@@ -612,6 +652,7 @@ interface HoverShootingRangeParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  factionAbilityRange?: number | undefined;
   blockedGrid: boolean[][];
   gridWidth: number;
   gridHeight: number;
@@ -626,6 +667,7 @@ export function computeHoverShootingRange({
   selectedWeaponType,
   specialRange,
   specialType,
+  factionAbilityRange,
   blockedGrid,
   gridWidth,
   gridHeight,
@@ -636,7 +678,9 @@ export function computeHoverShootingRange({
   const range =
     selectedWeaponType === "special" && specialRange !== undefined
       ? specialRange
-      : attributes.range || 1;
+      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
+        ? factionAbilityRange
+        : attributes.range || 1;
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const positions: { row: number; col: number }[] = [];

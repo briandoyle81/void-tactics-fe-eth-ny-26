@@ -272,6 +272,10 @@ export function TacticalTargetingPreview() {
     selectedShipSpecialRange: undefined,
     selectedShipSpecialData: null,
     draggedShipSpecialRange: undefined,
+    // This scripted demo never enters ram/repair targeting mode.
+    selectedShipFactionAbilityRange: undefined,
+    selectedShipFactionAbilityIsHeal: false,
+    isFactionAbilitySupported: false,
   });
 
   const calculateDamage = useDamageCalculationWeb2({

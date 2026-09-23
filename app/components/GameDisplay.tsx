@@ -18,6 +18,7 @@ import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
+import { toOnChainActionType } from "../utils/normalizeGameDataView";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
 import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
 import { GameTooltipShipCard } from "./GameTooltipShipCard";
@@ -46,10 +47,11 @@ import {
   GAME_VIEW_SIDE_ROOT_CLASS,
   useGameViewChromeLayout,
 } from "../hooks/useGameViewChromeLayout";
-import { useSpecialRange } from "../hooks/useSpecialRange";
 import {
-  useSpecialData,
+  useSpecialRangeAt,
+  useSpecialStrengthAt,
 } from "../hooks/useShipAttributesContract";
+import { useFactionAbilityConfig } from "../hooks/useFactionAbilityConfig";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb3 } from "./FleeConfirmButtonWeb3";
 import { GameScoreBox } from "./GameScoreBox";
@@ -197,7 +199,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
   // Drag and drop state — `selectedShipId`/`draggedShipId` stay here (not
   // owned by `useGameplayInteraction`) because resolving their equipped
-  // special's range/data needs a real `useSpecialRange`/`useSpecialData`
+  // special's range/data needs a real `useSpecialRangeAt`/`useSpecialStrengthAt`
   // contract-read hook call, which must happen at this component's top
   // level before the interaction hook runs — see that hook's params doc.
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
@@ -627,13 +629,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [],
   );
 
-  // Get special range data for the selected ship
-  const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
-  const specialType = selectedShip?.equipment.special || 0;
-  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
-  const { specialRange } = useSpecialRange(specialType, selectedShipVariant);
-  const { data: specialData } = useSpecialData(specialType, selectedShipVariant);
-
   // Get ship attributes by ship ID from game data
   const getShipAttributes = React.useCallback(
     (shipId: bigint): Attributes | null => {
@@ -655,6 +650,43 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [game.shipAttributes, game.shipIds],
   );
 
+  // Get special range/strength for the selected ship. In-flight games pin
+  // each ship's specials to the attributes.version live when the game
+  // started (docs/eth-global-remote/frontend-handoff-attributes-costs-and-ai-2026-09-21.md
+  // §5) — a mid-game rebalance publish/rollback must not change what's
+  // shown here, so this reads the pinned version (`getSpecialRangeAt`/
+  // `getSpecialStrengthAt`), not the live table.
+  const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
+  const specialType = selectedShip?.equipment.special || 0;
+  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const selectedShipAttributesVersion =
+    selectedShipId != null ? getShipAttributes(selectedShipId)?.version ?? 0 : 0;
+  const { data: specialRange } = useSpecialRangeAt(
+    selectedShipVariant,
+    selectedShipAttributesVersion,
+    specialType,
+    specialType > 0,
+  );
+  const { data: specialStrength } = useSpecialStrengthAt(
+    selectedShipVariant,
+    selectedShipAttributesVersion,
+    specialType,
+    specialType > 0,
+  );
+  // Every ship's innate faction ability (Ram/variant 1, Repair/variant 2) —
+  // see useFactionAbilityConfig.ts. isSupported gates the real
+  // ActionType.FactionAbility flow vs. the legacy auto-ram-on-move behavior
+  // some chains still run.
+  const {
+    range: selectedShipFactionAbilityRange,
+    isHeal: selectedShipFactionAbilityIsHeal,
+    isSupported: isFactionAbilitySupported,
+  } = useFactionAbilityConfig(selectedShipVariant);
+  // Downstream consumers (useDamageCalculation, useGameplayInteraction) want
+  // `{ strength }`, matching the old `getSpecialData` struct's shape.
+  const specialData =
+    specialStrength != null ? { strength: Number(specialStrength) } : null;
+
   // Dragged ship's equipped-special range — a real contract read, must live
   // here (top level, before useGameplayInteraction) since hooks can't be
   // called from inside a callback with a dynamic id. See that hook's params
@@ -663,9 +695,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     draggedShipId != null ? shipMap.get(draggedShipId) : null;
   const draggedShipSpecialType = draggedShipForSpecialRange?.equipment.special ?? 0;
   const draggedShipVariant = draggedShipForSpecialRange?.traits.variant ?? 0;
-  const { specialRange: draggedShipSpecialRange } = useSpecialRange(
-    draggedShipId != null ? draggedShipSpecialType : 0,
+  const draggedShipAttributesVersion =
+    draggedShipId != null ? getShipAttributes(draggedShipId)?.version ?? 0 : 0;
+  const { data: draggedShipSpecialRange } = useSpecialRangeAt(
     draggedShipVariant,
+    draggedShipAttributesVersion,
+    draggedShipId != null ? draggedShipSpecialType : 0,
+    draggedShipId != null && draggedShipSpecialType > 0,
   );
 
   // Build a set of shipIds that have already moved this round (from game data)
@@ -862,9 +898,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setSelectedShipId: setSelectedShipIdForInteraction,
     draggedShipId: draggedShipId != null ? Number(draggedShipId) : null,
     setDraggedShipId: setDraggedShipIdForInteraction,
-    selectedShipSpecialRange: specialRange,
-    selectedShipSpecialData: (specialData ?? null) as { strength: number } | null,
-    draggedShipSpecialRange,
+    selectedShipSpecialRange: specialRange as number | undefined,
+    selectedShipSpecialData: specialData,
+    draggedShipSpecialRange: draggedShipSpecialRange as number | undefined,
+    selectedShipFactionAbilityRange,
+    selectedShipFactionAbilityIsHeal,
+    isFactionAbilitySupported,
   });
 
   const {
@@ -1561,7 +1600,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     selectedShipId,
                     computedRow,
                     computedCol,
-                    computedActionType,
+                    toOnChainActionType(computedActionType),
                     computedActionType === ActionType.Pass
                       ? 0n
                       : targetShipId || 0n,
@@ -1612,10 +1651,24 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       : computedCol;
 
                     const submittedTargetShipId = targetShipId ?? 0n;
+                    // Ram relocates the acting ship onto the victim's
+                    // (now-vacated) tile as an effect — its final position
+                    // is NOT the submitted destRow/destCol (that's only a
+                    // legal staging tile within range of the target; see
+                    // RamResolver.sol). Repair never relocates anyone.
+                    const isRamRelocate =
+                      computedActionType === ActionType.FactionAbility && !selectedShipFactionAbilityIsHeal;
+                    const ramTargetPosition = isRamRelocate
+                      ? game.shipPositions.find((p) => p.shipId === submittedTargetShipId)?.position
+                      : undefined;
                     const optimisticNewRow =
-                      computedActionType === ActionType.Retreat ? -1 : computedRow;
+                      computedActionType === ActionType.Retreat
+                        ? -1
+                        : (ramTargetPosition?.row ?? computedRow);
                     const optimisticNewCol =
-                      computedActionType === ActionType.Retreat ? -1 : computedCol;
+                      computedActionType === ActionType.Retreat
+                        ? -1
+                        : (ramTargetPosition?.col ?? computedCol);
 
                     setOptimisticLastMove({
                       shipId: selectedShipId!,
@@ -2686,6 +2739,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         isRammingMovePreview && previewPosition ? previewPosition : null
                       }
                       isRammingMovePreview={isRammingMovePreview}
+                      isFactionAbilitySupported={isFactionAbilitySupported}
+                      factionAbilityRange={selectedShipFactionAbilityRange}
                       retreatPrepShipId={retreatPrepShipIdForDisplay}
                       retreatPrepIsCreator={retreatPrepIsCreator}
                       tutorialDefaultLabel={tutorialDefaultLabel}
@@ -3289,6 +3344,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             isRammingMovePreview && previewPosition ? previewPosition : null
           }
           isRammingMovePreview={isRammingMovePreview}
+          isFactionAbilitySupported={isFactionAbilitySupported}
+          factionAbilityRange={selectedShipFactionAbilityRange}
           retreatPrepShipId={retreatPrepShipIdForDisplay}
           retreatPrepIsCreator={retreatPrepIsCreator}
           tutorialDefaultLabel={tutorialDefaultLabel}
@@ -3318,7 +3375,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   selectedShipId,
                   computedRow,
                   computedCol,
-                  computedActionType,
+                  toOnChainActionType(computedActionType),
                   computedActionType === ActionType.Pass ? 0n : targetShipId || 0n,
                 ]}
                 className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
@@ -3363,8 +3420,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   const submittedTargetShipId = targetShipId ?? 0n;
                   const oldRow = currentPosition?.position.row ?? computedRow;
                   const oldCol = currentPosition?.position.col ?? computedCol;
-                  const optimisticNewRow = computedActionType === ActionType.Retreat ? -1 : computedRow;
-                  const optimisticNewCol = computedActionType === ActionType.Retreat ? -1 : computedCol;
+                  // See the toolbar submit button's onSuccess above for why
+                  // Ram's final position isn't the submitted destination.
+                  const isRamRelocate =
+                    computedActionType === ActionType.FactionAbility && !selectedShipFactionAbilityIsHeal;
+                  const ramTargetPosition = isRamRelocate
+                    ? game.shipPositions.find((p) => p.shipId === submittedTargetShipId)?.position
+                    : undefined;
+                  const optimisticNewRow =
+                    computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.row ?? computedRow);
+                  const optimisticNewCol =
+                    computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.col ?? computedCol);
                   setOptimisticLastMove({
                     shipId: selectedShipId!,
                     oldRow,

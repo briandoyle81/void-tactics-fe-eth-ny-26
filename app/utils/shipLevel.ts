@@ -1,8 +1,10 @@
 import { ShipVisual } from "../types/shipVisual";
+import { getRankConfig } from "./rankConfigCache";
 
 /**
- * Calculate ship rank based on ships destroyed
- * Uses new threshold-based system:
+ * Calculate ship rank based on ships destroyed, using the ship's own
+ * variant's live rank thresholds (see rankConfigCache.ts) — falls back to
+ * today's on-chain/DB defaults before that cache is warm:
  * 0-9 kills → Rank 1 (0% bonus)
  * 10-29 kills → Rank 2 (10% bonus)
  * 30-99 kills → Rank 3 (20% bonus)
@@ -15,21 +17,14 @@ export function calculateShipRank(ship: ShipVisual): {
   shipsDestroyed: number;
 } {
   const shipsDestroyed = ship.shipData.shipsDestroyed;
+  const { thresholds } = getRankConfig(ship.traits.variant);
 
-  let rank: number;
-
-  if (shipsDestroyed < 10) {
-    rank = 1;
-  } else if (shipsDestroyed < 30) {
-    rank = 2;
-  } else if (shipsDestroyed < 100) {
-    rank = 3;
-  } else if (shipsDestroyed < 300) {
-    rank = 4;
-  } else if (shipsDestroyed < 1000) {
-    rank = 5;
-  } else {
-    rank = 6; // 1000+ kills
+  // thresholds[i] is the kill count needed for rank i+2 (rank 1 has no
+  // threshold — every ship starts there). Mirrors the contract's
+  // ShipAttributes.getRank / shipAttributesCalculator.ts's getRankFromKills.
+  let rank = 1;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (shipsDestroyed >= thresholds[i]) rank = i + 2;
   }
 
   return {
@@ -45,18 +40,18 @@ export function getRankProgressInfo(ship: ShipVisual): {
   killsToNextRank: number | null;
 } {
   const { rank, shipsDestroyed } = calculateShipRank(ship);
+  const { thresholds, bonusPct } = getRankConfig(ship.traits.variant);
+  const maxRank = bonusPct.length; // fixed at 6 by the contract's array-length validation
 
-  let nextRankThreshold: number | null = null;
-  if (rank === 1) nextRankThreshold = 10;
-  else if (rank === 2) nextRankThreshold = 30;
-  else if (rank === 3) nextRankThreshold = 100;
-  else if (rank === 4) nextRankThreshold = 300;
-  else if (rank === 5) nextRankThreshold = 1000;
+  // thresholds[rank - 1] is the kill count for the *next* rank (thresholds
+  // has one fewer entry than there are ranks, since rank 1 needs none).
+  const nextRankThreshold: number | null =
+    rank <= thresholds.length ? thresholds[rank - 1] : null;
 
   return {
     rank,
     shipsDestroyed,
-    nextRank: rank < 6 ? rank + 1 : null,
+    nextRank: rank < maxRank ? rank + 1 : null,
     killsToNextRank:
       nextRankThreshold == null ? null : Math.max(0, nextRankThreshold - shipsDestroyed),
   };

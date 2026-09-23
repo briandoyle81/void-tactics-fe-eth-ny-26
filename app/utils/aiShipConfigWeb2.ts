@@ -36,11 +36,15 @@ export function aiConfigToPreviewShipWeb2(config: AIShipConfigWeb2, idOverride?:
       // Same threat/cost formula as real player ships and web3's AI preview
       // ships (calculateTutorialThreatPoints is chain-agnostic — plain
       // equipment/traits in, a number out).
-      cost: calculateTutorialThreatPoints(config.equipment, {
-        accuracy: config.traits.accuracy,
-        hull: config.traits.hull,
-        speed: config.traits.speed,
-      }),
+      cost: calculateTutorialThreatPoints(
+        config.equipment,
+        {
+          accuracy: config.traits.accuracy,
+          hull: config.traits.hull,
+          speed: config.traits.speed,
+        },
+        config.traits.variant,
+      ),
       shiny: false,
       constructed: true,
       inFleet: false,
