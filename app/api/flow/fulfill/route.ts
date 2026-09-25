@@ -61,12 +61,18 @@ function getViemChain(chainId: number): Chain {
 }
 
 export async function POST(req: NextRequest) {
-  const { transactionId, tier, buyerAddress, gameChainId } =
+  const { transactionId, tier, buyerAddress, gameChainId, variant } =
     (await req.json()) as {
       transactionId: string;
       tier: number;
       buyerAddress: string;
       gameChainId: number;
+      // Optional faction/variant to mint. Falls back to the chain's configured
+      // variant when omitted. Variant 2 is gated on the Shattered Hive medal —
+      // Ships._mintShip enforces VariantPurchaseGate.checkGate against the
+      // recipient, so a spoofed variant here simply reverts on mint rather than
+      // minting an unauthorized faction 2 ship.
+      variant?: number;
     };
 
   if (!transactionId || !buyerAddress || typeof tier !== "number" || !gameChainId) {
@@ -112,7 +118,14 @@ export async function POST(req: NextRequest) {
   logAttempt({ transactionId, tier, buyerAddress, gameChainId });
   const chain = getViemChain(gameChainId);
   const contractAddresses = getContractAddresses(gameChainId);
-  const variant = getVariantForChainId(gameChainId);
+  // Use the requested variant when it's a valid uint16, otherwise fall back to
+  // the chain's configured default. Gate enforcement happens on-chain against
+  // the buyer (see the request-body comment), so we don't re-check NFT
+  // ownership here.
+  const mintVariant =
+    typeof variant === "number" && Number.isInteger(variant) && variant >= 0 && variant <= 65535
+      ? variant
+      : getVariantForChainId(gameChainId);
   const shipsAddress = contractAddresses.SHIPS as `0x${string}`;
 
   try {
@@ -137,7 +150,7 @@ export async function POST(req: NextRequest) {
       address: shipsAddress,
       abi: CREATE_SHIPS_ABI,
       functionName: "createShips",
-      args: [buyerAddress as `0x${string}`, BigInt(shipsCount), variant, tier],
+      args: [buyerAddress as `0x${string}`, BigInt(shipsCount), mintVariant, tier],
     });
 
     await publicClient.waitForTransactionReceipt({ hash: mintTxHash });

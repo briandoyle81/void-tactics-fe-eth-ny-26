@@ -211,8 +211,10 @@ function validateDestinationAndTarget(params: {
   specialType: number;
   variant: number;
   blockedGrid: boolean[][];
+  /** Movement-blocking terrain, independent of blockedGrid's LOS-only blocking (see docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1). */
+  impassableGrid?: boolean[][];
 }) {
-  const { state, shipId, row, col, actionType, targetShipId, specialType, variant, blockedGrid } = params;
+  const { state, shipId, row, col, actionType, targetShipId, specialType, variant, blockedGrid, impassableGrid } = params;
 
   if (actionType === ActionType.Retreat) return; // no destination to validate
 
@@ -251,9 +253,10 @@ function validateDestinationAndTarget(params: {
         occupyingShipId !== shipId &&
         opponentActiveIds.includes(occupyingShipId) &&
         attrsByShip.get(occupyingShipId)?.hullPoints === 0,
+      impassableGrid,
     });
     if (!reachable.some((p) => p.row === row && p.col === col)) {
-      throw new GameActionError(400, "Destination out of movement range");
+      throw new GameActionError(400, "Destination out of movement range or crosses impassable terrain");
     }
   }
 
@@ -384,14 +387,26 @@ export async function applyGameAction(
   const rawScoringTiles = mapData
     ? (mapData.scoringTiles as unknown as ScoringPosition[])
     : [];
-  const { scoringGrid, blockedGrid } = buildMapGridsFromContractMap(
+  const { scoringGrid, blockedGrid, impassableGrid } = buildMapGridsFromContractMap(
     mapData ? (mapData.blockedTiles as unknown as Array<{ row: number; col: number }>) : [],
     rawScoringTiles,
     state.gridDimensions.gridWidth,
     state.gridDimensions.gridHeight,
+    mapData ? (mapData.impassableTiles as unknown as Array<{ row: number; col: number }>) : [],
   );
 
-  validateDestinationAndTarget({ state, shipId, row, col, actionType, targetShipId, specialType, variant, blockedGrid });
+  validateDestinationAndTarget({
+    state,
+    shipId,
+    row,
+    col,
+    actionType,
+    targetShipId,
+    specialType,
+    variant,
+    blockedGrid,
+    impassableGrid,
+  });
 
   const now = Date.now();
   let newState: Web2GameDataView = {

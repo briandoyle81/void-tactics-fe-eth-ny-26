@@ -22,6 +22,11 @@ interface FlowPaymentButtonProps {
     hoverBg: string;
   };
   onSuccess: () => void;
+  /** Faction/variant to mint. Defaults to the chain's configured variant when
+   * omitted (handled server-side). Variant 2 is gated on the Shattered Hive
+   * medal; the backend mint reverts GateRequirementNotMet if the buyer
+   * doesn't hold it. */
+  variant?: number;
 }
 
 export function FlowPaymentButton({
@@ -34,6 +39,7 @@ export function FlowPaymentButton({
   previewShips,
   colors,
   onSuccess,
+  variant,
 }: FlowPaymentButtonProps) {
   const modal = useFlowPaymentModal({ onSuccess });
   const previewSingleColumn = previewShips.length <= 1;
@@ -41,7 +47,7 @@ export function FlowPaymentButton({
   return (
     <>
       <button
-        onClick={() => void modal.open(tier, gameChainId)}
+        onClick={() => void modal.open(tier, gameChainId, variant)}
         className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 text-left`}
       >
         <div className="flex h-full flex-col gap-2">

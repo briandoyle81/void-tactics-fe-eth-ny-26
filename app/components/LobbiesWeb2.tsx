@@ -130,7 +130,7 @@ const LobbiesWeb2: React.FC = () => {
   const [opponentMode, setOpponentMode] = useState<"pvp" | "ai">("pvp");
   const [aiMapId, setAiMapId] = useState<number | null>(null);
   const { mapIds: aiMapIds, isLoading: aiMapsLoading } = useAIEncounterMapsWeb2();
-  const { pvpEligibleMapIds, mapOptions: pvpMapOptions } = usePvpMapsWeb2();
+  const { pvpEligibleMapIds, pvpMapPickerMaps } = usePvpMapsWeb2();
   const [pvpMapId, setPvpMapId] = useState<number | null>(null);
   // Once the eligible list loads, snap the form off the not-yet-loaded
   // placeholder onto a map that's actually valid to submit — mirrors
@@ -623,7 +623,7 @@ const LobbiesWeb2: React.FC = () => {
               setMaxScore(v === "long" ? LONG_MAX_SCORE : v === "medium" ? MEDIUM_MAX_SCORE : SHORT_MAX_SCORE)
             }
             mapIdLabel={opponentMode === "ai" ? String(aiMapId ?? "") : String(pvpMapId ?? "")}
-            mapOptions={opponentMode === "pvp" ? pvpMapOptions : undefined}
+            maps={opponentMode === "pvp" ? pvpMapPickerMaps : undefined}
             onMapIdChange={opponentMode === "pvp" ? (id) => setPvpMapId(Number(id)) : undefined}
             onClose={() => setShowCreateForm(false)}
             extraFields={

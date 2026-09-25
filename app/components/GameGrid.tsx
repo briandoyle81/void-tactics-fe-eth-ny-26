@@ -101,6 +101,8 @@ interface GameGridProps {
   movedShipIdsSet: Set<number>;
   specialType: number;
   blockedGrid: boolean[][];
+  /** Movement-blocking terrain, independent of blockedGrid's LOS-only blocking. Optional — omitted renders no impassable-terrain overlay. */
+  impassableGrid?: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
   calculateDamage: (
@@ -213,6 +215,7 @@ export function GameGrid({
   movedShipIdsSet,
   specialType,
   blockedGrid,
+  impassableGrid,
   scoringGrid,
   onlyOnceGrid,
   calculateDamage,
@@ -456,6 +459,7 @@ export function GameGrid({
                   movedShipIdsSet={movedShipIdsSet}
                   specialType={specialType}
                   blockedGrid={blockedGrid}
+                  impassableGrid={impassableGrid}
                   scoringGrid={scoringGrid}
                   onlyOnceGrid={onlyOnceGrid}
                   getShipAttributes={getShipAttributes}

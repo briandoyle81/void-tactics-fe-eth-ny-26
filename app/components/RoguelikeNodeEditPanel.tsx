@@ -4,7 +4,7 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import { RoguelikeNodeKind, type RoguelikeNode } from "../types/roguelike";
 import { useRoguelikeNodeMapAdmin } from "../hooks/useRoguelikeNodeMapAdmin";
-import { useGetAllPresetMaps } from "../hooks/useMapsContract";
+import { useGetAllPresetMaps, useMapNames, mapTitleLabel } from "../hooks/useMapsContract";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
@@ -14,6 +14,7 @@ import {
   useRoguelikeNodeWinEffects,
 } from "../hooks/useWinEffects";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
+import { MapPreviewCard } from "./MapPreviewCard";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
 import { useGetMapPlacements } from "../hooks/useAIEncountersContract";
@@ -109,16 +110,28 @@ export function RoguelikeNodeEditPanel({
 
   const isCombat = kind === RoguelikeNodeKind.Combat;
 
+  const allMapIds = React.useMemo(() => {
+    if (!allMapsData) return [];
+    const [mapIds] = allMapsData as [bigint[], unknown[], unknown[]];
+    return mapIds.map((id) => Number(id));
+  }, [allMapsData]);
+  const { nameByMapId } = useMapNames(allMapIds);
+
   const maps: MapPickerMap[] = React.useMemo(() => {
     if (!allMapsData) return [];
     const [mapIds, blockedArr, scoringArr] = allMapsData as [bigint[], unknown[], unknown[]];
     return mapIds.map((id, i) => ({
       id: Number(id),
-      titleLabel: `Map #${id}`,
+      titleLabel: mapTitleLabel(Number(id), nameByMapId),
       blockedPositions: (blockedArr[i] as MapPickerMap["blockedPositions"]) ?? [],
       scoringPositions: (scoringArr[i] as MapPickerMap["scoringPositions"]) ?? [],
     }));
-  }, [allMapsData]);
+  }, [allMapsData, nameByMapId]);
+
+  const selectedMapPreview = React.useMemo(
+    () => (mapId === 0n ? undefined : maps.find((m) => m.id === Number(mapId))),
+    [maps, mapId],
+  );
 
   const handleSaveDetails = async () => {
     if (isCombat && mapId === 0n) {
@@ -450,6 +463,18 @@ export function RoguelikeNodeEditPanel({
               >
                 [+ LINK CHILD]
               </button>
+            </div>
+          )}
+
+          {isCombat && mapId !== 0n && (
+            <div className="mt-6">
+              <RoguelikeEnemyFleetPreviewFor mapId={mapId} configs={allConfigs ?? []} />
+            </div>
+          )}
+
+          {isCombat && selectedMapPreview && (
+            <div className="mt-6 border-t border-steel pt-4">
+              <MapPreviewCard map={selectedMapPreview} onEdit={() => setShowMapPicker(true)} />
             </div>
           )}
         </div>

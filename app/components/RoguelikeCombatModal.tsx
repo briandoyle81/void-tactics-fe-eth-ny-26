@@ -10,6 +10,7 @@ import { FleetSelectionModal } from "./FleetSelectionModal";
 import { MapDisplay } from "./MapDisplay";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useFleetPlacement } from "../hooks/useFleetPlacement";
+import { useCreatorZonePositions } from "../hooks/useMapsContract";
 import { useFleetShipAttributes } from "../hooks/useFleetShipAttributes";
 import { buildFleetShipListItems } from "../utils/buildFleetShipListItems";
 import { useRoguelikeMatch } from "../hooks/useRoguelikeMatch";
@@ -64,6 +65,8 @@ export function RoguelikeCombatModal({
     [ownedShips, rosterIdSet],
   );
 
+  const { data: creatorZonePositions } = useCreatorZonePositions(Number(targetNode.mapId));
+
   // No cost-cap check here — the roster was already validated against the
   // run's cost cap when it was assembled (startRun / resupplyModifyRoster);
   // combat entry only needs positioning.
@@ -72,6 +75,7 @@ export function RoguelikeCombatModal({
     costLimit: Number.MAX_SAFE_INTEGER,
     costsVersion: null,
     isCreatorSide: true,
+    zoneTiles: Array.isArray(creatorZonePositions) ? creatorZonePositions : undefined,
   });
 
   // Pre-select the entire roster on mount (once ships have loaded) — there

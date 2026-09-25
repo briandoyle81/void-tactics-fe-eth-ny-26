@@ -199,19 +199,25 @@ model GameTurn {
 // ── Maps ───────────────────────────────────────────────────────────────────────
 
 model Map {
-  id           Int      @id @default(autoincrement())
-  name         String
-  gridWidth    Int      @default(17)
-  gridHeight   Int      @default(11)
-  // [{ row, col }]
-  blockedTiles Json     @default("[]")
+  id              Int      @id @default(autoincrement())
+  name            String
+  gridWidth       Int      @default(17)
+  gridHeight      Int      @default(11)
+  // [{ row, col }] — blocks line of sight only, ships can still fly onto/through it
+  blockedTiles    Json     @default("[]")
+  // [{ row, col }] — blocks movement (landing on and passing through), independent
+  // of blockedTiles; transparent to shots. Mirrors web3's Maps.getPresetMapImpassable/
+  // setImpassableTile (see
+  // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1).
+  // No map has any yet — admin painting UI is a separate follow-up pass.
+  impassableTiles Json     @default("[]")
   // [{ row, col, points, onlyOnce }]
-  scoringTiles Json     @default("[]")
+  scoringTiles    Json     @default("[]")
   // 0=PvP, 1=PvE, 2=Both — mirrors web3's Maps.mapMode/MapMode enum. Defaults
   // to Both, same as Maps.tsx's createMode default (valid for every picker
   // until an admin narrows it deliberately).
-  mode         Int      @default(2)
-  createdAt    DateTime @default(now())
+  mode            Int      @default(2)
+  createdAt       DateTime @default(now())
 
   lobbies        Lobby[]
   aiPlacements   AIMapPlacement[]

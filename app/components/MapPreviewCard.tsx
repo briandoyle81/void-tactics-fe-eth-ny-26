@@ -12,6 +12,17 @@ export interface MapPreviewCardData {
   titleLabel: string;
   blockedPositions: MapPosition[];
   scoringPositions: ScoringPosition[];
+  /** Movement-blocking terrain, independent of blockedPositions' LOS-only blocking. Optional — omitted shows no impassable count/preview. */
+  impassablePositions?: MapPosition[];
+  /**
+   * Custom deployment-zone tiles per side, from Maps.getCreatorZonePositions/
+   * getJoinerZonePositions — empty means that side uses the engine default
+   * column band, not "no valid tiles". Optional — omitted (as opposed to an
+   * empty array) shows no deployment-zone row at all, for callers with no
+   * zone data source (web2).
+   */
+  creatorZonePositions?: MapPosition[];
+  joinerZonePositions?: MapPosition[];
 }
 
 interface MapPreviewCardProps {
@@ -49,6 +60,12 @@ export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) 
           <div className="w-3 h-3 bg-purple border border-gunmetal"></div>
           <span>Blocked tiles: {map.blockedPositions.length}</span>
         </div>
+        {map.impassablePositions && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-cyan border border-gunmetal"></div>
+            <span>Impassable tiles: {map.impassablePositions.length}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-phosphor-green border border-gunmetal"></div>
           <span>Scoring tiles: {map.scoringPositions.length}</span>
@@ -60,6 +77,21 @@ export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) 
             {map.scoringPositions.filter((p) => p.onlyOnce).length}
           </span>
         </div>
+        {(map.creatorZonePositions !== undefined || map.joinerZonePositions !== undefined) && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-text-muted border border-gunmetal"></div>
+            <span>
+              Deployment zones: creator{" "}
+              {map.creatorZonePositions && map.creatorZonePositions.length > 0
+                ? `${map.creatorZonePositions.length} tiles`
+                : "default"}
+              , joiner{" "}
+              {map.joinerZonePositions && map.joinerZonePositions.length > 0
+                ? `${map.joinerZonePositions.length} tiles`
+                : "default"}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Mini preview */}
@@ -78,6 +110,9 @@ export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) 
               const isBlocked = map.blockedPositions.some(
                 (p) => p.row === row && p.col === col
               );
+              const isImpassable = (map.impassablePositions ?? []).some(
+                (p) => p.row === row && p.col === col
+              );
               const scoringPos = map.scoringPositions.find(
                 (p) => p.row === row && p.col === col
               );
@@ -87,6 +122,8 @@ export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) 
               let className = "aspect-square border border-gunmetal";
               if (isBlocked && isScoring) {
                 className += " bg-warning-red";
+              } else if (isImpassable) {
+                className += " bg-cyan";
               } else if (isBlocked) {
                 className += " bg-purple";
               } else if (isScoring) {

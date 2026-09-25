@@ -11605,6 +11605,7 @@ export namespace Prisma {
     gridWidth: number
     gridHeight: number
     blockedTiles: number
+    impassableTiles: number
     scoringTiles: number
     mode: number
     createdAt: number
@@ -11650,6 +11651,7 @@ export namespace Prisma {
     gridWidth?: true
     gridHeight?: true
     blockedTiles?: true
+    impassableTiles?: true
     scoringTiles?: true
     mode?: true
     createdAt?: true
@@ -11748,6 +11750,7 @@ export namespace Prisma {
     gridWidth: number
     gridHeight: number
     blockedTiles: JsonValue
+    impassableTiles: JsonValue
     scoringTiles: JsonValue
     mode: number
     createdAt: Date
@@ -11778,6 +11781,7 @@ export namespace Prisma {
     gridWidth?: boolean
     gridHeight?: boolean
     blockedTiles?: boolean
+    impassableTiles?: boolean
     scoringTiles?: boolean
     mode?: boolean
     createdAt?: boolean
@@ -11794,6 +11798,7 @@ export namespace Prisma {
     gridWidth?: boolean
     gridHeight?: boolean
     blockedTiles?: boolean
+    impassableTiles?: boolean
     scoringTiles?: boolean
     mode?: boolean
     createdAt?: boolean
@@ -11805,6 +11810,7 @@ export namespace Prisma {
     gridWidth?: boolean
     gridHeight?: boolean
     blockedTiles?: boolean
+    impassableTiles?: boolean
     scoringTiles?: boolean
     mode?: boolean
     createdAt?: boolean
@@ -11816,12 +11822,13 @@ export namespace Prisma {
     gridWidth?: boolean
     gridHeight?: boolean
     blockedTiles?: boolean
+    impassableTiles?: boolean
     scoringTiles?: boolean
     mode?: boolean
     createdAt?: boolean
   }
 
-  export type MapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "gridWidth" | "gridHeight" | "blockedTiles" | "scoringTiles" | "mode" | "createdAt", ExtArgs["result"]["map"]>
+  export type MapOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "gridWidth" | "gridHeight" | "blockedTiles" | "impassableTiles" | "scoringTiles" | "mode" | "createdAt", ExtArgs["result"]["map"]>
   export type MapInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lobbies?: boolean | Map$lobbiesArgs<ExtArgs>
     aiPlacements?: boolean | Map$aiPlacementsArgs<ExtArgs>
@@ -11846,6 +11853,7 @@ export namespace Prisma {
       gridWidth: number
       gridHeight: number
       blockedTiles: Prisma.JsonValue
+      impassableTiles: Prisma.JsonValue
       scoringTiles: Prisma.JsonValue
       mode: number
       createdAt: Date
@@ -12281,6 +12289,7 @@ export namespace Prisma {
     readonly gridWidth: FieldRef<"Map", 'Int'>
     readonly gridHeight: FieldRef<"Map", 'Int'>
     readonly blockedTiles: FieldRef<"Map", 'Json'>
+    readonly impassableTiles: FieldRef<"Map", 'Json'>
     readonly scoringTiles: FieldRef<"Map", 'Json'>
     readonly mode: FieldRef<"Map", 'Int'>
     readonly createdAt: FieldRef<"Map", 'DateTime'>
@@ -33518,6 +33527,7 @@ export namespace Prisma {
     gridWidth: 'gridWidth',
     gridHeight: 'gridHeight',
     blockedTiles: 'blockedTiles',
+    impassableTiles: 'impassableTiles',
     scoringTiles: 'scoringTiles',
     mode: 'mode',
     createdAt: 'createdAt'
@@ -34598,6 +34608,7 @@ export namespace Prisma {
     gridWidth?: IntFilter<"Map"> | number
     gridHeight?: IntFilter<"Map"> | number
     blockedTiles?: JsonFilter<"Map">
+    impassableTiles?: JsonFilter<"Map">
     scoringTiles?: JsonFilter<"Map">
     mode?: IntFilter<"Map"> | number
     createdAt?: DateTimeFilter<"Map"> | Date | string
@@ -34613,6 +34624,7 @@ export namespace Prisma {
     gridWidth?: SortOrder
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
+    impassableTiles?: SortOrder
     scoringTiles?: SortOrder
     mode?: SortOrder
     createdAt?: SortOrder
@@ -34631,6 +34643,7 @@ export namespace Prisma {
     gridWidth?: IntFilter<"Map"> | number
     gridHeight?: IntFilter<"Map"> | number
     blockedTiles?: JsonFilter<"Map">
+    impassableTiles?: JsonFilter<"Map">
     scoringTiles?: JsonFilter<"Map">
     mode?: IntFilter<"Map"> | number
     createdAt?: DateTimeFilter<"Map"> | Date | string
@@ -34646,6 +34659,7 @@ export namespace Prisma {
     gridWidth?: SortOrder
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
+    impassableTiles?: SortOrder
     scoringTiles?: SortOrder
     mode?: SortOrder
     createdAt?: SortOrder
@@ -34665,6 +34679,7 @@ export namespace Prisma {
     gridWidth?: IntWithAggregatesFilter<"Map"> | number
     gridHeight?: IntWithAggregatesFilter<"Map"> | number
     blockedTiles?: JsonWithAggregatesFilter<"Map">
+    impassableTiles?: JsonWithAggregatesFilter<"Map">
     scoringTiles?: JsonWithAggregatesFilter<"Map">
     mode?: IntWithAggregatesFilter<"Map"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Map"> | Date | string
@@ -36586,6 +36601,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -36601,6 +36617,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -36615,6 +36632,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36630,6 +36648,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36645,6 +36664,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -36655,6 +36675,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36666,6 +36687,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38742,6 +38764,7 @@ export namespace Prisma {
     gridWidth?: SortOrder
     gridHeight?: SortOrder
     blockedTiles?: SortOrder
+    impassableTiles?: SortOrder
     scoringTiles?: SortOrder
     mode?: SortOrder
     createdAt?: SortOrder
@@ -43715,6 +43738,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -43729,6 +43753,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -44122,6 +44147,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -44136,6 +44162,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45108,6 +45135,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45122,6 +45150,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45173,6 +45202,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45187,6 +45217,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45295,6 +45326,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45309,6 +45341,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45434,6 +45467,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45448,6 +45482,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45825,6 +45860,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45839,6 +45875,7 @@ export namespace Prisma {
     gridWidth?: number
     gridHeight?: number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: number
     createdAt?: Date | string
@@ -45959,6 +45996,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -45973,6 +46011,7 @@ export namespace Prisma {
     gridWidth?: IntFieldUpdateOperationsInput | number
     gridHeight?: IntFieldUpdateOperationsInput | number
     blockedTiles?: JsonNullValueInput | InputJsonValue
+    impassableTiles?: JsonNullValueInput | InputJsonValue
     scoringTiles?: JsonNullValueInput | InputJsonValue
     mode?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string

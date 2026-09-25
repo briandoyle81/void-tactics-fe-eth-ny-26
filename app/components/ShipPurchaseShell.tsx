@@ -14,9 +14,13 @@ import React from "react";
 interface ShipPurchaseShellProps {
   tierCards: React.ReactNode[];
   footerPaymentNote: string;
+  /** Optional content rendered between the header and the tier grid — used by
+   * the web3 interface for the faction/variant picker (gated on the
+   * Shattered Hive medal). Web2 omits it. */
+  topContent?: React.ReactNode;
 }
 
-export function ShipPurchaseShell({ tierCards, footerPaymentNote }: ShipPurchaseShellProps) {
+export function ShipPurchaseShell({ tierCards, footerPaymentNote, topContent }: ShipPurchaseShellProps) {
   return (
     <div className="w-full">
       <header className="mb-6 border-b border-cyan/25 pb-5">
@@ -38,6 +42,8 @@ export function ShipPurchaseShell({ tierCards, footerPaymentNote }: ShipPurchase
           guaranteed veteran slots so your navy hits the field ready for combat.
         </p>
       </header>
+
+      {topContent && <div className="mb-6">{topContent}</div>}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tierCards}

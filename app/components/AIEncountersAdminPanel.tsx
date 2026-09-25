@@ -12,6 +12,7 @@ import {
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
 import { useAIEncountersAdmin } from "../hooks/useAIEncountersAdmin";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
+import { useMapNames, mapTitleLabel } from "../hooks/useMapsContract";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
 
 const ARCHETYPE_NAMES: Record<Archetype, string> = {
@@ -193,6 +194,7 @@ export function AIEncountersAdminPanel({ mapIds }: Props) {
   const { isEditor, isLoading } = useIsEncounterEditor();
   const admin = useAIEncountersAdmin();
   const { data: configs, refetch: refetchConfigs } = useGetAllAIShipConfigs();
+  const { nameByMapId } = useMapNames(mapIds);
   const [creating, setCreating] = useState(false);
   const [selectedMapId, setSelectedMapId] = useState<number | undefined>(mapIds[0]);
   const [editorAddress, setEditorAddress] = useState("");
@@ -295,7 +297,7 @@ export function AIEncountersAdminPanel({ mapIds }: Props) {
               style={inputStyle}
             >
               {mapIds.map((id) => (
-                <option key={id} value={id}>Map #{id}</option>
+                <option key={id} value={id}>{mapTitleLabel(id, nameByMapId)}</option>
               ))}
             </select>
             {selectedMapId != null && configList.length > 0 ? (

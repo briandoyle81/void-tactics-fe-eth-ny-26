@@ -8,6 +8,13 @@ export interface MapGrids {
   blockedGrid: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
+  /**
+   * Movement-blocking terrain, independent of blockedGrid's LOS-only
+   * blocking (see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §1). All-false when the caller didn't pass impassablePositions.
+   */
+  impassableGrid: boolean[][];
 }
 
 /** Default map JSON shape (e.g. public/default_map.json) */
@@ -72,7 +79,13 @@ export function buildMapGridsFromDefaultMap(
     });
   }
 
-  return { blockedGrid, scoringGrid, onlyOnceGrid };
+  // No impassable-terrain concept in the default_map.json shape — the
+  // tutorial's synthetic map has none by design.
+  const impassableGrid = Array(height)
+    .fill(null)
+    .map(() => Array(width).fill(false));
+
+  return { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid };
 }
 
 /** Contract map format: blocked positions and scoring positions from chain */
@@ -91,7 +104,8 @@ export function buildMapGridsFromContractMap(
   blockedPositions: ContractBlockedPositions | undefined,
   scoringPositions: ContractScoringPositions | undefined,
   width: number,
-  height: number
+  height: number,
+  impassablePositions?: ContractBlockedPositions,
 ): MapGrids {
   const blockedGrid = Array(height)
     .fill(null)
@@ -100,6 +114,9 @@ export function buildMapGridsFromContractMap(
     .fill(null)
     .map(() => Array(width).fill(0));
   const onlyOnceGrid = Array(height)
+    .fill(null)
+    .map(() => Array(width).fill(false));
+  const impassableGrid = Array(height)
     .fill(null)
     .map(() => Array(width).fill(false));
 
@@ -112,6 +129,19 @@ export function buildMapGridsFromContractMap(
         pos.col < width
       ) {
         blockedGrid[pos.row][pos.col] = true;
+      }
+    });
+  }
+
+  if (impassablePositions && Array.isArray(impassablePositions)) {
+    impassablePositions.forEach((pos: { row: number; col: number }) => {
+      if (
+        pos.row >= 0 &&
+        pos.row < height &&
+        pos.col >= 0 &&
+        pos.col < width
+      ) {
+        impassableGrid[pos.row][pos.col] = true;
       }
     });
   }
@@ -139,7 +169,7 @@ export function buildMapGridsFromContractMap(
     );
   }
 
-  return { blockedGrid, scoringGrid, onlyOnceGrid };
+  return { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid };
 }
 
 /**

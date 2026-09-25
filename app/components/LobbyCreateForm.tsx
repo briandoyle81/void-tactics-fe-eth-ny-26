@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 
 // Shared between Lobbies.tsx (web3) and LobbiesWeb2.tsx (web2) — the
 // Create Lobby form's threat/turn-pace/score-length selectors (ported
@@ -47,7 +48,7 @@ export function LobbyTurnOrderNote() {
   return (
     <div className="p-3 bg-steel/50 rounded-none border border-gunmetal">
       <p className="text-sm text-text-secondary">
-        <span className="text-amber">// Turn Order:</span> The player who
+        <span className="text-amber">{"// Turn Order:"}</span> The player who
         creates their fleet first will go first in the game.
       </p>
     </div>
@@ -69,8 +70,10 @@ interface LobbyCreateFormProps {
   // Web3-only: a real map picker, filtered to PvP-eligible maps by the
   // caller (Maps.mapMode has no web2 equivalent). When omitted (web2's
   // usage, or before the list has loaded), falls back to the original
-  // disabled/read-only display.
-  mapOptions?: { id: number; label: string }[];
+  // disabled/read-only display. Opens as a MapPickerModal — the same
+  // MapPreviewCard rendering the admin Maps view uses — rather than a plain
+  // dropdown, so picking a map shows its actual terrain/zones/tile counts.
+  maps?: MapPickerMap[];
   onMapIdChange?: (id: string) => void;
   /** Hide the turn-pace selector — for vs-AI lobbies, where turnTime is
    * forced to the contract max regardless of this choice (see
@@ -92,9 +95,12 @@ export function LobbyCreateForm({
   extraFields,
   footer,
   hideTurnPace = false,
-  mapOptions,
+  maps,
   onMapIdChange,
 }: LobbyCreateFormProps) {
+  const [showMapPicker, setShowMapPicker] = React.useState(false);
+  const selectedMap = maps?.find((m) => m.id === Number(mapIdLabel));
+
   return (
     <div
       className="mb-6 p-4 border border-purple-400 bg-black/40"
@@ -155,19 +161,15 @@ export function LobbyCreateForm({
 
         <div>
           <label className="block text-sm text-text-muted mb-1">Map</label>
-          {mapOptions && mapOptions.length > 0 ? (
-            <select
-              value={mapIdLabel}
-              onChange={(e) => onMapIdChange?.(e.target.value)}
-              className="w-full rounded-none border border-cyan bg-black/60 px-3 py-2 text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
+          {maps && maps.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowMapPicker(true)}
+              className="w-full rounded-none border border-cyan bg-black/60 px-3 py-2 text-left text-cyan hover:bg-cyan/10 focus:outline-none focus:ring-2 focus:ring-cyan"
             >
-              {mapOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          ) : mapOptions && mapOptions.length === 0 ? (
+              {selectedMap ? selectedMap.titleLabel : "[SELECT MAP]"}
+            </button>
+          ) : maps && maps.length === 0 ? (
             <p className="text-xs text-warning-red font-mono">
               [!] No PvP-eligible maps configured — an admin needs to mark a map
               &quot;PvP&quot; or &quot;Both&quot; before a lobby can be created.
@@ -183,6 +185,18 @@ export function LobbyCreateForm({
             />
           )}
         </div>
+
+        {showMapPicker && maps && (
+          <MapPickerModal
+            maps={maps}
+            selectedMapId={selectedMap?.id ?? null}
+            onSelect={(id) => {
+              onMapIdChange?.(String(id));
+              setShowMapPicker(false);
+            }}
+            onClose={() => setShowMapPicker(false)}
+          />
+        )}
 
         <div>
           <span className="block text-sm text-text-muted mb-2">Max score (points to win)</span>

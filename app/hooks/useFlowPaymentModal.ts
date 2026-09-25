@@ -187,6 +187,10 @@ interface State {
   step: FlowModalStep;
   tier: number;
   gameChainId: number;
+  /** Faction/variant to mint. `undefined` lets the server fall back to the
+   * chain's configured variant. Variant 2 is gated on the Shattered Hive
+   * medal (enforced by the contract on mint). */
+  variant?: number;
   walletOptions: PaymentWalletOption[];
   walletOptionsLoaded: boolean;
   paymentWallet: ConnectedPaymentWallet | null;
@@ -198,7 +202,7 @@ interface State {
 }
 
 type Action =
-  | { type: "OPEN"; tier: number; gameChainId: number }
+  | { type: "OPEN"; tier: number; gameChainId: number; variant?: number }
   | { type: "WALLET_OPTIONS_LOADED"; options: PaymentWalletOption[] }
   | { type: "CONNECTING" }
   | { type: "WALLET_CONNECTED"; wallet: ConnectedPaymentWallet }
@@ -216,6 +220,7 @@ const INITIAL: State = {
   step: "closed",
   tier: 0,
   gameChainId: 0,
+  variant: undefined,
   walletOptions: [],
   walletOptionsLoaded: false,
   paymentWallet: null,
@@ -229,7 +234,13 @@ const INITIAL: State = {
 function reducer(s: State, a: Action): State {
   switch (a.type) {
     case "OPEN":
-      return { ...INITIAL, step: "connect-wallet", tier: a.tier, gameChainId: a.gameChainId };
+      return {
+        ...INITIAL,
+        step: "connect-wallet",
+        tier: a.tier,
+        gameChainId: a.gameChainId,
+        variant: a.variant,
+      };
     case "WALLET_OPTIONS_LOADED":
       return { ...s, walletOptions: a.options, walletOptionsLoaded: true };
     case "CONNECTING":
@@ -274,8 +285,8 @@ export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void }) {
   const ref = useRef(state);
   ref.current = state;
 
-  const open = useCallback(async (tier: number, gameChainId: number) => {
-    dispatch({ type: "OPEN", tier, gameChainId });
+  const open = useCallback(async (tier: number, gameChainId: number, variant?: number) => {
+    dispatch({ type: "OPEN", tier, gameChainId, variant });
 
     // Discover installed wallets via EIP-6963. The standard works by
     // dispatching a request event; installed extensions respond synchronously
@@ -377,7 +388,7 @@ export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void }) {
   }, []);
 
   const confirm = useCallback(async () => {
-    const { transactionId, paymentWallet, tier, gameChainId } = ref.current;
+    const { transactionId, paymentWallet, tier, gameChainId, variant } = ref.current;
     if (!transactionId || !paymentWallet) {
       dispatch({ type: "ERROR", error: "Invalid state" });
       return;
@@ -440,7 +451,7 @@ export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void }) {
       const res = await fetch("/api/flow/fulfill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId, tier, buyerAddress, gameChainId }),
+        body: JSON.stringify({ transactionId, tier, buyerAddress, gameChainId, variant }),
       });
       if (!res.ok) throw new Error(await res.text());
 

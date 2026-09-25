@@ -4,7 +4,7 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import type { CampaignGraphNode } from "../hooks/useNodeMap";
 import { useNodeMapAdmin } from "../hooks/useNodeMapAdmin";
-import { useGetAllPresetMaps } from "../hooks/useMapsContract";
+import { useGetAllPresetMaps, useMapNames, mapTitleLabel } from "../hooks/useMapsContract";
 import { useGetAllAIShipConfigs, useGetMapPlacements } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
@@ -96,16 +96,23 @@ export function CampaignNodeEditPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node]);
 
+  const allMapIds = React.useMemo(() => {
+    if (!allMapsData) return [];
+    const [mapIds] = allMapsData as [bigint[], unknown[], unknown[]];
+    return mapIds.map((id) => Number(id));
+  }, [allMapsData]);
+  const { nameByMapId } = useMapNames(allMapIds);
+
   const maps: MapPickerMap[] = React.useMemo(() => {
     if (!allMapsData) return [];
     const [mapIds, blockedArr, scoringArr] = allMapsData as [bigint[], unknown[], unknown[]];
     return mapIds.map((id, i) => ({
       id: Number(id),
-      titleLabel: `Map #${id}`,
+      titleLabel: mapTitleLabel(Number(id), nameByMapId),
       blockedPositions: (blockedArr[i] as MapPickerMap["blockedPositions"]) ?? [],
       scoringPositions: (scoringArr[i] as MapPickerMap["scoringPositions"]) ?? [],
     }));
-  }, [allMapsData]);
+  }, [allMapsData, nameByMapId]);
 
   const handleSaveDetails = async () => {
     if (mapId === 0n) {

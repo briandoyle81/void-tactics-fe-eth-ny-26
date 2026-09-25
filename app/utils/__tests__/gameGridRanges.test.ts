@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeMovementRange, computeShootingRange } from "../gameGridRanges";
+import { computeMovementRange, computeShootingRange, hasMovementPath } from "../gameGridRanges";
 import { Attributes, ShipPosition } from "../../types/types";
 
 const GRID_W = 17;
@@ -242,6 +242,52 @@ describe("computeShootingRange — line of sight", () => {
     // Normal weapon blocked, EMP ignores nebula
     expect(resultNormal).not.toContainEqual({ row: 5, col: 12 });
     expect(resultEMP).toContainEqual({ row: 5, col: 12 });
+  });
+});
+
+// Regression coverage for the 2026-09-23 maps/deployment-zones redesign's
+// impassable terrain (docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+// §1) — mirrors Maps.sol's hasMovementPath exactly.
+describe("hasMovementPath", () => {
+  it("allows a clear straight line", () => {
+    expect(hasMovementPath(5, 5, 5, 8, emptyGrid())).toBe(true);
+  });
+
+  it("blocks a path that crosses impassable terrain partway through, not just at the destination", () => {
+    const impassable = emptyGrid();
+    impassable[5][7] = true; // between (5,5) and (5,9)
+    expect(hasMovementPath(5, 5, 5, 9, impassable)).toBe(false);
+  });
+
+  it("blocks landing directly on an impassable tile", () => {
+    const impassable = emptyGrid();
+    impassable[5][7] = true;
+    expect(hasMovementPath(5, 5, 5, 7, impassable)).toBe(false);
+  });
+
+  it("does NOT apply hasLineOfSight's start-tile-blocked exception — a ship can always leave its own tile", () => {
+    const impassable = emptyGrid();
+    impassable[5][5] = true; // the ship's own current tile
+    expect(hasMovementPath(5, 5, 5, 6, impassable)).toBe(true);
+  });
+
+  it("staying in place on an impassable tile is still impassable", () => {
+    const impassable = emptyGrid();
+    impassable[5][5] = true;
+    expect(hasMovementPath(5, 5, 5, 5, impassable)).toBe(false);
+  });
+
+  it("a diagonal step succeeds if at least one of the two corner tiles is passable (permissive-corner rule)", () => {
+    const impassable = emptyGrid();
+    impassable[5][6] = true; // only one of the two corner tiles blocked
+    expect(hasMovementPath(5, 5, 6, 6, impassable)).toBe(true);
+  });
+
+  it("a diagonal step fails when both corner tiles are impassable", () => {
+    const impassable = emptyGrid();
+    impassable[5][6] = true;
+    impassable[6][5] = true;
+    expect(hasMovementPath(5, 5, 6, 6, impassable)).toBe(false);
   });
 });
 

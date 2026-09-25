@@ -47,7 +47,19 @@ import { LobbyPruneButton } from "./LobbyPruneButton";
 import { useShipAttributesByIds } from "../hooks/useShipAttributesByIds";
 import { useCurrentCostsVersion } from "../hooks/useShipAttributesContract";
 import { MapDisplay } from "./MapDisplay";
-import { useGetAllPresetMaps, useMapModes } from "../hooks/useMapsContract";
+import {
+  useGetAllPresetMaps,
+  useMapModes,
+  useMapNames,
+  mapTitleLabel,
+  useCreatorZonePositions,
+  useJoinerZonePositions,
+  useMapsImpassablePositions,
+  useMapsCreatorZonePositions,
+  useMapsJoinerZonePositions,
+} from "../hooks/useMapsContract";
+import type { MapPickerMap } from "./MapPickerModal";
+import type { MapPosition, ScoringPosition } from "../types/types";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { useLobby } from "../hooks/useLobbiesContract";
 import {
@@ -130,10 +142,44 @@ const Lobbies: React.FC = () => {
     () => allPresetMapIds.filter((id) => lobbyMapModeById.get(id) !== MapMode.PvE),
     [allPresetMapIds, lobbyMapModeById],
   );
-  const pvpMapOptions = useMemo(
-    () => pvpEligibleMapIds.map((id) => ({ id, label: `Map #${id}` })),
-    [pvpEligibleMapIds],
-  );
+  const { nameByMapId: pvpMapNameById } = useMapNames(pvpEligibleMapIds);
+  const { impassableByMapId: pvpImpassableByMapId } = useMapsImpassablePositions(pvpEligibleMapIds);
+  const { creatorZoneByMapId: pvpCreatorZoneByMapId } = useMapsCreatorZonePositions(pvpEligibleMapIds);
+  const { joinerZoneByMapId: pvpJoinerZoneByMapId } = useMapsJoinerZonePositions(pvpEligibleMapIds);
+  // Full map data (same shape MapPreviewCard renders in the admin Maps
+  // view) for the create-lobby map picker modal — see LobbyCreateForm.tsx.
+  const pvpMapPickerMaps: MapPickerMap[] = useMemo(() => {
+    const raw = allPresetMapsData as
+      | readonly [readonly bigint[], readonly MapPosition[][], readonly ScoringPosition[][]]
+      | undefined;
+    const blockedById = new Map<number, MapPosition[]>();
+    const scoringById = new Map<number, ScoringPosition[]>();
+    if (raw) {
+      const [mapIds, blockedArr, scoringArr] = raw;
+      mapIds.forEach((id, i) => {
+        blockedById.set(Number(id), blockedArr[i] ?? []);
+        scoringById.set(Number(id), scoringArr[i] ?? []);
+      });
+    }
+    return pvpEligibleMapIds.map((id) => ({
+      id,
+      titleLabel: mapTitleLabel(id, pvpMapNameById),
+      blockedPositions: blockedById.get(id) ?? [],
+      scoringPositions: scoringById.get(id) ?? [],
+      impassablePositions: pvpImpassableByMapId.get(id),
+      creatorZonePositions: pvpCreatorZoneByMapId.get(id),
+      joinerZonePositions: pvpJoinerZoneByMapId.get(id),
+      modeLabel: MapMode[lobbyMapModeById.get(id) ?? MapMode.Both],
+    }));
+  }, [
+    allPresetMapsData,
+    pvpEligibleMapIds,
+    pvpMapNameById,
+    pvpImpassableByMapId,
+    pvpCreatorZoneByMapId,
+    pvpJoinerZoneByMapId,
+    lobbyMapModeById,
+  ]);
 
   // Wait for transaction receipt for fleet creation
   const { isSuccess: isFleetCreated, error: fleetCreationError } =
@@ -381,11 +427,20 @@ const Lobbies: React.FC = () => {
   const costLimitForSelected = resolvedLobbyForSelected
     ? Number(resolvedLobbyForSelected.basic.costLimit)
     : 1000;
+  const selectedLobbyMapId = resolvedLobbyForSelected
+    ? Number(resolvedLobbyForSelected.gameConfig.selectedMapId)
+    : 0;
+  const { data: creatorZonePositionsForSelected } = useCreatorZonePositions(selectedLobbyMapId);
+  const { data: joinerZonePositionsForSelected } = useJoinerZonePositions(selectedLobbyMapId);
+  const zoneTilesForSelected = isCreatorForSelected
+    ? creatorZonePositionsForSelected
+    : joinerZonePositionsForSelected;
   const fleet = useFleetPlacement({
     ships,
     costLimit: costLimitForSelected,
     costsVersion: globalCostsVersion,
     isCreatorSide: isCreatorForSelected,
+    zoneTiles: Array.isArray(zoneTilesForSelected) ? zoneTilesForSelected : undefined,
   });
   const {
     selectedShips,
@@ -1007,7 +1062,7 @@ const Lobbies: React.FC = () => {
 
   // Once the eligible list loads, snap the form off the "1" placeholder
   // onto a map that's actually valid to submit, if it isn't already
-  // (pvpEligibleMapIds/pvpMapOptions are declared earlier, near useLobbies).
+  // (pvpEligibleMapIds/pvpMapPickerMaps are declared earlier, near useLobbies).
   useEffect(() => {
     if (pvpEligibleMapIds.length === 0) return;
     setCreateForm((prev) =>
@@ -1615,7 +1670,7 @@ const Lobbies: React.FC = () => {
             scoreLength={createForm.scoreLength}
             onScoreLengthChange={(v) => setCreateForm((prev) => ({ ...prev, scoreLength: v }))}
             mapIdLabel={createForm.selectedMapId}
-            mapOptions={pvpMapOptions}
+            maps={pvpMapPickerMaps}
             onMapIdChange={(id) => setCreateForm((prev) => ({ ...prev, selectedMapId: id }))}
             onClose={() => setShowCreateForm(false)}
             extraFields={

@@ -15,6 +15,7 @@ import {
 // instead of being forked per mode.
 interface MapEditorRenderSaveButtonArgs {
   blockedPositions: MapPosition[];
+  impassablePositions: MapPosition[];
   scoringPositions: ScoringPosition[];
   /** Non-null blocks saving; render/disable your save control accordingly. */
   validationError: string | null;
@@ -25,24 +26,38 @@ interface MapEditorRenderSaveButtonArgs {
 interface MapEditorProps {
   mapId?: number;
   initialBlockedPositions?: MapPosition[];
+  initialImpassablePositions?: MapPosition[];
   initialScoringPositions?: ScoringPosition[];
   onSaveSuccess?: () => void;
   onCancel?: () => void;
   canEdit?: boolean;
+  /**
+   * Whether the impassable-tile tool can be used at all — false grays it
+   * out with an explanatory note. Web3's `updatePresetMap` has no way to
+   * set impassable tiles on an already-created map (only `createFullPresetMap`
+   * can, at creation time — see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §1.2), so Maps.tsx passes `false` while editing an existing map. Web2's
+   * PATCH route has no such limitation, so MapsWeb2.tsx always passes true.
+   */
+  canEditImpassable?: boolean;
   renderSaveButton: (args: MapEditorRenderSaveButtonArgs) => React.ReactNode;
 }
 
 export function MapEditor({
   mapId,
   initialBlockedPositions,
+  initialImpassablePositions,
   initialScoringPositions,
   onSaveSuccess,
   onCancel,
   canEdit = true,
+  canEditImpassable = true,
   renderSaveButton,
 }: MapEditorProps) {
   const isEditing = mapId !== undefined;
   const blockedPositions = initialBlockedPositions;
+  const impassablePositions = initialImpassablePositions;
   const scoringPositions = initialScoringPositions;
 
   // Initialize editor state
@@ -54,6 +69,14 @@ export function MapEditor({
         if (saved) {
           const parsed = JSON.parse(saved);
           // Validate the structure and dimensions before using it
+          // impassableTiles is validated only if present — older cached
+          // drafts (pre-2026-09-23) won't have it, and fall back to an
+          // all-false grid below rather than being discarded entirely.
+          const hasValidImpassable =
+            !parsed.impassableTiles ||
+            (Array.isArray(parsed.impassableTiles) &&
+              parsed.impassableTiles.length === GRID_DIMENSIONS.HEIGHT &&
+              parsed.impassableTiles[0]?.length === GRID_DIMENSIONS.WIDTH);
           if (
             parsed.blockedTiles &&
             parsed.scoringTiles &&
@@ -66,10 +89,16 @@ export function MapEditor({
             parsed.scoringTiles.length === GRID_DIMENSIONS.HEIGHT &&
             parsed.scoringTiles[0]?.length === GRID_DIMENSIONS.WIDTH &&
             parsed.onlyOnceTiles.length === GRID_DIMENSIONS.HEIGHT &&
-            parsed.onlyOnceTiles[0]?.length === GRID_DIMENSIONS.WIDTH
+            parsed.onlyOnceTiles[0]?.length === GRID_DIMENSIONS.WIDTH &&
+            hasValidImpassable
           ) {
             return {
               blockedTiles: parsed.blockedTiles,
+              impassableTiles:
+                parsed.impassableTiles ||
+                Array(GRID_DIMENSIONS.HEIGHT)
+                  .fill(null)
+                  .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false)),
               scoringTiles: parsed.scoringTiles,
               onlyOnceTiles: parsed.onlyOnceTiles,
               selectedTool: parsed.selectedTool || "score",
@@ -96,6 +125,9 @@ export function MapEditor({
     const blockedTiles = Array(GRID_DIMENSIONS.HEIGHT)
       .fill(null)
       .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false));
+    const impassableTiles = Array(GRID_DIMENSIONS.HEIGHT)
+      .fill(null)
+      .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false));
     const scoringTiles = Array(GRID_DIMENSIONS.HEIGHT)
       .fill(null)
       .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(0));
@@ -105,6 +137,7 @@ export function MapEditor({
 
     return {
       blockedTiles,
+      impassableTiles,
       scoringTiles,
       onlyOnceTiles,
       selectedTool: "score" as const,
@@ -116,13 +149,16 @@ export function MapEditor({
 
   // Track mouse drag state for block tool
   const [isDragging, setIsDragging] = useState(false);
-  const [dragTool, setDragTool] = useState<"block" | null>(null);
+  const [dragTool, setDragTool] = useState<"block" | "impassable" | null>(null);
 
   // Load map data when editing
   useEffect(() => {
     if (isEditing && blockedPositions && scoringPositions) {
       // Initialize arrays
       const newBlockedTiles = Array(GRID_DIMENSIONS.HEIGHT)
+        .fill(null)
+        .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false));
+      const newImpassableTiles = Array(GRID_DIMENSIONS.HEIGHT)
         .fill(null)
         .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false));
       const newScoringTiles = Array(GRID_DIMENSIONS.HEIGHT)
@@ -146,6 +182,20 @@ export function MapEditor({
         });
       }
 
+      // Set impassable positions
+      if (Array.isArray(impassablePositions)) {
+        impassablePositions.forEach((pos: MapPosition) => {
+          if (
+            pos.row >= 0 &&
+            pos.row < GRID_DIMENSIONS.HEIGHT &&
+            pos.col >= 0 &&
+            pos.col < GRID_DIMENSIONS.WIDTH
+          ) {
+            newImpassableTiles[pos.row][pos.col] = true;
+          }
+        });
+      }
+
       // Set scoring positions
       if (Array.isArray(scoringPositions)) {
         scoringPositions.forEach((pos: ScoringPosition) => {
@@ -164,11 +214,12 @@ export function MapEditor({
       setEditorState((prev) => ({
         ...prev,
         blockedTiles: newBlockedTiles,
+        impassableTiles: newImpassableTiles,
         scoringTiles: newScoringTiles,
         onlyOnceTiles: newOnlyOnceTiles,
       }));
     }
-  }, [isEditing, blockedPositions, scoringPositions]);
+  }, [isEditing, blockedPositions, impassablePositions, scoringPositions]);
 
   // Save editor state to localStorage whenever it changes
   useEffect(() => {
@@ -224,6 +275,9 @@ export function MapEditor({
         const newBlockedTiles = prev.blockedTiles.map((rowArray) => [
           ...rowArray,
         ]);
+        const newImpassableTiles = prev.impassableTiles.map((rowArray) => [
+          ...rowArray,
+        ]);
         const newScoringTiles = prev.scoringTiles.map((rowArray) => [
           ...rowArray,
         ]);
@@ -238,11 +292,13 @@ export function MapEditor({
             : [{ row, col }];
 
         positions.forEach(({ row: posRow, col: posCol }) => {
-          if (prev.selectedTool === "block") {
-            // Toggle blocking
-            newBlockedTiles[posRow][posCol] =
-              !prev.blockedTiles[posRow][posCol];
-          } else if (prev.selectedTool === "score") {
+          // "block"/"impassable" are handled entirely by
+          // handleTileMouseDown/handleTileMouseEnter (paint-to-true on
+          // click or drag) + handleTileRightClick (toggle off) — a click
+          // always fires mousedown then click, so a toggle branch here
+          // would immediately undo mousedown's paint on every single,
+          // non-dragged click.
+          if (prev.selectedTool === "score") {
             // Toggle scoring - if already scoring, clear it; otherwise set it
             if (prev.scoringTiles[posRow][posCol] > 0) {
               // Clear scoring tile
@@ -256,6 +312,7 @@ export function MapEditor({
           } else if (prev.selectedTool === "erase") {
             // Clear everything
             newBlockedTiles[posRow][posCol] = false;
+            newImpassableTiles[posRow][posCol] = false;
             newScoringTiles[posRow][posCol] = 0;
             newOnlyOnceTiles[posRow][posCol] = false;
           }
@@ -264,6 +321,7 @@ export function MapEditor({
         return {
           ...prev,
           blockedTiles: newBlockedTiles,
+          impassableTiles: newImpassableTiles,
           scoringTiles: newScoringTiles,
           onlyOnceTiles: newOnlyOnceTiles,
         };
@@ -281,15 +339,15 @@ export function MapEditor({
       }
 
       e.preventDefault();
-      if (editorState.selectedTool === "block") {
+      if (editorState.selectedTool === "block" || editorState.selectedTool === "impassable") {
+        const tool = editorState.selectedTool;
         setIsDragging(true);
-        setDragTool("block");
+        setDragTool(tool);
 
         // Paint the first tile without toggling
         setEditorState((prev) => {
-          const newBlockedTiles = prev.blockedTiles.map((rowArray) => [
-            ...rowArray,
-          ]);
+          const key = tool === "block" ? "blockedTiles" : "impassableTiles";
+          const newTiles = prev[key].map((rowArray) => [...rowArray]);
 
           const positions =
             prev.symmetryMode === "radial"
@@ -297,16 +355,16 @@ export function MapEditor({
               : [{ row, col }];
 
           positions.forEach(({ row: posRow, col: posCol }) => {
-            newBlockedTiles[posRow][posCol] = true;
+            newTiles[posRow][posCol] = true;
           });
 
           return {
             ...prev,
-            blockedTiles: newBlockedTiles,
+            [key]: newTiles,
           };
         });
       }
-      // For non-block tools, don't do anything here - let onClick handle it
+      // For non-paintable tools, don't do anything here - let onClick handle it
     },
     [editorState.selectedTool, getRadialSymmetryPositions, canEdit]
   );
@@ -319,12 +377,11 @@ export function MapEditor({
         return;
       }
 
-      if (isDragging && dragTool === "block") {
+      if (isDragging && (dragTool === "block" || dragTool === "impassable")) {
+        const key = dragTool === "block" ? "blockedTiles" : "impassableTiles";
         setEditorState((prev) => {
           // Create deep copy of the arrays
-          const newBlockedTiles = prev.blockedTiles.map((rowArray) => [
-            ...rowArray,
-          ]);
+          const newTiles = prev[key].map((rowArray) => [...rowArray]);
 
           // Get positions to modify (including symmetry if enabled)
           const positions =
@@ -333,13 +390,13 @@ export function MapEditor({
               : [{ row, col }];
 
           positions.forEach(({ row: posRow, col: posCol }) => {
-            // Set blocking to true (paint mode)
-            newBlockedTiles[posRow][posCol] = true;
+            // Paint mode
+            newTiles[posRow][posCol] = true;
           });
 
           return {
             ...prev,
-            blockedTiles: newBlockedTiles,
+            [key]: newTiles,
           };
         });
       }
@@ -377,7 +434,10 @@ export function MapEditor({
     }
   }, []);
 
-  // Handle tile right-click for blocking
+  // Handle tile right-click — toggles blocking, unless the impassable tool
+  // is the one currently active, in which case it toggles impassable
+  // instead. This is the actual way to turn either OFF for a single tile:
+  // see handleTileClick's comment for why a left-click toggle doesn't work.
   const handleTileRightClick = useCallback(
     (e: React.MouseEvent, row: number, col: number) => {
       // Don't allow editing if not authorized
@@ -387,7 +447,16 @@ export function MapEditor({
 
       e.preventDefault();
       setEditorState((prev) => {
-        // Create deep copy of the blocked tiles array
+        if (prev.selectedTool === "impassable") {
+          const newImpassableTiles = prev.impassableTiles.map((rowArray) => [
+            ...rowArray,
+          ]);
+          newImpassableTiles[row][col] = !prev.impassableTiles[row][col];
+          return {
+            ...prev,
+            impassableTiles: newImpassableTiles,
+          };
+        }
         const newBlockedTiles = prev.blockedTiles.map((rowArray) => [
           ...rowArray,
         ]);
@@ -413,6 +482,18 @@ export function MapEditor({
     }
     return positions;
   }, [editorState.blockedTiles]);
+
+  const getImpassablePositions = useCallback((): MapPosition[] => {
+    const positions: MapPosition[] = [];
+    for (let row = 0; row < GRID_DIMENSIONS.HEIGHT; row++) {
+      for (let col = 0; col < GRID_DIMENSIONS.WIDTH; col++) {
+        if (editorState.impassableTiles[row][col]) {
+          positions.push({ row, col });
+        }
+      }
+    }
+    return positions;
+  }, [editorState.impassableTiles]);
 
   const getScoringPositions = useCallback((): ScoringPosition[] => {
     const positions: ScoringPosition[] = [];
@@ -466,6 +547,9 @@ export function MapEditor({
       blockedTiles: Array(GRID_DIMENSIONS.HEIGHT)
         .fill(null)
         .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false)),
+      impassableTiles: Array(GRID_DIMENSIONS.HEIGHT)
+        .fill(null)
+        .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false)),
       scoringTiles: Array(GRID_DIMENSIONS.HEIGHT)
         .fill(null)
         .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(0)),
@@ -481,6 +565,7 @@ export function MapEditor({
       version: "1.0",
       gridDimensions: GRID_DIMENSIONS,
       blockedTiles: editorState.blockedTiles,
+      impassableTiles: editorState.impassableTiles,
       scoringTiles: editorState.scoringTiles,
       onlyOnceTiles: editorState.onlyOnceTiles,
       metadata: {
@@ -516,7 +601,8 @@ export function MapEditor({
         try {
           const mapData = JSON.parse(e.target?.result as string);
 
-          // Validate the map data structure
+          // Validate the map data structure. impassableTiles is optional
+          // (older exported files predate it) — falls back to all-false.
           if (
             mapData.blockedTiles &&
             mapData.scoringTiles &&
@@ -526,17 +612,28 @@ export function MapEditor({
             Array.isArray(mapData.onlyOnceTiles)
           ) {
             // Check if dimensions match
+            const hasValidImpassable =
+              !mapData.impassableTiles ||
+              (Array.isArray(mapData.impassableTiles) &&
+                mapData.impassableTiles.length === GRID_DIMENSIONS.HEIGHT &&
+                mapData.impassableTiles[0]?.length === GRID_DIMENSIONS.WIDTH);
             if (
               mapData.blockedTiles.length === GRID_DIMENSIONS.HEIGHT &&
               mapData.blockedTiles[0]?.length === GRID_DIMENSIONS.WIDTH &&
               mapData.scoringTiles.length === GRID_DIMENSIONS.HEIGHT &&
               mapData.scoringTiles[0]?.length === GRID_DIMENSIONS.WIDTH &&
               mapData.onlyOnceTiles.length === GRID_DIMENSIONS.HEIGHT &&
-              mapData.onlyOnceTiles[0]?.length === GRID_DIMENSIONS.WIDTH
+              mapData.onlyOnceTiles[0]?.length === GRID_DIMENSIONS.WIDTH &&
+              hasValidImpassable
             ) {
               setEditorState((prev) => ({
                 ...prev,
                 blockedTiles: mapData.blockedTiles,
+                impassableTiles:
+                  mapData.impassableTiles ||
+                  Array(GRID_DIMENSIONS.HEIGHT)
+                    .fill(null)
+                    .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false)),
                 scoringTiles: mapData.scoringTiles,
                 onlyOnceTiles: mapData.onlyOnceTiles,
               }));
@@ -573,6 +670,7 @@ export function MapEditor({
       col < 0 ||
       col >= GRID_DIMENSIONS.WIDTH ||
       !editorState.blockedTiles[row] ||
+      !editorState.impassableTiles[row] ||
       !editorState.scoringTiles[row] ||
       !editorState.onlyOnceTiles[row]
     ) {
@@ -580,15 +678,21 @@ export function MapEditor({
     }
 
     const isBlocked = editorState.blockedTiles[row][col];
+    const isImpassable = editorState.impassableTiles[row][col];
     const scoreValue = editorState.scoringTiles[row][col];
     const isOnlyOnce = editorState.onlyOnceTiles[row][col];
 
     let baseClass =
       "w-full h-full aspect-square cursor-pointer hover:border-white transition-colors";
 
-    // Set border thickness based on blocking status
-    if (isBlocked) {
+    // Set border/ring based on blocked (purple) and impassable (amber,
+    // independent bit — a tile can be both, in which case both rings show).
+    if (isBlocked && isImpassable) {
+      baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(168,85,247),inset_0_0_0_5px_rgb(245,158,11)]";
+    } else if (isBlocked) {
       baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(168,85,247)]";
+    } else if (isImpassable) {
+      baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(245,158,11)]";
     } else {
       baseClass += " border-0 outline outline-1 outline-gunmetal";
     }
@@ -618,6 +722,19 @@ export function MapEditor({
             <span className="font-mono text-sm">
               READ-ONLY MODE: You are not authorized to edit maps. Only
               authorized addresses can modify maps.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {canEdit && !canEditImpassable && (
+        <div className="p-4 bg-amber/10 border border-amber/30">
+          <div className="flex items-center gap-2 text-amber">
+            <span className="font-mono font-bold text-sm">[!]</span>
+            <span className="font-mono text-sm">
+              Impassable tiles can only be set when a map is first created —
+              this existing map&apos;s impassable terrain can&apos;t be
+              changed here.
             </span>
           </div>
         </div>
@@ -655,6 +772,26 @@ export function MapEditor({
             }`}
           >
             Toggle Block
+          </button>
+          <button
+            onClick={() =>
+              setEditorState((prev) => ({ ...prev, selectedTool: "impassable" }))
+            }
+            disabled={!canEdit || !canEditImpassable}
+            title={
+              !canEditImpassable
+                ? "This map's impassable tiles can only be set when it's first created (see createFullPresetMap) — not editable afterward."
+                : undefined
+            }
+            className={`px-3 py-2 rounded-none text-sm font-mono ${
+              !canEdit || !canEditImpassable
+                ? "bg-steel text-text-muted cursor-not-allowed"
+                : editorState.selectedTool === "impassable"
+                ? "bg-amber text-black"
+                : "bg-steel text-text-secondary hover:bg-gunmetal"
+            }`}
+          >
+            Toggle Impassable
           </button>
           <button
             onClick={() =>
@@ -773,6 +910,10 @@ export function MapEditor({
             <span>Blocked (LOS) - Thick purple border</span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="w-[20px] h-[20px] bg-near-black border-2 border-amber"></div>
+            <span>Impassable (movement) - Amber border</span>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="w-[20px] h-[20px] bg-cyan border border-gunmetal"></div>
             <span>Scoring (reusable)</span>
           </div>
@@ -815,11 +956,16 @@ export function MapEditor({
             add/remove scoring tiles
           </div>
           <div>
-            • <strong>Right-click</strong> any tile to toggle blocking (LOS)
+            • <strong>Left-click or drag</strong> with &quot;Toggle
+            Block&quot; to paint blocking (LOS); <strong>right-click</strong>{" "}
+            a tile to un-block it
           </div>
           <div>
-            • <strong>Left-click</strong> with &quot;Toggle Block&quot; tool to
-            toggle blocking
+            • <strong>Left-click or drag</strong> with &quot;Toggle
+            Impassable&quot; to paint movement-blocking terrain — independent
+            of blocking (LOS); a ship can&apos;t land on or cross it, but can
+            still shoot through it. <strong>Right-click</strong> a tile to
+            clear it
           </div>
           <div>
             • <strong>Left-click</strong> with &quot;Erase&quot; tool to clear
@@ -859,6 +1005,8 @@ export function MapEditor({
                   style={{ userSelect: "none" }}
                   title={`Row: ${row}, Col: ${col}${
                     editorState.blockedTiles[row][col] ? ", Blocked (LOS)" : ""
+                  }${
+                    editorState.impassableTiles[row][col] ? ", Impassable (movement)" : ""
                   }${
                     editorState.scoringTiles[row][col] > 0
                       ? `, Score: ${editorState.scoringTiles[row][col]}${
@@ -1029,6 +1177,7 @@ export function MapEditor({
         {canEdit &&
           renderSaveButton({
             blockedPositions: getBlockedPositions(),
+            impassablePositions: getImpassablePositions(),
             scoringPositions: getScoringPositions(),
             validationError,
             onSuccess: handleSaveSuccess,

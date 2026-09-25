@@ -22,6 +22,13 @@ export interface MapDisplayViewProps {
   blockedGrid: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
+  /**
+   * Movement-blocking terrain, independent of blockedGrid's LOS-only
+   * blocking (see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §1). Optional — omitted renders no impassable-terrain overlay.
+   */
+  impassableGrid?: boolean[][];
   showPlayerOverlay?: boolean;
   isCreator?: boolean;
   isCreatorViewer?: boolean;
@@ -43,6 +50,17 @@ export interface MapDisplayViewProps {
   dragOverPosition?: { row: number; col: number } | null;
   showDeployZoneLabel?: boolean;
   pendingPlacementShipId?: string | null;
+  /**
+   * Custom deployment-zone tiles from `Maps.getCreatorZonePositions`/
+   * `getJoinerZonePositions` (see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §2) — empty/omitted means the map hasn't customized that side's zone,
+   * so it falls back to the engine default column band (creator: cols
+   * 0-3; joiner: cols 13-16), same as before this existed. Web2 has no
+   * equivalent data source yet, so its caller always omits these.
+   */
+  creatorZonePositions?: Array<{ row: number; col: number }>;
+  joinerZonePositions?: Array<{ row: number; col: number }>;
   /** Tooltip in-game combat stats — web3-only today (no web2 equivalent computation yet). */
   attributesMap?: Map<string, Attributes>;
   attributesLoading?: boolean;
@@ -55,6 +73,7 @@ export function MapDisplayView({
   blockedGrid,
   scoringGrid,
   onlyOnceGrid,
+  impassableGrid,
   showPlayerOverlay = false,
   isCreator = false,
   isCreatorViewer = false,
@@ -73,6 +92,8 @@ export function MapDisplayView({
   dragOverPosition = null,
   showDeployZoneLabel = false,
   pendingPlacementShipId = null,
+  creatorZonePositions,
+  joinerZonePositions,
   attributesMap,
   attributesLoading = false,
   showTooltipInGameProperties = true,
@@ -93,13 +114,35 @@ export function MapDisplayView({
     return position?.shipId ?? null;
   };
 
-  // Helper to validate allowed deployment columns based on viewer role
+  // Resolves to the engine default column band when a side hasn't
+  // customized its zone (empty/undefined) — same tiles `isValidShipPosition`
+  // checked inline before custom zones existed.
+  const defaultZoneTiles = React.useMemo((): Array<{ row: number; col: number }> => {
+    const tiles: Array<{ row: number; col: number }> = [];
+    for (let row = 0; row < GRID_DIMENSIONS.HEIGHT; row++) {
+      for (let col = 0; col < 4; col++) tiles.push({ row, col });
+    }
+    return tiles;
+  }, []);
+  const defaultJoinerZoneTiles = React.useMemo((): Array<{ row: number; col: number }> => {
+    const tiles: Array<{ row: number; col: number }> = [];
+    for (let row = 0; row < GRID_DIMENSIONS.HEIGHT; row++) {
+      for (let col = GRID_DIMENSIONS.WIDTH - 4; col < GRID_DIMENSIONS.WIDTH; col++) tiles.push({ row, col });
+    }
+    return tiles;
+  }, []);
+  const resolvedCreatorZone =
+    creatorZonePositions && creatorZonePositions.length > 0 ? creatorZonePositions : defaultZoneTiles;
+  const resolvedJoinerZone =
+    joinerZonePositions && joinerZonePositions.length > 0 ? joinerZonePositions : defaultJoinerZoneTiles;
+
+  // Helper to validate allowed deployment tiles based on viewer role
   const isValidShipPosition = (row: number, col: number) => {
     if (row < 0 || row >= GRID_DIMENSIONS.HEIGHT || col < 0 || col >= GRID_DIMENSIONS.WIDTH) {
       return false;
     }
-    // Creator may place in left 4 columns (0-3); joiner in right 4 columns (13-16)
-    return isCreatorViewer ? col >= 0 && col <= 3 : col >= 13 && col <= 16;
+    const zone = isCreatorViewer ? resolvedCreatorZone : resolvedJoinerZone;
+    return zone.some((t) => t.row === row && t.col === col);
   };
 
   // Handle cell click
@@ -304,6 +347,21 @@ export function MapDisplayView({
                         />
                       </div>
                     )}
+                    {/* Impassable terrain — independent bit from blockedGrid (see
+                        docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+                        §1). One layer above the nebula (blocked/LOS) tile —
+                        both render, stacked, when a tile is both. */}
+                    {impassableGrid?.[row]?.[col] && (
+                      <div className="pointer-events-none absolute inset-0 z-0">
+                        <Image
+                          src="/img/hazard-tile.png"
+                          alt="Impassable terrain"
+                          fill
+                          className="object-cover opacity-30"
+                          sizes="(max-width: 768px) 5vw, 3vw"
+                        />
+                      </div>
+                    )}
                     {scoringGrid[row][col] > 0 && (
                       <div
                         className={`relative z-0 flex items-center justify-center text-lg font-bold w-full h-full ${
@@ -340,58 +398,65 @@ export function MapDisplayView({
             </div>
           ))}
 
-          {/* Player deployment zone overlay - rendered after grid cells so it appears above them */}
+          {/* Player deployment zone overlay - rendered after grid cells so it appears above them.
+              Per-tile (not one CSS rectangle) so a map's custom zone shape
+              (see creatorZonePositions/joinerZonePositions) renders
+              correctly too — visually identical to the old rectangle for
+              the still-common default-column-band case. */}
           {showPlayerOverlay && (
             <div className="absolute pointer-events-none inset-0 z-[5]">
-              {isCreator ? (
-                <div
-                  className="absolute flex flex-col items-center justify-start pt-2 overflow-hidden"
-                  style={{
-                    left: 0,
-                    top: 0,
-                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
-                    height: "100%",
-                    backgroundColor: "color-mix(in srgb, var(--color-amber) 8%, transparent)",
-                    borderRight: "2px solid color-mix(in srgb, var(--color-amber) 35%, transparent)",
-                  }}
-                >
-                  {showDeployZoneLabel && (
-                    <span
-                      className="text-[18px] font-bold tracking-widest leading-none"
-                      style={{
-                        fontFamily: "var(--font-rajdhani), sans-serif",
-                        color: "color-mix(in srgb, var(--color-amber) 60%, transparent)",
-                      }}
-                    >
-                      YOUR ZONE
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className="absolute flex flex-col items-center justify-start pt-2 overflow-hidden"
-                  style={{
-                    right: 0,
-                    top: 0,
-                    width: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`,
-                    height: "100%",
-                    backgroundColor: "color-mix(in srgb, var(--color-amber) 8%, transparent)",
-                    borderLeft: "2px solid color-mix(in srgb, var(--color-amber) 35%, transparent)",
-                  }}
-                >
-                  {showDeployZoneLabel && (
-                    <span
-                      className="text-[18px] font-bold tracking-widest leading-none"
-                      style={{
-                        fontFamily: "var(--font-rajdhani), sans-serif",
-                        color: "color-mix(in srgb, var(--color-amber) 60%, transparent)",
-                      }}
-                    >
-                      YOUR ZONE
-                    </span>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const zoneTiles = isCreator ? resolvedCreatorZone : resolvedJoinerZone;
+                const cellWidthPct = 100 / GRID_DIMENSIONS.WIDTH;
+                const cellHeightPct = 100 / GRID_DIMENSIONS.HEIGHT;
+                const labelCol =
+                  zoneTiles.length > 0
+                    ? zoneTiles.reduce((sum, t) => sum + t.col, 0) / zoneTiles.length
+                    : 0;
+                const labelRow =
+                  zoneTiles.length > 0
+                    ? Math.min(...zoneTiles.map((t) => t.row))
+                    : 0;
+                return (
+                  <>
+                    {zoneTiles.map((t) => (
+                      <div
+                        key={`zone-${t.row}-${t.col}`}
+                        className="absolute"
+                        style={{
+                          left: `${t.col * cellWidthPct}%`,
+                          top: `${t.row * cellHeightPct}%`,
+                          width: `${cellWidthPct}%`,
+                          height: `${cellHeightPct}%`,
+                          backgroundColor: "color-mix(in srgb, var(--color-amber) 8%, transparent)",
+                          boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-amber) 35%, transparent)",
+                        }}
+                      />
+                    ))}
+                    {showDeployZoneLabel && zoneTiles.length > 0 && (
+                      <div
+                        className="absolute flex justify-center"
+                        style={{
+                          left: `${labelCol * cellWidthPct}%`,
+                          top: `${labelRow * cellHeightPct}%`,
+                          width: `${cellWidthPct}%`,
+                          transform: "translate(-50%, -1.5em)",
+                        }}
+                      >
+                        <span
+                          className="text-[18px] font-bold tracking-widest leading-none whitespace-nowrap"
+                          style={{
+                            fontFamily: "var(--font-rajdhani), sans-serif",
+                            color: "color-mix(in srgb, var(--color-amber) 60%, transparent)",
+                          }}
+                        >
+                          YOUR ZONE
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -581,6 +646,12 @@ export function MapDisplayView({
               <Image src="/img/nebula-tile.png" alt="" fill className="object-cover opacity-30" sizes="20px" />
             </div>
             <span>Blocked (LOS) - Nebula</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-gunmetal bg-near-black">
+              <Image src="/img/hazard-tile.png" alt="" fill className="object-cover opacity-30" sizes="20px" />
+            </div>
+            <span>Impassable (movement) - Hazard</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-[20px] h-[20px] bg-amber border border-gunmetal"></div>

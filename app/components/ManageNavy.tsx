@@ -663,8 +663,12 @@ const ManageNavy: React.FC = () => {
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
       if (prevKeys.length !== nextKeys.length) return next;
+      // >1px tolerance, not exact equality — applying a measured minHeight
+      // can itself shift the next measurement by a sub-pixel rounding hair,
+      // which with exact equality would never settle and keep re-triggering
+      // the resize observer below.
       for (const k of nextKeys) {
-        if (prev[k] !== next[k]) return next;
+        if (Math.abs((prev[k] ?? 0) - next[k]) > 1) return next;
       }
       return prev;
     });
@@ -698,7 +702,21 @@ const ManageNavy: React.FC = () => {
     if (!hasShips) return;
     const grid = shipGridRef.current;
     if (!grid) return;
-    const ro = new ResizeObserver(() => measureShipNameRowHeights());
+    // Width-only: re-measuring here exists to catch the grid rewrapping to a
+    // different column count (window resize, sidebar toggle) — not to react
+    // to the grid's own height, which measureShipNameRowHeights itself
+    // changes every time it applies a row's minHeight (native CSS Grid
+    // row-stretch then reports that as a resize of this same observed
+    // element). Without this width guard, a two-line ship name could drive
+    // an infinite measure -> setState -> resize -> re-measure loop, visible
+    // as the cards in that row continuously growing/shrinking.
+    let lastWidth = grid.getBoundingClientRect().width;
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? grid.getBoundingClientRect().width;
+      if (Math.abs(width - lastWidth) < 1) return;
+      lastWidth = width;
+      measureShipNameRowHeights();
+    });
     ro.observe(grid);
     window.addEventListener("resize", measureShipNameRowHeights);
     return () => {

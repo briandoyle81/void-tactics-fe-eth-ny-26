@@ -8,6 +8,12 @@ import { calculateAttributesFromContracts } from "../utils/shipAttributesCalcula
 import { toGameplayShip, toGridShip } from "../utils/toGridDisplay";
 import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
+import {
+  useGetPresetMap,
+  useGetPresetScoringMap,
+  useGetPresetMapImpassable,
+} from "../hooks/useMapsContract";
+import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
 import { GameGrid } from "./GameGrid";
 import { GameBoardLayout } from "./GameBoardLayout";
 
@@ -15,11 +21,12 @@ import { GameBoardLayout } from "./GameBoardLayout";
 // autoplay loop built from the SAME real components/state machine the
 // in-game tutorial (SimulatedGameDisplay.tsx) uses — <GameGrid> +
 // <GameBoardLayout> driven by the shared `useGameplayInteraction` hook —
-// just with synthetic local ships instead of live chain/tutorial data, and
-// a timer stepping through the same setters a player's clicks would call
-// (select ship -> propose move -> lock target) instead of onClick handlers.
-// Every pixel (range highlights, weapon selector, confirm bar, target
-// reticle, weapon-fire beam, nebula obstacle tiles) is real GameGrid
+// with synthetic local ships (still no live chain/tutorial ship data) on a
+// REAL preset map's terrain (DEMO_MAP_ID, below), and a timer stepping
+// through the same setters a player's clicks would call (select ship ->
+// propose move -> lock target) instead of onClick handlers. Every pixel
+// (range highlights, weapon selector, confirm bar, target reticle,
+// weapon-fire beam, nebula/hazard terrain tiles) is real GameGrid
 // rendering, not reimplemented.
 //
 // GameGrid's own CSS grid template is hardcoded to the real board size
@@ -104,31 +111,14 @@ const POSITIONS: GridShipPosition[] = [
   },
 ];
 
-// Nebula/asteroid obstacle tiles (GameGridCell renders these with the real
-// nebula-tile.png art) scattered for atmosphere — matches real screenshots
-// never showing a flat empty void. Kept off the ally's move path (row 5,
-// cols 3-7) and away from the ally/enemy/background ship cells themselves.
-const BLOCKED_CELLS: Array<{ row: number; col: number }> = [
-  { row: 3, col: 4 },
-  { row: 8, col: 5 },
-  { row: 0, col: 10 },
-  { row: 7, col: 11 },
-  { row: 2, col: 6 },
-  { row: 9, col: 9 },
-];
-
-const BLOCKED_GRID: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
-  Array(GRID_WIDTH).fill(false),
-);
-for (const { row, col } of BLOCKED_CELLS) {
-  BLOCKED_GRID[row][col] = true;
-}
-const SCORING_GRID: number[][] = Array.from({ length: GRID_HEIGHT }, () =>
-  Array(GRID_WIDTH).fill(0),
-);
-const ONLY_ONCE_GRID: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
-  Array(GRID_WIDTH).fill(false),
-);
+// A real preset map's terrain instead of a made-up decorative layout —
+// "Debris Ring — Sector 14" (id 14): a real campaign map whose blocked,
+// impassable, and scoring tiles all happen to clear the scripted demo's
+// fixed cells (the ally's move path at row 5 cols 3-7, and every ship
+// position below) with zero overlap, verified directly against the live
+// Base Sepolia deployment. Also gives the hero its first live showcase of
+// impassable terrain (hazard-tile.png) alongside the existing nebula tiles.
+const DEMO_MAP_ID = 14;
 
 // select ship -> propose move -> lock target -> pause -> reset
 const PHASE_DURATIONS = [1000, 1000, 1600, 2600, 700];
@@ -202,6 +192,26 @@ export function TacticalTargetingPreview() {
     setShips(buildDemoShips());
   }, []);
 
+  // Real map terrain (see DEMO_MAP_ID's comment) — picker-following like
+  // GameDisplay.tsx's own getGameMapState read, which in practice always
+  // resolves to Base Sepolia today.
+  const { data: blockedPositions } = useGetPresetMap(DEMO_MAP_ID, { chainSource: "picker" });
+  const { data: scoringPositions } = useGetPresetScoringMap(DEMO_MAP_ID, { chainSource: "picker" });
+  const { data: impassablePositions } = useGetPresetMapImpassable(DEMO_MAP_ID, {
+    chainSource: "picker",
+  });
+  const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid } = useMemo(
+    () =>
+      buildMapGridsFromContractMap(
+        Array.isArray(blockedPositions) ? blockedPositions : undefined,
+        Array.isArray(scoringPositions) ? scoringPositions : undefined,
+        GRID_WIDTH,
+        GRID_HEIGHT,
+        Array.isArray(impassablePositions) ? impassablePositions : undefined,
+      ),
+    [blockedPositions, scoringPositions, impassablePositions],
+  );
+
   const attributesById = useMemo(() => {
     const map = new Map<number, Attributes>();
     if (ships) {
@@ -263,7 +273,8 @@ export function TacticalTargetingPreview() {
     isGameOver: false,
     isCurrentPlayerTurn: true,
     isSubmitting: false,
-    blockedGrid: BLOCKED_GRID,
+    blockedGrid,
+    impassableGrid,
     lastMove: null,
     selectedShipId,
     setSelectedShipId,
@@ -305,7 +316,9 @@ export function TacticalTargetingPreview() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  if (!ships) {
+  // Wait for the real map terrain too, so it doesn't visibly pop in a beat
+  // after the board first renders.
+  if (!ships || !Array.isArray(blockedPositions)) {
     return <div className="h-[320px] w-full bg-near-black md:h-[400px]" />;
   }
 
@@ -355,9 +368,10 @@ export function TacticalTargetingPreview() {
             isShipOwnedByCurrentPlayer={interaction.isShipOwnedByCurrentPlayer}
             movedShipIdsSet={EMPTY_MOVED_SET}
             specialType={interaction.specialType}
-            blockedGrid={BLOCKED_GRID}
-            scoringGrid={SCORING_GRID}
-            onlyOnceGrid={ONLY_ONCE_GRID}
+            blockedGrid={blockedGrid}
+            impassableGrid={impassableGrid}
+            scoringGrid={scoringGrid}
+            onlyOnceGrid={onlyOnceGrid}
             calculateDamage={calculateDamage}
             getShipAttributes={getShipAttributes}
             disableTooltips={true}

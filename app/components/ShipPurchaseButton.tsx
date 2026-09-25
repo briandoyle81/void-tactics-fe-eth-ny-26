@@ -23,6 +23,11 @@ interface ShipPurchaseButtonProps {
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   refetch?: () => void;
+  /** Faction/variant to mint. Defaults to the chain's configured variant when
+   * omitted. Variant 2 is gated on the Shattered Hive medal — the caller
+   * (VariantPicker) prevents selecting it without the NFT, and the contract
+   * reverts GateRequirementNotMet as a backstop. */
+  variant?: number;
 }
 
 const SHIP_PURCHASE_FLOW_ABI = [
@@ -78,11 +83,12 @@ export function ShipPurchaseButton({
   onSuccess,
   onError,
   refetch,
+  variant,
 }: ShipPurchaseButtonProps) {
   const { address, chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
   const contractAddresses = getContractAddresses(activeChainId);
-  const chainVariant = getVariantForChainId(activeChainId);
+  const purchaseVariant = variant ?? getVariantForChainId(activeChainId);
   const { data: flowBalance } = useBalance({
     address,
     chainId: activeChainId,
@@ -141,7 +147,7 @@ export function ShipPurchaseButton({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               abi: SHIP_PURCHASE_FLOW_ABI as any,
               functionName: "purchaseWithFlow",
-              args: [address, tier, referralAddress, chainVariant],
+              args: [address, tier, referralAddress, purchaseVariant],
               value: price,
               account: address,
             });
@@ -151,7 +157,7 @@ export function ShipPurchaseButton({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               abi: SHIP_PURCHASE_UTC_ABI as any,
               functionName: "purchaseWithUC",
-              args: [address, tier, referralAddress, chainVariant],
+              args: [address, tier, referralAddress, purchaseVariant],
               account: address,
             });
           }
@@ -170,7 +176,7 @@ export function ShipPurchaseButton({
 
       estimateGas();
     }
-  }, [tier, address, paymentMethod, utcApproved, publicClient, referralAddress, chainVariant, price, contractAddresses.SHIPS, contractAddresses.SHIP_PURCHASER]);
+  }, [tier, address, paymentMethod, utcApproved, publicClient, referralAddress, purchaseVariant, price, contractAddresses.SHIPS, contractAddresses.SHIP_PURCHASER]);
 
   const validateBeforeTransaction = React.useCallback(() => {
     if (!address) {
@@ -268,7 +274,7 @@ export function ShipPurchaseButton({
   if (paymentMethod === "UTC") {
     return (
       <TransactionButton
-        transactionId={`purchase-ships-utc-tier-${tier}-${address}`}
+        transactionId={`purchase-ships-utc-tier-${tier}-v${purchaseVariant}-${address}`}
         contractAddress={contractAddresses.SHIP_PURCHASER as `0x${string}`}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         abi={SHIP_PURCHASE_UTC_ABI as any}
@@ -277,7 +283,7 @@ export function ShipPurchaseButton({
           address,
           tier as number, // Tier is already 0-based (0-4) for contract (uint8)
           referralAddress,
-          chainVariant,
+          purchaseVariant,
         ]}
         className={className}
         disabled={disabled}
@@ -299,7 +305,7 @@ export function ShipPurchaseButton({
 
   return (
     <TransactionButton
-      transactionId={`purchase-ships-flow-tier-${tier}-${address}`}
+      transactionId={`purchase-ships-flow-tier-${tier}-v${purchaseVariant}-${address}`}
       contractAddress={contractAddresses.SHIPS as `0x${string}`}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       abi={SHIP_PURCHASE_FLOW_ABI as any}
@@ -308,7 +314,7 @@ export function ShipPurchaseButton({
         address,
         tier as number, // Tier is already 0-based (0-4) for contract (uint8)
         referralAddress,
-        chainVariant,
+        purchaseVariant,
       ]}
       value={price}
       className={className}

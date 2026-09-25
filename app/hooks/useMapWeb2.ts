@@ -9,6 +9,7 @@ interface MapTilesResponse {
   gridWidth: number;
   gridHeight: number;
   blockedTiles: Array<{ row: number; col: number }>;
+  impassableTiles: Array<{ row: number; col: number }>;
   scoringTiles: Array<{ row: number; col: number; points: number; onlyOnce: boolean }>;
 }
 
@@ -30,9 +31,16 @@ export function useMapWeb2(mapId: number, gridWidth: number, gridHeight: number)
         blockedGrid: Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false)),
         scoringGrid: Array.from({ length: gridHeight }, () => Array(gridWidth).fill(0)),
         onlyOnceGrid: Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false)),
+        impassableGrid: Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false)),
       };
     }
-    return buildMapGridsFromContractMap(data.blockedTiles, data.scoringTiles, gridWidth, gridHeight);
+    return buildMapGridsFromContractMap(
+      data.blockedTiles,
+      data.scoringTiles,
+      gridWidth,
+      gridHeight,
+      data.impassableTiles,
+    );
   }, [data, gridWidth, gridHeight]);
 
   return { ...grids, isLoading, error };

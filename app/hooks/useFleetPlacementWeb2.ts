@@ -16,6 +16,15 @@ export interface FleetPlacementWeb2Params {
   costsVersion: number | null;
   isCreatorSide: boolean;
   requiredVariant?: number;
+  /**
+   * This side's custom deployment-zone tiles, mirroring useFleetPlacement.ts's
+   * `zoneTiles` — web2 has no per-map custom-zone data source yet (its
+   * `Map` model has no equivalent of web3's Maps.getCreatorZonePositions/
+   * getJoinerZonePositions), so no caller can populate this today; kept
+   * here so the two hooks stay field-for-field identical and this only
+   * needs wiring up, not re-deriving, once web2 gets one.
+   */
+  zoneTiles?: Array<{ row: number; col: number }>;
 }
 
 const CREATOR_ZONE = { colMin: 0, colMax: 3 } as const;
@@ -34,8 +43,10 @@ export function useFleetPlacementWeb2({
   costsVersion,
   isCreatorSide,
   requiredVariant,
+  zoneTiles,
 }: FleetPlacementWeb2Params) {
   const zone = isCreatorSide ? CREATOR_ZONE : JOINER_ZONE;
+  const hasCustomZone = !!zoneTiles && zoneTiles.length > 0;
 
   const [selectedShips, setSelectedShips] = useState<number[]>([]);
   const [shipPositions, setShipPositions] = useState<
@@ -47,9 +58,18 @@ export function useFleetPlacementWeb2({
   const [dragOverPosition, setDragOverPosition] = useState<
     { row: number; col: number } | null
   >(null);
+  const [hasManuallyMoved, setHasManuallyMoved] = useState(false);
 
   const findNextPosition = useCallback(
     (existingPositions: Array<{ row: number; col: number }>) => {
+      if (hasCustomZone) {
+        for (const tile of zoneTiles!) {
+          if (!existingPositions.some((p) => p.row === tile.row && p.col === tile.col)) {
+            return { row: tile.row, col: tile.col };
+          }
+        }
+        return null;
+      }
       if (isCreatorSide) {
         for (let col = zone.colMin; col <= zone.colMax; col++) {
           for (let row = 0; row < GRID_DIMENSIONS.HEIGHT; row++) {
@@ -69,7 +89,7 @@ export function useFleetPlacementWeb2({
       }
       return null;
     },
-    [isCreatorSide, zone],
+    [isCreatorSide, zone, hasCustomZone, zoneTiles],
   );
 
   const lockedVariant = useMemo(() => {
@@ -104,17 +124,16 @@ export function useFleetPlacementWeb2({
 
   const moveShip = useCallback(
     (shipId: number, row: number, col: number) => {
-      const inZone =
-        row >= 0 &&
-        row < GRID_DIMENSIONS.HEIGHT &&
-        col >= zone.colMin &&
-        col <= zone.colMax;
+      const inZone = hasCustomZone
+        ? zoneTiles!.some((t) => t.row === row && t.col === col)
+        : row >= 0 && row < GRID_DIMENSIONS.HEIGHT && col >= zone.colMin && col <= zone.colMax;
       if (!inZone) return;
       const occupied = shipPositions.some(
         (p) => p.row === row && p.col === col && p.shipId !== shipId,
       );
       if (occupied) return;
 
+      setHasManuallyMoved(true);
       if (!selectedShips.includes(shipId)) {
         setSelectedShips((prev) => [...prev, shipId]);
         setShipPositions((prev) => [...prev, { shipId, row, col }]);
@@ -125,13 +144,14 @@ export function useFleetPlacementWeb2({
       );
       setSelectedShipId(null);
     },
-    [shipPositions, selectedShips, zone],
+    [shipPositions, selectedShips, zone, hasCustomZone, zoneTiles],
   );
 
   const clearSelection = useCallback(() => {
     setSelectedShips([]);
     setShipPositions([]);
     setSelectedShipId(null);
+    setHasManuallyMoved(false);
   }, []);
 
   const resolveShip = useCallback(
@@ -190,9 +210,7 @@ export function useFleetPlacementWeb2({
   const isOverLimit = totalCost > costLimit;
   const isUnder90Percent = totalCost < costLimit * 0.9;
 
-  const defaultCol = isCreatorSide ? 0 : GRID_DIMENSIONS.WIDTH - 1;
-  const hasMovedShip =
-    shipPositions.length > 0 && shipPositions.some((pos) => pos.col !== defaultCol);
+  const hasMovedShip = shipPositions.length > 0 && hasManuallyMoved;
 
   return {
     ships,
@@ -220,7 +238,7 @@ export function useFleetPlacementWeb2({
     isUnder90Percent,
     hasMovedShip,
     hasStaleCostsVersion,
-    maxShips: MAX_SHIPS_PER_FLEET,
+    maxShips: hasCustomZone ? zoneTiles!.length : MAX_SHIPS_PER_FLEET,
   };
 }
 

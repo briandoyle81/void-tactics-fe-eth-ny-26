@@ -336,8 +336,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
       if (prevKeys.length !== nextKeys.length) return next;
+      // >1px tolerance — see ManageNavy.tsx's identical comment.
       for (const k of nextKeys) {
-        if (prev[k] !== next[k]) return next;
+        if (Math.abs((prev[k] ?? 0) - next[k]) > 1) return next;
       }
       return prev;
     });
@@ -382,7 +383,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (!hasShips) return;
     const root = gameShipGridsContainerRef.current;
     if (!root) return;
-    const ro = new ResizeObserver(() => measureGameViewShipNameHeights());
+    // Width-only — see ManageNavy.tsx's identical guard: re-measuring here
+    // exists to catch a column-count rewrap, not to react to this same
+    // element's own height, which applying a row's minHeight changes every
+    // pass (an infinite measure -> setState -> resize -> re-measure loop
+    // otherwise, visible as a two-line ship name's row of cards
+    // continuously growing/shrinking).
+    let lastWidth = root.getBoundingClientRect().width;
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? root.getBoundingClientRect().width;
+      if (Math.abs(width - lastWidth) < 1) return;
+      lastWidth = width;
+      measureGameViewShipNameHeights();
+    });
     ro.observe(root);
     window.addEventListener("resize", measureGameViewShipNameHeights);
     return () => {
@@ -553,8 +566,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     { chainSource: "picker" },
   );
 
-  // Create grids from contract map (same format as tutorial map grids)
-  const { blockedGrid, scoringGrid, onlyOnceGrid } = React.useMemo(() => {
+  // Create grids from contract map (same format as tutorial map grids).
+  // getGameMapState's 3rd return value (impassablePositions) is the
+  // movement-blocking terrain, independent of blockedGrid's LOS-only
+  // blocking — see
+  // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1.
+  const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid } = React.useMemo(() => {
     const gameMapData = gameMapState as
       | [
           Array<{ row: number; col: number }>,
@@ -564,6 +581,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             points: number;
             onlyOnce: boolean;
           }>,
+          Array<{ row: number; col: number }>,
         ]
       | undefined;
     return buildMapGridsFromContractMap(
@@ -571,6 +589,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       gameMapData?.[1],
       GRID_WIDTH,
       GRID_HEIGHT,
+      gameMapData?.[2],
     );
   }, [gameMapState]);
 
@@ -893,6 +912,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     isCurrentPlayerTurn: canActInGame,
     isSubmitting: isSubmittingMove,
     blockedGrid,
+    impassableGrid,
     lastMove: lastMoveForInteraction,
     selectedShipId: selectedShipId != null ? Number(selectedShipId) : null,
     setSelectedShipId: setSelectedShipIdForInteraction,
@@ -1050,7 +1070,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         toast.error("Ship not found in this game");
       } else if (errorMessage.includes("InvalidMove")) {
         toast.error(
-          "Invalid move — target may have fled or been destroyed, or check ship position and movement range",
+          "Invalid move — target may have fled or been destroyed, the path may cross impassable terrain, or check ship position and movement range",
         );
       } else if (errorMessage.includes("PositionOccupied")) {
         toast.error("Target position is already occupied");
@@ -2721,6 +2741,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       movedShipIdsSet={movedShipIdsSetForDisplay}
                       specialType={specialType}
                       blockedGrid={blockedGrid}
+                      impassableGrid={impassableGrid}
                       scoringGrid={scoringGrid}
                       onlyOnceGrid={onlyOnceGrid}
                       calculateDamage={calculateDamageForDisplay}
@@ -3326,6 +3347,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           movedShipIdsSet={movedShipIdsSetForDisplay}
           specialType={specialType}
           blockedGrid={blockedGrid}
+          impassableGrid={impassableGrid}
           scoringGrid={scoringGrid}
           onlyOnceGrid={onlyOnceGrid}
           calculateDamage={calculateDamageForDisplay}

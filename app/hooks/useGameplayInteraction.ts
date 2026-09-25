@@ -71,6 +71,14 @@ export interface UseGameplayInteractionParams {
   /** Whether a submission is currently in flight (blocks new proposed-move UI, matches GameDisplay's tx-pending check). */
   isSubmitting: boolean;
   blockedGrid: boolean[][];
+  /**
+   * Movement-blocking terrain, independent of `blockedGrid`'s LOS-only
+   * blocking (see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §1). Optional — omitted means no impassable terrain, matching every
+   * caller's behavior before this existed.
+   */
+  impassableGrid?: boolean[][];
   /** Authoritative last move from fresh data (live game state, or a replay snapshot) — used for grid ghosting and to auto-clear the optimistic overlay. */
   lastMove: Web2LastMove | null;
   /**
@@ -120,6 +128,7 @@ export function useGameplayInteraction({
   isCurrentPlayerTurn,
   isSubmitting,
   blockedGrid,
+  impassableGrid,
   lastMove,
   selectedShipId,
   setSelectedShipId,
@@ -321,8 +330,9 @@ export function useGameplayInteraction({
         // separately via "ram"-mode targeting instead.
         canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
           !isFactionAbilitySupported && occupyingShipId !== selectedShipId && isEnemyDisabledShipId(occupyingShipId),
+        impassableGrid,
       }),
-    [gridWidth, gridHeight, selectedShipId, shipMap, aliveShipPositions, getShipAttributes, previewPosition, isEnemyDisabledShipId, isFactionAbilitySupported],
+    [gridWidth, gridHeight, selectedShipId, shipMap, aliveShipPositions, getShipAttributes, previewPosition, isEnemyDisabledShipId, isFactionAbilitySupported, impassableGrid],
   );
 
   const validTargets = useMemo(() => {

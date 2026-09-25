@@ -217,7 +217,7 @@ export default function GameDisplayWeb2({
     return map;
   }, [shipMap]);
 
-  const { blockedGrid, scoringGrid, onlyOnceGrid } = useMapWeb2(
+  const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid } = useMapWeb2(
     game.mapId,
     game.gridDimensions.gridWidth,
     game.gridDimensions.gridHeight,
@@ -406,6 +406,7 @@ export default function GameDisplayWeb2({
     isCurrentPlayerTurn,
     isSubmitting,
     blockedGrid,
+    impassableGrid,
     lastMove: game.lastMove ?? null,
     selectedShipId,
     setSelectedShipId,
@@ -785,6 +786,7 @@ export default function GameDisplayWeb2({
       movedShipIdsSet={movedShipIdsSet}
       specialType={specialType}
       blockedGrid={blockedGrid}
+      impassableGrid={impassableGrid}
       scoringGrid={scoringGrid}
       onlyOnceGrid={onlyOnceGrid}
       calculateDamage={calculateDamageForShip}

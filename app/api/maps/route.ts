@@ -16,6 +16,7 @@ export async function GET() {
       gridWidth: map.gridWidth,
       gridHeight: map.gridHeight,
       blockedTiles: map.blockedTiles,
+      impassableTiles: map.impassableTiles,
       scoringTiles: map.scoringTiles,
       mode: map.mode,
     })),
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { name, gridWidth, gridHeight, blockedTiles, scoringTiles, mode } = body;
+  const { name, gridWidth, gridHeight, blockedTiles, impassableTiles, scoringTiles, mode } = body;
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       gridWidth: typeof gridWidth === "number" ? gridWidth : undefined,
       gridHeight: typeof gridHeight === "number" ? gridHeight : undefined,
       blockedTiles: blockedTiles ?? [],
+      impassableTiles: impassableTiles ?? [],
       scoringTiles: scoringTiles ?? [],
       mode: [0, 1, 2].includes(mode) ? mode : undefined,
     },

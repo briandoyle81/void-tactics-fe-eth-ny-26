@@ -5,6 +5,9 @@ import { GRID_DIMENSIONS, Ship } from "../types/types";
 import {
   useGetPresetMap,
   useGetPresetScoringMap,
+  useGetPresetMapImpassable,
+  useCreatorZonePositions,
+  useJoinerZonePositions,
 } from "../hooks/useMapsContract";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
@@ -72,6 +75,9 @@ export function MapDisplay({
 }: MapDisplayProps) {
   const { data: blockedPositions } = useGetPresetMap(mapId);
   const { data: scoringPositions } = useGetPresetScoringMap(mapId);
+  const { data: impassablePositions } = useGetPresetMapImpassable(mapId);
+  const { data: creatorZonePositions } = useCreatorZonePositions(mapId);
+  const { data: joinerZonePositions } = useJoinerZonePositions(mapId);
 
   const grids = React.useMemo(
     () =>
@@ -80,8 +86,9 @@ export function MapDisplay({
         Array.isArray(scoringPositions) ? scoringPositions : undefined,
         GRID_DIMENSIONS.WIDTH,
         GRID_DIMENSIONS.HEIGHT,
+        Array.isArray(impassablePositions) ? impassablePositions : undefined,
       ),
-    [blockedPositions, scoringPositions],
+    [blockedPositions, scoringPositions, impassablePositions],
   );
 
   // Full Ship objects (not simple {id, name} stand-ins) for card data/attributes
@@ -183,6 +190,7 @@ export function MapDisplay({
       blockedGrid={grids.blockedGrid}
       scoringGrid={grids.scoringGrid}
       onlyOnceGrid={grids.onlyOnceGrid}
+      impassableGrid={grids.impassableGrid}
       showPlayerOverlay={showPlayerOverlay}
       isCreator={isCreator}
       isCreatorViewer={isCreatorViewer}
@@ -201,6 +209,8 @@ export function MapDisplay({
       dragOverPosition={dragOverPosition}
       showDeployZoneLabel={showDeployZoneLabel}
       pendingPlacementShipId={pendingPlacementShipId?.toString() ?? null}
+      creatorZonePositions={Array.isArray(creatorZonePositions) ? creatorZonePositions : undefined}
+      joinerZonePositions={Array.isArray(joinerZonePositions) ? joinerZonePositions : undefined}
       attributesMap={attributesMap}
       attributesLoading={attributesLoading}
       showTooltipInGameProperties={true}

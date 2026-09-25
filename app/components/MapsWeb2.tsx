@@ -23,6 +23,7 @@ interface Web2Map {
   gridWidth: number;
   gridHeight: number;
   blockedTiles: MapPosition[];
+  impassableTiles: MapPosition[];
   scoringTiles: ScoringPosition[];
   mode: MapMode;
 }
@@ -38,6 +39,7 @@ function Web2MapSaveButton({
   name,
   mode,
   blockedPositions,
+  impassablePositions,
   scoringPositions,
   validationError,
   onSuccess,
@@ -47,6 +49,7 @@ function Web2MapSaveButton({
   name: string;
   mode: MapMode;
   blockedPositions: MapPosition[];
+  impassablePositions: MapPosition[];
   scoringPositions: ScoringPosition[];
   validationError: string | null;
   onSuccess: () => void;
@@ -68,6 +71,7 @@ function Web2MapSaveButton({
         await apiMutate(`/api/maps/${mapId}`, "PATCH", {
           name,
           blockedTiles: blockedPositions,
+          impassableTiles: impassablePositions,
           scoringTiles: scoringPositions,
         });
       } else {
@@ -75,6 +79,7 @@ function Web2MapSaveButton({
           name,
           mode,
           blockedTiles: blockedPositions,
+          impassableTiles: impassablePositions,
           scoringTiles: scoringPositions,
         });
       }
@@ -216,12 +221,14 @@ export default function MapsWeb2() {
         <MapEditor
           mapId={editingMapId}
           initialBlockedPositions={editingMap?.blockedTiles}
+          initialImpassablePositions={editingMap?.impassableTiles}
           initialScoringPositions={editingMap?.scoringTiles}
           onSaveSuccess={handleEditorSave}
           onCancel={handleEditorCancel}
           canEdit={canCreateMaps}
           renderSaveButton={({
             blockedPositions,
+            impassablePositions,
             scoringPositions,
             validationError,
             onSuccess,
@@ -232,6 +239,7 @@ export default function MapsWeb2() {
               name={editingName}
               mode={createMode}
               blockedPositions={blockedPositions}
+              impassablePositions={impassablePositions}
               scoringPositions={scoringPositions}
               validationError={validationError}
               onSuccess={onSuccess}
@@ -259,6 +267,8 @@ export default function MapsWeb2() {
               titleLabel: `Map #${map.id} — ${map.name}`,
               blockedPositions: map.blockedTiles,
               scoringPositions: map.scoringTiles,
+              impassablePositions: map.impassableTiles,
+              // No deployment-zone data source in web2 yet — omitted, not [].
             }}
             modeLabel={MapMode[map.mode]}
             onEdit={() => handleEditMap(map)}

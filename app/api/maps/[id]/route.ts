@@ -36,6 +36,7 @@ export async function GET(
     gridWidth: map.gridWidth,
     gridHeight: map.gridHeight,
     blockedTiles: map.blockedTiles,
+    impassableTiles: map.impassableTiles,
     scoringTiles: map.scoringTiles,
     mode: map.mode,
   });
@@ -55,13 +56,14 @@ export async function PATCH(
   if (isNaN(mapId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   const body = await req.json();
-  const { name, blockedTiles, scoringTiles, mode } = body;
+  const { name, blockedTiles, impassableTiles, scoringTiles, mode } = body;
 
   const map = await prisma.map.update({
     where: { id: mapId },
     data: {
       ...(typeof name === "string" && name.trim() ? { name: name.trim() } : {}),
       ...(blockedTiles !== undefined ? { blockedTiles } : {}),
+      ...(impassableTiles !== undefined ? { impassableTiles } : {}),
       ...(scoringTiles !== undefined ? { scoringTiles } : {}),
       ...([0, 1, 2].includes(mode) ? { mode } : {}),
     },

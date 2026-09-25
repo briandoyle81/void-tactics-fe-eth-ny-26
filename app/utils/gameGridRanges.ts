@@ -79,6 +79,89 @@ export function hasLineOfSight(
   }
 }
 
+// Movement counterpart to hasLineOfSight — same straight-line (Bresenham)
+// walk and permissive-corner diagonal rule, but against the impassable
+// bitmap instead of the blocked one, and WITHOUT hasLineOfSight's "start
+// tile blocked ⇒ false" exception: a ship standing on a tile can always
+// leave it, even if that tile is later marked impassable. Mirrors
+// Maps.sol's hasMovementPath exactly. See
+// docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1.
+export function hasMovementPath(
+  row0: number,
+  col0: number,
+  row1: number,
+  col1: number,
+  impassableGrid: boolean[][],
+): boolean {
+  if (row0 === row1 && col0 === col1) {
+    return !(impassableGrid[row1] && impassableGrid[row1][col1]);
+  }
+
+  const dRow = Math.abs(row1 - row0);
+  const dCol = Math.abs(col1 - col0);
+  const sRow = row1 > row0 ? 1 : row1 < row0 ? -1 : 0;
+  const sCol = col1 > col0 ? 1 : col1 < col0 ? -1 : 0;
+
+  let err = dCol - dRow;
+  let row = row0;
+  let col = col0;
+
+  while (true) {
+    if (row === row1 && col === col1) {
+      return !(impassableGrid[row1] && impassableGrid[row1][col1]);
+    }
+
+    const e2 = err * 2;
+
+    if (e2 === 0) {
+      if (
+        impassableGrid[row] &&
+        impassableGrid[row][col + sCol] &&
+        impassableGrid[row + sRow] &&
+        impassableGrid[row + sRow][col]
+      ) {
+        return false;
+      }
+      col += sCol;
+      err -= dRow;
+      row += sRow;
+      err += dCol;
+      if (
+        (row !== row1 || col !== col1) &&
+        impassableGrid[row] &&
+        impassableGrid[row][col]
+      ) {
+        return false;
+      }
+      continue;
+    }
+
+    if (e2 > -dRow) {
+      err -= dRow;
+      col += sCol;
+      if (
+        (row !== row1 || col !== col1) &&
+        impassableGrid[row] &&
+        impassableGrid[row][col]
+      ) {
+        return false;
+      }
+    }
+
+    if (e2 < dCol) {
+      err += dCol;
+      row += sRow;
+      if (
+        (row !== row1 || col !== col1) &&
+        impassableGrid[row] &&
+        impassableGrid[row][col]
+      ) {
+        return false;
+      }
+    }
+  }
+}
+
 interface MovementRangeParams {
   gridWidth: number;
   gridHeight: number;

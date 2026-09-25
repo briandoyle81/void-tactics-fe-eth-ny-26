@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useOwnedShips } from "../hooks/useOwnedShips";
+import { VariantPicker } from "./VariantPicker";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
 import { ShipPurchaseButton } from "./ShipPurchaseButton";
@@ -32,6 +33,15 @@ interface ShipPurchaseInterfaceProps {
   onPaymentMethodChange?: (method: "FLOW" | "UTC" | "USD") => void;
 }
 
+// Truncates (not rounds) a decimal string to at most 8 fractional digits,
+// dropping any resulting trailing zeros so a whole-number price stays clean.
+function truncateTo8Decimals(value: string): string {
+  const [whole, frac] = value.split(".");
+  if (!frac) return whole!;
+  const truncated = frac.slice(0, 8).replace(/0+$/, "");
+  return truncated ? `${whole}.${truncated}` : whole!;
+}
+
 const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   paymentMethod: externalPaymentMethod,
   onClose,
@@ -42,6 +52,11 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   const { chainId: walletChainId } = useAccount();
   const activeGameChainId = walletChainId ?? getSelectedChainId();
   const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
+
+  // Faction/variant to mint. Variant 2 (Shattered Hive) is gated on the medal
+  // NFT — VariantPicker shows it grayed out and blocks selecting it without
+  // the NFT. Default to variant 1 (ungated).
+  const [selectedVariant, setSelectedVariant] = useState(1);
 
   const paymentMethod = externalPaymentMethod ?? "FLOW";
   const paymentMethodLabel = paymentMethod === "FLOW" ? "TOKENS" : "UTC";
@@ -107,9 +122,13 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   };
 
   const getPreviewShipsForTier = (tier: number): Ship[] =>
-    getPreviewShipSpecsForTier(previewSeed, tier, maxPerTier[tier] ?? 1, shipsDestroyedForRank).map(
-      toPreviewShip,
-    );
+    getPreviewShipSpecsForTier(
+      previewSeed,
+      tier,
+      maxPerTier[tier] ?? 1,
+      shipsDestroyedForRank,
+      selectedVariant,
+    ).map(toPreviewShip);
 
   if (isLoading && tierCount === 0) {
     return (
@@ -132,7 +151,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   const tierCards = tiers.map((tier: number, index: number) => {
     const price = prices[index];
     const shipsCount = maxPerTier[index];
-    const priceFormatted = price ? formatEther(price) : "0";
+    const priceFormatted = price ? truncateTo8Decimals(formatEther(price)) : "0";
     const colors = getTierColors(tier);
     const guaranteedRanksDisplay = getGuaranteedRanksDisplay(tier, shipsCount ?? 1);
     const tierCallout = getTierCallout(tier);
@@ -152,6 +171,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
           badge={badge}
           previewShips={previewShips}
           colors={colors}
+          variant={selectedVariant}
           onSuccess={() => { refetch(); onClose(); }}
         />
       );
@@ -163,6 +183,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
         tier={tier}
         price={price ?? BigInt(0)}
         paymentMethod={paymentMethod}
+        variant={selectedVariant}
         className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
         refetch={refetch}
       >
@@ -192,7 +213,27 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
         ? "Pay with any token from any chain. Powered by Fireblocks Flow."
         : "Click to purchase.";
 
-  return <ShipPurchaseShell tierCards={tierCards} footerPaymentNote={footerPaymentNote} />;
+  return (
+    <ShipPurchaseShell
+      tierCards={tierCards}
+      footerPaymentNote={footerPaymentNote}
+      topContent={
+        <div className="space-y-2">
+          <div
+            className="text-[11px] uppercase tracking-[0.12em] text-text-muted"
+            style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
+          >
+            Choose faction
+          </div>
+          <VariantPicker
+            selectedVariant={selectedVariant}
+            onSelect={setSelectedVariant}
+            className="max-w-2xl"
+          />
+        </div>
+      }
+    />
+  );
 };
 
 export default ShipPurchaseInterface;

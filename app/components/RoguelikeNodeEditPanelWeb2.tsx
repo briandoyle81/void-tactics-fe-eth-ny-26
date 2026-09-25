@@ -12,6 +12,7 @@ import { WinEffectsPickerWeb2 } from "./WinEffectsPickerWeb2";
 import type { WinEffectKey } from "../lib/winEffectsCatalog";
 import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
+import { MapPreviewCard } from "./MapPreviewCard";
 import { MapPlacementsEditorWeb2 } from "./MapPlacementsEditorWeb2";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
 import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
@@ -121,6 +122,11 @@ export function RoguelikeNodeEditPanelWeb2({
         scoringPositions: m.scoringTiles,
       })),
     [web2Maps],
+  );
+
+  const selectedMapPreview = React.useMemo(
+    () => (mapId === 0 ? undefined : maps.find((m) => m.id === mapId)),
+    [maps, mapId],
   );
 
   const handleSaveDetails = async () => {
@@ -399,6 +405,18 @@ export function RoguelikeNodeEditPanelWeb2({
               >
                 [+ LINK CHILD]
               </button>
+            </div>
+          )}
+
+          {isCombat && mapId !== 0 && (
+            <div className="mt-6">
+              <RoguelikeEnemyFleetPreviewWeb2For mapId={mapId} configs={configs ?? []} />
+            </div>
+          )}
+
+          {isCombat && selectedMapPreview && (
+            <div className="mt-6 border-t border-steel pt-4">
+              <MapPreviewCard map={selectedMapPreview} onEdit={() => setShowMapPicker(true)} />
             </div>
           )}
         </div>

@@ -7,6 +7,12 @@ import {
   useMapCount,
   useMapsContract,
   useMapModes,
+  useMapNames,
+  mapTitleLabel,
+  useGetPresetMapImpassable,
+  useMapsImpassablePositions,
+  useMapsCreatorZonePositions,
+  useMapsJoinerZonePositions,
 } from "../hooks/useMapsContract";
 import { MapEditor } from "./MapEditor";
 import { MapEditorHeader } from "./MapEditorHeader";
@@ -50,6 +56,10 @@ export default function Maps() {
   }, [allMapsData]);
 
   const { modeByMapId } = useMapModes(maps.map((m) => m.id));
+  const { nameByMapId } = useMapNames(maps.map((m) => m.id));
+  const { impassableByMapId } = useMapsImpassablePositions(maps.map((m) => m.id));
+  const { creatorZoneByMapId } = useMapsCreatorZonePositions(maps.map((m) => m.id));
+  const { joinerZoneByMapId } = useMapsJoinerZonePositions(maps.map((m) => m.id));
 
   const canCreateMaps =
     address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
@@ -99,6 +109,11 @@ export default function Maps() {
     setShowEditor(false);
     setEditingMapId(undefined);
   };
+
+  // Only createFullPresetMap can set impassable tiles — updatePresetMap has
+  // no such param (see docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+  // §1.2), so this is read-only display when editing an existing map.
+  const { data: editingMapImpassableData } = useGetPresetMapImpassable(editingMapId ?? 0);
 
   if (showEditor) {
     return (
@@ -159,12 +174,17 @@ export default function Maps() {
         <MapEditor
           mapId={editingMapId}
           initialBlockedPositions={editingMap?.blockedPositions}
+          initialImpassablePositions={
+            Array.isArray(editingMapImpassableData) ? editingMapImpassableData : undefined
+          }
           initialScoringPositions={editingMap?.scoringPositions}
           onSaveSuccess={handleEditorSave}
           onCancel={handleEditorCancel}
           canEdit={canCreateMaps}
+          canEditImpassable={!editingMapId}
           renderSaveButton={({
             blockedPositions,
+            impassablePositions,
             scoringPositions,
             validationError,
             onSuccess,
@@ -175,11 +195,11 @@ export default function Maps() {
               }`}
               contractAddress={mapsContract.address}
               abi={mapsContract.abi}
-              functionName={editingMapId ? "updatePresetMap" : "createPresetMap"}
+              functionName={editingMapId ? "updatePresetMap" : "createFullPresetMap"}
               args={
                 editingMapId
                   ? [BigInt(editingMapId), blockedPositions, scoringPositions]
-                  : [blockedPositions, scoringPositions, createMode]
+                  : [blockedPositions, impassablePositions, scoringPositions, createMode]
               }
               onSuccess={onSuccess}
               validateBeforeTransaction={() => validationError ?? true}
@@ -207,9 +227,12 @@ export default function Maps() {
             key={map.id}
             map={{
               id: map.id,
-              titleLabel: `Map #${map.id}`,
+              titleLabel: mapTitleLabel(map.id, nameByMapId),
               blockedPositions: map.blockedPositions,
               scoringPositions: map.scoringPositions,
+              impassablePositions: impassableByMapId.get(map.id),
+              creatorZonePositions: creatorZoneByMapId.get(map.id),
+              joinerZonePositions: joinerZoneByMapId.get(map.id),
             }}
             modeLabel={MapMode[modeByMapId.get(map.id) ?? MapMode.Both]}
             onEdit={() => handleEditMap(map.id)}

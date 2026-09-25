@@ -1041,8 +1041,39 @@ const Header: React.FC = () => {
                   )}
                   <div className="flex w-full flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4">
                     <div className="flex flex-col items-stretch md:items-end gap-2">
-                      {/* Flow Balance and Buy Flow button */}
+                      {/* Lottery, Flow Balance, and Buy Flow button */}
                       <div className="flex items-center gap-2 justify-between md:justify-start">
+                        {/* UTC Lottery status/results (docs/update/Frontend_Updates_2026-09-17.md §4) — same width as the Drone Cores Balance button directly below it in the next row */}
+                        <button
+                          onClick={() => setShowUtcLotteryPanel(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-amber)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-slate)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "var(--color-near-black)";
+                          }}
+                          title="UTC Lottery — draw status and recent results"
+                        >
+                          <span
+                            className="text-xs font-bold tracking-wider uppercase"
+                            style={{
+                              fontFamily:
+                                "var(--font-jetbrains-mono), 'Courier New', monospace",
+                              color: "var(--color-amber)",
+                            }}
+                          >
+                            Lottery
+                          </span>
+                        </button>
                         {/* Flow Balance */}
                         <div
                           className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
@@ -1098,7 +1129,7 @@ const Header: React.FC = () => {
 
                       {/* UTC Balance and Network */}
                       <div className="flex items-center gap-2 justify-between md:justify-start">
-                        {/* Drone Cores Balance - Clickable (opens Drone Storefront) */}
+                        {/* Drone Cores Balance - Clickable (opens Drone Storefront) — directly below the Lottery button in the row above, same width */}
                         <button
                           onClick={() => setShowDroneStorefront(true)}
                           disabled={!isDroneEnergyCoresDeployed}
@@ -1168,37 +1199,6 @@ const Header: React.FC = () => {
                             {utcBalance
                               ? `${formatEther(utcBalance as bigint)} UTC`
                               : "0.00 UTC"}
-                          </span>
-                        </button>
-                        {/* UTC Lottery status/results (docs/update/Frontend_Updates_2026-09-17.md §4) */}
-                        <button
-                          onClick={() => setShowUtcLotteryPanel(true)}
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-amber)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-near-black)";
-                          }}
-                          title="UTC Lottery — draw status and recent results"
-                        >
-                          <span
-                            className="text-xs font-bold tracking-wider uppercase"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-amber)",
-                            }}
-                          >
-                            Lottery
                           </span>
                         </button>
                         {/* Network (moved here) */}

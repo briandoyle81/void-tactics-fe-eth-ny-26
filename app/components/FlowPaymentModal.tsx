@@ -117,7 +117,7 @@ function ConnectWalletStep({ modal }: { modal: ModalHook }) {
             EVM wallet, then try again.
           </p>
           <button
-            onClick={() => void modal.open(modal.tier, modal.gameChainId)}
+            onClick={() => void modal.open(modal.tier, modal.gameChainId, modal.variant)}
             className="border border-phosphor-green/50 px-4 py-2 text-sm text-phosphor-green hover:border-phosphor-green hover:bg-phosphor-green/5 transition-colors"
           >
             Retry detection

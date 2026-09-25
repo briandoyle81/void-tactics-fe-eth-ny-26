@@ -38,6 +38,8 @@ interface GameGridCellProps {
   movedShipIdsSet: Set<number>;
   specialType: number;
   blockedGrid: boolean[][];
+  /** Movement-blocking terrain, independent of blockedGrid's LOS-only blocking. Optional — omitted renders no impassable-terrain overlay. */
+  impassableGrid?: boolean[][];
   scoringGrid: number[][];
   onlyOnceGrid: boolean[][];
   getShipAttributes: (shipId: number) => Attributes | null;
@@ -111,6 +113,7 @@ export function GameGridCell({
   movedShipIdsSet,
   specialType,
   blockedGrid,
+  impassableGrid,
   scoringGrid,
   onlyOnceGrid,
   getShipAttributes,
@@ -725,7 +728,9 @@ export function GameGridCell({
                         ? `Crystal Deposit: ${scoringGrid[rowIndex][colIndex]} points (only once) (${rowIndex}, ${colIndex})`
                         : scoringGrid[rowIndex][colIndex] > 0
                           ? `Gold Deposit: ${scoringGrid[rowIndex][colIndex]} points (${rowIndex}, ${colIndex})`
-                          : blockedGrid[rowIndex][colIndex]
+                          : impassableGrid?.[rowIndex]?.[colIndex]
+                            ? `Impassable Terrain (${rowIndex}, ${colIndex})`
+                            : blockedGrid[rowIndex][colIndex]
                             ? `Blocked Line of Sight (${rowIndex}, ${colIndex})`
                             : isMovementTile
                               ? `Move here (${rowIndex}, ${colIndex})`
@@ -744,6 +749,21 @@ export function GameGridCell({
                         <Image
                           src="/img/nebula-tile.png"
                           alt="Blocked line of sight"
+                          fill
+                          className="object-cover opacity-30"
+                        />
+                      </div>
+                    )}
+
+                    {/* Impassable terrain — independent bit from blockedGrid (see
+                        docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+                        §1). One layer above the nebula (blocked/LOS) tile —
+                        both render, stacked, when a tile is both. */}
+                    {impassableGrid?.[rowIndex]?.[colIndex] && (
+                      <div className="absolute inset-0 z-[1]">
+                        <Image
+                          src="/img/hazard-tile.png"
+                          alt="Impassable terrain"
                           fill
                           className="object-cover opacity-30"
                         />

@@ -523,9 +523,13 @@ export interface PresetMap {
 
 export interface MapEditorState {
   blockedTiles: boolean[][];
+  // Movement-blocking terrain, independent of blockedTiles' LOS-only
+  // blocking — see
+  // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1.
+  impassableTiles: boolean[][];
   scoringTiles: number[][];
   onlyOnceTiles: boolean[][];
-  selectedTool: "block" | "score" | "erase";
+  selectedTool: "block" | "impassable" | "score" | "erase";
   selectedScoreValue: number;
   selectedOnlyOnce: boolean;
   symmetryMode: "none" | "radial";

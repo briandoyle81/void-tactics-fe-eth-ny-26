@@ -25,6 +25,15 @@ export interface FleetPlacementParams {
    * single-variant, just not predetermined).
    */
   requiredVariant?: number;
+  /**
+   * This side's custom deployment-zone tiles for the map in play, from
+   * `Maps.getCreatorZonePositions`/`getJoinerZonePositions` (see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §2) — pass the side-appropriate list (`isCreatorSide` picks which).
+   * Empty/omitted means the map hasn't customized its zone, so this falls
+   * back to the engine default column band exactly like before.
+   */
+  zoneTiles?: Array<{ row: number; col: number }>;
 }
 
 const CREATOR_ZONE = { colMin: 0, colMax: 3 } as const;
@@ -42,8 +51,10 @@ export function useFleetPlacement({
   costsVersion,
   isCreatorSide,
   requiredVariant,
+  zoneTiles,
 }: FleetPlacementParams) {
   const zone = isCreatorSide ? CREATOR_ZONE : JOINER_ZONE;
+  const hasCustomZone = !!zoneTiles && zoneTiles.length > 0;
 
   const [selectedShips, setSelectedShips] = useState<bigint[]>([]);
   const [shipPositions, setShipPositions] = useState<
@@ -55,12 +66,26 @@ export function useFleetPlacement({
   const [dragOverPosition, setDragOverPosition] = useState<
     { row: number; col: number } | null
   >(null);
+  // Set the first time the player explicitly places a ship (drag/click),
+  // as opposed to it landing somewhere via addShip's auto-fill — replaces
+  // an earlier "did anything leave the very first column" heuristic that
+  // assumed a rectangular zone and broke for a custom zone shape.
+  const [hasManuallyMoved, setHasManuallyMoved] = useState(false);
 
   // Creator fills its zone left-to-right, top-to-bottom; joiner fills its
   // zone right-to-left, bottom-to-top — mirrors Lobbies.tsx's original
-  // per-side search order.
+  // per-side search order. A custom zone (non-rectangular) instead fills
+  // in the order the contract returned its tiles.
   const findNextPosition = useCallback(
     (existingPositions: Array<{ row: number; col: number }>) => {
+      if (hasCustomZone) {
+        for (const tile of zoneTiles!) {
+          if (!existingPositions.some((p) => p.row === tile.row && p.col === tile.col)) {
+            return { row: tile.row, col: tile.col };
+          }
+        }
+        return null;
+      }
       if (isCreatorSide) {
         for (let col = zone.colMin; col <= zone.colMax; col++) {
           for (let row = 0; row < GRID_DIMENSIONS.HEIGHT; row++) {
@@ -80,7 +105,7 @@ export function useFleetPlacement({
       }
       return null;
     },
-    [isCreatorSide, zone],
+    [isCreatorSide, zone, hasCustomZone, zoneTiles],
   );
 
   // `Fleets.createFleet` reverts `MixedVariantFleet` if selected ships don't
@@ -121,17 +146,16 @@ export function useFleetPlacement({
 
   const moveShip = useCallback(
     (shipId: bigint, row: number, col: number) => {
-      const inZone =
-        row >= 0 &&
-        row < GRID_DIMENSIONS.HEIGHT &&
-        col >= zone.colMin &&
-        col <= zone.colMax;
+      const inZone = hasCustomZone
+        ? zoneTiles!.some((t) => t.row === row && t.col === col)
+        : row >= 0 && row < GRID_DIMENSIONS.HEIGHT && col >= zone.colMin && col <= zone.colMax;
       if (!inZone) return;
       const occupied = shipPositions.some(
         (p) => p.row === row && p.col === col && p.shipId !== shipId,
       );
       if (occupied) return;
 
+      setHasManuallyMoved(true);
       if (!selectedShips.includes(shipId)) {
         setSelectedShips((prev) => [...prev, shipId]);
         setShipPositions((prev) => [...prev, { shipId, row, col }]);
@@ -142,13 +166,14 @@ export function useFleetPlacement({
       );
       setSelectedShipId(null);
     },
-    [shipPositions, selectedShips, zone],
+    [shipPositions, selectedShips, zone, hasCustomZone, zoneTiles],
   );
 
   const clearSelection = useCallback(() => {
     setSelectedShips([]);
     setShipPositions([]);
     setSelectedShipId(null);
+    setHasManuallyMoved(false);
   }, []);
 
   const resolveShip = useCallback(
@@ -208,12 +233,10 @@ export function useFleetPlacement({
   const isOverLimit = totalCost > costLimit;
   const isUnder90Percent = totalCost < costLimit * 0.9;
 
-  // Require at least one ship moved off the default deploy column (creator:
-  // col 0, joiner: the far column) before allowing submission — mirrors
-  // Fleets.createFleet's own expectations for a side's fleet.
-  const defaultCol = isCreatorSide ? 0 : GRID_DIMENSIONS.WIDTH - 1;
-  const hasMovedShip =
-    shipPositions.length > 0 && shipPositions.some((pos) => pos.col !== defaultCol);
+  // Require at least one explicit manual placement before allowing
+  // submission — a UX nudge so a player doesn't submit a fleet they never
+  // actually looked at, not an on-chain requirement.
+  const hasMovedShip = shipPositions.length > 0 && hasManuallyMoved;
 
   return {
     ships,
@@ -241,7 +264,7 @@ export function useFleetPlacement({
     isUnder90Percent,
     hasMovedShip,
     hasStaleCostsVersion,
-    maxShips: MAX_SHIPS_PER_FLEET,
+    maxShips: hasCustomZone ? zoneTiles!.length : MAX_SHIPS_PER_FLEET,
   };
 }
 

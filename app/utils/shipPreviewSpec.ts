@@ -22,7 +22,11 @@ export interface ShipPreviewSpec {
   shiny: boolean;
 }
 
-export function buildShipPreviewSpec(seed: number, shipsDestroyed: number): ShipPreviewSpec {
+export function buildShipPreviewSpec(
+  seed: number,
+  shipsDestroyed: number,
+  variant: number = 1,
+): ShipPreviewSpec {
   return {
     seed,
     shipsDestroyed,
@@ -40,7 +44,7 @@ export function buildShipPreviewSpec(seed: number, shipsDestroyed: number): Ship
       s2: 62,
       l2: 46,
     },
-    variant: 1,
+    variant,
     accuracy: seed % 3,
     hull: (seed + 1) % 3,
     speed: (seed + 2) % 3,
@@ -53,8 +57,11 @@ export function getPreviewShipSpecsForTier(
   tier: number,
   shipCount: number,
   shipsDestroyedForRank: (rank: number) => number,
+  variant: number = 1,
 ): ShipPreviewSpec[] {
   const base = previewSeed + tier * 20 + 1;
   const ranksToShow = getPreviewDisplayRanks(tier, shipCount);
-  return ranksToShow.map((rank, idx) => buildShipPreviewSpec(base + idx, shipsDestroyedForRank(rank)));
+  return ranksToShow.map((rank, idx) =>
+    buildShipPreviewSpec(base + idx, shipsDestroyedForRank(rank), variant),
+  );
 }

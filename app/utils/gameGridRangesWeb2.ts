@@ -1,6 +1,6 @@
 import { Attributes } from "../types/types";
 import { Web2ShipPosition } from "../types/web2Game";
-import { hasLineOfSight } from "./gameGridRanges";
+import { hasLineOfSight, hasMovementPath } from "./gameGridRanges";
 
 // "ram" mode covers both faction abilities (Ram/variant 1, Repair/variant
 // 2 — see useFactionAbilityConfig.ts): a valid target is a downed enemy for
@@ -39,6 +39,14 @@ interface MovementRangeParams {
     col: number,
     occupyingShipId: number,
   ) => boolean;
+  /**
+   * Movement-blocking terrain (distinct from `blockedGrid`'s LOS-only
+   * blocking — see
+   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+   * §1). Omitted/absent means no impassable terrain — every candidate tile
+   * within movement range is reachable, same as before this existed.
+   */
+  impassableGrid?: boolean[][];
 }
 
 interface ShootingRangeParams {
@@ -67,6 +75,7 @@ export function computeMovementRange({
   shipPositions,
   previewPosition,
   canEnterOccupiedCell,
+  impassableGrid,
 }: MovementRangeParams): { row: number; col: number }[] {
   if (!selectedShipId || !hasShips) return [];
 
@@ -108,8 +117,12 @@ export function computeMovementRange({
     ) {
       const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
       if (distance <= movementRange && distance > 0) {
+        // Blocked tiles only block line of sight, not movement — impassable
+        // ones (independent bit, see impassableGrid's doc comment) do.
+        if (impassableGrid && !hasMovementPath(startRow, startCol, row, col, impassableGrid)) {
+          continue;
+        }
         // Check if position is not occupied by another ship
-        // Blocked tiles only block line of sight, not movement
         const isOccupied = shipPositions.some(
           (pos) => pos.position.row === row && pos.position.col === col,
         );

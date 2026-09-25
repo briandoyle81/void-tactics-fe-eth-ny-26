@@ -56,7 +56,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
 
   const costLimit = Number(node.costLimit);
   const { data: requiredVariant } = useCampaignRequiredVariant(node.campaignId);
-  const fleet = useNodeFleetSelection(costLimit, requiredVariant);
+  const fleet = useNodeFleetSelection(costLimit, requiredVariant, Number(node.mapId));
 
   // Enemy fleet placement is deterministic per-map data (unlike PvP, there's
   // no opponent to keep it secret from), so show it already on the board

@@ -3,6 +3,7 @@ import { createTtlCache } from "./ttlCache";
 
 export interface MapTiles {
   blockedTiles: unknown;
+  impassableTiles: unknown;
   scoringTiles: unknown;
 }
 
@@ -17,7 +18,7 @@ export async function getMapTiles(mapId: number): Promise<MapTiles | null> {
     entry = createTtlCache(async () => {
       return prisma.map.findUnique({
         where: { id: mapId },
-        select: { blockedTiles: true, scoringTiles: true },
+        select: { blockedTiles: true, impassableTiles: true, scoringTiles: true },
       });
     }, 60_000);
     cachesByMapId.set(mapId, entry);
