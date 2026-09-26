@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { getKillsForRank } from "../lib/purchaseTiers";
 import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
 import { Web2Ship } from "../types/web2Ship";
@@ -18,6 +18,10 @@ import {
   PREVIEW_SHIP_ID_OFFSET,
   type ShipPreviewSpec,
 } from "../utils/shipPreviewSpec";
+
+// How often the demo/preview ships shown on the tier cards reroll — matched to
+// HeroShipShowcase's default rotation cadence on the Info page (10s).
+const PREVIEW_REFRESH_INTERVAL_MS = 10000;
 
 // Web2-mode counterpart to ShipPurchaseInterface.tsx — same tier-card
 // layout/copy (via the shared ShipPurchaseTierCard/shipPurchaseTierDisplay
@@ -65,7 +69,17 @@ export function ShipPurchaseInterfaceWeb2({
   onPurchase,
   busy,
 }: ShipPurchaseInterfaceWeb2Props) {
-  const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
+  // Reroll the demo/preview ships on the same cadence HeroShipShowcase uses on
+  // the Info page (10s) so both "living" ship displays feel consistent.
+  const [previewSeed, setPreviewSeed] = useState(() =>
+    Math.floor(Math.random() * 1_000_000),
+  );
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPreviewSeed(Math.floor(Math.random() * 1_000_000));
+    }, PREVIEW_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
   const { tiers } = usePurchaseTiersWeb2();
 
   const getPreviewShipsForTier = (tier: number, shipCount: number): Web2Ship[] =>

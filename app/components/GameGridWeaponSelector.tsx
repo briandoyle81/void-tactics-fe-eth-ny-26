@@ -1,10 +1,45 @@
 "use client";
 
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
+import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
+import {
+  selectedShipHasEffectLabel,
+  SELF_EFFECT_LABEL_CLEARANCE_PX,
+} from "../utils/gameGridRanges";
 
 type Position = { row: number; col: number };
+
+/** Repair is always available (self is in range). Ram needs a downed enemy near an origin. */
+export function canOfferFactionAbility(params: {
+  isFactionAbilitySupported: boolean;
+  factionAbilityIsHeal: boolean;
+  factionAbilityRange?: number;
+  origins: ReadonlyArray<Position>;
+  grid: (GridShipPosition | null)[][];
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  getShipAttributes: (shipId: number) => { hullPoints?: number } | null;
+}): boolean {
+  if (!params.isFactionAbilitySupported) return false;
+  if (params.factionAbilityIsHeal) return true;
+  const range = params.factionAbilityRange ?? 1;
+  for (const origin of params.origins) {
+    for (let r = 0; r < params.grid.length; r++) {
+      const rowCells = params.grid[r] ?? [];
+      for (let c = 0; c < rowCells.length; c++) {
+        if (Math.abs(r - origin.row) + Math.abs(c - origin.col) > range) continue;
+        const cell = rowCells[c];
+        if (!cell || cell.isPreview) continue;
+        if (params.isShipOwnedByCurrentPlayer(cell.shipId)) continue;
+        if ((params.getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
 interface GameGridWeaponSelectorProps {
   grid: (GridShipPosition | null)[][];
@@ -115,7 +150,7 @@ export function GameGridWeaponSelector({
     return null;
   }
 
-  const hasSpecial = ship.equipment.special > 0;
+  const hasSpecial = shipHasActivatableSpecial(ship);
   // Where the chain still runs the legacy auto-ram-on-move model (see
   // useFactionAbilityConfig.ts), a target is "a disabled enemy sitting on a
   // tile I could move onto" — landing there IS the ram. Where the real
@@ -126,34 +161,25 @@ export function GameGridWeaponSelector({
   // factionAbilityRange of the ship's current tile or anywhere it could
   // move to? Repair's target is any friendly (including itself); Ram's is a
   // disabled enemy.
-  const hasFactionAbilityTarget = isFactionAbilitySupported
-    ? (() => {
-        const range = factionAbilityRange ?? 1;
-        const origins = [{ row: shipRow, col: shipCol }, ...movementRange];
-        for (const origin of origins) {
-          for (let r = 0; r < grid.length; r++) {
-            const rowCells = grid[r] ?? [];
-            for (let c = 0; c < rowCells.length; c++) {
-              if (Math.abs(r - origin.row) + Math.abs(c - origin.col) > range) continue;
-              const cell = rowCells[c];
-              if (!cell || cell.isPreview) continue;
-              const isOwn = isShipOwnedByCurrentPlayer(cell.shipId);
-              if (factionAbilityIsHeal) {
-                if (isOwn) return true;
-              } else if (!isOwn && (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0) {
-                return true;
-              }
-            }
-          }
-        }
-        return false;
-      })()
-    : movementRange.some(({ row: r, col: c }) => {
-        const cell = grid[r]?.[c];
-        if (!cell || cell.isPreview) return false;
-        if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
-        return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
-      });
+  const hasFactionAbilityTarget = canOfferFactionAbility({
+    isFactionAbilitySupported,
+    factionAbilityIsHeal,
+    factionAbilityRange,
+    origins: previewPosition
+      ? [previewPosition, { row: shipRow, col: shipCol }, ...movementRange]
+      : [{ row: shipRow, col: shipCol }, ...movementRange],
+    grid,
+    isShipOwnedByCurrentPlayer,
+    getShipAttributes,
+  }) || (
+    !isFactionAbilitySupported &&
+    movementRange.some(({ row: r, col: c }) => {
+      const cell = grid[r]?.[c];
+      if (!cell || cell.isPreview) return false;
+      if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
+      return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
+    })
+  );
   const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
     ...(hasFactionAbilityTarget
       ? [{ value: "ram" as const, label: factionAbilityIsHeal ? "REPAIR" : "RAM" }]
@@ -172,7 +198,19 @@ export function GameGridWeaponSelector({
   const isTopRow = anchorRow === 0;
   const left = `${((anchorCol + 0.5) / 17) * 100}%`;
   const top = isTopRow ? `${((anchorRow + 1) / 11) * 100}%` : `${(anchorRow / 11) * 100}%`;
-  const transform = isTopRow ? "translate(-50%, 4px)" : "translate(-50%, calc(-100% - 4px))";
+  // Sit past the self-heal / field label so the selector does not cover it.
+  const selfHasEffectLabel = selectedShipHasEffectLabel({
+    selectedShipId,
+    targetShipId,
+    selectedWeaponType,
+    specialType,
+    shipVariant: ship.traits.variant,
+    factionAbilityIsHeal,
+  });
+  const selectorGapPx = selfHasEffectLabel ? SELF_EFFECT_LABEL_CLEARANCE_PX : 4;
+  const transform = isTopRow
+    ? `translate(-50%, ${selectorGapPx}px)`
+    : `translate(-50%, calc(-100% - ${selectorGapPx}px))`;
 
   return (
     <div

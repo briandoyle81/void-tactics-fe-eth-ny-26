@@ -1,6 +1,8 @@
 import React from "react";
 import { GridShipPosition } from "../types/gridDisplay";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
+import { isRepairDronesSpecial } from "../utils/specialConfigWeb2";
+import { readShipValue } from "../utils/requireShipValue";
 
 type Target = { shipId: number; position: { row: number; col: number } };
 
@@ -28,9 +30,21 @@ export function useGridEffectPreviews(params: {
   labelTargets?: Target[];
   selectedWeaponType: "weapon" | "special" | "ram";
   specialType: number;
+  shipVariant?: number;
+  specialRange?: number;
   isCurrentPlayerTurn: boolean;
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
   lastMoveTargetShipId?: number | null;
+  lastMoveShipId?: number | null;
+  lastMoveNewPosition?: { row: number; col: number } | null;
+  /**
+   * Last mover's destination even when last-move ghosts/arrows are hidden
+   * (a ship is selected). Weapon beams must aim here, not at the from-tile
+   * ghost left on the grid.
+   */
+  lastMoveResolvedTo?: { shipId: number; row: number; col: number } | null;
+  factionAbilityIsHeal?: boolean;
+  factionAbilityStrength?: number;
   calculateDamage: (
     targetShipId: number,
     weaponType?: "weapon" | "special",
@@ -58,9 +72,16 @@ export function useGridEffectPreviews(params: {
     labelTargets,
     selectedWeaponType,
     specialType,
+    shipVariant,
+    specialRange,
     isCurrentPlayerTurn,
     isShipOwnedByCurrentPlayer,
     lastMoveTargetShipId,
+    lastMoveShipId,
+    lastMoveNewPosition,
+    lastMoveResolvedTo,
+    factionAbilityIsHeal = false,
+    factionAbilityStrength,
     calculateDamage,
     getShipAttributes,
   } = params;
@@ -90,18 +111,46 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const flakEffectCells = React.useMemo(() => {
-    // Only show Flak explosions when a destination is active (hover, drag, or staged move).
-    // Without an active destination, shootingRange is a multi-origin threat range and
-    // would spread explosions across the whole board.
-    if (!effectiveDragCell && !previewPosition) return [];
-    // Flak should show explosions across all in-range tiles, including tiles
-    // that contain ships. `shootingRange` excludes occupied tiles, so union with
-    // target positions.
-    const rangeCells = effectiveDragCell ? effectiveShootingRange : shootingRange;
-    const targetCells = (effectiveDragCell ? effectiveValidTargets : validTargets)
-      .map((t) => t.position);
-    return [...rangeCells, ...targetCells];
+    if (selectedWeaponType !== "special" || specialType !== 3) return [];
+
+    const range = readShipValue("specialRange", specialRange);
+    const origin = effectiveDragCell ?? previewPosition;
+    if (origin) {
+      const rangeCells = effectiveDragCell ? effectiveShootingRange : shootingRange;
+      const targetCells = (effectiveDragCell ? effectiveValidTargets : validTargets)
+        .map((t) => t.position);
+      const combined = [...rangeCells, ...targetCells];
+      if (combined.length > 0) return combined;
+    }
+
+    let start = origin;
+    if (!start && selectedShipId != null) {
+      for (let r = 0; r < grid.length && !start; r++) {
+        const row = grid[r];
+        for (let c = 0; c < row.length; c++) {
+          const cell = row[c];
+          if (cell?.shipId === selectedShipId && !cell.isPreview) {
+            start = { row: r, col: c };
+            break;
+          }
+        }
+      }
+    }
+    if (!start || range === undefined) return [];
+    const cells: { row: number; col: number }[] = [];
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        const dist = Math.abs(r - start.row) + Math.abs(c - start.col);
+        if (dist > 0 && dist <= range) cells.push({ row: r, col: c });
+      }
+    }
+    return cells;
   }, [
+    selectedWeaponType,
+    specialType,
+    specialRange,
+    selectedShipId,
+    grid,
     effectiveDragCell,
     previewPosition,
     effectiveShootingRange,
@@ -170,12 +219,15 @@ export function useGridEffectPreviews(params: {
   const projectedRepairByShipId = React.useMemo(() => {
     const map = new Map<number, number>();
 
+    const isFactionHeal =
+      selectedWeaponType === "ram" && factionAbilityIsHeal;
     const shouldShowRepairPreview =
       selectedShipId != null &&
       isCurrentPlayerTurn &&
       isShipOwnedByCurrentPlayer(selectedShipId) &&
-      selectedWeaponType === "special" &&
-      specialType === 2;
+      ((selectedWeaponType === "special" &&
+        isRepairDronesSpecial(shipVariant ?? 1, specialType)) ||
+        isFactionHeal);
 
     if (!shouldShowRepairPreview) return map;
 
@@ -194,7 +246,9 @@ export function useGridEffectPreviews(params: {
     }
 
     ids.forEach((id) => {
-      const heal = calculateDamage(id, "special").reducedDamage;
+      const heal = isFactionHeal
+        ? (factionAbilityStrength ?? 50)
+        : calculateDamage(id, "special").reducedDamage;
       if (heal > 0) map.set(id, heal);
     });
 
@@ -205,6 +259,9 @@ export function useGridEffectPreviews(params: {
     isShipOwnedByCurrentPlayer,
     selectedWeaponType,
     specialType,
+    shipVariant,
+    factionAbilityIsHeal,
+    factionAbilityStrength,
     targetShipId,
     effectiveDragCell,
     effectiveValidTargets,
@@ -228,7 +285,15 @@ export function useGridEffectPreviews(params: {
       labelTargets,
       selectedWeaponType,
       specialType,
+      shipVariant,
+      previewPosition,
+      specialRange,
+      factionAbilityIsHeal,
     });
+
+    if (selectedWeaponType === "ram" && factionAbilityIsHeal) {
+      return ids;
+    }
 
     for (const target of targetsToShow) {
       const damage = calculateDamage(
@@ -262,6 +327,10 @@ export function useGridEffectPreviews(params: {
     labelTargets,
     selectedWeaponType,
     specialType,
+    shipVariant,
+    previewPosition,
+    specialRange,
+    factionAbilityIsHeal,
     calculateDamage,
     getShipAttributes,
   ]);
@@ -270,18 +339,33 @@ export function useGridEffectPreviews(params: {
     (shipId: number | null | undefined): { row: number; col: number } | null => {
       if (shipId == null) return null;
 
-      // Primary: find in currently rendered grid.
+      const resolved =
+        lastMoveResolvedTo && lastMoveResolvedTo.shipId === shipId
+          ? lastMoveResolvedTo
+          : lastMoveShipId != null &&
+              lastMoveShipId === shipId &&
+              lastMoveNewPosition != null
+            ? { shipId, row: lastMoveNewPosition.row, col: lastMoveNewPosition.col }
+            : null;
+      if (resolved && resolved.row >= 0 && resolved.col >= 0) {
+        return { row: resolved.row, col: resolved.col };
+      }
+
+      // Prefer the real ship. Last-move ghosts reuse the same shipId on the
+      // from-tile with isPreview, and a row-major scan would hit that first
+      // whenever the ship moved down or right.
+      let previewMatch: { row: number; col: number } | null = null;
       for (let r = 0; r < grid.length; r++) {
         const row = grid[r];
         for (let c = 0; c < row.length; c++) {
           const cell = row[c];
-          if (cell?.shipId === shipId) {
-            return { row: r, col: c };
-          }
+          if (cell?.shipId !== shipId) continue;
+          if (!cell.isPreview) return { row: r, col: c };
+          if (!previewMatch) previewMatch = { row: r, col: c };
         }
       }
+      if (previewMatch) return previewMatch;
 
-      // Fallback: use authoritative game shipPositions from GameDataView.
       if (allShipPositions && allShipPositions.length > 0) {
         const fallbackPos = allShipPositions.find((sp) => sp.shipId === shipId);
         if (fallbackPos) {
@@ -294,7 +378,7 @@ export function useGridEffectPreviews(params: {
 
       return null;
     },
-    [grid, allShipPositions],
+    [grid, allShipPositions, lastMoveResolvedTo, lastMoveShipId, lastMoveNewPosition],
   );
 
   return {

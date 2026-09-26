@@ -3,6 +3,7 @@ import {
   getArmorName,
   getShieldName,
   getSpecialName,
+  canonicalSpecialSlot,
 } from "../types/types";
 import { calculateShipRank } from "./shipLevel";
 import { Web2Ship } from "../types/web2Ship";
@@ -93,7 +94,10 @@ export function shipMatchesNavyFilterWeb2(
     case "eq_shield":
       return numOk && ship.equipment.shields === n;
     case "eq_special":
-      return numOk && ship.equipment.special === n;
+      return (
+        numOk &&
+        canonicalSpecialSlot(ship.traits.variant, ship.equipment.special) === n
+      );
     case "trait_accuracy":
       return numOk && ship.traits.accuracy === n;
     case "trait_hull":

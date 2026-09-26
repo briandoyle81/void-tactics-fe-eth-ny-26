@@ -29,6 +29,8 @@ interface ShipImageProps {
   rankStarsSize?: "default" | "large";
   /** Game grid draws rank stars below the team dot; hide here to avoid overlap with mirrored art. */
   hideRankStars?: boolean;
+  /** Mirror the hull art only. Rank stars stay upright. */
+  flip?: boolean;
 }
 
 // Web3-mode adapter for the shared `ShipImageView` — resolves the on-chain
@@ -42,6 +44,7 @@ export function ShipImage({
   style,
   rankStarsSize = "default",
   hideRankStars = false,
+  flip = false,
 }: ShipImageProps) {
   const { dataUrl, isLoading, error, renderKey } = useShipRenderer(ship);
 
@@ -70,6 +73,7 @@ export function ShipImage({
       style={style}
       rankStarsSize={rankStarsSize}
       hideRankStars={hideRankStars}
+      flip={flip}
     />
   );
 }

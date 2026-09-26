@@ -264,7 +264,7 @@ export function RoguelikeCombatModal({
       fleetFilters={fleet.fleetFilters}
       onFleetFiltersChange={fleet.setFleetFilters}
       shownCount={fleet.filteredShips.length}
-      totalCount={fleet.ships.length}
+      totalCount={fleet.ships.filter((s) => s.traits.variant === fleet.selectedVariant).length}
       showInGameProperties={showInGameProperties}
       onToggleInGameProperties={setShowInGameProperties}
       isAttributesFromCache={isAttributesFromCache}
@@ -277,6 +277,9 @@ export function RoguelikeCombatModal({
         // list doesn't remove it from the mission, only repositioning
         // (moveShip via the grid) is meaningful here.
       }}
+      selectedVariant={fleet.selectedVariant}
+      onSelectVariant={fleet.setSelectedVariant}
+      variantLocked={fleet.variantLocked}
     />
   );
 }

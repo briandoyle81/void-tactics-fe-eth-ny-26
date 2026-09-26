@@ -29,8 +29,6 @@ import { useNavyFilterState } from "../hooks/useNavyFilterState";
 import { useStarredShips } from "../hooks/useStarredShips";
 import { NavyFilterToolbar } from "./NavyFilterToolbar";
 import { NavyPagination } from "./NavyPagination";
-import ShipPurchaseInterface from "./ShipPurchaseInterface";
-import { ShipPurchasePanel } from "./ShipPurchasePanel";
 import { FreeShipClaimButton } from "./FreeShipClaimButton";
 import { ShipActionButton } from "./ShipActionButton";
 import ShipCard from "./ShipCard";
@@ -424,24 +422,18 @@ const ManageNavy: React.FC = () => {
   const [showDebugButtons, setShowDebugButtons] = React.useState(false);
   const [isMobileManageNavyLayout, setIsMobileManageNavyLayout] =
     React.useState(false);
-  const [isCompactManageNavyViewport, setIsCompactManageNavyViewport] =
-    React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const mobileMq = window.matchMedia("(max-width: 767px)");
-    const compactMq = window.matchMedia("(max-width: 1023px)");
     const sync = () => {
       setIsMobileManageNavyLayout(mobileMq.matches);
-      setIsCompactManageNavyViewport(compactMq.matches);
     };
     sync();
     mobileMq.addEventListener("change", sync);
-    compactMq.addEventListener("change", sync);
     return () => {
       mobileMq.removeEventListener("change", sync);
-      compactMq.removeEventListener("change", sync);
     };
   }, []);
 
@@ -450,37 +442,18 @@ const ManageNavy: React.FC = () => {
   const { starredShips, toggleStar } = useStarredShips(
     address ? `${chainId}:${address.toLowerCase()}` : "",
   );
-  const [showShipPurchase, setShowShipPurchase] = React.useState(false);
-  const showMobileShipPurchaseTakeover =
-    showShipPurchase && isCompactManageNavyViewport;
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(
-      new CustomEvent("void-tactics-manage-navy-purchase-active", {
-        detail: { active: showMobileShipPurchaseTakeover },
-      }),
-    );
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent("void-tactics-manage-navy-purchase-active", {
-          detail: { active: false },
-        }),
-      );
-    };
-  }, [showMobileShipPurchaseTakeover]);
-
+  // Buying ships now lives in its own "Store" tab — the buttons below navigate
+  // there instead of opening an inline purchase panel.
   const handleBuyNewShipsClick = React.useCallback(() => {
     if (address && showBuyShipsTutorial) {
       persistBuyShipsTutorialCompleted(address, chainId);
       setShowBuyShipsTutorial(false);
     }
-    setShowShipPurchase(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-store"));
+    }
   }, [address, chainId, showBuyShipsTutorial]);
 
-  const [paymentMethod, setPaymentMethod] = React.useState<"FLOW" | "UTC" | "USD">(
-    "FLOW",
-  );
   const [showRecycleModal, setShowRecycleModal] = React.useState(false);
   const [shipToRecycle, setShipToRecycle] = React.useState<Ship | null>(null);
 
@@ -777,7 +750,7 @@ const ManageNavy: React.FC = () => {
 
   const constructTutorialButtonLabel =
     fleetStats.unconstructedShips > STALE_COST_SYNC_BATCH_CAP
-      ? ("[CONSTRUCT 150 SHIPS]" as const)
+      ? ("[CONSTRUCT 60 SHIPS]" as const)
       : ("[CONSTRUCT ALL SHIPS]" as const);
 
   const claimFreeShipControls = (
@@ -851,7 +824,7 @@ const ManageNavy: React.FC = () => {
         onSuccess={() => {
           toast.success(
             staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
-              ? "150 ships cost version update started!"
+              ? "60 ships cost version update started!"
               : "Ship cost versions updated!",
           );
           afterShipCostSyncPersistCaches();
@@ -862,7 +835,7 @@ const ManageNavy: React.FC = () => {
         }}
       >
         {staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
-          ? "[UPDATE 150 SHIPS]"
+          ? "[UPDATE 60 SHIPS]"
           : "[UPDATE ALL SHIPS]"}
       </TransactionButton>
     );
@@ -981,11 +954,11 @@ const ManageNavy: React.FC = () => {
                           );
                           setShowConstructDeliveryTutorial(false);
                         }
-                        toast.success("150 ships construction started!");
+                        toast.success("60 ships construction started!");
                         refetch();
                       }}
                     >
-                      [CONSTRUCT 150 SHIPS]
+                      [CONSTRUCT 60 SHIPS]
                     </ShipActionButton>
                   ) : (
                     <ShipActionButton
@@ -1050,11 +1023,11 @@ const ManageNavy: React.FC = () => {
                   className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
-                    toast.success("150 ships construction started!");
+                    toast.success("60 ships construction started!");
                     refetch();
                   }}
                 >
-                  [CONSTRUCT 150 SHIPS]
+                  [CONSTRUCT 60 SHIPS]
                 </ShipActionButton>
               ) : (
                 <ShipActionButton
@@ -1122,11 +1095,11 @@ const ManageNavy: React.FC = () => {
                   className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
                   onSuccess={() => {
-                    toast.success("150 ships construction started!");
+                    toast.success("60 ships construction started!");
                     refetch();
                   }}
                 >
-                  [CONSTRUCT 150 SHIPS]
+                  [CONSTRUCT 60 SHIPS]
                 </ShipActionButton>
               ) : (
                 <ShipActionButton
@@ -1272,27 +1245,6 @@ const ManageNavy: React.FC = () => {
           />
         )}
       </div>
-
-      {/* Ship Purchase Interface */}
-      <ShipPurchasePanel
-        show={showShipPurchase}
-        onClose={() => setShowShipPurchase(false)}
-        mobileTakeover={showMobileShipPurchaseTakeover}
-        warningNote="Prices not yet normalized for all chains"
-        paymentMethods={[
-          { id: "FLOW", label: "TOKENS", activeBorderClass: "border-cyan", activeTextClass: "text-cyan", activeBgClass: "bg-cyan/10" },
-          { id: "UTC", label: "UTC", activeBorderClass: "border-amber", activeTextClass: "text-amber", activeBgClass: "bg-amber/10" },
-          { id: "USD", label: "Fireblocks Flow", activeBorderClass: "border-phosphor-green", activeTextClass: "text-phosphor-green", activeBgClass: "bg-phosphor-green/10" },
-        ]}
-        activePaymentMethodId={paymentMethod}
-        onSelectPaymentMethod={(id) => setPaymentMethod(id as "FLOW" | "UTC" | "USD")}
-      >
-        <ShipPurchaseInterface
-          onClose={() => setShowShipPurchase(false)}
-          paymentMethod={paymentMethod}
-          onPaymentMethodChange={setPaymentMethod}
-        />
-      </ShipPurchasePanel>
 
       {/* Filtering and Sorting Controls */}
       <div

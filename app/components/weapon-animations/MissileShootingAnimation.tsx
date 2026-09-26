@@ -1,7 +1,17 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
-import { MISSILE_IMPACT_DURATION_MS, MISSILE_SECOND_FIRE_DELAY_MS, MISSILE_RESPAWN_DELAY_MS } from "../../constants/animationTiming";
+import React, { useRef, useEffect, useMemo } from "react";
+import {
+  MISSILE_IMPACT_DURATION_MS,
+  MISSILE_SECOND_FIRE_DELAY_MS,
+  MISSILE_RESPAWN_DELAY_MS,
+  MISSILE_SLOTS,
+  MISSILE_IMPACT_SLOTS,
+  TORPEDO_SPEED_SCALE,
+  TORPEDO_IMPACT_DURATION_MS,
+} from "../../constants/animationTiming";
+import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
+import { createOverlaySizeSync, setCircle, setHidden } from "./overlayPaint";
 
 interface MissileShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -10,9 +20,143 @@ interface MissileShootingAnimationProps {
   targetRow: number;
   targetCol: number;
   facingRight: boolean;
+  /** Variant 2 is the Torpedo Launcher: one slower oval, ring shockwave. */
+  variant?: number;
 }
 
 const IMPACT_COLORS = ["#ff4400", "#ff8800", "#ffcc00", "#ffffff", "#ff6600"];
+const TRIANGLE_SIZE = 8;
+const TRIANGLE_HEIGHT = 12;
+const OVAL_RX = 11;
+const OVAL_RY = 5.5;
+const MAX_TRAIL = 10;
+const MAX_DEBRIS = 10;
+
+type Missile = {
+  x: number;
+  y: number;
+  angle: number;
+  targetX: number;
+  targetY: number;
+  startX: number;
+  startY: number;
+  spawnX: number;
+  spawnY: number;
+  driftStartTime: number;
+  trail: { x: number; y: number }[];
+};
+
+type MissileImpact = {
+  x: number;
+  y: number;
+  startTime: number;
+  shockwave: boolean;
+  particles: Array<{ angle: number; speed: number; size: number; color: string }>;
+};
+
+function makeMissile(
+  attackerCenter: { x: number; y: number },
+  targetX: number,
+  targetY: number,
+  startSpeed: number,
+  driftTime: number,
+): Missile {
+  const dx = targetX - attackerCenter.x;
+  const dy = targetY - attackerCenter.y;
+  const targetAngle = Math.atan2(dy, dx);
+  const angleVariation = (Math.random() - 0.5) * ((30 * Math.PI) / 180);
+  const initialAngle = targetAngle + Math.PI / 2 + angleVariation;
+  const driftDistance = startSpeed * driftTime;
+  const driftX = attackerCenter.x + Math.cos(initialAngle) * driftDistance;
+  const driftY = attackerCenter.y + Math.sin(initialAngle) * driftDistance;
+  return {
+    x: attackerCenter.x,
+    y: attackerCenter.y,
+    angle: Math.atan2(dy, dx) * (180 / Math.PI) + 90,
+    targetX,
+    targetY,
+    startX: driftX,
+    startY: driftY,
+    spawnX: attackerCenter.x,
+    spawnY: attackerCenter.y,
+    driftStartTime: Date.now(),
+    trail: [],
+  };
+}
+
+function stepMissile(
+  missile: Missile,
+  now: number,
+  topSpeed: number,
+  startSpeed: number,
+): { x: number; y: number; angle: number } | null {
+  const INITIAL_DRIFT_TIME = 0.5;
+  const ACCELERATION_TIME = 0.125;
+  const ACCELERATION = (topSpeed - startSpeed) / ACCELERATION_TIME;
+  const targetDx = missile.targetX - missile.spawnX;
+  const targetDy = missile.targetY - missile.spawnY;
+  const targetAngle = Math.atan2(targetDy, targetDx);
+  const initialAngle = targetAngle + Math.PI / 2;
+  const dx = missile.targetX - missile.startX;
+  const dy = missile.targetY - missile.startY;
+  const totalDistance = Math.sqrt(dx * dx + dy * dy);
+  const accelerationDistance =
+    startSpeed * ACCELERATION_TIME +
+    0.5 * ACCELERATION * ACCELERATION_TIME * ACCELERATION_TIME;
+  const reachesTargetDuringAccel = accelerationDistance >= totalDistance;
+  const totalElapsed = (now - missile.driftStartTime) / 1000;
+  const accelerationElapsed = totalElapsed - INITIAL_DRIFT_TIME;
+  const angleDx = missile.targetX - (missile.x || missile.spawnX);
+  const angleDy = missile.targetY - (missile.y || missile.spawnY);
+  const angle = Math.atan2(angleDy, angleDx) * (180 / Math.PI) + 90;
+
+  let currentX: number;
+  let currentY: number;
+  if (totalDistance < 0.5) {
+    currentX = missile.targetX;
+    currentY = missile.targetY;
+  } else if (totalElapsed < INITIAL_DRIFT_TIME) {
+    const driftDistance = startSpeed * totalElapsed;
+    currentX = missile.spawnX + Math.cos(initialAngle) * driftDistance;
+    currentY = missile.spawnY + Math.sin(initialAngle) * driftDistance;
+  } else if (accelerationElapsed >= 0) {
+    let distanceTraveled = 0;
+    if (reachesTargetDuringAccel) {
+      const a = 0.5 * ACCELERATION;
+      const b = startSpeed;
+      const c = -totalDistance;
+      const discriminant = b * b - 4 * a * c;
+      const timeToTarget = (-b + Math.sqrt(discriminant)) / (2 * a);
+      distanceTraveled =
+        accelerationElapsed < timeToTarget
+          ? startSpeed * accelerationElapsed +
+            0.5 * ACCELERATION * accelerationElapsed * accelerationElapsed
+          : totalDistance;
+    } else if (accelerationElapsed < ACCELERATION_TIME) {
+      distanceTraveled =
+        startSpeed * accelerationElapsed +
+        0.5 * ACCELERATION * accelerationElapsed * accelerationElapsed;
+    } else {
+      const remainingDistance = totalDistance - accelerationDistance;
+      const constantSpeedTime = remainingDistance / topSpeed;
+      const timeInConstantPhase = accelerationElapsed - ACCELERATION_TIME;
+      distanceTraveled =
+        timeInConstantPhase < constantSpeedTime
+          ? accelerationDistance + topSpeed * timeInConstantPhase
+          : totalDistance;
+    }
+    const progress = Math.min(distanceTraveled / totalDistance, 1);
+    currentX = missile.startX + (missile.targetX - missile.startX) * progress;
+    currentY = missile.startY + (missile.targetY - missile.startY) * progress;
+  } else {
+    currentX = missile.x;
+    currentY = missile.y;
+  }
+
+  const distanceToTarget = Math.hypot(currentX - missile.targetX, currentY - missile.targetY);
+  if (distanceToTarget <= 0.1) return null;
+  return { x: currentX, y: currentY, angle };
+}
 
 export const MissileShootingAnimation = React.memo(function MissileShootingAnimation({
   gridContainerRef,
@@ -21,524 +165,363 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   targetRow,
   targetCol,
   facingRight,
+  variant = 1,
 }: MissileShootingAnimationProps) {
-  const [missiles, setMissiles] = useState<
-    Array<{
-      id: number;
-      x: number;
-      y: number;
-      angle: number;
-      targetX: number;
-      targetY: number;
-      startX: number;
-      startY: number;
-      driftX: number;
-      driftY: number;
-      spawnX: number;
-      spawnY: number;
-      driftStartTime: number;
-      startTime: number;
-      trail: { x: number; y: number }[];
-    }>
-  >([]);
-
-  const [impacts, setImpacts] = useState<
-    Array<{
-      id: number;
-      x: number;
-      y: number;
-      startTime: number;
-      particles: Array<{ angle: number; speed: number; size: number; color: string }>;
-    }>
-  >([]);
-
-  const missileIdRef = useRef(0);
-  const impactIdRef = useRef(0);
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const missileGroupRefs = useRef<Array<SVGGElement | null>>(
+    Array.from({ length: MISSILE_SLOTS }, () => null),
+  );
+  const impactGroupRefs = useRef<Array<SVGGElement | null>>(
+    Array.from({ length: MISSILE_IMPACT_SLOTS }, () => null),
+  );
+  const missilesRef = useRef<(Missile | null)[]>(
+    Array.from({ length: MISSILE_SLOTS }, () => null),
+  );
+  const impactsRef = useRef<(MissileImpact | null)[]>(
+    Array.from({ length: MISSILE_IMPACT_SLOTS }, () => null),
+  );
+  const secondAtRef = useRef(0);
+  const respawnAtRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
-  const impactAnimationRef = useRef<number | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const attackerRowRef = useRef(attackerRow);
+  const attackerColRef = useRef(attackerCol);
+  const targetRowRef = useRef(targetRow);
+  const targetColRef = useRef(targetCol);
+  const facingRightRef = useRef(facingRight);
+  const isTorpedoRef = useRef(Number(variant) === 2);
+  attackerRowRef.current = attackerRow;
+  attackerColRef.current = attackerCol;
+  targetRowRef.current = targetRow;
+  targetColRef.current = targetCol;
+  facingRightRef.current = facingRight;
+  isTorpedoRef.current = Number(variant) === 2;
 
-  // Calculate cell centers
-  const getCellCenter = useCallback(
-    (row: number, col: number) => {
-      if (!gridContainerRef.current) return { x: 0, y: 0 };
-
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
-      const cellWidth = gridRect.width / 17;
-      const cellHeight = gridRect.height / 11;
-
-      const x = col * cellWidth + cellWidth / 2;
-      const y = row * cellHeight + cellHeight / 2;
-
-      return { x, y };
-    },
-    [gridContainerRef]
+  const syncOverlaySize = useMemo(
+    () =>
+      createOverlaySizeSync(
+        () => gridContainerRef.current,
+        (width, height) => {
+          const svg = svgRef.current;
+          if (!svg) return;
+          svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+          svg.style.width = `${width}px`;
+          svg.style.height = `${height}px`;
+        },
+      ),
+    [gridContainerRef],
   );
 
-  // Offset from cell center to the missile launch port.
-  // Facing right: +11% cell width, -16% cell height
-  // Facing left:  -11% cell width, -16% cell height
-  const getAttackerOrigin = useCallback(() => {
-    const center = getCellCenter(attackerRow, attackerCol);
-    if (!gridContainerRef.current) return center;
-    const rect = gridContainerRef.current.getBoundingClientRect();
-    const cw = rect.width / 17;
-    const ch = rect.height / 11;
-    return {
-      x: center.x + (facingRight ? cw * 0.11 : -cw * 0.11),
-      y: center.y - ch * 0.16,
-    };
-  }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
-
-  // Select target spot and spawn missile
-  const spawnMissile = useCallback(() => {
-    if (!gridContainerRef.current) {
-      return;
-    }
-
-    const attackerCenter = getAttackerOrigin();
-    const targetCenter = getCellCenter(targetRow, targetCol);
-
-    // Select a random target spot within target cell
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
-    const cellWidth = gridRect.width / 25;
-    const cellHeight = gridRect.height / 13;
-    const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
-    const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
-
-    // Calculate direction to target
-    const dx = targetX - attackerCenter.x;
-    const dy = targetY - attackerCenter.y;
-    const targetAngle = Math.atan2(dy, dx);
-
-    // Initial direction: 90 degrees counter-clockwise from target direction
-    // with random variation of up to ±30 degrees
-    const angleVariation = (Math.random() - 0.5) * ((30 * Math.PI) / 180); // ±30 degrees in radians
-    const initialAngle = targetAngle + Math.PI / 2 + angleVariation;
-
-    // Calculate initial drift position (0.25 seconds at start speed)
-    const avgCellSize = (cellWidth + cellHeight) / 2;
-    const TOP_SPEED = avgCellSize * 4;
-    const START_SPEED = TOP_SPEED / 8;
-    const INITIAL_DRIFT_TIME = 0.5;
-    const driftDistance = START_SPEED * INITIAL_DRIFT_TIME;
-
-    const driftX = attackerCenter.x + Math.cos(initialAngle) * driftDistance;
-    const driftY = attackerCenter.y + Math.sin(initialAngle) * driftDistance;
-
-    // Angle for triangle orientation (always point at target)
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-
-    // Spawn first missile at attacker position
-    const firstMissile = {
-      id: missileIdRef.current++,
-      x: attackerCenter.x,
-      y: attackerCenter.y,
-      angle,
-      targetX,
-      targetY,
-      startX: driftX,
-      startY: driftY,
-      driftX,
-      driftY,
-      spawnX: attackerCenter.x,
-      spawnY: attackerCenter.y,
-      driftStartTime: Date.now(),
-      startTime: Date.now() + INITIAL_DRIFT_TIME * 1000,
-      trail: [] as { x: number; y: number }[],
-    };
-
-    setMissiles([firstMissile]);
-
-    // Fire second missile 0.2 seconds after the first
-    setTimeout(() => {
-      // Select a new random target spot for the second missile
-      const targetX2 = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
-      const targetY2 =
-        targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
-
-      // Calculate direction to target for second missile
-      const dx2 = targetX2 - attackerCenter.x;
-      const dy2 = targetY2 - attackerCenter.y;
-      const targetAngle2 = Math.atan2(dy2, dx2);
-
-      // Initial direction with random variation
-      const angleVariation2 = (Math.random() - 0.5) * ((30 * Math.PI) / 180);
-      const initialAngle2 = targetAngle2 + Math.PI / 2 + angleVariation2;
-
-      const driftDistance2 = START_SPEED * INITIAL_DRIFT_TIME;
-      const driftX2 =
-        attackerCenter.x + Math.cos(initialAngle2) * driftDistance2;
-      const driftY2 =
-        attackerCenter.y + Math.sin(initialAngle2) * driftDistance2;
-
-      const angle2 = Math.atan2(dy2, dx2) * (180 / Math.PI) + 90;
-
-      const secondMissile = {
-        id: missileIdRef.current++,
-        x: attackerCenter.x,
-        y: attackerCenter.y,
-        angle: angle2,
-        targetX: targetX2,
-        targetY: targetY2,
-        startX: driftX2,
-        startY: driftY2,
-        driftX: driftX2,
-        driftY: driftY2,
-        spawnX: attackerCenter.x,
-        spawnY: attackerCenter.y,
-        driftStartTime: Date.now(),
-        startTime: Date.now() + INITIAL_DRIFT_TIME * 1000,
-        trail: [] as { x: number; y: number }[],
-      };
-
-      setMissiles((prev) => [...prev, secondMissile]);
-    }, MISSILE_SECOND_FIRE_DELAY_MS);
-  }, [
-    gridContainerRef,
-    attackerRow,
-    attackerCol,
-    targetRow,
-    targetCol,
-    getCellCenter,
-    getAttackerOrigin,
-  ]);
-
-  // Handle missile despawn and respawn
   useEffect(() => {
-    if (missiles.length === 0) {
-      // No missiles - wait 1 second then spawn next pair
-      timeoutRef.current = setTimeout(() => {
-        spawnMissile();
-      }, MISSILE_RESPAWN_DELAY_MS);
+    const spawnOne = (slot: number) => {
+      const grid = gridContainerRef.current;
+      if (!grid) return;
+      const { cellWidth, cellHeight } = gridLayoutSize(grid);
+      const avgCellSize = (cellWidth + cellHeight) / 2;
+      const speedScale = isTorpedoRef.current ? TORPEDO_SPEED_SCALE : 1;
+      const startSpeed = (avgCellSize * 4 * speedScale) / 8;
+      const center = cellCenterOnGrid(grid, attackerRowRef.current, attackerColRef.current);
+      const origin = {
+        x: center.x + (facingRightRef.current ? cellWidth * 0.11 : -cellWidth * 0.11),
+        y: center.y - cellHeight * 0.16,
+      };
+      const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
+      const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
+      const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
+      missilesRef.current[slot] = makeMissile(origin, targetX, targetY, startSpeed, 0.5);
+    };
 
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+    const spawnVolley = () => {
+      missilesRef.current = Array.from({ length: MISSILE_SLOTS }, () => null);
+      spawnOne(0);
+      secondAtRef.current = isTorpedoRef.current
+        ? 0
+        : Date.now() + MISSILE_SECOND_FIRE_DELAY_MS;
+      respawnAtRef.current = 0;
+      syncOverlaySize();
+    };
+
+    const paintMissile = (group: SVGGElement, missile: Missile) => {
+      setHidden(group, false);
+      const torpedo = isTorpedoRef.current;
+      const aRad = (missile.angle * Math.PI) / 180;
+      const tailLen = torpedo ? OVAL_RX : TRIANGLE_HEIGHT;
+      const exX = missile.x - tailLen * Math.sin(aRad);
+      const exY = missile.y + tailLen * Math.cos(aRad);
+      const glow = group.querySelector("[data-ms-glow]") as SVGCircleElement | null;
+      const triangle = group.querySelector("[data-ms-body]") as SVGPolygonElement | null;
+      const oval = group.querySelector("[data-ms-oval]") as SVGEllipseElement | null;
+      const trailDots = group.querySelectorAll("[data-ms-trail]");
+      setCircle(glow, exX, exY, torpedo ? 9 : 7);
+      setHidden(triangle, torpedo);
+      setHidden(oval, !torpedo);
+      const tr = `translate(${missile.x}, ${missile.y}) rotate(${missile.angle})`;
+      triangle?.setAttribute("transform", tr);
+      oval?.setAttribute("transform", tr);
+      trailDots.forEach((node, i) => {
+        const pos = missile.trail[i];
+        if (!pos) {
+          setHidden(node, true);
+          return;
         }
+        const t = i / Math.max(missile.trail.length - 1, 1);
+        setHidden(node, false);
+        setCircle(node as SVGCircleElement, pos.x, pos.y, Math.max(0.5, (1 - t * 0.65) * (torpedo ? 5 : 4)));
+        (node as SVGCircleElement).setAttribute("opacity", String((1 - t) * 0.55));
+      });
+    };
+
+    const paintImpact = (group: SVGGElement, impact: MissileImpact, now: number) => {
+      const duration = impact.shockwave ? TORPEDO_IMPACT_DURATION_MS : MISSILE_IMPACT_DURATION_MS;
+      const elapsed = now - impact.startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - t, 2);
+      setHidden(group, false);
+      const inner = group.querySelector("[data-ms-inner]") as SVGCircleElement | null;
+      const flash = group.querySelector("[data-ms-flash]") as SVGCircleElement | null;
+      const ring = group.querySelector("[data-ms-ring]") as SVGCircleElement | null;
+      const shockA = group.querySelector("[data-ms-shock-a]") as SVGCircleElement | null;
+      const shockB = group.querySelector("[data-ms-shock-b]") as SVGCircleElement | null;
+      const debris = group.querySelectorAll("[data-ms-debris]");
+
+      if (impact.shockwave) {
+        const flashOpacity = Math.max(0, 1 - t * 2.2);
+        setCircle(inner, impact.x, impact.y, easeOut * 22);
+        inner?.setAttribute("opacity", String(flashOpacity * 0.35));
+        setCircle(flash, impact.x, impact.y, easeOut * 38);
+        flash?.setAttribute("opacity", String(flashOpacity * 0.22));
+        setHidden(ring, true);
+        const r1 = easeOut * 92;
+        const r2 = easeOut * 118;
+        setHidden(shockA, false);
+        setHidden(shockB, false);
+        setCircle(shockA, impact.x, impact.y, r1);
+        shockA?.setAttribute("stroke-width", String(Math.max(2, 16 * (1 - t))));
+        shockA?.setAttribute("opacity", String(Math.max(0, 1 - t * 1.15)));
+        setCircle(shockB, impact.x, impact.y, r2);
+        shockB?.setAttribute("stroke-width", String(Math.max(1.2, 9 * (1 - t))));
+        shockB?.setAttribute("opacity", String(Math.max(0, 0.85 - t)));
+        debris.forEach((node) => setHidden(node, true));
+        return;
+      }
+
+      const flashRadius = easeOut * 18;
+      const flashOpacity = Math.max(0, 1 - t * 2.5);
+      const ringRadius = easeOut * 28;
+      const ringOpacity = Math.max(0, 1 - t * 1.6);
+      setHidden(shockA, true);
+      setHidden(shockB, true);
+      setHidden(ring, false);
+      setCircle(inner, impact.x, impact.y, flashRadius * 0.6);
+      inner?.setAttribute("opacity", String(flashOpacity * 0.7));
+      setCircle(flash, impact.x, impact.y, flashRadius);
+      flash?.setAttribute("opacity", String(flashOpacity));
+      setCircle(ring, impact.x, impact.y, ringRadius);
+      ring?.setAttribute("stroke-width", String(Math.max(0.5, 2.5 * (1 - t))));
+      ring?.setAttribute("opacity", String(ringOpacity));
+      debris.forEach((node, i) => {
+        const p = impact.particles[i];
+        if (!p) {
+          setHidden(node, true);
+          return;
+        }
+        setHidden(node, false);
+        setCircle(
+          node as SVGCircleElement,
+          impact.x + Math.cos(p.angle) * p.speed * easeOut,
+          impact.y + Math.sin(p.angle) * p.speed * easeOut,
+          Math.max(0.5, p.size * (1 - t * 0.6)),
+        );
+        (node as SVGCircleElement).setAttribute("fill", p.color);
+        (node as SVGCircleElement).setAttribute("opacity", String(Math.max(0, 1 - t * 1.8)));
+      });
+    };
+
+    const addImpact = (x: number, y: number, now: number) => {
+      const numParticles = 6 + Math.floor(Math.random() * 4);
+      const impact: MissileImpact = {
+        x,
+        y,
+        startTime: now,
+        shockwave: isTorpedoRef.current,
+        particles: Array.from({ length: numParticles }, () => ({
+          angle: Math.random() * Math.PI * 2,
+          speed: 15 + Math.random() * 35,
+          size: 1.5 + Math.random() * 3,
+          color: IMPACT_COLORS[Math.floor(Math.random() * IMPACT_COLORS.length)],
+        })),
       };
-    }
-  }, [missiles.length, spawnMissile, attackerRow, attackerCol, targetRow, targetCol]);
+      let slot = impactsRef.current.findIndex((imp) => imp == null);
+      if (slot < 0) {
+        let oldest = Infinity;
+        slot = 0;
+        impactsRef.current.forEach((imp, i) => {
+          if (imp && imp.startTime < oldest) {
+            oldest = imp.startTime;
+            slot = i;
+          }
+        });
+      }
+      impactsRef.current[slot] = impact;
+    };
 
-  // Animate missile movement
-  useEffect(() => {
-    if (missiles.length === 0) return;
-    if (!gridContainerRef.current) return;
+    spawnVolley();
 
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
-    const cellWidth = gridRect.width / 25;
-    const cellHeight = gridRect.height / 13;
-    const avgCellSize = (cellWidth + cellHeight) / 2;
-
-    // Constant speed values (pixels per second)
-    const TOP_SPEED = avgCellSize * 4;
-    const START_SPEED = TOP_SPEED / 8;
-    const INITIAL_DRIFT_TIME = 0.5;
-    const ACCELERATION_TIME = 0.125;
-    const ACCELERATION = (TOP_SPEED - START_SPEED) / ACCELERATION_TIME;
+    const ro = gridContainerRef.current
+      ? new ResizeObserver(() => syncOverlaySize())
+      : null;
+    if (gridContainerRef.current && ro) ro.observe(gridContainerRef.current);
 
     const animate = () => {
-      const updatedMissiles = missiles
-        .map((missile) => {
-          // Calculate direction to target for initial drift
-          const targetDx = missile.targetX - missile.spawnX;
-          const targetDy = missile.targetY - missile.spawnY;
-          const targetAngle = Math.atan2(targetDy, targetDx);
-          const initialAngle = targetAngle + Math.PI / 2; // 90 degrees CCW from target
+      const now = Date.now();
+      const grid = gridContainerRef.current;
+      if (grid) {
+        const { cellWidth, cellHeight } = gridLayoutSize(grid);
+        const avgCellSize = (cellWidth + cellHeight) / 2;
+        const speedScale = isTorpedoRef.current ? TORPEDO_SPEED_SCALE : 1;
+        const topSpeed = avgCellSize * 4 * speedScale;
+        const startSpeed = topSpeed / 8;
 
-          // Distance from drift position to target
-          const dx = missile.targetX - missile.startX;
-          const dy = missile.targetY - missile.startY;
-          const totalDistance = Math.sqrt(dx * dx + dy * dy);
+        if (
+          !isTorpedoRef.current &&
+          secondAtRef.current > 0 &&
+          now >= secondAtRef.current
+        ) {
+          secondAtRef.current = 0;
+          if (!missilesRef.current[1]) spawnOne(1);
+        }
 
-          // Calculate distance covered during acceleration phase
-          const accelerationDistance =
-            START_SPEED * ACCELERATION_TIME +
-            0.5 * ACCELERATION * ACCELERATION_TIME * ACCELERATION_TIME;
-          const reachesTargetDuringAccel =
-            accelerationDistance >= totalDistance;
-
-          const totalElapsed = (Date.now() - missile.driftStartTime) / 1000;
-          const driftElapsed = totalElapsed;
-          const accelerationElapsed = totalElapsed - INITIAL_DRIFT_TIME;
-
-          let currentX: number;
-          let currentY: number;
-
-          // Always point at target
-          const angleDx = missile.targetX - (missile.x || missile.spawnX);
-          const angleDy = missile.targetY - (missile.y || missile.spawnY);
-          const angle = Math.atan2(angleDy, angleDx) * (180 / Math.PI) + 90;
-
-          if (driftElapsed < INITIAL_DRIFT_TIME) {
-            // Initial drift phase: move 90 degrees from target direction at start speed
-            const driftDistance = START_SPEED * driftElapsed;
-            currentX = missile.spawnX + Math.cos(initialAngle) * driftDistance;
-            currentY = missile.spawnY + Math.sin(initialAngle) * driftDistance;
-          } else if (accelerationElapsed >= 0) {
-            // Acceleration phase (after drift) - move from drift position to target
-            let distanceTraveled = 0;
-
-            if (reachesTargetDuringAccel) {
-              // Target reached during acceleration
-              const a = 0.5 * ACCELERATION;
-              const b = START_SPEED;
-              const c = -totalDistance;
-              const discriminant = b * b - 4 * a * c;
-              const timeToTarget = (-b + Math.sqrt(discriminant)) / (2 * a);
-
-              if (accelerationElapsed < timeToTarget) {
-                distanceTraveled =
-                  START_SPEED * accelerationElapsed +
-                  0.5 *
-                    ACCELERATION *
-                    accelerationElapsed *
-                    accelerationElapsed;
-              } else {
-                distanceTraveled = totalDistance;
-              }
-            } else {
-              // Acceleration then constant speed
-              if (accelerationElapsed < ACCELERATION_TIME) {
-                distanceTraveled =
-                  START_SPEED * accelerationElapsed +
-                  0.5 *
-                    ACCELERATION *
-                    accelerationElapsed *
-                    accelerationElapsed;
-              } else {
-                const remainingDistance = totalDistance - accelerationDistance;
-                const constantSpeedTime = remainingDistance / TOP_SPEED;
-                const timeInConstantPhase =
-                  accelerationElapsed - ACCELERATION_TIME;
-
-                if (timeInConstantPhase < constantSpeedTime) {
-                  distanceTraveled =
-                    accelerationDistance + TOP_SPEED * timeInConstantPhase;
-                } else {
-                  distanceTraveled = totalDistance;
-                }
-              }
-            }
-
-            const progress = Math.min(distanceTraveled / totalDistance, 1);
-            currentX =
-              missile.startX + (missile.targetX - missile.startX) * progress;
-            currentY =
-              missile.startY + (missile.targetY - missile.startY) * progress;
-          } else {
-            // Shouldn't happen, but fallback
-            currentX = missile.x;
-            currentY = missile.y;
+        let flying = 0;
+        for (let i = 0; i < MISSILE_SLOTS; i++) {
+          const missile = missilesRef.current[i];
+          const group = missileGroupRefs.current[i];
+          if (!missile) {
+            setHidden(group, true);
+            continue;
           }
-
-          // Check if reached target
-          const distanceToTarget = Math.sqrt(
-            Math.pow(currentX - missile.targetX, 2) +
-              Math.pow(currentY - missile.targetY, 2)
-          );
-
-          if (distanceToTarget <= 0.1) {
-            const numParticles = 6 + Math.floor(Math.random() * 4);
-            const particles = Array.from({ length: numParticles }, () => ({
-              angle: Math.random() * Math.PI * 2,
-              speed: 15 + Math.random() * 35,
-              size: 1.5 + Math.random() * 3,
-              color: IMPACT_COLORS[Math.floor(Math.random() * IMPACT_COLORS.length)],
-            }));
-            setImpacts((prev) => [
-              ...prev,
-              { id: impactIdRef.current++, x: currentX, y: currentY, startTime: Date.now(), particles },
-            ]);
-            return null;
+          const next = stepMissile(missile, now, topSpeed, startSpeed);
+          if (!next) {
+            addImpact(missile.targetX, missile.targetY, now);
+            missilesRef.current[i] = null;
+            setHidden(group, true);
+            continue;
           }
-
-          // Store the exhaust (base) position in the trail, not the tip.
-          // Base is at local (0, 12); world: translate + rotate gives:
-          //   exhaustX = x - 12·sin(angle), exhaustY = y + 12·cos(angle)
-          const TRIANGLE_HEIGHT = 12;
-          const angleRad = (angle * Math.PI) / 180;
-          const exhaustX = missile.x - TRIANGLE_HEIGHT * Math.sin(angleRad);
-          const exhaustY = missile.y + TRIANGLE_HEIGHT * Math.cos(angleRad);
-
-          const MAX_TRAIL = 10;
-          const newTrail = [
-            { x: exhaustX, y: exhaustY },
+          missile.x = next.x;
+          missile.y = next.y;
+          missile.angle = next.angle;
+          const aRad = (next.angle * Math.PI) / 180;
+          const tailLen = isTorpedoRef.current ? OVAL_RX : TRIANGLE_HEIGHT;
+          missile.trail = [
+            {
+              x: next.x - tailLen * Math.sin(aRad),
+              y: next.y + tailLen * Math.cos(aRad),
+            },
             ...missile.trail.slice(0, MAX_TRAIL - 1),
           ];
+          flying += 1;
+          if (group) paintMissile(group, missile);
+        }
 
-          return {
-            ...missile,
-            x: currentX,
-            y: currentY,
-            angle,
-            trail: newTrail,
-          };
-        })
-        .filter((m): m is NonNullable<typeof m> => m !== null);
-
-      setMissiles(updatedMissiles);
-
-      if (updatedMissiles.length > 0) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        animationFrameRef.current = null;
+        if (flying === 0 && secondAtRef.current === 0 && respawnAtRef.current === 0) {
+          respawnAtRef.current = now + MISSILE_RESPAWN_DELAY_MS;
+        } else if (respawnAtRef.current > 0 && now >= respawnAtRef.current) {
+          spawnVolley();
+        }
       }
+
+      for (let i = 0; i < MISSILE_IMPACT_SLOTS; i++) {
+        const impact = impactsRef.current[i];
+        const group = impactGroupRefs.current[i];
+        if (!group) continue;
+        const impactMs = impact?.shockwave
+          ? TORPEDO_IMPACT_DURATION_MS
+          : MISSILE_IMPACT_DURATION_MS;
+        if (!impact || now - impact.startTime >= impactMs) {
+          impactsRef.current[i] = null;
+          setHidden(group, true);
+          continue;
+        }
+        paintImpact(group, impact, now);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      ro?.disconnect();
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [missiles, gridContainerRef]);
-
-  // Drive impact animation re-renders and expire finished impacts.
-  // Uses a functional updater so newly-added impacts are never clobbered.
-  // Returns a new array every frame while impacts are alive so React re-renders
-  // and JSX can read the current Date.now() for position/opacity calculations.
-  useEffect(() => {
-    const animate = () => {
-      const now = Date.now();
-      setImpacts((prev) => {
-        if (prev.length === 0) return prev; // same ref → React bails out, no re-render
-        return prev.filter((imp) => now - imp.startTime < MISSILE_IMPACT_DURATION_MS); // new array → re-render
-      });
-      impactAnimationRef.current = requestAnimationFrame(animate);
-    };
-
-    impactAnimationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (impactAnimationRef.current) {
-        cancelAnimationFrame(impactAnimationRef.current);
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Start first missile
-  useEffect(() => {
-    spawnMissile();
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [spawnMissile]);
-
-  if (!gridContainerRef.current || (missiles.length === 0 && impacts.length === 0)) return null;
-
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
-
-  // Acute isosceles triangle: tip at (0,0) pointing toward target, base below
-  const triangleSize = 8;
-  const triangleHeight = 12;
-  const tipX = 0;
-  const tipY = 0;
-  const baseLeftX = -triangleSize / 2;
-  const baseRightX = triangleSize / 2;
-  const baseY = triangleHeight;
-
-  const now = Date.now();
+  }, [gridContainerRef, syncOverlaySize]);
 
   return (
     <svg
+      ref={svgRef}
       className="absolute pointer-events-none z-20"
-      style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
-      viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
+      style={{ left: 0, top: 0, width: "100%", height: "100%" }}
       preserveAspectRatio="none"
     >
-      {/* Impact effects */}
-      {impacts.map((impact) => {
-        const elapsed = now - impact.startTime;
-        const t = Math.min(elapsed / MISSILE_IMPACT_DURATION_MS, 1);
-        const easeOut = 1 - Math.pow(1 - t, 2);
-
-        const flashRadius = easeOut * 18;
-        const flashOpacity = Math.max(0, 1 - t * 2.5);
-
-        const ringRadius = easeOut * 28;
-        const ringOpacity = Math.max(0, 1 - t * 1.6);
-
-        return (
-          <g key={impact.id}>
-            {/* Inner glow */}
-            <circle cx={impact.x} cy={impact.y} r={flashRadius * 0.6} fill="#ff8800" opacity={flashOpacity * 0.7} />
-            {/* White flash */}
-            <circle cx={impact.x} cy={impact.y} r={flashRadius} fill="#ffffff" opacity={flashOpacity} />
-            {/* Expanding ring */}
-            <circle
-              cx={impact.x}
-              cy={impact.y}
-              r={ringRadius}
-              fill="none"
-              stroke="#ff4400"
-              strokeWidth={Math.max(0.5, 2.5 * (1 - t))}
-              opacity={ringOpacity}
-            />
-            {/* Debris particles */}
-            {impact.particles.map((p, i) => {
-              const px = impact.x + Math.cos(p.angle) * p.speed * easeOut;
-              const py = impact.y + Math.sin(p.angle) * p.speed * easeOut;
-              return (
-                <circle
-                  key={i}
-                  cx={px}
-                  cy={py}
-                  r={Math.max(0.5, p.size * (1 - t * 0.6))}
-                  fill={p.color}
-                  opacity={Math.max(0, 1 - t * 1.8)}
-                />
-              );
-            })}
-          </g>
-        );
-      })}
-
-      {/* Missiles */}
-      {missiles.map((missile) => {
-        // Exhaust (base) world position: local (0, triangleHeight) after rotate+translate
-        const aRad = (missile.angle * Math.PI) / 180;
-        const exX = missile.x - triangleHeight * Math.sin(aRad);
-        const exY = missile.y + triangleHeight * Math.cos(aRad);
-        return (
-          <g key={missile.id}>
-            {/* Exhaust trail */}
-            {missile.trail.map((pos, i) => {
-              const t = i / Math.max(missile.trail.length - 1, 1);
-              return (
-                <circle
-                  key={i}
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={Math.max(0.5, (1 - t * 0.65) * 4)}
-                  fill="#ffaa00"
-                  opacity={(1 - t) * 0.55}
-                />
-              );
-            })}
-            {/* Engine glow at exhaust end */}
-            <circle cx={exX} cy={exY} r={7} fill="#ffcc00" opacity={0.2} />
-            {/* Missile body */}
-            <polygon
-              points={`${tipX},${tipY} ${baseLeftX},${baseY} ${baseRightX},${baseY}`}
-              fill="#ff3300"
-              stroke="#ff7700"
-              strokeWidth="0.75"
-              transform={`translate(${missile.x}, ${missile.y}) rotate(${missile.angle})`}
-            />
-          </g>
-        );
-      })}
+      {Array.from({ length: MISSILE_IMPACT_SLOTS }, (_, slot) => (
+        <g
+          key={`imp-${slot}`}
+          ref={(el) => {
+            impactGroupRefs.current[slot] = el;
+          }}
+          style={{ display: "none" }}
+        >
+          <circle data-ms-inner fill="#ff8800" />
+          <circle data-ms-flash fill="#ffffff" />
+          <circle data-ms-ring fill="none" stroke="#ff4400" />
+          <circle
+            data-ms-shock-a
+            fill="none"
+            stroke="#ffcc66"
+            strokeLinecap="round"
+            style={{ display: "none" }}
+          />
+          <circle
+            data-ms-shock-b
+            fill="none"
+            stroke="#ff7722"
+            strokeLinecap="round"
+            style={{ display: "none" }}
+          />
+          {Array.from({ length: MAX_DEBRIS }, (_, i) => (
+            <circle key={i} data-ms-debris style={{ display: "none" }} />
+          ))}
+        </g>
+      ))}
+      {Array.from({ length: MISSILE_SLOTS }, (_, slot) => (
+        <g
+          key={`msl-${slot}`}
+          ref={(el) => {
+            missileGroupRefs.current[slot] = el;
+          }}
+          style={{ display: "none" }}
+        >
+          {Array.from({ length: MAX_TRAIL }, (_, i) => (
+            <circle key={i} data-ms-trail fill="#ffaa00" style={{ display: "none" }} />
+          ))}
+          <circle data-ms-glow fill="#ffcc00" opacity={0.2} />
+          <polygon
+            data-ms-body
+            points={`0,0 ${-TRIANGLE_SIZE / 2},${TRIANGLE_HEIGHT} ${TRIANGLE_SIZE / 2},${TRIANGLE_HEIGHT}`}
+            fill="#ff3300"
+            stroke="#ff7700"
+            strokeWidth="0.75"
+          />
+          <ellipse
+            data-ms-oval
+            cx="0"
+            cy={OVAL_RX * 0.35}
+            rx={OVAL_RY}
+            ry={OVAL_RX}
+            fill="#ff4400"
+            stroke="#ffaa55"
+            strokeWidth="1.1"
+            style={{ display: "none" }}
+          />
+        </g>
+      ))}
     </svg>
   );
 });

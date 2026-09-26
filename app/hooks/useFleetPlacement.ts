@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GRID_DIMENSIONS, Ship } from "../types/types";
 import {
   type FleetFilters,
@@ -53,6 +53,8 @@ export function useFleetPlacement({
   requiredVariant,
   zoneTiles,
 }: FleetPlacementParams) {
+  const required =
+    requiredVariant != null && requiredVariant > 0 ? requiredVariant : null;
   const zone = isCreatorSide ? CREATOR_ZONE : JOINER_ZONE;
   const hasCustomZone = !!zoneTiles && zoneTiles.length > 0;
 
@@ -71,6 +73,41 @@ export function useFleetPlacement({
   // an earlier "did anything leave the very first column" heuristic that
   // assumed a rectangular zone and broke for a custom zone shape.
   const [hasManuallyMoved, setHasManuallyMoved] = useState(false);
+  // Always filter the ship list to one variant. Campaigns pin this via
+  // `requiredVariant`; PvP defaults to faction 1 and the modal picker
+  // changes it. Switching variants clears the in-progress fleet so we
+  // never submit a MixedVariantFleet.
+  const [selectedVariant, setSelectedVariantState] = useState(required ?? 1);
+  const prevSelectedVariantRef = useRef(selectedVariant);
+
+  useEffect(() => {
+    if (required != null) setSelectedVariantState(required);
+  }, [required]);
+
+  useEffect(() => {
+    if (prevSelectedVariantRef.current === selectedVariant) return;
+    prevSelectedVariantRef.current = selectedVariant;
+    setSelectedShips((prev) => {
+      if (prev.length === 0) return prev;
+      const allMatch = prev.every((id) => {
+        const ship = ships.find((s) => s.id === id);
+        return !!ship && ship.traits.variant === selectedVariant;
+      });
+      if (allMatch) return prev;
+      setShipPositions([]);
+      setSelectedShipId(null);
+      setHasManuallyMoved(false);
+      return [];
+    });
+  }, [selectedVariant, ships]);
+
+  const setSelectedVariant = useCallback(
+    (variant: number) => {
+      if (required != null) return;
+      setSelectedVariantState(variant);
+    },
+    [required],
+  );
 
   // Creator fills its zone left-to-right, top-to-bottom; joiner fills its
   // zone right-to-left, bottom-to-top — mirrors Lobbies.tsx's original
@@ -114,12 +151,8 @@ export function useFleetPlacement({
   // `lockedVariant` is the single variant this fleet is currently
   // restricted to — either the caller-supplied requirement, or (once at
   // least one ship is picked) whichever variant that first ship is.
-  const lockedVariant = useMemo(() => {
-    if (requiredVariant != null && requiredVariant > 0) return requiredVariant;
-    if (selectedShips.length === 0) return null;
-    const firstShip = ships.find((s) => s.id === selectedShips[0]);
-    return firstShip?.traits.variant ?? null;
-  }, [requiredVariant, selectedShips, ships]);
+  const lockedVariant = selectedVariant;
+  const variantLocked = required != null;
 
   const addShip = useCallback(
     (shipId: bigint) => {
@@ -190,7 +223,7 @@ export function useFleetPlacement({
 
         if (selectedShips.includes(ship.id)) return costsVersionOk;
         if (!costsVersionOk) return false;
-        if (lockedVariant != null && ship.traits.variant !== lockedVariant) {
+        if (ship.traits.variant !== selectedVariant) {
           return false;
         }
 
@@ -211,7 +244,7 @@ export function useFleetPlacement({
           fleetFilters,
         );
       }),
-    [ships, fleetFilters, costsVersion, selectedShips, lockedVariant],
+    [ships, fleetFilters, costsVersion, selectedShips, selectedVariant],
   );
 
   const hasStaleCostsVersion = useMemo(() => {
@@ -259,6 +292,9 @@ export function useFleetPlacement({
     clearSelection,
     filteredShips,
     lockedVariant,
+    selectedVariant,
+    setSelectedVariant,
+    variantLocked,
     totalCost,
     isOverLimit,
     isUnder90Percent,

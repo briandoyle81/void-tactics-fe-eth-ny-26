@@ -459,6 +459,9 @@ const Lobbies: React.FC = () => {
     setFleetFilters,
     addShip: addShipToFleet,
     removeShip: removeShipFromFleet,
+    selectedVariant,
+    setSelectedVariant,
+    variantLocked,
   } = fleet;
 
   // When viewing a lobby that is waiting for the other player's fleet, poll so both players see updates
@@ -635,6 +638,7 @@ const Lobbies: React.FC = () => {
       return;
     }
     if (lastHydratedDraftLobbyRef.current === selectedLobby) return;
+    if (ships.length === 0) return;
 
     const drafts = readFleetDrafts(chainId, address);
     const raw = drafts[selectedLobby.toString()];
@@ -647,6 +651,8 @@ const Lobbies: React.FC = () => {
           row: p.row,
           col: p.col,
         }));
+        const first = ships.find((s) => ids.some((id) => id === s.id));
+        if (first) setSelectedVariant(first.traits.variant);
         setSelectedShips(ids);
         setShipPositions(pos);
       } catch {
@@ -668,6 +674,8 @@ const Lobbies: React.FC = () => {
     setSelectedShips,
     setShipPositions,
     setSelectedShipId,
+    ships,
+    setSelectedVariant,
   ]);
 
   // Persist draft while picking a fleet (not after fleet exists on-chain)
@@ -979,6 +987,10 @@ const Lobbies: React.FC = () => {
           unavailableCount++;
           continue;
         }
+        if (ship.traits.variant !== selectedVariant) {
+          unavailableCount++;
+          continue;
+        }
         if (!ship.shipData.constructed) {
           unavailableCount++;
           continue;
@@ -1000,7 +1012,7 @@ const Lobbies: React.FC = () => {
         load: () => applyLoadedFleetSelection(availableShipIds),
       };
     },
-    [ships, applyLoadedFleetSelection],
+    [ships, applyLoadedFleetSelection, selectedVariant],
   );
 
   const getSavedFleetSummary = useCallback(
@@ -2232,7 +2244,7 @@ const Lobbies: React.FC = () => {
               fleetFilters={fleetFilters}
               onFleetFiltersChange={setFleetFilters}
               shownCount={filteredShips.length}
-              totalCount={ships.length}
+              totalCount={ships.filter((s) => s.traits.variant === selectedVariant).length}
               showInGameProperties={showInGameProperties}
               onToggleInGameProperties={setShowInGameProperties}
               isAttributesFromCache={isFromCache}
@@ -2247,6 +2259,9 @@ const Lobbies: React.FC = () => {
                   // Not a valid ship id (e.g. a drag originating outside this modal) — ignore.
                 }
               }}
+              selectedVariant={selectedVariant}
+              onSelectVariant={setSelectedVariant}
+              variantLocked={variantLocked}
             />
           );
         })()}

@@ -75,7 +75,9 @@ const GamesWeb2: React.FC = () => {
 
   useEffect(() => {
     if (userId && selectedGame && games.length > 0) {
-      const stillExists = games.some((g) => g.metadata.gameId === selectedGame.metadata.gameId);
+      const stillExists = games.some(
+        (g) => String(g.metadata.gameId) === String(selectedGame.metadata.gameId),
+      );
       if (!stillExists) {
         setSelectedGame(null);
         localStorage.removeItem(storageKey);

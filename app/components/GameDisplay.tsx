@@ -9,11 +9,13 @@ import {
   Attributes,
   getMainWeaponName,
   getSpecialName,
+  canonicalSpecialSlot,
   ActionType,
   LastMove,
   GRID_DIMENSIONS,
   Ship,
 } from "../types/types";
+import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
@@ -38,6 +40,7 @@ import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSing
 import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
 import { RoundStartModal } from "./RoundStartModal";
+import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
 import { useRoguelikeAITurnLoop } from "../hooks/useRoguelikeAITurnLoop";
 import { TransactionButton } from "./TransactionButton";
@@ -52,6 +55,7 @@ import {
   useSpecialStrengthAt,
 } from "../hooks/useShipAttributesContract";
 import { useFactionAbilityConfig } from "../hooks/useFactionAbilityConfig";
+import { requireShipValue } from "../utils/requireShipValue";
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb3 } from "./FleeConfirmButtonWeb3";
 import { GameScoreBox } from "./GameScoreBox";
@@ -240,8 +244,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     refetch: refetchGame,
   } = useGetGame(Number(initialGame.metadata.gameId), baseSepolia.id);
 
-  // Use the fetched game data if available, otherwise fall back to initial game
-  const game = gameData || initialGame;
+  // Prefer the latest fetched snapshot. Falling back to `initialGame` on a
+  // brief `gameData` gap reused the stale list row (often still round 1)
+  // and made the round-start modal think the round had changed.
+  const latestGameDataRef = React.useRef(initialGame);
+  if (gameData) latestGameDataRef.current = gameData;
+  const game = gameData ?? latestGameDataRef.current;
 
   // ── Replay overlay: replaySnapshotGame → displayGame ───────────────────────
   const replaySnapshotGame: GameDataView | null = React.useMemo(() => {
@@ -676,8 +684,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // shown here, so this reads the pinned version (`getSpecialRangeAt`/
   // `getSpecialStrengthAt`), not the live table.
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
-  const specialType = selectedShip?.equipment.special || 0;
-  const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const selectedShipVariant = selectedShip
+    ? requireShipValue("variant", selectedShip.traits.variant)
+    : 0;
+  const specialType = selectedShip
+    ? canonicalSpecialSlot(selectedShipVariant, selectedShip.equipment.special)
+    : 0;
   const selectedShipAttributesVersion =
     selectedShipId != null ? getShipAttributes(selectedShipId)?.version ?? 0 : 0;
   const { data: specialRange } = useSpecialRangeAt(
@@ -698,6 +710,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // some chains still run.
   const {
     range: selectedShipFactionAbilityRange,
+    strength: selectedShipFactionAbilityStrength,
     isHeal: selectedShipFactionAbilityIsHeal,
     isSupported: isFactionAbilitySupported,
   } = useFactionAbilityConfig(selectedShipVariant);
@@ -705,6 +718,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // `{ strength }`, matching the old `getSpecialData` struct's shape.
   const specialData =
     specialStrength != null ? { strength: Number(specialStrength) } : null;
+  // wagmi returns bigint; a `as number` cast does not convert it, and the
+  // lightning field then rejects the value and falls back to range 2.
+  const selectedSpecialRange =
+    specialRange == null ? undefined : requireShipValue("specialRange", specialRange);
 
   // Dragged ship's equipped-special range — a real contract read, must live
   // here (top level, before useGameplayInteraction) since hooks can't be
@@ -918,9 +935,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setSelectedShipId: setSelectedShipIdForInteraction,
     draggedShipId: draggedShipId != null ? Number(draggedShipId) : null,
     setDraggedShipId: setDraggedShipIdForInteraction,
-    selectedShipSpecialRange: specialRange as number | undefined,
+    selectedShipSpecialRange: selectedSpecialRange,
     selectedShipSpecialData: specialData,
-    draggedShipSpecialRange: draggedShipSpecialRange as number | undefined,
+    draggedShipSpecialRange:
+      draggedShipSpecialRange != null && Number(draggedShipSpecialRange) > 0
+        ? Number(draggedShipSpecialRange)
+        : undefined,
     selectedShipFactionAbilityRange,
     selectedShipFactionAbilityIsHeal,
     isFactionAbilitySupported,
@@ -1005,6 +1025,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     selectedWeaponType,
     specialData,
     specialType,
+    shipVariant: selectedShipVariant,
   });
 
 
@@ -1182,10 +1203,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       if (isDisplayingLastMoveRef.current) {
         isDisplayingLastMoveRef.current = false;
         lastDisplayedMoveRef.current = null;
-        if (!isShowingProposedMove) {
-          interaction.setPreviewPosition(null);
-          setTargetShipId(null);
-        }
+        // Last-move replay parks previewPosition on the previous ship's To
+        // so its weapon range can render. That is not a destination for the
+        // newly selected ship. isShowingProposedMove is already true from
+        // selecting one of your ships, so we must always clear here;
+        // otherwise a consecutive same-side turn draws an arrow from the
+        // new ship to the last mover's To.
+        interaction.setPreviewPosition(null);
+        setTargetShipId(null);
       }
       return;
     }
@@ -1349,6 +1374,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       ? { row: displayedLastMove.newRow, col: displayedLastMove.newCol }
       : null;
 
+  // Keep the last mover's to-tile for weapon aiming after last-move chrome
+  // is hidden (player selected a ship). Otherwise beams lock onto the
+  // from-tile ghost when that enemy was the last to move.
+  const lastMoveResolvedTo =
+    displayedLastMove &&
+    displayedLastMove.shipId !== 0n &&
+    displayedLastMove.newRow >= 0 &&
+    displayedLastMove.newCol >= 0
+      ? {
+          shipId: Number(displayedLastMove.shipId),
+          row: displayedLastMove.newRow,
+          col: displayedLastMove.newCol,
+        }
+      : null;
+
   const lastMoveActionType =
     shouldShowLastMoveOnGrid && displayedLastMove && !isShowingProposedMove
       ? displayedLastMove.actionType
@@ -1425,52 +1465,30 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // score against a snapshot taken the last time a round started —
   // undefined on the very first showing (game start), where there's no
   // prior round to diff against.
-  const [roundStartInfo, setRoundStartInfo] = React.useState<{
-    round: bigint;
-    isMyTurnFirst: boolean;
-    myRoundScore?: number;
-    opponentRoundScore?: number;
-    myScore: number;
-    opponentScore: number;
-    maxScore?: number;
-  } | null>(null);
-  const prevRoundForModalRef = React.useRef<bigint | undefined>(undefined);
   const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
     undefined,
   );
-  React.useEffect(() => {
-    if (isGameOver) return;
-    const round = game.turnState.currentRound;
-    if (prevRoundForModalRef.current === round) return;
-    prevRoundForModalRef.current = round;
-
-    const isCreatorNow = game.metadata.creator === address;
-    const myScoreNow = Number(isCreatorNow ? game.creatorScore : game.joinerScore);
-    const opponentScoreNow = Number(isCreatorNow ? game.joinerScore : game.creatorScore);
-    const maxScoreNow = Number(game.maxScore);
-
-    const prevScores = prevRoundScoreRef.current;
-    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
-
-    setRoundStartInfo({
-      round,
-      isMyTurnFirst: game.turnState.currentTurn === address,
-      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
-      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
-      myScore: myScoreNow,
-      opponentScore: opponentScoreNow,
-      maxScore: maxScoreNow,
-    });
-  }, [
+  const { roundStartInfo, handleCloseRoundStart } = useRoundStartAnnouncement(
+    game.metadata.gameId,
     game.turnState.currentRound,
-    game.turnState.currentTurn,
-    game.creatorScore,
-    game.joinerScore,
-    game.maxScore,
-    game.metadata.creator,
-    address,
     isGameOver,
-  ]);
+    () => {
+      const isCreatorNow = game.metadata.creator === address;
+      const myScoreNow = Number(isCreatorNow ? game.creatorScore : game.joinerScore);
+      const opponentScoreNow = Number(isCreatorNow ? game.joinerScore : game.creatorScore);
+      const maxScoreNow = Number(game.maxScore);
+      const prevScores = prevRoundScoreRef.current;
+      prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+      return {
+        isMyTurnFirst: game.turnState.currentTurn === address,
+        myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+        opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+        myScore: myScoreNow,
+        opponentScore: opponentScoreNow,
+        maxScore: maxScoreNow,
+      };
+    },
+  );
 
   // Play alert sound when it becomes the player's turn
   useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
@@ -2089,7 +2107,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             if (isSelectedShipDisabled) return null;
             if (!selectedShipId) return null;
             const ship = shipMap.get(selectedShipId);
-            if (!ship || ship.equipment.special <= 0) return null;
+            if (!ship || !shipHasActivatableSpecial(ship)) return null;
             return (
               <div className="mt-1 w-full">
                 <select
@@ -2162,7 +2180,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   const isSelectedTarget =
                     targetShipId !== null && targetShipId === target.shipId;
                   const isRepair =
-                    selectedWeaponType === "special" && specialType === 2;
+                    selectedWeaponType === "special" &&
+                    Number(selectedShipVariant) !== 2 &&
+                    specialType === 2;
                   const accentColor = isRepair
                     ? "var(--color-cyan)"
                     : "var(--color-warning-red)";
@@ -2297,7 +2317,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const isMobileJoiner = address === game.metadata.joiner;
   const mobileCanUseSpecial = Boolean(
     selectedShip &&
-      selectedShip.equipment.special > 0 &&
+      shipHasActivatableSpecial(selectedShip) &&
       (mobileSelectedShipAttributes?.hullPoints ?? 0) > 0,
   );
   const mobileReactorCriticalStatus: "none" | "warning" | "critical" =
@@ -2561,7 +2581,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsMobileWeaponMenuOpen((prev) => !prev)}
-                      disabled={!selectedShip || !(selectedShip.equipment.special > 0)}
+                      disabled={!selectedShip || !shipHasActivatableSpecial(selectedShip)}
                       className="flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid bg-black/40 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 disabled:cursor-default"
                       style={{
                         borderColor: "var(--color-gunmetal)",
@@ -2569,7 +2589,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       }}
                     >
                       <span className="truncate">{mobileWeaponDisplayName}</span>
-                      {selectedShip && selectedShip.equipment.special > 0 && (
+                      {selectedShip && shipHasActivatableSpecial(selectedShip) && (
                         <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
                       )}
                     </button>
@@ -2740,6 +2760,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                       movedShipIdsSet={movedShipIdsSetForDisplay}
                       specialType={specialType}
+                      specialRange={selectedSpecialRange}
                       blockedGrid={blockedGrid}
                       impassableGrid={impassableGrid}
                       scoringGrid={scoringGrid}
@@ -2753,6 +2774,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       lastMoveShipId={lastMoveShipIdForDisplay}
                       lastMoveOldPosition={lastMoveOldPosition}
                       lastMoveNewPosition={lastMoveNewPosition}
+                      lastMoveResolvedTo={lastMoveResolvedTo}
                       lastMoveActionType={lastMoveActionType}
                       lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
                       lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
@@ -2762,6 +2784,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       isRammingMovePreview={isRammingMovePreview}
                       isFactionAbilitySupported={isFactionAbilitySupported}
                       factionAbilityRange={selectedShipFactionAbilityRange}
+                      factionAbilityIsHeal={selectedShipFactionAbilityIsHeal}
+                      factionAbilityStrength={
+                        selectedShipFactionAbilityStrength == null
+                          ? undefined
+                          : Number(selectedShipFactionAbilityStrength)
+                      }
                       retreatPrepShipId={retreatPrepShipIdForDisplay}
                       retreatPrepIsCreator={retreatPrepIsCreator}
                       tutorialDefaultLabel={tutorialDefaultLabel}
@@ -2937,7 +2965,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             myScore={roundStartInfo.myScore}
             opponentScore={roundStartInfo.opponentScore}
             maxScore={roundStartInfo.maxScore}
-            onClose={() => setRoundStartInfo(null)}
+            onClose={handleCloseRoundStart}
           />
         )}
       </div>
@@ -3346,6 +3374,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
           movedShipIdsSet={movedShipIdsSetForDisplay}
           specialType={specialType}
+          specialRange={selectedSpecialRange}
           blockedGrid={blockedGrid}
           impassableGrid={impassableGrid}
           scoringGrid={scoringGrid}
@@ -3359,6 +3388,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           lastMoveShipId={lastMoveShipIdForDisplay}
           lastMoveOldPosition={lastMoveOldPosition}
                 lastMoveNewPosition={lastMoveNewPosition}
+          lastMoveResolvedTo={lastMoveResolvedTo}
           lastMoveActionType={lastMoveActionType}
           lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
           lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
@@ -3368,6 +3398,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           isRammingMovePreview={isRammingMovePreview}
           isFactionAbilitySupported={isFactionAbilitySupported}
           factionAbilityRange={selectedShipFactionAbilityRange}
+          factionAbilityIsHeal={selectedShipFactionAbilityIsHeal}
+          factionAbilityStrength={
+            selectedShipFactionAbilityStrength == null
+              ? undefined
+              : Number(selectedShipFactionAbilityStrength)
+          }
           retreatPrepShipId={retreatPrepShipIdForDisplay}
           retreatPrepIsCreator={retreatPrepIsCreator}
           tutorialDefaultLabel={tutorialDefaultLabel}
@@ -3525,7 +3561,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     borderRadius: 0,
                   }}
                 >
-                  <span>Replay not available — not recorded on this device</span>
+                  <span>Replay not available, not recorded on this device</span>
                   <button
                     onClick={() => setReplayNotFound(false)}
                     className="px-1.5 py-0.5 border border-solid"
@@ -3551,14 +3587,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   onExit={exitReplay}
                 />
               )}
-            </div>
-          </div>
-          {game.metadata.winner ===
-            "0x0000000000000000000000000000000000000000" &&
-            process.env.NODE_ENV === "development" && (
-              <div className="absolute bottom-0 left-0 z-[220] pointer-events-none">
-                <div className="pointer-events-auto">
-                  {isDebugPanelMinimized ? (
+              {game.metadata.winner ===
+                "0x0000000000000000000000000000000000000000" &&
+                process.env.NODE_ENV === "development" &&
+                (isDebugPanelMinimized ? (
                     <button
                       type="button"
                       onClick={() => setIsDebugPanelMinimized(false)}
@@ -3706,10 +3738,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         </div>
                       </div>
             </div>
-          )}
-        </div>
-      </div>
-            )}
+                  ))}
+            </div>
+          </div>
             <GameLastMovePanel
               isMinimized={isLastMovePanelMinimized}
               onExpand={() => setIsLastMovePanelMinimized(false)}
@@ -3963,7 +3994,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           myScore={roundStartInfo.myScore}
           opponentScore={roundStartInfo.opponentScore}
           maxScore={roundStartInfo.maxScore}
-          onClose={() => setRoundStartInfo(null)}
+          onClose={handleCloseRoundStart}
         />
       )}
     </div>

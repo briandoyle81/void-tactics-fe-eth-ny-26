@@ -14,10 +14,12 @@ import AlphaDiscordNoticeBar from "./components/AlphaDiscordNoticeBar";
 import SiteFooter from "./components/SiteFooter";
 import ManageNavy from "./components/ManageNavy";
 import ManageNavyWeb2 from "./components/ManageNavyWeb2";
+import Store from "./components/Store";
+import StoreWeb2 from "./components/StoreWeb2";
 import Lobbies from "./components/Lobbies";
 import LobbiesWeb2 from "./components/LobbiesWeb2";
-import { CampaignGraph } from "./components/CampaignGraph";
-import { CampaignGraphWeb2 } from "./components/CampaignGraphWeb2";
+// import { CampaignGraph } from "./components/CampaignGraph";
+// import { CampaignGraphWeb2 } from "./components/CampaignGraphWeb2";
 import { RoguelikeCampaign } from "./components/RoguelikeCampaign";
 import { RoguelikeCampaignWeb2 } from "./components/RoguelikeCampaignWeb2";
 import Games from "./components/Games";
@@ -53,9 +55,11 @@ import posthog from "posthog-js";
 const KNOWN_TAB_NAMES = new Set<string>([
   "Info",
   "Manage Navy",
+  "Store",
   "Lobbies",
   "Campaign",
   "Roguelike",
+  "Mission",
   "Games",
   "Profile",
   "Maps",
@@ -144,7 +148,10 @@ export default function Home() {
     } else if (savedGameId) {
       nextTab = "Games";
     } else if (savedTab && KNOWN_TAB_NAMES.has(savedTab)) {
-      nextTab = savedTab;
+      // Campaign tab is hidden for now; Roguelike was renamed to Mission.
+      if (savedTab === "Campaign") nextTab = "Info";
+      else if (savedTab === "Roguelike") nextTab = "Mission";
+      else nextTab = savedTab;
     }
 
     setActiveTab(nextTab);
@@ -226,7 +233,7 @@ export default function Home() {
   // Same as above, for the Roguelike campaign's "Return to Run" CTA.
   useEffect(() => {
     const handleNavigateToRoguelike = () => {
-      setActiveTab("Roguelike");
+      setActiveTab("Mission");
     };
 
     window.addEventListener(
@@ -319,6 +326,24 @@ export default function Home() {
       window.removeEventListener(
         "void-tactics-navigate-to-manage-navy",
         handleNavigateToManageNavy,
+      );
+    };
+  }, []);
+
+  // Listen for navigation to the Store tab (e.g. Manage Navy's buy buttons).
+  useEffect(() => {
+    const handleNavigateToStore = () => {
+      setActiveTab("Store");
+    };
+
+    window.addEventListener(
+      "void-tactics-navigate-to-store",
+      handleNavigateToStore,
+    );
+    return () => {
+      window.removeEventListener(
+        "void-tactics-navigate-to-store",
+        handleNavigateToStore,
       );
     };
   }, []);
@@ -568,9 +593,9 @@ export default function Home() {
                 }
               >
               {(() => {
-                const tabs = ["Info", "Manage Navy", "Lobbies", "Tournaments"];
-                tabs.push("Campaign");
-                tabs.push("Roguelike");
+                const tabs = ["Info", "Manage Navy", "Store", "Lobbies", "Tournaments"];
+                // tabs.push("Campaign");
+                tabs.push("Mission");
                 // Games shows whenever Lobbies does (i.e. unconditionally) —
                 // previously gated behind hasGames, which hid the tab until
                 // a player's first game existed. Profile keeps its own gate.
@@ -728,11 +753,13 @@ export default function Home() {
             >
               {activeTab === "Manage Navy" &&
                 (appMode === "web2" ? <ManageNavyWeb2 /> : <ManageNavy />)}
+              {activeTab === "Store" &&
+                (appMode === "web2" ? <StoreWeb2 /> : <Store />)}
               {activeTab === "Lobbies" &&
                 (appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />)}
-              {activeTab === "Campaign" &&
-                (appMode === "web2" ? <CampaignGraphWeb2 /> : <CampaignGraph />)}
-              {activeTab === "Roguelike" &&
+              {/* {activeTab === "Campaign" &&
+                (appMode === "web2" ? <CampaignGraphWeb2 /> : <CampaignGraph />)} */}
+              {activeTab === "Mission" &&
                 (appMode === "web2" ? <RoguelikeCampaignWeb2 /> : <RoguelikeCampaign />)}
               {activeTab === "Profile" &&
                 (appMode === "web2" ? <ProfileWeb2 /> : <Profile />)}

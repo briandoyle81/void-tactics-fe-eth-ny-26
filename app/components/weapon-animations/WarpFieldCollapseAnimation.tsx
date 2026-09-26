@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback } from "react";
+import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
 
 interface WarpFieldCollapseAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -17,22 +18,16 @@ export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseA
   const getCellCenter = useCallback(
     (r: number, c: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
-      const cellWidth = gridRect.width / 17;
-      const cellHeight = gridRect.height / 11;
-      return {
-        x: c * cellWidth + cellWidth / 2,
-        y: r * cellHeight + cellHeight / 2,
-      };
+      return cellCenterOnGrid(gridContainerRef.current, r, c);
     },
     [gridContainerRef]
   );
 
   if (!gridContainerRef.current) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
-  const cellWidth = gridRect.width / 17;
-  const cellHeight = gridRect.height / 11;
+  const { width, height, cellWidth, cellHeight } = gridLayoutSize(
+    gridContainerRef.current,
+  );
   const center = getCellCenter(row, col);
   const size = Math.max(cellWidth, cellHeight) * 2;
 
@@ -42,8 +37,8 @@ export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseA
       style={{
         left: 0,
         top: 0,
-        width: gridRect.width,
-        height: gridRect.height,
+        width,
+        height,
         zIndex: 100,
       }}
     >

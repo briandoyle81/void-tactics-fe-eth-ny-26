@@ -1,7 +1,16 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
-import { RAILGUN_IMPACT_DURATION_MS, RAILGUN_FLASH_DURATION_MS, RAILGUN_PEN_DURATION_MS, RAILGUN_MUZZLE_FADEOUT_MS, RAILGUN_RESPAWN_DELAY_MS } from "../../constants/animationTiming";
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  RAILGUN_IMPACT_DURATION_MS,
+  RAILGUN_FLASH_DURATION_MS,
+  RAILGUN_PEN_DURATION_MS,
+  RAILGUN_MUZZLE_FADEOUT_MS,
+  RAILGUN_RESPAWN_DELAY_MS,
+  RAILGUN_IMPACT_SLOTS,
+} from "../../constants/animationTiming";
+import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
+import { createOverlaySizeSync, setCircle, setHidden, setLine } from "./overlayPaint";
 
 interface RailgunShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -10,15 +19,83 @@ interface RailgunShootingAnimationProps {
   targetRow: number;
   targetCol: number;
   facingRight: boolean;
+  /** Variant 2 is the Linear Accelerator: same shot family, bigger and slower. */
+  variant?: number;
 }
 
-const SPALL_SPREAD   = (48 * Math.PI) / 180; // ±48° cone around bolt axis
+const SPALL_SPREAD = (48 * Math.PI) / 180;
+const MAX_SPALL = 22;
+
+type RailgunProjectile = {
+  x: number;
+  y: number;
+  angle: number;
+  targetX: number;
+  targetY: number;
+  startX: number;
+  startY: number;
+  startTime: number;
+  travelTime: number;
+};
+
+type RailgunImpact = {
+  x: number;
+  y: number;
+  startTime: number;
+  boltAngle: number;
+  surfaceHit: boolean;
+  spall: Array<{ angle: number; speed: number; size: number; color: string }>;
+};
 
 function spallColor(normSpread: number): string {
-  // normSpread: 0 = on-axis (hottest), 1 = edge of cone (coolest)
   if (normSpread < 0.3) return ["#ffffff", "#e8f8ff", "#56d6ff"][Math.floor(Math.random() * 3)];
   if (normSpread < 0.65) return ["#ffe866", "#ffcc22", "#ffaa00"][Math.floor(Math.random() * 3)];
   return ["#ff8800", "#ff5500", "#cc3300"][Math.floor(Math.random() * 3)];
+}
+
+function buildRailgunImpact(
+  projectile: RailgunProjectile,
+  now: number,
+  surfaceHit: boolean,
+  projectileScale: number,
+): RailgunImpact {
+  const boltAngle = Math.atan2(
+    projectile.targetY - projectile.startY,
+    projectile.targetX - projectile.startX,
+  );
+  const numSpall = (surfaceHit ? 15 : 13) + Math.floor(Math.random() * 6);
+  const back = boltAngle + Math.PI;
+  const spall = Array.from({ length: numSpall }, (_, i) => {
+    const isChunk = i < (surfaceHit ? 6 : 4);
+    if (surfaceHit) {
+      const rawSpread = (Math.random() * 2 - 1) * Math.PI * 0.72;
+      return {
+        angle: back + rawSpread,
+        speed: isChunk ? 28 + Math.random() * 36 : 55 + Math.random() * 70,
+        size:
+          (isChunk ? 2.6 + Math.random() * 2.0 : 0.9 + Math.random() * 1.5) *
+          projectileScale,
+        color: spallColor(Math.abs(rawSpread) / (Math.PI * 0.72)),
+      };
+    }
+    const rawSpread = (Math.random() * 2 - 1) * SPALL_SPREAD * (isChunk ? 0.55 : 1);
+    return {
+      angle: boltAngle + rawSpread,
+      speed: isChunk ? 55 + Math.random() * 55 : 110 + Math.random() * 130,
+      size:
+        (isChunk ? 2.2 + Math.random() * 1.6 : 0.7 + Math.random() * 1.4) *
+        projectileScale,
+      color: spallColor(Math.abs(rawSpread) / SPALL_SPREAD),
+    };
+  });
+  return {
+    x: projectile.targetX,
+    y: projectile.targetY,
+    startTime: now,
+    boltAngle,
+    surfaceHit,
+    spall,
+  };
 }
 
 export const RailgunShootingAnimation = React.memo(function RailgunShootingAnimation({
@@ -28,104 +105,226 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
   targetRow,
   targetCol,
   facingRight,
+  variant = 1,
 }: RailgunShootingAnimationProps) {
-  const [projectiles, setProjectiles] = useState<
-    Array<{
-      id: number;
-      x: number;
-      y: number;
-      angle: number;
-      targetX: number;
-      targetY: number;
-      startX: number;
-      startY: number;
-      startTime: number;
-      travelTime: number;
-    }>
-  >([]);
-  const [muzzleFlashes, setMuzzleFlashes] = useState<
-    { id: number; x: number; y: number; size: number }[]
-  >([]);
-  const [impacts, setImpacts] = useState<
-    Array<{
-      id: number;
-      x: number;
-      y: number;
-      startTime: number;
-      boltAngle: number; // radians, direction of bolt travel (attacker → target)
-      spall: Array<{ angle: number; speed: number; size: number; color: string }>;
-    }>
-  >([]);
-
-  const projectileIdRef = useRef(0);
-  const flashIdRef = useRef(0);
-  const impactIdRef = useRef(0);
-  const animationFrameRef = useRef<number | null>(null);
-  const impactAnimationRef = useRef<number | null>(null);
-  const hasFiredRef = useRef<string>("");
-  const instanceId = useRef(Math.random().toString(36).slice(2));
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
-
-  // Calculate cell centers
-  const getCellCenter = useCallback(
-    (row: number, col: number) => {
-      if (!gridContainerRef.current) return { x: 0, y: 0 };
-
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
-      const cellWidth = gridRect.width / 17;
-      const cellHeight = gridRect.height / 11;
-
-      const x = col * cellWidth + cellWidth / 2;
-      const y = row * cellHeight + cellHeight / 2;
-
-      return { x, y };
-    },
-    [gridContainerRef]
+  const isLinearAccelerator = Number(variant) === 2;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const muzzleLayerRef = useRef<HTMLDivElement | null>(null);
+  const muzzleRef = useRef<HTMLDivElement | null>(null);
+  const gradientRef = useRef<SVGLinearGradientElement | null>(null);
+  const projectileGroupRef = useRef<SVGGElement | null>(null);
+  const trailRef = useRef<SVGLineElement | null>(null);
+  const slugGlowRef = useRef<SVGLineElement | null>(null);
+  const slugCoreRef = useRef<SVGLineElement | null>(null);
+  const tipGlowRef = useRef<SVGCircleElement | null>(null);
+  const tipCoreRef = useRef<SVGCircleElement | null>(null);
+  const impactGroupRefs = useRef<Array<SVGGElement | null>>(
+    Array.from({ length: RAILGUN_IMPACT_SLOTS }, () => null),
   );
 
-  // Offset from cell center to the railgun barrel port.
-  // Facing right: +60% cell width, -5% cell height
-  // Facing left:  -60% cell width, -5% cell height
-  const getAttackerOrigin = useCallback(() => {
-    const center = getCellCenter(attackerRow, attackerCol);
-    if (!gridContainerRef.current) return center;
-    const rect = gridContainerRef.current.getBoundingClientRect();
-    const cw = rect.width / 17;
-    const ch = rect.height / 11;
-    return {
-      x: center.x + (facingRight ? cw * 0.30 : -cw * 0.30),
-      y: center.y - ch * 0.15,
-    };
-  }, [getCellCenter, attackerRow, attackerCol, gridContainerRef, facingRight]);
+  const projectileRef = useRef<RailgunProjectile | null>(null);
+  const impactsRef = useRef<(RailgunImpact | null)[]>(
+    Array.from({ length: RAILGUN_IMPACT_SLOTS }, () => null),
+  );
+  const respawnAtRef = useRef(0);
+  const muzzleUntilRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const hasFiredRef = useRef("");
+  const instanceId = useRef(Math.random().toString(36).slice(2));
+  const spawnRef = useRef<() => void>(() => {});
+  const isLinearAcceleratorRef = useRef(isLinearAccelerator);
+  const projectileScaleRef = useRef(isLinearAccelerator ? 2.2 : 1);
+  const speedCellsPerSecRef = useRef(isLinearAccelerator ? 3.5 : 8);
+  const facingRightRef = useRef(facingRight);
+  const attackerRowRef = useRef(attackerRow);
+  const attackerColRef = useRef(attackerCol);
+  const targetRowRef = useRef(targetRow);
+  const targetColRef = useRef(targetCol);
+  isLinearAcceleratorRef.current = isLinearAccelerator;
+  projectileScaleRef.current = isLinearAccelerator ? 2.2 : 1;
+  speedCellsPerSecRef.current = isLinearAccelerator ? 3.5 : 8;
+  facingRightRef.current = facingRight;
+  attackerRowRef.current = attackerRow;
+  attackerColRef.current = attackerCol;
+  targetRowRef.current = targetRow;
+  targetColRef.current = targetCol;
 
-  // Spawn a new projectile
+  const syncOverlaySize = useMemo(
+    () =>
+      createOverlaySizeSync(
+        () => gridContainerRef.current,
+        (width, height) => {
+          const svg = svgRef.current;
+          const muzzleLayer = muzzleLayerRef.current;
+          if (!svg) return;
+          svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+          svg.style.width = `${width}px`;
+          svg.style.height = `${height}px`;
+          if (muzzleLayer) {
+            muzzleLayer.style.width = `${width}px`;
+            muzzleLayer.style.height = `${height}px`;
+          }
+        },
+      ),
+    [gridContainerRef],
+  );
+
+  const paintProjectile = useCallback((p: RailgunProjectile) => {
+    const scale = projectileScaleRef.current;
+    const isLA = isLinearAcceleratorRef.current;
+    const rad = (p.angle * Math.PI) / 180;
+    const slugLen = isLA ? 18 : 0;
+    const slugTailX = p.x - Math.cos(rad) * slugLen;
+    const slugTailY = p.y - Math.sin(rad) * slugLen;
+
+    setHidden(projectileGroupRef.current, false);
+    gradientRef.current?.setAttribute("x1", String(p.startX));
+    gradientRef.current?.setAttribute("y1", String(p.startY));
+    gradientRef.current?.setAttribute("x2", String(p.x));
+    gradientRef.current?.setAttribute("y2", String(p.y));
+    setLine(trailRef.current, p.startX, p.startY, p.x, p.y);
+    trailRef.current?.setAttribute("stroke-width", String(3 * scale));
+    setHidden(slugGlowRef.current, !isLA);
+    setHidden(slugCoreRef.current, !isLA);
+    if (isLA) {
+      setLine(slugGlowRef.current, slugTailX, slugTailY, p.x, p.y);
+      setLine(slugCoreRef.current, slugTailX, slugTailY, p.x, p.y);
+      slugGlowRef.current?.setAttribute("stroke-width", String(5.5 * scale));
+      slugCoreRef.current?.setAttribute("stroke-width", String(3.2 * scale));
+    }
+    setCircle(tipGlowRef.current, p.x, p.y, 5 * scale);
+    setCircle(tipCoreRef.current, p.x, p.y, 2.5 * scale);
+  }, []);
+
+  const paintImpact = useCallback((group: SVGGElement, impact: RailgunImpact, now: number) => {
+    const scale = projectileScaleRef.current;
+    const elapsed = now - impact.startTime;
+    const elapsedSec = elapsed / 1000;
+    const flashT = Math.max(0, 1 - elapsed / RAILGUN_FLASH_DURATION_MS);
+    const flashRadius = (1 - flashT) * 16 * scale;
+    const flashOpacity = flashT;
+    const penT = Math.max(0, 1 - elapsed / RAILGUN_PEN_DURATION_MS);
+    const t = Math.min(elapsed / RAILGUN_IMPACT_DURATION_MS, 1);
+    const spallOpacity = Math.max(0, 1 - t);
+    const easeOut = 1 - Math.pow(1 - t, 2);
+    const cos = Math.cos(impact.boltAngle);
+    const sin = Math.sin(impact.boltAngle);
+
+    const surface = group.querySelector("[data-rg-surface]") as SVGGElement | null;
+    const penetrate = group.querySelector("[data-rg-penetrate]") as SVGGElement | null;
+    const crush = group.querySelector("[data-rg-crush]") as SVGLineElement | null;
+    const bloom = group.querySelector("[data-rg-bloom]") as SVGCircleElement | null;
+    const bloomCore = group.querySelector("[data-rg-bloom-core]") as SVGCircleElement | null;
+    const ring = group.querySelector("[data-rg-ring]") as SVGCircleElement | null;
+    const penLine = group.querySelector("[data-rg-pen]") as SVGLineElement | null;
+    const entryGlow = group.querySelector("[data-rg-entry-glow]") as SVGCircleElement | null;
+    const entryCore = group.querySelector("[data-rg-entry-core]") as SVGCircleElement | null;
+    const spallLines = group.querySelectorAll("[data-rg-spall]");
+
+    setHidden(group, false);
+    setHidden(surface, !impact.surfaceHit);
+    setHidden(penetrate, impact.surfaceHit);
+
+    if (impact.surfaceHit) {
+      setLine(
+        crush,
+        impact.x - cos * 12 * scale,
+        impact.y - sin * 12 * scale,
+        impact.x,
+        impact.y,
+      );
+      crush?.setAttribute("stroke-width", String(4.5 * scale));
+      crush?.setAttribute("opacity", String(flashOpacity * 0.9));
+      setCircle(bloom, impact.x, impact.y, flashRadius * 2.1);
+      bloom?.setAttribute("opacity", String(flashOpacity * 0.22));
+      setCircle(bloomCore, impact.x, impact.y, flashRadius * 1.15);
+      bloomCore?.setAttribute("opacity", String(flashOpacity * 0.85));
+      setCircle(ring, impact.x, impact.y, easeOut * 22 * scale);
+      ring?.setAttribute("stroke-width", String(Math.max(0.6, 2.8 * scale * (1 - t))));
+      ring?.setAttribute("opacity", String(Math.max(0, 1 - t * 1.7) * 0.75));
+    } else {
+      setLine(
+        penLine,
+        impact.x - cos * 9 * scale,
+        impact.y - sin * 9 * scale,
+        impact.x + cos * 14 * scale,
+        impact.y + sin * 14 * scale,
+      );
+      penLine?.setAttribute("stroke-width", String(3.5 * scale));
+      penLine?.setAttribute("opacity", String(penT * 0.85));
+      setCircle(entryGlow, impact.x, impact.y, flashRadius * 1.8);
+      entryGlow?.setAttribute("opacity", String(flashOpacity * 0.25));
+      setCircle(entryCore, impact.x, impact.y, flashRadius);
+      entryCore?.setAttribute("opacity", String(flashOpacity * 0.9));
+    }
+
+    spallLines.forEach((node, i) => {
+      const line = node as SVGLineElement;
+      const piece = impact.spall[i];
+      if (!piece) {
+        setHidden(line, true);
+        return;
+      }
+      const dist = piece.speed * elapsedSec;
+      const px = impact.x + Math.cos(piece.angle) * dist;
+      const py = impact.y + Math.sin(piece.angle) * dist;
+      const trailLen = Math.min(piece.speed * (impact.surfaceHit ? 0.025 : 0.04), dist);
+      setHidden(line, false);
+      setLine(
+        line,
+        px - Math.cos(piece.angle) * trailLen,
+        py - Math.sin(piece.angle) * trailLen,
+        px,
+        py,
+      );
+      line.setAttribute("stroke", piece.color);
+      line.setAttribute("stroke-width", String(piece.size));
+      line.setAttribute("opacity", String(spallOpacity));
+    });
+  }, []);
+
+  const showMuzzle = useCallback((x: number, y: number, now: number) => {
+    const el = muzzleRef.current;
+    if (!el) return;
+    const size = Math.round(26 * (isLinearAcceleratorRef.current ? 1.45 : 1));
+    el.style.left = `${x - size / 2}px`;
+    el.style.top = `${y - size / 2}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.classList.remove("railgun-muzzle-flash");
+    setHidden(el, false);
+    void el.offsetWidth;
+    el.classList.add("railgun-muzzle-flash");
+    muzzleUntilRef.current = now + RAILGUN_MUZZLE_FADEOUT_MS;
+  }, []);
+
   const spawnProjectile = useCallback(() => {
-    if (!gridContainerRef.current) return;
+    const grid = gridContainerRef.current;
+    if (!grid || projectileRef.current) return;
 
-    const attackerCenter = getAttackerOrigin();
-    const targetCenter = getCellCenter(targetRow, targetCol);
-
-    // Select a random target spot within target cell
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
-    const cellWidth = gridRect.width / 17;
-    const cellHeight = gridRect.height / 11;
+    const attackerCenter = (() => {
+      const center = cellCenterOnGrid(grid, attackerRowRef.current, attackerColRef.current);
+      const { cellWidth: cw, cellHeight: ch } = gridLayoutSize(grid);
+      const forward = cw * (0.30 + (isLinearAcceleratorRef.current ? 0.14 : 0));
+      return {
+        x: center.x + (facingRightRef.current ? forward : -forward),
+        y: center.y - ch * 0.15,
+      };
+    })();
+    const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
+    const { cellWidth, cellHeight } = gridLayoutSize(grid);
     const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
     const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
-
-    // Calculate direction to target
     const dx = targetX - attackerCenter.x;
     const dy = targetY - attackerCenter.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-    // High speed constant rate (faster than missiles)
     const avgCellSize = (cellWidth + cellHeight) / 2;
-    const SPEED = avgCellSize * 8; // 8 cells per second (2x faster than missiles)
-    const travelTime = distance / SPEED; // Constant speed, travel time varies by distance
+    const SPEED = avgCellSize * speedCellsPerSecRef.current;
+    const travelTime = Math.max(distance, avgCellSize * 0.12) / Math.max(SPEED, 1);
+    const now = Date.now();
 
-    const newProjectile = {
-      id: projectileIdRef.current++,
+    const projectile: RailgunProjectile = {
       x: attackerCenter.x,
       y: attackerCenter.y,
       angle,
@@ -133,302 +332,177 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
       targetY,
       startX: attackerCenter.x,
       startY: attackerCenter.y,
-      startTime: Date.now(),
+      startTime: now,
       travelTime,
     };
+    projectileRef.current = projectile;
+    respawnAtRef.current = 0;
+    syncOverlaySize();
+    paintProjectile(projectile);
+    showMuzzle(attackerCenter.x, attackerCenter.y, now);
+  }, [gridContainerRef, paintProjectile, showMuzzle, syncOverlaySize]);
 
-    setProjectiles((prev) => {
-      if (prev.length > 0) return prev;
-      return [newProjectile];
-    });
+  spawnRef.current = spawnProjectile;
 
-    // Muzzle flash at attacker origin
-    const flashId = flashIdRef.current++;
-    const flashSize = 26;
-    setMuzzleFlashes((prev) => [
-      ...prev,
-      { id: flashId, x: attackerCenter.x, y: attackerCenter.y, size: flashSize },
-    ]);
-    setTimeout(() => {
-      setMuzzleFlashes((prev) => prev.filter((f) => f.id !== flashId));
-    }, RAILGUN_MUZZLE_FADEOUT_MS);
-  }, [
-    gridContainerRef,
-    attackerRow,
-    attackerCol,
-    targetRow,
-    targetCol,
-    getCellCenter,
-    getAttackerOrigin,
-  ]);
-
-  // Handle projectile despawn and respawn (endless cycling with single projectile)
   useEffect(() => {
-    if (projectiles.length === 0) {
-      // All projectiles despawned, wait before spawning next one
-      const timeoutId = setTimeout(() => {
-        spawnProjectile();
-      }, RAILGUN_RESPAWN_DELAY_MS);
-
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [projectiles.length, spawnProjectile]);
-
-  // Animate projectiles — spawn impact when bolt arrives
-  useEffect(() => {
-    if (projectiles.length === 0) return;
-    if (!gridContainerRef.current) return;
-
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
-    const cellWidth = gridRect.width / 17;
-    const cellHeight = gridRect.height / 11;
+    const grid = gridContainerRef.current;
+    const ro = grid ? new ResizeObserver(() => syncOverlaySize()) : null;
+    if (grid && ro) ro.observe(grid);
+    syncOverlaySize();
 
     const animate = () => {
       const now = Date.now();
-      const updatedProjectiles = projectiles
-        .map((projectile) => {
-          const elapsed = (now - projectile.startTime) / 1000;
-          const progress = Math.min(elapsed / projectile.travelTime, 1);
 
-          if (progress >= 1) {
-            // Bolt arrived — spawn spall impact
-            const boltAngle = Math.atan2(
-              projectile.targetY - projectile.startY,
-              projectile.targetX - projectile.startX
-            );
-
-            const numSpall = 13 + Math.floor(Math.random() * 6); // 13–18 pieces
-            const spall = Array.from({ length: numSpall }, (_, i) => {
-              const isChunk = i < 4; // first few are larger, slower chunks
-              const rawSpread = (Math.random() * 2 - 1) * SPALL_SPREAD * (isChunk ? 0.55 : 1);
-              return {
-                angle: boltAngle + rawSpread,
-                speed: isChunk
-                  ? 55 + Math.random() * 55    // px/s — slower big chunks
-                  : 110 + Math.random() * 130, // px/s — fast small spall
-                size: isChunk ? 2.2 + Math.random() * 1.6 : 0.7 + Math.random() * 1.4,
-                color: spallColor(Math.abs(rawSpread) / SPALL_SPREAD),
-              };
+      const flying = projectileRef.current;
+      if (flying) {
+        const travelTime = Math.max(flying.travelTime, 1 / 60);
+        const progress = Math.min((now - flying.startTime) / 1000 / travelTime, 1);
+        if (progress >= 1) {
+          const impact = buildRailgunImpact(
+            flying,
+            now,
+            isLinearAcceleratorRef.current,
+            projectileScaleRef.current,
+          );
+          let slot = impactsRef.current.findIndex((imp) => imp == null);
+          if (slot < 0) {
+            let oldest = Infinity;
+            slot = 0;
+            impactsRef.current.forEach((imp, i) => {
+              if (imp && imp.startTime < oldest) {
+                oldest = imp.startTime;
+                slot = i;
+              }
             });
-
-            setImpacts((prev) => [
-              ...prev,
-              {
-                id: impactIdRef.current++,
-                x: projectile.targetX,
-                y: projectile.targetY,
-                startTime: now,
-                boltAngle,
-                spall,
-              },
-            ]);
-            return null;
           }
-
-          // Constant speed movement
-          const currentX =
-            projectile.startX +
-            (projectile.targetX - projectile.startX) * progress;
-          const currentY =
-            projectile.startY +
-            (projectile.targetY - projectile.startY) * progress;
-
-          // Always point at target
-          const angleDx = projectile.targetX - currentX;
-          const angleDy = projectile.targetY - currentY;
-          const angle = Math.atan2(angleDy, angleDx) * (180 / Math.PI);
-
-          return {
-            ...projectile,
-            x: currentX,
-            y: currentY,
-            angle,
-          };
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
-
-      setProjectiles(updatedProjectiles);
-
-      if (updatedProjectiles.length > 0) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        animationFrameRef.current = null;
+          impactsRef.current[slot] = impact;
+          projectileRef.current = null;
+          setHidden(projectileGroupRef.current, true);
+          respawnAtRef.current = now + RAILGUN_RESPAWN_DELAY_MS;
+        } else {
+          flying.x = flying.startX + (flying.targetX - flying.startX) * progress;
+          flying.y = flying.startY + (flying.targetY - flying.startY) * progress;
+          flying.angle =
+            Math.atan2(flying.targetY - flying.y, flying.targetX - flying.x) *
+            (180 / Math.PI);
+          paintProjectile(flying);
+        }
+      } else if (respawnAtRef.current > 0 && now >= respawnAtRef.current) {
+        spawnRef.current();
       }
+
+      for (let i = 0; i < RAILGUN_IMPACT_SLOTS; i++) {
+        const impact = impactsRef.current[i];
+        const group = impactGroupRefs.current[i];
+        if (!group) continue;
+        if (!impact || now - impact.startTime >= RAILGUN_IMPACT_DURATION_MS) {
+          impactsRef.current[i] = null;
+          setHidden(group, true);
+          continue;
+        }
+        paintImpact(group, impact, now);
+      }
+
+      if (muzzleUntilRef.current > 0 && now >= muzzleUntilRef.current) {
+        setHidden(muzzleRef.current, true);
+        muzzleUntilRef.current = 0;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-
     return () => {
+      ro?.disconnect();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [projectiles, gridContainerRef]);
+  }, [gridContainerRef, paintImpact, paintProjectile, syncOverlaySize]);
 
-  // Drive impact re-renders and expire finished impacts (same pattern as missile/plasma)
   useEffect(() => {
-    const animate = () => {
-      const now = Date.now();
-      setImpacts((prev) => {
-        if (prev.length === 0) return prev;
-        return prev.filter((imp) => now - imp.startTime < RAILGUN_IMPACT_DURATION_MS);
-      });
-      impactAnimationRef.current = requestAnimationFrame(animate);
-    };
+    const attackKey = `${attackerRow}-${attackerCol}-${targetRow}-${targetCol}-${variant}`;
+    if (hasFiredRef.current === attackKey) return;
+    hasFiredRef.current = attackKey;
+    projectileRef.current = null;
+    impactsRef.current = Array.from({ length: RAILGUN_IMPACT_SLOTS }, () => null);
+    respawnAtRef.current = 0;
+    setHidden(projectileGroupRef.current, true);
+    for (const group of impactGroupRefs.current) setHidden(group, true);
+    spawnProjectile();
+  }, [attackerRow, attackerCol, targetRow, targetCol, variant, spawnProjectile]);
 
-    impactAnimationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (impactAnimationRef.current) {
-        cancelAnimationFrame(impactAnimationRef.current);
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset and start cycling when attack parameters change
-  useEffect(() => {
-    const attackKey = `${attackerRow}-${attackerCol}-${targetRow}-${targetCol}`;
-    if (hasFiredRef.current !== attackKey) {
-      hasFiredRef.current = attackKey;
-      setProjectiles([]);
-      spawnProjectile();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attackerRow, attackerCol, targetRow, targetCol]);
-
-  if (!gridContainerRef.current || (projectiles.length === 0 && muzzleFlashes.length === 0 && impacts.length === 0)) return null;
-
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
-  const iid = instanceId.current;
-  const now = Date.now();
+  const trailId = `rg-trail-${instanceId.current}`;
 
   return (
     <>
       <svg
+        ref={svgRef}
         className="absolute pointer-events-none z-20"
-        style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
-        viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
+        style={{ left: 0, top: 0, width: "100%", height: "100%" }}
         preserveAspectRatio="none"
       >
         <defs>
-          {projectiles.map((p) => (
-            <linearGradient
-              key={p.id}
-              id={`rg-trail-${iid}-${p.id}`}
-              x1={p.startX}
-              y1={p.startY}
-              x2={p.x}
-              y2={p.y}
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" stopColor="#56d6ff" stopOpacity="0" />
-              <stop offset="60%" stopColor="#56d6ff" stopOpacity="0.45" />
-              <stop offset="90%" stopColor="#56d6ff" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
-            </linearGradient>
-          ))}
+          <linearGradient ref={gradientRef} id={trailId} gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#56d6ff" stopOpacity="0" />
+            <stop offset="60%" stopColor="#56d6ff" stopOpacity="0.45" />
+            <stop offset="90%" stopColor="#56d6ff" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
+          </linearGradient>
         </defs>
 
-        {/* Impact effects */}
-        {impacts.map((impact) => {
-          const elapsed = now - impact.startTime;
-          const elapsedSec = elapsed / 1000;
-
-          // Entry flash — blooms fast, fades in RAILGUN_FLASH_DURATION_MS ms
-          const flashT = Math.max(0, 1 - elapsed / RAILGUN_FLASH_DURATION_MS);
-          const flashRadius = (1 - flashT) * 16; // 0→16px as flash fades
-          const flashOpacity = flashT;
-
-          // Penetration glow line — lingers a bit longer
-          const penT = Math.max(0, 1 - elapsed / RAILGUN_PEN_DURATION_MS);
-
-          // Spall fade — linear over full RAILGUN_IMPACT_DURATION_MS
-          const spallOpacity = Math.max(0, 1 - elapsed / RAILGUN_IMPACT_DURATION_MS);
-
-          const cos = Math.cos(impact.boltAngle);
-          const sin = Math.sin(impact.boltAngle);
-
-          return (
-            <g key={impact.id}>
-              {/* Penetration glow: short line punching through the hull */}
-              <line
-                x1={impact.x - cos * 9}
-                y1={impact.y - sin * 9}
-                x2={impact.x + cos * 14}
-                y2={impact.y + sin * 14}
-                stroke="#56d6ff"
-                strokeWidth={3.5}
-                strokeLinecap="round"
-                opacity={penT * 0.85}
-              />
-
-              {/* Entry flash */}
-              <circle cx={impact.x} cy={impact.y} r={flashRadius * 1.8} fill="#56d6ff" opacity={flashOpacity * 0.25} />
-              <circle cx={impact.x} cy={impact.y} r={flashRadius} fill="#ffffff" opacity={flashOpacity * 0.9} />
-
-              {/* Spall — velocity streaks exiting the far side */}
-              {impact.spall.map((piece, i) => {
-                const dist = piece.speed * elapsedSec;
-                const px = impact.x + Math.cos(piece.angle) * dist;
-                const py = impact.y + Math.sin(piece.angle) * dist;
-                // Short trail behind each fragment (40 ms worth of travel)
-                const trailLen = Math.min(piece.speed * 0.04, dist);
-                const tx = px - Math.cos(piece.angle) * trailLen;
-                const ty = py - Math.sin(piece.angle) * trailLen;
-                return (
-                  <line
-                    key={i}
-                    x1={tx} y1={ty}
-                    x2={px} y2={py}
-                    stroke={piece.color}
-                    strokeWidth={piece.size}
-                    strokeLinecap="round"
-                    opacity={spallOpacity}
-                  />
-                );
-              })}
+        {Array.from({ length: RAILGUN_IMPACT_SLOTS }, (_, slot) => (
+          <g
+            key={slot}
+            ref={(el) => {
+              impactGroupRefs.current[slot] = el;
+            }}
+            style={{ display: "none" }}
+          >
+            <g data-rg-surface style={{ display: "none" }}>
+              <line data-rg-crush stroke="#56d6ff" strokeLinecap="round" />
+              <circle data-rg-bloom fill="#56d6ff" />
+              <circle data-rg-bloom-core fill="#ffffff" />
+              <circle data-rg-ring fill="none" stroke="#56d6ff" />
             </g>
-          );
-        })}
-
-        {/* Projectiles */}
-        {projectiles.map((p) => (
-          <g key={p.id}>
-            {/* Comet trail: gradient line from spawn to current position */}
-            <line
-              x1={p.startX} y1={p.startY}
-              x2={p.x} y2={p.y}
-              stroke={`url(#rg-trail-${iid}-${p.id})`}
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            {/* Outer glow at tip */}
-            <circle cx={p.x} cy={p.y} r={5} fill="#56d6ff" opacity={0.3} />
-            {/* Bright core at tip */}
-            <circle cx={p.x} cy={p.y} r={2.5} fill="#ffffff" />
+            <g data-rg-penetrate style={{ display: "none" }}>
+              <line data-rg-pen stroke="#56d6ff" strokeLinecap="round" />
+              <circle data-rg-entry-glow fill="#56d6ff" />
+              <circle data-rg-entry-core fill="#ffffff" />
+            </g>
+            {Array.from({ length: MAX_SPALL }, (_, i) => (
+              <line key={i} data-rg-spall strokeLinecap="round" style={{ display: "none" }} />
+            ))}
           </g>
         ))}
+
+        <g ref={projectileGroupRef} style={{ display: "none" }}>
+          <line ref={trailRef} stroke={`url(#${trailId})`} strokeLinecap="round" />
+          <line
+            ref={slugGlowRef}
+            stroke="#56d6ff"
+            strokeLinecap="round"
+            opacity={0.35}
+            style={{ display: "none" }}
+          />
+          <line
+            ref={slugCoreRef}
+            stroke="#ffffff"
+            strokeLinecap="round"
+            opacity={0.95}
+            style={{ display: "none" }}
+          />
+          <circle ref={tipGlowRef} fill="#56d6ff" opacity={0.3} />
+          <circle ref={tipCoreRef} fill="#ffffff" />
+        </g>
       </svg>
 
-      {/* Muzzle flashes */}
       <div
+        ref={muzzleLayerRef}
         className="absolute pointer-events-none z-20"
-        style={{ left: 0, top: 0, width: gridRect.width, height: gridRect.height }}
+        style={{ left: 0, top: 0, width: "100%", height: "100%" }}
       >
-        {muzzleFlashes.map((f) => (
-          <div
-            key={f.id}
-            className="railgun-muzzle-flash"
-            style={{
-              left: f.x - f.size / 2,
-              top: f.y - f.size / 2,
-              width: f.size,
-              height: f.size,
-            }}
-          />
-        ))}
+        <div ref={muzzleRef} className="railgun-muzzle-flash" style={{ display: "none" }} />
       </div>
     </>
   );

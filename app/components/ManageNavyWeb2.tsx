@@ -10,8 +10,6 @@ import { apiMutate } from "../lib/apiMutate";
 import ShipCard from "./ShipCard";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
-import { ShipPurchaseInterfaceWeb2 } from "./ShipPurchaseInterfaceWeb2";
-import { ShipPurchasePanel } from "./ShipPurchasePanel";
 import { navyFilterSecondaryOptionsWeb2, filterAndSortShipsWeb2 } from "../utils/navyFiltersWeb2";
 import { useNavyFilterState } from "../hooks/useNavyFilterState";
 import { useStarredShips } from "../hooks/useStarredShips";
@@ -32,9 +30,7 @@ import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetComposition
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
 import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
-import { useInvalidateUserBalanceWeb2, useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
-import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
-import { MockPurchaseConfirmModal } from "./MockPurchaseConfirmModal";
+import { useInvalidateUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import {
   ManageNavyDroneFactoryBrief,
   ManageNavyConstructDeliveryBrief,
@@ -90,41 +86,27 @@ const ManageNavyWeb2: React.FC = () => {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [showDebugButtons, setShowDebugButtons] = useState(false);
-  const [showShipPurchase, setShowShipPurchase] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"usd" | "utc">("usd");
   const [showRecycleModal, setShowRecycleModal] = useState(false);
   const [shipToRecycle, setShipToRecycle] = useState<Web2Ship | null>(null);
   const filterState = useNavyFilterState(SHIPS_PER_PAGE);
   const { starredShips, toggleStar } = useStarredShips(userId ?? "");
   const claimFreeEligibility = useClaimFreeEligibilityWeb2();
   const invalidateBalance = useInvalidateUserBalanceWeb2();
-  const { creditBalance } = useUserBalanceWeb2();
-  const { tiers: purchaseTiers } = usePurchaseTiersWeb2();
   const recycleEligibility = useRecycleEligibilityWeb2();
-  const [pendingShipPurchase, setPendingShipPurchase] = useState<{
-    tier: number;
-    currency: "usd" | "utc";
-  } | null>(null);
   const [showInGameProperties, setShowInGameProperties] = useState(true);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mobileMq = window.matchMedia("(max-width: 767px)");
-    const compactMq = window.matchMedia("(max-width: 1023px)");
     const sync = () => {
       setIsMobileLayout(mobileMq.matches);
-      setIsCompactViewport(compactMq.matches);
     };
     sync();
     mobileMq.addEventListener("change", sync);
-    compactMq.addEventListener("change", sync);
     return () => {
       mobileMq.removeEventListener("change", sync);
-      compactMq.removeEventListener("change", sync);
     };
   }, []);
-  const showMobileShipPurchaseTakeover = showShipPurchase && isCompactViewport;
 
   // ── Onboarding tutorial series (drone/claim -> construct delivery -> buy
   // ships) — mirrors ManageNavy.tsx's three-step state machine exactly,
@@ -271,26 +253,17 @@ const ManageNavyWeb2: React.FC = () => {
   const showManageNavyTutorialChrome =
     showDroneFactoryTutorial || showConstructDeliveryTutorial || showBuyShipsTutorial;
 
+  // Buying ships now lives in its own "Store" tab — this button navigates
+  // there instead of opening an inline purchase panel.
   const handleBuyNewShipsClick = useCallback(() => {
     if (userId && showBuyShipsTutorial) {
       persistBuyShipsTutorialCompletedWeb2(userId);
       setShowBuyShipsTutorial(false);
     }
-    setShowShipPurchase(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-store"));
+    }
   }, [userId, showBuyShipsTutorial]);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(
-      new CustomEvent("void-tactics-manage-navy-purchase-active", {
-        detail: { active: showMobileShipPurchaseTakeover },
-      }),
-    );
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent("void-tactics-manage-navy-purchase-active", { detail: { active: false } }),
-      );
-    };
-  }, [showMobileShipPurchaseTakeover]);
   const shipIds = useMemo(() => ships.map((s) => s.id), [ships]);
   const {
     attributesByShipId,
@@ -429,38 +402,6 @@ const ManageNavyWeb2: React.FC = () => {
       setSelected(new Set());
       if (result.creditEarned) invalidateBalance();
     });
-
-  // Ship purchases have no real payment gate (see the doc comment at the top
-  // of this file) and previously executed immediately on tier click with no
-  // confirmation step — MockPurchaseConfirmModal inserts one so the flow
-  // feels like a real checkout. `handleRequestShipPurchase` (passed as
-  // ShipPurchaseInterfaceWeb2's onPurchase) just opens the confirmation;
-  // `executeShipPurchase` is the real purchase call, only run after confirm.
-  const executeShipPurchase = (tier: number, currency: "usd" | "utc") =>
-    runAction("purchase ships", async () => {
-      const result = await apiMutate<{ ships: { id: number; name: string }[] }>(
-        `/api/ships/purchase/${currency}`,
-        "POST",
-        { tier },
-      );
-      toast.success(`Purchased ${result.ships.length} ship(s)`);
-      setShowShipPurchase(false);
-      if (currency === "utc") invalidateBalance();
-    });
-
-  const handleRequestShipPurchase = (tier: number, currency: "usd" | "utc") => {
-    setPendingShipPurchase({ tier, currency });
-  };
-
-  const handleConfirmShipPurchase = async () => {
-    if (!pendingShipPurchase) return;
-    await executeShipPurchase(pendingShipPurchase.tier, pendingShipPurchase.currency);
-    setPendingShipPurchase(null);
-  };
-
-  const pendingTierConfig = pendingShipPurchase
-    ? purchaseTiers.find((t) => t.tier === pendingShipPurchase.tier)
-    : undefined;
 
   const recyclableSelectedCount = Array.from(selected).filter((id) => {
     const ship = ships.find((s) => s.id === id);
@@ -689,50 +630,6 @@ const ManageNavyWeb2: React.FC = () => {
           />
         )}
       </div>
-
-      <ShipPurchasePanel
-        show={showShipPurchase}
-        onClose={() => setShowShipPurchase(false)}
-        mobileTakeover={showMobileShipPurchaseTakeover}
-        paymentMethods={[
-          { id: "usd", label: "USD", activeBorderClass: "border-phosphor-green", activeTextClass: "text-phosphor-green", activeBgClass: "bg-phosphor-green/10" },
-          { id: "utc", label: "UTC", activeBorderClass: "border-amber", activeTextClass: "text-amber", activeBgClass: "bg-amber/10" },
-        ]}
-        activePaymentMethodId={paymentMethod}
-        onSelectPaymentMethod={(id) => setPaymentMethod(id as "usd" | "utc")}
-      >
-        <ShipPurchaseInterfaceWeb2
-          paymentMethod={paymentMethod}
-          onPurchase={handleRequestShipPurchase}
-          busy={busy}
-        />
-      </ShipPurchasePanel>
-
-      <MockPurchaseConfirmModal
-        show={pendingShipPurchase !== null}
-        title="CONFIRM SHIP PURCHASE"
-        lineItems={
-          pendingTierConfig
-            ? [
-                { label: "Ships", value: String(pendingTierConfig.shipCount) },
-                { label: "Tier", value: `#${pendingTierConfig.tier}` },
-              ]
-            : []
-        }
-        totalLabel={
-          pendingTierConfig
-            ? pendingShipPurchase?.currency === "utc"
-              ? `${pendingTierConfig.priceUtc} UTC`
-              : `$${(pendingTierConfig.priceUsdCents / 100).toFixed(2)}`
-            : ""
-        }
-        paymentMethod={pendingShipPurchase?.currency ?? "usd"}
-        utcBalance={creditBalance}
-        utcBalanceAfter={creditBalance - (pendingTierConfig?.priceUtc ?? 0)}
-        isProcessing={busy}
-        onCancel={() => setPendingShipPurchase(null)}
-        onConfirm={() => void handleConfirmShipPurchase()}
-      />
 
       {isLoading && <div className="font-mono text-sm text-text-muted">Loading ships…</div>}
       {error && <div className="font-mono text-sm text-warning-red">{error}</div>}

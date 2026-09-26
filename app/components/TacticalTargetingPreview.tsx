@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Attributes, GRID_DIMENSIONS, Ship } from "../types/types";
+import { ActionType, Attributes, GRID_DIMENSIONS, Ship } from "../types/types";
 import { GridShipPosition } from "../types/gridDisplay";
+import type { Web2LastMove } from "../types/web2Game";
 import { generateRandomShip } from "../utils/generateRandomShip";
 import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 import { toGameplayShip, toGridShip } from "../utils/toGridDisplay";
@@ -24,7 +25,8 @@ import { GameBoardLayout } from "./GameBoardLayout";
 // with synthetic local ships (still no live chain/tutorial ship data) on a
 // REAL preset map's terrain (DEMO_MAP_ID, below), and a timer stepping
 // through the same setters a player's clicks would call (select ship ->
-// propose move -> lock target) instead of onClick handlers. Every pixel
+// propose move -> lock target -> last-move replay) instead of onClick
+// handlers. Every pixel
 // (range highlights, weapon selector, confirm bar, target reticle,
 // weapon-fire beam, nebula/hazard terrain tiles) is real GameGrid
 // rendering, not reimplemented.
@@ -111,6 +113,23 @@ const POSITIONS: GridShipPosition[] = [
   },
 ];
 
+const COMMITTED_POSITIONS: GridShipPosition[] = POSITIONS.map((p) =>
+  p.shipId === ALLY_ID ? { ...p, position: ALLY_DEST } : p,
+);
+
+const DEMO_LAST_MOVE: Web2LastMove = {
+  shipId: ALLY_ID,
+  oldRow: ALLY_START.row,
+  oldCol: ALLY_START.col,
+  newRow: ALLY_DEST.row,
+  newCol: ALLY_DEST.col,
+  actionType: ActionType.Shoot,
+  targetShipId: ENEMY_ID,
+  timestamp: 0,
+};
+
+const COMMITTED_MOVED_SET = new Set<number>([ALLY_ID]);
+
 // A real preset map's terrain instead of a made-up decorative layout —
 // "Debris Ring — Sector 14" (id 14): a real campaign map whose blocked,
 // impassable, and scoring tiles all happen to clear the scripted demo's
@@ -120,8 +139,8 @@ const POSITIONS: GridShipPosition[] = [
 // impassable terrain (hazard-tile.png) alongside the existing nebula tiles.
 const DEMO_MAP_ID = 14;
 
-// select ship -> propose move -> lock target -> pause -> reset
-const PHASE_DURATIONS = [1000, 1000, 1600, 2600, 700];
+// select ship -> propose move -> lock target -> last-move replay -> reset
+const PHASE_DURATIONS = [1000, 1000, 1600, 1800, 2600];
 
 function buildDemoShips() {
   const ally: Ship = {
@@ -260,14 +279,19 @@ export function TacticalTargetingPreview() {
     return map;
   }, [ships]);
 
+  const showLastMove = phase === 4;
+  const shipPositions = showLastMove ? COMMITTED_POSITIONS : POSITIONS;
+  const demoLastMove = showLastMove ? DEMO_LAST_MOVE : null;
+  const movedShipIdsSet = showLastMove ? COMMITTED_MOVED_SET : EMPTY_MOVED_SET;
+
   const interaction = useGameplayInteraction({
     gridWidth: GRID_WIDTH,
     gridHeight: GRID_HEIGHT,
     shipMap: gameplayShipMap,
     getShipAttributes,
-    allShipPositions: POSITIONS,
-    aliveShipPositions: POSITIONS,
-    movedShipIdsSet: EMPTY_MOVED_SET,
+    allShipPositions: shipPositions,
+    aliveShipPositions: shipPositions,
+    movedShipIdsSet,
     playerAddress: DEMO_PLAYER_ADDRESS,
     currentTurn: DEMO_PLAYER_ADDRESS,
     isGameOver: false,
@@ -275,8 +299,8 @@ export function TacticalTargetingPreview() {
     isSubmitting: false,
     blockedGrid,
     impassableGrid,
-    lastMove: null,
-    selectedShipId,
+    lastMove: demoLastMove,
+    selectedShipId: showLastMove ? null : selectedShipId,
     setSelectedShipId,
     draggedShipId,
     setDraggedShipId,
@@ -302,7 +326,7 @@ export function TacticalTargetingPreview() {
   // Autoplay driver — calls the exact same setters a player's clicks would,
   // just on a timer instead of onClick.
   useEffect(() => {
-    if (phase === 0) resetSelection();
+    if (phase === 0 || phase === 4) resetSelection();
     else if (phase === 1) setSelectedShipId(ALLY_ID);
     else if (phase === 2) setPreviewPosition(ALLY_DEST);
     else if (phase === 3) setTargetShipId(ENEMY_ID);
@@ -347,7 +371,7 @@ export function TacticalTargetingPreview() {
         <GameBoardLayout isCurrentPlayerTurn={true}>
           <GameGrid
             grid={interaction.displayGrid}
-            allShipPositions={POSITIONS}
+            allShipPositions={shipPositions}
             shipMap={gridShipMap}
             selectedShipId={interaction.selectedShipId}
             previewPosition={interaction.previewPosition}
@@ -366,8 +390,34 @@ export function TacticalTargetingPreview() {
             dragValidTargets={interaction.dragValidTargets}
             isCurrentPlayerTurn={true}
             isShipOwnedByCurrentPlayer={interaction.isShipOwnedByCurrentPlayer}
-            movedShipIdsSet={EMPTY_MOVED_SET}
+            movedShipIdsSet={movedShipIdsSet}
+            lastMoveShipId={showLastMove ? DEMO_LAST_MOVE.shipId : null}
+            lastMoveOldPosition={
+              showLastMove
+                ? { row: DEMO_LAST_MOVE.oldRow, col: DEMO_LAST_MOVE.oldCol }
+                : null
+            }
+            lastMoveNewPosition={
+              showLastMove
+                ? { row: DEMO_LAST_MOVE.newRow, col: DEMO_LAST_MOVE.newCol }
+                : null
+            }
+            lastMoveResolvedTo={
+              showLastMove
+                ? {
+                    shipId: DEMO_LAST_MOVE.shipId,
+                    row: DEMO_LAST_MOVE.newRow,
+                    col: DEMO_LAST_MOVE.newCol,
+                  }
+                : null
+            }
+            lastMoveActionType={showLastMove ? DEMO_LAST_MOVE.actionType : null}
+            lastMoveTargetShipId={
+              showLastMove ? DEMO_LAST_MOVE.targetShipId : null
+            }
+            lastMoveIsCurrentPlayer={showLastMove ? true : undefined}
             specialType={interaction.specialType}
+            specialRange={interaction.specialRange}
             blockedGrid={blockedGrid}
             impassableGrid={impassableGrid}
             scoringGrid={scoringGrid}

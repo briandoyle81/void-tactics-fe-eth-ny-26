@@ -58,7 +58,7 @@ export function useFactionAbilityConfig(variant: number | undefined) {
   const ram = useRamResolverConfig();
   const repair = useRepairResolverConfig();
   return useMemo(() => {
-    if (variant === 2) {
+    if (Number(variant) === 2) {
       return { range: repair.range, strength: repair.strength, isSupported: repair.isSupported, isHeal: true };
     }
     return { range: ram.range, strength: undefined, isSupported: ram.isSupported, isHeal: false };

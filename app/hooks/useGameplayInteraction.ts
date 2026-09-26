@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActionType, Attributes } from "../types/types";
+import { ActionType, Attributes, canonicalSpecialSlot } from "../types/types";
 import { GridShipPosition } from "../types/gridDisplay";
 import type { Web2LastMove } from "../types/web2Game";
 import {
@@ -10,6 +10,8 @@ import {
   computeHoverShootingRange,
 } from "../utils/gameGridRangesWeb2";
 import { hasLineOfSight } from "../utils/gameGridRanges";
+import { resolveActionRange } from "../utils/requireShipValue";
+import { isRepairDronesSpecial, shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { useResetSelectionOnTurnChange } from "./useResetSelectionOnTurnChange";
 import { useRetreatModeCancellationWeb2 } from "./useRetreatModeCancellationWeb2";
 
@@ -34,6 +36,7 @@ export interface GameplayShip {
   id: number;
   owner: string;
   equipment: { mainWeapon: number; armor: number; shields: number; special: number };
+  traits: { variant: number };
 }
 
 export interface GameplayHoveredCell {
@@ -233,7 +236,7 @@ export function useGameplayInteraction({
       setSelectedWeaponType("weapon");
       return;
     }
-    const canSpecial = !!(ship && ship.equipment.special > 0);
+    const canSpecial = shipHasActivatableSpecial(ship);
     const saved = weaponPreferenceByShipId[idKey] ?? "weapon";
     if (saved === "special" && !canSpecial) {
       setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: "weapon" }));
@@ -267,7 +270,9 @@ export function useGameplayInteraction({
   });
 
   const selectedShip = selectedShipId != null ? shipMap.get(selectedShipId) : null;
-  const specialType = selectedShip?.equipment.special || 0;
+  const specialType = selectedShip
+    ? canonicalSpecialSlot(selectedShip.traits?.variant ?? 0, selectedShip.equipment.special)
+    : 0;
   const specialRange = selectedShipSpecialRange;
   const specialData = selectedShipSpecialData;
 
@@ -296,19 +301,11 @@ export function useGameplayInteraction({
     setTargetShipId(null);
   }, [isRammingMovePreview, targetShipId]);
 
-  // Auto-set Flak to target all ships when Flak is first selected.
-  const flakAutoSetRef = React.useRef<{ shipId: number | null; weaponType: string }>({ shipId: null, weaponType: "weapon" });
+  // Flak Array is self-centered AoE. Keep targetShipId at 0 whenever it is
+  // the selected special so move-select and confirm stay armed.
   React.useEffect(() => {
     if (selectedShipId && selectedWeaponType === "special" && specialType === 3) {
-      const isNewSelection =
-        flakAutoSetRef.current.shipId !== selectedShipId ||
-        (flakAutoSetRef.current.weaponType !== "special" && selectedWeaponType === "special");
-      if (isNewSelection && targetShipId !== null) {
-        setTargetShipId(0);
-        flakAutoSetRef.current = { shipId: selectedShipId, weaponType: selectedWeaponType };
-      }
-    } else {
-      flakAutoSetRef.current = { shipId: selectedShipId, weaponType: selectedWeaponType };
+      if (targetShipId !== 0) setTargetShipId(0);
     }
   }, [selectedShipId, selectedWeaponType, specialType, targetShipId]);
 
@@ -339,14 +336,15 @@ export function useGameplayInteraction({
     if (!selectedShipId || shipMap.size === 0) return [];
     if (isRammingMovePreview) return [];
     const attributes = getShipAttributes(selectedShipId);
-    if (attributes && attributes.hullPoints === 0) return [];
+    if (!attributes || attributes.hullPoints === 0) return [];
 
-    const shootRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : selectedWeaponType === "ram" && selectedShipFactionAbilityRange !== undefined
-          ? selectedShipFactionAbilityRange
-          : attributes?.range || 1;
+    const shootRange = resolveActionRange({
+      selectedWeaponType,
+      specialRange,
+      factionAbilityRange: selectedShipFactionAbilityRange,
+      gunRange: attributes.range,
+    });
+    if (shootRange === undefined) return [];
     const currentPosition = aliveShipPositions.find((pos) => pos.shipId === selectedShipId);
     if (!currentPosition) return [];
 
@@ -359,12 +357,15 @@ export function useGameplayInteraction({
       if (!ship) return;
 
       if (selectedWeaponType === "special") {
+        const selectedVariant = shipMap.get(selectedShipId)?.traits.variant ?? 1;
         if (specialType === 3) {
           if (shipPosition.shipId === selectedShipId) return;
         } else if (specialType === 1) {
           if (ship.owner === playerAddress) return;
-        } else {
+        } else if (isRepairDronesSpecial(selectedVariant, specialType)) {
           if (ship.owner !== playerAddress) return;
+        } else {
+          if (ship.owner === playerAddress) return;
         }
       } else if (selectedWeaponType === "ram") {
         if (!isFactionAbilitySupported) return;
@@ -378,13 +379,22 @@ export function useGameplayInteraction({
         if (ship.owner === playerAddress) return;
       }
 
-      const targetRow = shipPosition.position.row;
-      const targetCol = shipPosition.position.col;
+      const selectedVariant = shipMap.get(selectedShipId)?.traits.variant ?? 1;
+      const isSelfHealAction =
+        (selectedWeaponType === "special" &&
+          isRepairDronesSpecial(selectedVariant, specialType)) ||
+        (selectedWeaponType === "ram" && selectedShipFactionAbilityIsHeal);
+      const targetRow =
+        isSelfHealAction && shipPosition.shipId === selectedShipId && previewPosition
+          ? previewPosition.row
+          : shipPosition.position.row;
+      const targetCol =
+        isSelfHealAction && shipPosition.shipId === selectedShipId && previewPosition
+          ? previewPosition.col
+          : shipPosition.position.col;
       const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
       const canShoot = distance === 1 || distance <= shootRange;
-      const isSelfRepair =
-        (selectedWeaponType === "special" && specialType === 2 && distance === 0) ||
-        (selectedWeaponType === "ram" && selectedShipFactionAbilityIsHeal && distance === 0);
+      const isSelfRepair = isSelfHealAction && shipPosition.shipId === selectedShipId && distance === 0;
 
       if ((canShoot && distance > 0) || isSelfRepair) {
         const shouldCheckLineOfSight =
@@ -411,6 +421,7 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
+        shipVariant: shipMap.get(selectedShipId)?.traits.variant,
         factionAbilityRange: selectedShipFactionAbilityRange,
         factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
@@ -463,7 +474,7 @@ export function useGameplayInteraction({
     if (attrs && attrs.hullPoints === 0) {
       return { mode: "weapon" as const, specialEquipmentType: draggedSpecialEquipmentType, specialRange: draggedSpecialRange };
     }
-    const canSpecial = !!(ship && ship.equipment.special > 0);
+    const canSpecial = shipHasActivatableSpecial(ship);
     const saved = weaponPreferenceByShipId[draggedShipId.toString()] ?? "weapon";
     const mode = saved === "special" && canSpecial ? ("special" as const) : ("weapon" as const);
     return { mode, specialEquipmentType: draggedSpecialEquipmentType, specialRange: draggedSpecialRange };
@@ -474,7 +485,12 @@ export function useGameplayInteraction({
     const attributes = getShipAttributes(draggedShipId);
     if (!attributes) return [];
 
-    const dragShootRange = dragWeaponPlan.mode === "special" && dragWeaponPlan.specialRange !== undefined ? dragWeaponPlan.specialRange : attributes.range || 1;
+    const dragShootRange = resolveActionRange({
+      selectedWeaponType: dragWeaponPlan.mode,
+      specialRange: dragWeaponPlan.specialRange,
+      gunRange: attributes.range,
+    });
+    if (dragShootRange === undefined) return [];
     const startRow = dragOverCell.row;
     const startCol = dragOverCell.col;
     const targets: { shipId: number; position: { row: number; col: number } }[] = [];
@@ -519,7 +535,12 @@ export function useGameplayInteraction({
     const attributes = getShipAttributes(draggedShipId);
     if (!attributes) return [];
 
-    const dragShootRange = dragWeaponPlan.mode === "special" && dragWeaponPlan.specialRange !== undefined ? dragWeaponPlan.specialRange : attributes.range || 1;
+    const dragShootRange = resolveActionRange({
+      selectedWeaponType: dragWeaponPlan.mode,
+      specialRange: dragWeaponPlan.specialRange,
+      gunRange: attributes.range,
+    });
+    if (dragShootRange === undefined) return [];
     const startRow = dragOverCell.row;
     const startCol = dragOverCell.col;
     const spec = dragWeaponPlan.specialEquipmentType;
@@ -566,6 +587,7 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
+        shipVariant: shipMap.get(selectedShipId)?.traits.variant,
         factionAbilityRange: selectedShipFactionAbilityRange,
         factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
@@ -653,11 +675,14 @@ export function useGameplayInteraction({
       ? "RETREAT"
       : computedActionType === ActionType.Pass
         ? "HOLD FIRE"
-        : computedActionType === ActionType.Ram
-          ? "RAM"
-          : computedActionType === ActionType.FactionAbility
+        : computedActionType === ActionType.FactionAbility
             ? (selectedShipFactionAbilityIsHeal ? "REPAIR" : "RAM")
-            : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+            : selectedWeaponType === "special" &&
+                isRepairDronesSpecial(
+                  shipMap.get(selectedShipId)?.traits.variant ?? 1,
+                  specialType,
+                ) &&
+                targetShipId != null
               ? "REPAIR"
               : targetShipId != null && targetShipId !== 0
                 ? "FIRE"

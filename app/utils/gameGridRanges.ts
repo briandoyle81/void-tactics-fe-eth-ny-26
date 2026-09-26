@@ -1,5 +1,7 @@
 import { Attributes, ShipPosition, ActionType } from "../types/types";
 import { GridShipPosition } from "../types/gridDisplay";
+import { isLightningFieldSpecial, isRepairDronesSpecial } from "./specialConfigWeb2";
+import { requireShipValue, resolveActionRange } from "./requireShipValue";
 
 export function hasLineOfSight(
   row0: number,
@@ -216,9 +218,10 @@ export function computeMovementRange({
 
   const attributes = getShipAttributes(selectedShipId);
   // Disabled ships (0 HP) cannot move; only retreat is available
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRange = attributes?.movement || 1;
+  const movementRange = requireShipValue("movement", attributes.movement);
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -296,14 +299,16 @@ export function computeShootingRange({
 
   const attributes = getShipAttributes(selectedShipId);
   // Disabled ships (0 HP) have no move or threat range; only retreat is available
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRange = attributes?.movement || 1;
-  // Use special range if special is selected, otherwise use weapon range
-  const shootingRange =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : attributes?.range || 1;
+  const movementRange = requireShipValue("movement", attributes.movement);
+  const shootingRange = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    gunRange: attributes.range,
+  });
+  if (shootingRange === undefined) return [];
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -581,6 +586,7 @@ interface LabelTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  shipVariant?: number;
   blockedGrid: boolean[][];
   gridWidth: number;
   gridHeight: number;
@@ -597,6 +603,7 @@ export function computeLabelTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  shipVariant = 1,
   blockedGrid,
   gridWidth,
   gridHeight,
@@ -605,13 +612,16 @@ export function computeLabelTargets({
   if (isRammingMovePreview) return [];
 
   const attributes = getShipAttributes(selectedShipId);
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRangeAttr = attributes?.movement || 1;
-  const shootingRangeAttr =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : attributes?.range || 1;
+  const movementRangeAttr = requireShipValue("movement", attributes.movement);
+  const shootingRangeAttr = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    gunRange: attributes.range,
+  });
+  if (shootingRangeAttr === undefined) return [];
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -661,8 +671,10 @@ export function computeLabelTargets({
           if (shipPosition.shipId === selectedShipId) return;
         } else if (specialType === 1) {
           if (ship.owner === playerAddress) return;
-        } else {
+        } else if (isRepairDronesSpecial(shipVariant, specialType)) {
           if (ship.owner !== playerAddress) return;
+        } else {
+          if (ship.owner === playerAddress) return;
         }
       } else {
         if (ship.owner === playerAddress) return;
@@ -706,6 +718,7 @@ interface HoverValidTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  shipVariant?: number;
   blockedGrid: boolean[][];
 }
 
@@ -720,15 +733,18 @@ export function computeHoverValidTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  shipVariant = 1,
   blockedGrid,
 }: HoverValidTargetsParams): { shipId: bigint; position: { row: number; col: number } }[] {
   if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
-  const range =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : attributes.range || 1;
+  const range = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    gunRange: attributes.range,
+  });
+  if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const targets: { shipId: bigint; position: { row: number; col: number } }[] = [];
@@ -740,8 +756,10 @@ export function computeHoverValidTargets({
         if (shipPosition.shipId === selectedShipId) return;
       } else if (spec === 1) {
         if (ship.owner === playerAddress) return;
-      } else {
+      } else if (isRepairDronesSpecial(shipVariant, spec)) {
         if (ship.owner !== playerAddress) return;
+      } else {
+        if (ship.owner === playerAddress) return;
       }
     } else {
       if (ship.owner === playerAddress) return;
@@ -795,10 +813,12 @@ export function computeHoverShootingRange({
   if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
-  const range =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : attributes.range || 1;
+  const range = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    gunRange: attributes.range,
+  });
+  if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const positions: { row: number; col: number }[] = [];
@@ -840,6 +860,44 @@ export type ConfirmWidgetAnchor = {
  * direction, skipping positions that cover the target or leave the grid.
  * Extracted verbatim from `GameGrid.tsx` — same logic, same output.
  */
+/** Extra pixels so the weapon selector / confirm bar clears a self-effect label. */
+export const SELF_EFFECT_LABEL_CLEARANCE_PX = 36;
+
+/** True when the acting ship itself gets a heal/field label (Repair, Repair Drones, Lightening Field). */
+export function selectedShipHasEffectLabel(params: {
+  selectedShipId: number | null;
+  targetShipId: number | null;
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialType: number;
+  shipVariant?: number;
+  factionAbilityIsHeal?: boolean;
+}): boolean {
+  const {
+    selectedShipId,
+    targetShipId,
+    selectedWeaponType,
+    specialType,
+    shipVariant,
+    factionAbilityIsHeal = false,
+  } = params;
+  if (selectedShipId == null) return false;
+  if (targetShipId === selectedShipId) return true;
+  if (selectedWeaponType === "ram" && factionAbilityIsHeal) return true;
+  if (
+    selectedWeaponType === "special" &&
+    isRepairDronesSpecial(shipVariant ?? 1, specialType)
+  ) {
+    return true;
+  }
+  if (
+    selectedWeaponType === "special" &&
+    isLightningFieldSpecial(shipVariant ?? 0, specialType)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function computeConfirmWidgetAnchor(params: {
   showConfirmWidget: boolean;
   previewPosition: { row: number; col: number } | null;
@@ -847,8 +905,17 @@ export function computeConfirmWidgetAnchor(params: {
   targetShipId: number | null;
   grid: (GridShipPosition | null)[][];
   allShipPositions?: readonly GridShipPosition[];
+  selfHasEffectLabel?: boolean;
 }): ConfirmWidgetAnchor {
-  const { showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions } = params;
+  const {
+    showConfirmWidget,
+    previewPosition,
+    selectedShipId,
+    targetShipId,
+    grid,
+    allShipPositions,
+    selfHasEffectLabel = false,
+  } = params;
 
   if (!showConfirmWidget) return null;
 
@@ -995,15 +1062,100 @@ export function computeConfirmWidgetAnchor(params: {
   const Lleft = `${(destCol / 17) * 100}%`;
   const Tmid = `${((destRow + 0.5) / 11) * 100}%`;
 
+  // Self-effect labels sit above the cell (below on row 0). Nudge the widget
+  // off that edge so the REPAIR / field readout stays visible.
+  const labelOnDest =
+    selfHasEffectLabel &&
+    (targetShipId == null || targetShipId === 0 || targetShipId === selectedShipId);
+  const labelSide: Side | null = labelOnDest
+    ? destRow === 0
+      ? "below"
+      : "above"
+    : null;
+  const extra =
+    labelSide != null && best === labelSide ? SELF_EFFECT_LABEL_CLEARANCE_PX : 0;
+
   switch (best) {
-    case "below": return { left: L,      top: `${((destRow + 1) / 11) * 100}%`, transform: "translate(-50%, 3px)" };
-    case "above": return { left: L,      top: `${(destRow / 11) * 100}%`,        transform: "translate(-50%, calc(-100% - 3px))" };
+    case "below": return { left: L,      top: `${((destRow + 1) / 11) * 100}%`, transform: `translate(-50%, ${3 + extra}px)` };
+    case "above": return { left: L,      top: `${(destRow / 11) * 100}%`,        transform: `translate(-50%, calc(-100% - ${3 + extra}px))` };
     case "right": return { left: Lright, top: Tmid,                               transform: "translate(4px, -50%)" };
     case "left":  return { left: Lleft,  top: Tmid,                               transform: "translate(calc(-100% - 4px), -50%)" };
   }
 }
 
 export type DamageLabelTarget = { shipId: number; row: number; col: number };
+
+function findShipCell(
+  grid: (GridShipPosition | null)[][],
+  allShipPositions: readonly GridShipPosition[] | undefined,
+  shipId: number,
+): { row: number; col: number } | null {
+  for (let r = 0; r < grid.length; r++) {
+    const row = grid[r];
+    for (let c = 0; c < row.length; c++) {
+      const cell = row[c];
+      if (cell?.shipId === shipId && !cell.isPreview) {
+        return { row: r, col: c };
+      }
+    }
+  }
+  const fallback = allShipPositions?.find((sp) => sp.shipId === shipId && !sp.isPreview)
+    ?? allShipPositions?.find((sp) => sp.shipId === shipId);
+  return fallback
+    ? { row: fallback.position.row, col: fallback.position.col }
+    : null;
+}
+
+/** Lightening Field hits every ship in range of the field origin, including the caster. */
+function collectLightningFieldLabelTargets(params: {
+  grid: (GridShipPosition | null)[][];
+  allShipPositions?: readonly GridShipPosition[];
+  selectedShipId: number;
+  previewPosition: { row: number; col: number } | null;
+  dragOverCell: { row: number; col: number } | null;
+  range?: number;
+}): DamageLabelTarget[] {
+  const { grid, allShipPositions, selectedShipId, previewPosition, dragOverCell } = params;
+  const origin =
+    previewPosition ??
+    dragOverCell ??
+    findShipCell(grid, allShipPositions, selectedShipId);
+  if (!origin) return [];
+
+  const range = requireShipValue("lighteningFieldRange", params.range);
+  const targets: DamageLabelTarget[] = [];
+  const seen = new Set<number>();
+  const add = (shipId: number, row: number, col: number) => {
+    if (seen.has(shipId)) return;
+    seen.add(shipId);
+    targets.push({ shipId, row, col });
+  };
+
+  add(selectedShipId, origin.row, origin.col);
+
+  const consider = (shipId: number, row: number, col: number, isPreview?: boolean) => {
+    if (shipId === selectedShipId || isPreview) return;
+    const dist = Math.abs(row - origin.row) + Math.abs(col - origin.col);
+    if (dist <= range) add(shipId, row, col);
+  };
+
+  if (allShipPositions && allShipPositions.length > 0) {
+    for (const sp of allShipPositions) {
+      consider(sp.shipId, sp.position.row, sp.position.col, sp.isPreview);
+    }
+  } else {
+    for (let r = 0; r < grid.length; r++) {
+      const row = grid[r];
+      for (let c = 0; c < row.length; c++) {
+        const cell = row[c];
+        if (!cell) continue;
+        consider(cell.shipId, r, c, cell.isPreview);
+      }
+    }
+  }
+
+  return targets;
+}
 
 /** Same target list as the floating damage-label overlay (keeps destroy-preview art in sync). */
 export function collectDamageLabelTargets(params: {
@@ -1027,6 +1179,10 @@ export function collectDamageLabelTargets(params: {
   }>;
   selectedWeaponType: "weapon" | "special" | "ram";
   specialType: number;
+  shipVariant?: number;
+  previewPosition?: { row: number; col: number } | null;
+  specialRange?: number;
+  factionAbilityIsHeal?: boolean;
 }): DamageLabelTarget[] {
   const {
     grid,
@@ -1040,10 +1196,33 @@ export function collectDamageLabelTargets(params: {
     labelTargets,
     selectedWeaponType,
     specialType,
+    shipVariant,
+    previewPosition,
+    specialRange,
+    factionAbilityIsHeal = false,
   } = params;
 
+  const isFactionHeal = selectedWeaponType === "ram" && factionAbilityIsHeal;
+
   // RAM mode has no weapon damage labels; ram-specific labels are rendered separately.
-  if (selectedWeaponType === "ram") return [];
+  // Variant 2 Repair uses the same "ram" weapon slot but shows heal labels.
+  if (selectedWeaponType === "ram" && !isFactionHeal) return [];
+
+  if (
+    selectedWeaponType === "special" &&
+    selectedShipId != null &&
+    isLightningFieldSpecial(shipVariant ?? 0, specialType)
+  ) {
+    if (specialRange == null) return [];
+    return collectLightningFieldLabelTargets({
+      grid,
+      allShipPositions,
+      selectedShipId,
+      previewPosition: previewPosition ?? null,
+      dragOverCell,
+      range: requireShipValue("lighteningFieldRange", specialRange),
+    });
+  }
 
   const targetsToShow: DamageLabelTarget[] = [];
   const selectedShipSide =
@@ -1085,7 +1264,11 @@ export function collectDamageLabelTargets(params: {
       })();
     if (targetSide == null) return true;
 
-    if (selectedWeaponType === "special" && specialType === 2) {
+    if (
+      (selectedWeaponType === "special" &&
+        isRepairDronesSpecial(shipVariant ?? 1, specialType)) ||
+      isFactionHeal
+    ) {
       return targetSide === selectedShipSide;
     }
     return targetSide !== selectedShipSide;

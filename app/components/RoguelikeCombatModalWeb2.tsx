@@ -210,7 +210,7 @@ export function RoguelikeCombatModalWeb2({
       fleetFilters={fleet.fleetFilters}
       onFleetFiltersChange={fleet.setFleetFilters}
       shownCount={fleet.filteredShips.length}
-      totalCount={fleet.ships.length}
+      totalCount={fleet.ships.filter((s) => s.traits.variant === fleet.selectedVariant).length}
       showInGameProperties={showInGameProperties}
       onToggleInGameProperties={setShowInGameProperties}
       isAttributesFromCache={isAttributesFromCache}
@@ -222,6 +222,9 @@ export function RoguelikeCombatModalWeb2({
         // Roster is fixed for combat entry — same as web3, only repositioning
         // via the grid is meaningful here.
       }}
+      selectedVariant={fleet.selectedVariant}
+      onSelectVariant={fleet.setSelectedVariant}
+      variantLocked={fleet.variantLocked}
     />
   );
 }

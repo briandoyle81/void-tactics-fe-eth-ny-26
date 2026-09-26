@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useLayoutEffect, useState } from "react";
+import { gridLayoutSize } from "./gridLayout";
 
 interface EmpWaveAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -11,7 +12,8 @@ interface EmpWaveAnimationProps {
 }
 
 type Geom = {
-  gridRect: DOMRect;
+  width: number;
+  height: number;
   avgCell: number;
   a: { x: number; y: number };
   t: { x: number; y: number };
@@ -26,15 +28,13 @@ function buildGeom(
   targetRow: number,
   targetCol: number,
 ): Geom | null {
-  const gridRect = el.getBoundingClientRect();
+  const { width, height, cellWidth, cellHeight } = gridLayoutSize(el);
   // After refresh the grid often reports 0×0 until fonts/layout settle; skip
   // until we have real dimensions so paths and gradients are valid.
-  if (gridRect.width < 2 || gridRect.height < 2) {
+  if (width < 2 || height < 2) {
     return null;
   }
 
-  const cellWidth = gridRect.width / 17;
-  const cellHeight = gridRect.height / 11;
   const avgCell = (cellWidth + cellHeight) / 2;
 
   const cellCenter = (row: number, col: number) => ({
@@ -56,7 +56,8 @@ function buildGeom(
   const endY = t.y + uy * extend;
 
   return {
-    gridRect,
+    width,
+    height,
     avgCell,
     a,
     t,
@@ -152,7 +153,7 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
 
   if (!geom) return null;
 
-  const { gridRect, avgCell, a, t, endX, endY } = geom;
+  const { width, height, avgCell, a, t, endX, endY } = geom;
   const pathD = `M ${a.x} ${a.y} L ${endX} ${endY}`;
 
   const baseWidth = Math.max(4, avgCell * 0.18);
@@ -168,10 +169,10 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
       style={{
         left: `0px`,
         top: `0px`,
-        width: `${gridRect.width}px`,
-        height: `${gridRect.height}px`,
+        width: `${width}px`,
+        height: `${height}px`,
       }}
-      viewBox={`0 0 ${gridRect.width} ${gridRect.height}`}
+      viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
     >
       <defs>

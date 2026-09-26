@@ -18,7 +18,7 @@ describe("getFactionAbilityConfigWeb2", () => {
     expect(config.strength).toBe(50);
   });
 
-  it("an unrecognized variant falls back to Ram (variant 1)", () => {
-    expect(getFactionAbilityConfigWeb2(0).isHeal).toBe(false);
+  it("an unrecognized variant raises instead of defaulting", () => {
+    expect(() => getFactionAbilityConfigWeb2(0)).toThrow(/Missing ship value: factionAbility/);
   });
 });

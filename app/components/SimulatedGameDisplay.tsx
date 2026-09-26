@@ -31,6 +31,7 @@ import {
   LastMove,
   getMainWeaponName,
   getSpecialName,
+  canonicalSpecialSlot,
   GRID_DIMENSIONS,
 } from "../types/types";
 import { GameGrid } from "./GameGrid";
@@ -74,12 +75,15 @@ import {
   computeHoverValidTargets,
   computeHoverShootingRange,
 } from "../utils/gameGridRanges";
+import { requireShipValue, resolveActionRange } from "../utils/requireShipValue";
+import { isRepairDronesSpecial, shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { useResetSelectionOnTurnChange } from "../hooks/useResetSelectionOnTurnChange";
 import { useRetreatModeCancellation } from "../hooks/useRetreatModeCancellation";
 import { RoundStartModal } from "./RoundStartModal";
+import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import {
   useAccount,
   usePublicClient,
@@ -644,49 +648,31 @@ export function SimulatedGameDisplay({
   // currentRound changes (new round). Also captures each side's round-only
   // score gain by diffing against a snapshot taken the last time a round
   // started — undefined on the very first showing (game start).
-  const [roundStartInfo, setRoundStartInfo] = React.useState<{
-    round: number;
-    isMyTurnFirst: boolean;
-    myRoundScore?: number;
-    opponentRoundScore?: number;
-    myScore: number;
-    opponentScore: number;
-    maxScore?: number;
-  } | null>(null);
-  const prevRoundForModalRef = React.useRef<number | undefined>(undefined);
   const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
     undefined,
   );
-  React.useEffect(() => {
-    const round = gameState.turnState.currentRound;
-    if (prevRoundForModalRef.current === round) return;
-    prevRoundForModalRef.current = round;
-
-    const isCreatorNow =
-      gameState.metadata.creator.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase();
-    const myScoreNow = isCreatorNow ? gameState.creatorScore : gameState.joinerScore;
-    const opponentScoreNow = isCreatorNow ? gameState.joinerScore : gameState.creatorScore;
-    const prevScores = prevRoundScoreRef.current;
-    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
-
-    setRoundStartInfo({
-      round,
-      isMyTurnFirst:
-        gameState.turnState.currentTurn.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase(),
-      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
-      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
-      myScore: myScoreNow,
-      opponentScore: opponentScoreNow,
-      maxScore: gameState.maxScore,
-    });
-  }, [
+  const { roundStartInfo, handleCloseRoundStart } = useRoundStartAnnouncement(
+    "tutorial",
     gameState.turnState.currentRound,
-    gameState.turnState.currentTurn,
-    gameState.creatorScore,
-    gameState.joinerScore,
-    gameState.maxScore,
-    gameState.metadata.creator,
-  ]);
+    false,
+    () => {
+      const isCreatorNow =
+        gameState.metadata.creator.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase();
+      const myScoreNow = isCreatorNow ? gameState.creatorScore : gameState.joinerScore;
+      const opponentScoreNow = isCreatorNow ? gameState.joinerScore : gameState.creatorScore;
+      const prevScores = prevRoundScoreRef.current;
+      prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+      return {
+        isMyTurnFirst:
+          gameState.turnState.currentTurn.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase(),
+        myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+        opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+        myScore: myScoreNow,
+        opponentScore: opponentScoreNow,
+        maxScore: gameState.maxScore,
+      };
+    },
+  );
 
   // Map of onchain ship ID (bigint) to ship object. Tutorial IDs are strings;
   // when we need a ship we convert TutorialShipId -> bigint for this map only.
@@ -809,8 +795,10 @@ export function SimulatedGameDisplay({
 
   // Get special range data for the selected ship
   const selectedShip = selectedShipId ? shipMap.get(selectedShipId) : null;
-  const specialType = selectedShip?.equipment.special || 0;
   const selectedShipVariant = selectedShip?.traits.variant ?? 0;
+  const specialType = selectedShip
+    ? canonicalSpecialSlot(selectedShipVariant, selectedShip.equipment.special)
+    : 0;
   const { specialRange } = useSpecialRange(specialType, selectedShipVariant);
   const { data: specialData } = useSpecialData(specialType, selectedShipVariant);
 
@@ -912,7 +900,7 @@ export function SimulatedGameDisplay({
       return;
     }
 
-    const canSpecial = !!(ship && ship.equipment.special > 0);
+    const canSpecial = shipHasActivatableSpecial(ship);
     const saved = weaponPreferenceByShipId[idKey] ?? "weapon";
     if (saved === "special" && !canSpecial) {
       setWeaponPreferenceByShipId((prev) => ({ ...prev, [idKey]: "weapon" }));
@@ -1350,9 +1338,12 @@ export function SimulatedGameDisplay({
         ? "RETREAT"
         : computedActionType === ActionType.Pass
           ? "HOLD FIRE"
-          : computedActionType === ActionType.Ram
-            ? "RAM"
-            : selectedWeaponType === "special" && specialType === 2 && targetShipId != null
+          : selectedWeaponType === "special" &&
+                isRepairDronesSpecial(
+                  Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+                  specialType,
+                ) &&
+                targetShipId != null
               ? "REPAIR"
               : targetShipId != null && targetShipId !== 0n
                 ? "FIRE"
@@ -1698,6 +1689,12 @@ export function SimulatedGameDisplay({
     };
   }, [tutorialDisplayLastMove, shipMap, selectedShipId]);
 
+  const lastMoveResolvedTo = useMemo(() => {
+    const lm = tutorialDisplayLastMove;
+    if (!lm || lm.newRow < 0 || lm.newCol < 0) return null;
+    return { shipId: Number(lm.shipId), row: lm.newRow, col: lm.newCol };
+  }, [tutorialDisplayLastMove]);
+
   // Last move object for GameEvents panel (adapt tutorial lastMove to onchain LastMove shape).
   // Hidden while any ship is selected (matches live game); proposed moves use the submit panel.
   const lastMoveForEvents: LastMove | undefined = useMemo(() => {
@@ -1724,6 +1721,7 @@ export function SimulatedGameDisplay({
     selectedWeaponType,
     specialData,
     specialType,
+    shipVariant: selectedShipId != null ? Number(shipMap.get(selectedShipId)?.traits.variant) : undefined,
   });
 
   // Get valid targets
@@ -1757,10 +1755,13 @@ export function SimulatedGameDisplay({
     const allowedTargetsSet = allowedTargets ? new Set(allowedTargets) : null;
 
     const attributes = getShipAttributes(selectedShipId);
-    const shootingRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
+    if (!attributes) return [];
+    const shootingRange = resolveActionRange({
+      selectedWeaponType,
+      specialRange,
+      gunRange: attributes.range,
+    });
+    if (shootingRange === undefined) return [];
 
     const currentPosition = gameState.shipPositions.find(
       (pos) => pos.shipId === selectedShipId.toString(),
@@ -1796,8 +1797,15 @@ export function SimulatedGameDisplay({
           if (shipPosition.shipId === selectedShipId.toString()) return;
         } else if (specialType === 1) {
           if (ship.owner === TUTORIAL_PLAYER_ADDRESS) return;
-        } else {
+        } else if (
+          isRepairDronesSpecial(
+            Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+            specialType,
+          )
+        ) {
           if (ship.owner !== TUTORIAL_PLAYER_ADDRESS) return;
+        } else {
+          if (ship.owner === TUTORIAL_PLAYER_ADDRESS) return;
         }
       } else {
         if (ship.owner === TUTORIAL_PLAYER_ADDRESS) return;
@@ -1820,7 +1828,12 @@ export function SimulatedGameDisplay({
 
       // Repair drones can target the caster's own ship (distance 0)
       const isSelfRepair =
-        selectedWeaponType === "special" && specialType === 2 && distance === 0;
+        selectedWeaponType === "special" &&
+        isRepairDronesSpecial(
+          Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+          specialType,
+        ) &&
+        distance === 0;
 
       if ((canShoot && distance > 0) || isSelfRepair || isShootStepAllowedTarget) {
         const shouldCheckLineOfSight =
@@ -1965,13 +1978,16 @@ export function SimulatedGameDisplay({
 
     const attributes = getShipAttributes(selectedShipId);
     // Disabled ships (0 HP) have no move or threat range; only retreat/assist are relevant
-    if (attributes && attributes.hullPoints === 0) return [];
+    if (!attributes) return [];
+    if (attributes.hullPoints === 0) return [];
 
-    const movementRange = attributes?.movement || 1;
-    const shootingRange =
-      selectedWeaponType === "special" && specialRange !== undefined
-        ? specialRange
-        : attributes?.range || 1;
+    const movementRange = requireShipValue("movement", attributes.movement);
+    const shootingRange = resolveActionRange({
+      selectedWeaponType,
+      specialRange,
+      gunRange: attributes.range,
+    });
+    if (shootingRange === undefined) return [];
 
     const currentPosition = gameState.shipPositions.find(
       (pos) => pos.shipId === selectedShipId.toString(),
@@ -2256,6 +2272,10 @@ export function SimulatedGameDisplay({
         selectedWeaponType,
         specialRange,
         specialType,
+        shipVariant:
+          selectedShipId != null
+            ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+            : 1,
         blockedGrid,
         gridWidth: GRID_WIDTH,
         gridHeight: GRID_HEIGHT,
@@ -2277,6 +2297,10 @@ export function SimulatedGameDisplay({
         selectedWeaponType,
         specialRange,
         specialType,
+        shipVariant:
+          selectedShipId != null
+            ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+            : 1,
         blockedGrid,
       }),
     [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid,
@@ -2948,7 +2972,7 @@ export function SimulatedGameDisplay({
       : undefined;
   const mobileCanUseSpecial = Boolean(
     selectedShip &&
-      selectedShip.equipment.special > 0 &&
+      shipHasActivatableSpecial(selectedShip) &&
       (mobileSelectedShipAttributes?.hullPoints ?? 0) > 0,
   );
   const mobileReactorCriticalStatus: "none" | "warning" | "critical" =
@@ -3666,7 +3690,7 @@ export function SimulatedGameDisplay({
                       <button
                         type="button"
                         onClick={() => setIsMobileWeaponMenuOpen((prev) => !prev)}
-                        disabled={!selectedShip || !(selectedShip.equipment.special > 0)}
+                        disabled={!selectedShip || !shipHasActivatableSpecial(selectedShip)}
                         className={`flex min-w-[7.5rem] max-w-[10.5rem] items-center justify-between gap-2 border border-solid px-2 py-1 text-[10px] uppercase tracking-wider text-cyan disabled:opacity-50 disabled:cursor-default ${
                           shouldHighlightSpecialEmpWeaponDropdown
                             ? "animate-pulse ring-2 ring-amber ring-offset-2 ring-offset-[var(--color-near-black)]"
@@ -3683,7 +3707,7 @@ export function SimulatedGameDisplay({
                         }}
                       >
                         <span className="truncate">{mobileWeaponDisplayName}</span>
-                        {selectedShip && selectedShip.equipment.special > 0 && (
+                        {selectedShip && shipHasActivatableSpecial(selectedShip) && (
                           <span>{isMobileWeaponMenuOpen ? "▲" : "▼"}</span>
                         )}
                       </button>
@@ -3934,6 +3958,7 @@ export function SimulatedGameDisplay({
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                       movedShipIdsSet={gridMovedShipIdsSetForDisplay}
                       specialType={specialType}
+                      specialRange={specialRange}
                       blockedGrid={blockedGrid}
                       scoringGrid={scoringGrid}
                       onlyOnceGrid={onlyOnceGrid}
@@ -3946,6 +3971,7 @@ export function SimulatedGameDisplay({
                       lastMoveShipId={lastMoveShipIdForDisplay}
                       lastMoveOldPosition={lastMoveProps.lastMoveOldPosition}
                       lastMoveNewPosition={lastMoveProps.lastMoveNewPosition}
+                      lastMoveResolvedTo={lastMoveResolvedTo}
                       lastMoveActionType={lastMoveProps.lastMoveActionType}
                       lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
                       lastMoveIsCurrentPlayer={lastMoveProps.lastMoveIsCurrentPlayer}
@@ -4127,7 +4153,7 @@ export function SimulatedGameDisplay({
             myScore={roundStartInfo.myScore}
             opponentScore={roundStartInfo.opponentScore}
             maxScore={roundStartInfo.maxScore}
-            onClose={() => setRoundStartInfo(null)}
+            onClose={handleCloseRoundStart}
           />
         )}
       </div>
@@ -4436,7 +4462,7 @@ export function SimulatedGameDisplay({
                         if (isSelectedShipDisabled) return null;
                         if (!selectedShipId) return null;
                         const ship = shipMap.get(selectedShipId);
-                        if (!ship || ship.equipment.special <= 0) return null;
+                        if (!ship || !shipHasActivatableSpecial(ship)) return null;
                         return (
                           <div className="relative mt-1 w-full">
                             {shouldHighlightSpecialEmpWeaponDropdown && (
@@ -4537,7 +4563,10 @@ export function SimulatedGameDisplay({
                                 targetShipId === BigInt(target.shipId);
                               const isRepair =
                                 selectedWeaponType === "special" &&
-                                specialType === 2;
+                                isRepairDronesSpecial(
+                                  Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+                                  specialType,
+                                );
                               const accentColor = isRepair
                                 ? "var(--color-cyan)"
                                 : "var(--color-warning-red)";
@@ -4776,6 +4805,7 @@ export function SimulatedGameDisplay({
                   isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                   movedShipIdsSet={gridMovedShipIdsSetForDisplay}
                   specialType={specialType}
+                  specialRange={specialRange}
                   blockedGrid={blockedGrid}
                   scoringGrid={scoringGrid}
                   onlyOnceGrid={onlyOnceGrid}
@@ -4788,6 +4818,7 @@ export function SimulatedGameDisplay({
                   lastMoveShipId={lastMoveShipIdForDisplay}
                   lastMoveOldPosition={lastMoveProps.lastMoveOldPosition}
                   lastMoveNewPosition={lastMoveProps.lastMoveNewPosition}
+                  lastMoveResolvedTo={lastMoveResolvedTo}
                   lastMoveActionType={lastMoveProps.lastMoveActionType}
                   lastMoveTargetShipId={lastMoveTargetShipIdForDisplay}
                   lastMoveIsCurrentPlayer={
@@ -5043,7 +5074,7 @@ export function SimulatedGameDisplay({
           myScore={roundStartInfo.myScore}
           opponentScore={roundStartInfo.opponentScore}
           maxScore={roundStartInfo.maxScore}
-          onClose={() => setRoundStartInfo(null)}
+          onClose={handleCloseRoundStart}
         />
       )}
     </div>

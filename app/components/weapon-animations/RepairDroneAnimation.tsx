@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { gridLayoutSize } from "./gridLayout";
 
 interface RepairDroneAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -49,9 +50,9 @@ export const RepairDroneAnimation = React.memo(function RepairDroneAnimation({
 
   const compute = useCallback(() => {
     if (!gridContainerRef.current) return null;
-    const gridRect = gridContainerRef.current.getBoundingClientRect();
-    const cellWidth = gridRect.width / 17;
-    const cellHeight = gridRect.height / 11;
+    const { width, height, cellWidth, cellHeight } = gridLayoutSize(
+      gridContainerRef.current,
+    );
 
     const ax = attackerCol * cellWidth + cellWidth / 2;
     const ay = attackerRow * cellHeight + cellHeight / 2;
@@ -72,7 +73,7 @@ export const RepairDroneAnimation = React.memo(function RepairDroneAnimation({
     const px = -dy * inv;
     const py = dx * inv;
 
-    return { gridRect, ax, ay, dx, dy, orbit, bendBase, px, py };
+    return { width, height, ax, ay, dx, dy, orbit, bendBase, px, py };
   }, [gridContainerRef, attackerRow, attackerCol, targetRow, targetCol]);
 
   const layout = useMemo(() => compute(), [compute]);
@@ -96,7 +97,7 @@ export const RepairDroneAnimation = React.memo(function RepairDroneAnimation({
 
   if (!layout) return null;
 
-  const { gridRect, ax, ay, dx, dy, orbit, bendBase, px, py } = layout;
+  const { width, height, ax, ay, dx, dy, orbit, bendBase, px, py } = layout;
 
   return (
     <div
@@ -106,8 +107,8 @@ export const RepairDroneAnimation = React.memo(function RepairDroneAnimation({
         {
           left: 0,
           top: 0,
-          width: `${gridRect.width}px`,
-          height: `${gridRect.height}px`,
+          width: `${width}px`,
+          height: `${height}px`,
           // CSS vars for keyframes
           "--ax": `${ax}px`,
           "--ay": `${ay}px`,

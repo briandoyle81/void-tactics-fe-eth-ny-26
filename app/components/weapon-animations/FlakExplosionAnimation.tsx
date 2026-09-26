@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FLAK_BURST_CLEANUP_MS, FLAK_BURST_SPAWN_INTERVAL_MS } from "../../constants/animationTiming";
+import {
+  FLAK_BURST_CLEANUP_MS,
+  FLAK_BURST_SPAWN_INTERVAL_MS,
+  FLAK_BURST_SLOTS,
+} from "../../constants/animationTiming";
+import { pushManyCapped } from "./cappedList";
+import { gridLayoutSize } from "./gridLayout";
 
 type GridCell = { row: number; col: number };
 
@@ -26,6 +32,7 @@ export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation
   const cellOrderRef = useRef<GridCell[]>([]);
   const cellIndexRef = useRef(0);
   const mountedRef = useRef(true);
+  const spawnBurstsRef = useRef<() => void>(() => {});
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   const uniqueCells = useMemo(() => {
@@ -54,11 +61,8 @@ export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation
   const getCellRect = useCallback(
     (row: number, col: number) => {
       if (!gridContainerRef.current) return null;
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
-      const cellWidth = gridRect.width / 17;
-      const cellHeight = gridRect.height / 11;
+      const { cellWidth, cellHeight } = gridLayoutSize(gridContainerRef.current);
       return {
-        gridRect,
         cellLeft: col * cellWidth,
         cellTop: row * cellHeight,
         cellWidth,
@@ -126,26 +130,30 @@ export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation
     }
 
     if (next.length === 0) return;
-    setBursts((prev) => [...prev, ...next]);
+    setBursts((prev) => pushManyCapped(prev, next, FLAK_BURST_SLOTS));
 
-    // Bursts are short-lived; remove after animation completes.
+    // Bursts are short-lived; recycle after animation completes.
     const idsToRemove = next.map((b) => b.id);
-    setTimeout(() => {
+    window.setTimeout(() => {
+      if (!mountedRef.current) return;
       setBursts((prev) => prev.filter((b) => !idsToRemove.includes(b.id)));
-    }, 450);
-  }, [getCellRect, gridContainerRef, uniqueCells]);
+    }, FLAK_BURST_CLEANUP_MS);
+  }, [getCellRect, gridContainerRef, uniqueCells, shuffleCells]);
 
+  spawnBurstsRef.current = spawnBursts;
   useEffect(() => {
-    // Spawn immediately, then rapidly while flak is selected.
-    spawnBursts();
-    const interval = setInterval(spawnBursts, 90);
-    return () => clearInterval(interval);
-  }, [spawnBursts]);
+    spawnBurstsRef.current();
+    const interval = window.setInterval(
+      () => spawnBurstsRef.current(),
+      FLAK_BURST_SPAWN_INTERVAL_MS,
+    );
+    return () => window.clearInterval(interval);
+  }, []);
 
   if (!gridContainerRef.current) return null;
   if (uniqueCells.length === 0) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
+  const { width: gridWidth, height: gridHeight } = gridLayoutSize(gridContainerRef.current);
 
   return (
     <div
@@ -153,14 +161,14 @@ export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation
       style={{
         left: 0,
         top: 0,
-        width: `${gridRect.width}px`,
-        height: `${gridRect.height}px`,
+        width: `${gridWidth}px`,
+        height: `${gridHeight}px`,
       }}
     >
       {bursts.map((b) => (
         <div
           key={b.id}
-          className="flak-explosion"
+          className="flak-flash"
           style={{
             left: `${b.left}px`,
             top: `${b.top}px`,

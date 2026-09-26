@@ -23,7 +23,8 @@ export function useNavyFilterState(shipsPerPage: number) {
   const [draftValue, setDraftValue] = useState<string>("");
   const [activeFilters, setActiveFilters] = useState<NavyFilterCriterion[]>([]);
   const [sortBy, setSortBy] = useState<NavySortField>("id");
-  const [sortOrder, setSortOrder] = useState<NavySortOrder>("asc");
+  // Newest first: ship ids increment at mint, so desc ID is newest-to-oldest.
+  const [sortOrder, setSortOrder] = useState<NavySortOrder>("desc");
   const [page, setPage] = useState(0);
 
   const upsertFilter = useCallback((category: NavyFilterCategory, value: string) => {

@@ -27,15 +27,36 @@ export interface MapPreviewCardData {
 
 interface MapPreviewCardProps {
   map: MapPreviewCardData;
-  onEdit: () => void;
+  /** Opens the map editor. Only pass this for the map admin; the Edit
+   * button is hidden when omitted. */
+  onEdit?: () => void;
+  /** Makes the whole card clickable (pointer cursor) — used by the map
+   * selection modal so picking a map is not tied to the Edit button. */
+  onSelect?: () => void;
   // Web3-only (Maps.tsx) — Maps.mapMode has no web2 equivalent, so this
   // stays undefined/unrendered for MapsWeb2.tsx's usage.
   modeLabel?: string;
 }
 
-export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) {
+export function MapPreviewCard({ map, onEdit, onSelect, modeLabel }: MapPreviewCardProps) {
+  const clickable = Boolean(onSelect);
   return (
-    <div className="bg-steel rounded-none p-4 border border-gunmetal">
+    <div
+      className={`bg-steel rounded-none p-4 border border-gunmetal${clickable ? " cursor-pointer" : ""}`}
+      onClick={onSelect}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect?.();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-mono text-white">{map.titleLabel}</h3>
@@ -45,14 +66,20 @@ export function MapPreviewCard({ map, onEdit, modeLabel }: MapPreviewCardProps) 
             </span>
           )}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onEdit}
-            className="px-3 py-1 border border-cyan text-cyan rounded-none text-sm font-mono hover:bg-cyan/10"
-          >
-            Edit
-          </button>
-        </div>
+        {onEdit && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="px-3 py-1 border border-cyan text-cyan rounded-none text-sm font-mono hover:bg-cyan/10"
+            >
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2 text-sm text-text-secondary">

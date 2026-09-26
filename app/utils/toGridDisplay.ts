@@ -74,6 +74,7 @@ export function toGameplayShip(ship: Ship): GameplayShip {
     id: Number(ship.id),
     owner: ship.owner,
     equipment: ship.equipment,
+    traits: { variant: Number(ship.traits.variant) },
   };
 }
 

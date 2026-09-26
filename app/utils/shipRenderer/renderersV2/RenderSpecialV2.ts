@@ -20,13 +20,14 @@ const Special = {
 } as const;
 
 export function renderSpecialV2(ship: ShipVisual): string {
-  if (ship.equipment.special === Special.None) {
+  const slot = Number(ship.equipment.special);
+  if (slot === Special.None) {
     return "";
-  } else if (ship.equipment.special === Special.Slot1) {
+  } else if (slot === Special.Slot1) {
     return renderSpecial1V2(ship);
-  } else if (ship.equipment.special === Special.Slot2) {
+  } else if (slot === Special.Slot2) {
     return renderSpecial2V2(ship);
-  } else if (ship.equipment.special === Special.Slot3) {
+  } else if (slot === Special.Slot3) {
     return renderSpecial3V2(ship);
   }
   return "";

@@ -43,6 +43,9 @@ interface FleetShipListPanelProps {
    * alongside it (e.g. RoguelikeRunStart.tsx) should pass Manage Navy's
    * responsive columns instead (`grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3`). */
   gridColsClassName?: string;
+  /** Optional chrome above the card list, inside this same column (e.g.
+   * the fleet modal's faction picker). */
+  header?: ReactNode;
 }
 
 export function FleetShipListPanel({
@@ -50,10 +53,11 @@ export function FleetShipListPanel({
   items,
   onDropShip,
   gridColsClassName = "grid-cols-1 gap-4",
+  header,
 }: FleetShipListPanelProps) {
   return (
     <div
-      className={`${widthClass} h-full`}
+      className={`${widthClass} flex h-full min-h-0 min-w-0 flex-col overflow-hidden`}
       onDragOver={(e) => {
         if (!onDropShip) return;
         e.preventDefault();
@@ -66,7 +70,8 @@ export function FleetShipListPanel({
         if (shipId) onDropShip(shipId);
       }}
     >
-      <div className={`grid ${gridColsClassName} mb-6 overflow-y-auto content-start max-h-[80vh]`}>
+      {header ? <div className="shrink-0">{header}</div> : null}
+      <div className={`grid ${gridColsClassName} min-h-0 flex-1 overflow-y-auto content-start mb-6`}>
         {items.map((item) => (
           <div
             key={item.key}

@@ -2,7 +2,6 @@ import { Attributes } from "../types/types";
 import { Web2Ship } from "../types/web2Ship";
 import {
   DEFAULT_ATTRIBUTE_TABLES_BY_VARIANT,
-  defaultAttributeTablesForVariant,
   type ShipAttributeTables,
 } from "../lib/shipAttributeTables";
 import { getSpecialConfigWeb2 } from "./specialConfigWeb2";
@@ -37,15 +36,23 @@ function getRankMultiplier(tables: ShipAttributeTables, rank: number): number {
   return tables.rankBonusPct[rank - 1] ?? 0;
 }
 
+function requireTableEntry<T>(name: string, table: readonly T[], index: number): T {
+  const entry = table[index];
+  if (entry === undefined) {
+    throw new Error(`Missing ship value: ${name} (index ${index})`);
+  }
+  return entry;
+}
+
 function tablesForShip(
   ship: Web2Ship,
   tablesByVariant: Record<number, ShipAttributeTables>,
 ): ShipAttributeTables {
-  return (
-    tablesByVariant[ship.traits.variant] ??
-    tablesByVariant[1] ??
-    defaultAttributeTablesForVariant(ship.traits.variant)
-  );
+  const tables = tablesByVariant[ship.traits.variant];
+  if (!tables) {
+    throw new Error(`Missing ship value: attributeTables (variant ${ship.traits.variant})`);
+  }
+  return tables;
 }
 
 // Pure helpers mirroring onchain _calculateHullPoints / _calculateMovement / _calculateDamageReduction
@@ -64,7 +71,7 @@ function calcBaseMovement(ship: Web2Ship, tables: ShipAttributeTables): number {
     Math.min(tables.engineSpeeds.length - 1, ship.traits.speed),
   );
 
-  const gun = tables.guns[ship.equipment.mainWeapon] ?? tables.guns[0]!;
+  const gun = requireTableEntry("gun", tables.guns, ship.equipment.mainWeapon);
   const special = getSpecialConfigWeb2(ship.traits.variant, ship.equipment.special);
 
   // Defensive gear's movement: a piece only counts when actually equipped.
@@ -80,10 +87,10 @@ function calcBaseMovement(ship: Web2Ship, tables: ShipAttributeTables): number {
   let armorMovement = 0;
   let shieldMovement = 0;
   if (!armorIsNone) {
-    armorMovement = (tables.armors[ship.equipment.armor] ?? tables.armors[0]!).movement;
+    armorMovement = requireTableEntry("armor", tables.armors, ship.equipment.armor).movement;
   }
   if (!shieldsAreNone) {
-    shieldMovement = (tables.shields[ship.equipment.shields] ?? tables.shields[0]!).movement;
+    shieldMovement = requireTableEntry("shields", tables.shields, ship.equipment.shields).movement;
   }
   if (armorIsNone && shieldsAreNone) {
     armorMovement = tables.armors[0]!.movement;
@@ -97,14 +104,14 @@ function calcBaseMovement(ship: Web2Ship, tables: ShipAttributeTables): number {
   // Specials can also modify movement — variant 1's specials all have 0
   // movement, but variant 2's Additional Thruster (slot 3) is a pure
   // passive +3, always in effect while equipped (see specialConfigWeb2.ts).
-  baseMovement += special?.movement ?? 0;
+  baseMovement += special ? special.movement : 0;
 
   return baseMovement;
 }
 
 function calcBaseDamageReduction(ship: Web2Ship, tables: ShipAttributeTables): number {
-  const armor = tables.armors[ship.equipment.armor] ?? tables.armors[0]!;
-  const shield = tables.shields[ship.equipment.shields] ?? tables.shields[0]!;
+  const armor = requireTableEntry("armor", tables.armors, ship.equipment.armor);
+  const shield = requireTableEntry("shields", tables.shields, ship.equipment.shields);
   return armor.damageReduction + shield.damageReduction;
 }
 

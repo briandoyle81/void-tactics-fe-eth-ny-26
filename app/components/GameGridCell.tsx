@@ -8,6 +8,38 @@ import { GridShipImage } from "./GridShipImage";
 import { calculateShipRank } from "../utils/shipLevel";
 import { setMirroredDragImage } from "../utils/dragShipImage";
 import { RetreatPrepAnimation } from "./weapon-animations/RetreatPrepAnimation";
+import { HOLD_HOLOGRAM_CYCLE_MS } from "../constants/animationTiming";
+import { isRepairDronesSpecial } from "../utils/specialConfigWeb2";
+
+function isValidActionTargetType(params: {
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialType: number;
+  shipVariant?: number;
+  factionAbilityIsHeal: boolean;
+  cellShipId: number;
+  selectedShipId: number;
+  isFriendly: boolean;
+}): boolean {
+  const {
+    selectedWeaponType,
+    specialType,
+    shipVariant = 1,
+    factionAbilityIsHeal,
+    cellShipId,
+    selectedShipId,
+    isFriendly,
+  } = params;
+  if (selectedWeaponType === "special") {
+    if (specialType === 3) return cellShipId !== selectedShipId;
+    if (specialType === 1) return !isFriendly;
+    if (isRepairDronesSpecial(shipVariant, specialType)) return isFriendly;
+    return !isFriendly;
+  }
+  if (selectedWeaponType === "ram") {
+    return factionAbilityIsHeal ? isFriendly : !isFriendly;
+  }
+  return !isFriendly;
+}
 
 type Position = { row: number; col: number };
 type TargetRef = { shipId: number; position: Position };
@@ -57,6 +89,9 @@ interface GameGridCellProps {
   lastMoveTargetShipId?: number | null;
   lastMoveIsCurrentPlayer?: boolean | undefined;
   isRammingMovePreview?: boolean;
+  /** Staged hold: preview sits on the selected ship's current tile. */
+  isHoldPreviewActive?: boolean;
+  factionAbilityIsHeal?: boolean;
   retreatPrepShipId?: number | null;
   retreatPrepIsCreator?: boolean | null;
   isMyTurn: boolean;
@@ -126,6 +161,8 @@ export function GameGridCell({
   lastMoveTargetShipId,
   lastMoveIsCurrentPlayer,
   isRammingMovePreview = false,
+  isHoldPreviewActive = false,
+  factionAbilityIsHeal = false,
   retreatPrepShipId,
   retreatPrepIsCreator,
   isMyTurn,
@@ -189,6 +226,68 @@ export function GameGridCell({
 
                 // Check if this ship has already moved this round
                 const hasShipMoved = cell && movedShipIdsSet.has(cell.shipId);
+                // Compared directly against the real new-position coordinate
+                // rather than inferred as "matches lastMoveShipId and isn't
+                // the old-position cell" — that heuristic misfires when the
+                // grid still has a leftover ghost from an earlier, already-
+                // superseded move with the same shipId (e.g. right after a
+                // hold-and-fire submit, before game.lastMove itself has
+                // refetched), mislabeling that stale ghost as "new position"
+                // instead of correctly showing nothing extra.
+                const isLastMoveNewPosition =
+                  !!cell &&
+                  lastMoveShipId === cell.shipId &&
+                  lastMoveNewPosition != null &&
+                  rowIndex === lastMoveNewPosition.row &&
+                  colIndex === lastMoveNewPosition.col;
+                const isLastMoveOldPosition =
+                  !!cell &&
+                  lastMoveShipId === cell.shipId &&
+                  lastMoveOldPosition != null &&
+                  rowIndex === lastMoveOldPosition.row &&
+                  colIndex === lastMoveOldPosition.col;
+                // Two inverted states, same hologram language:
+                // preview: From is the live ship, To (and weapon fire) are holograms.
+                // last-move: From is the hologram, To is the live ship.
+                // Weapon fire always originates at To.
+                const isProposedMoveToHologram =
+                  !!cell &&
+                  selectedShipId === cell.shipId &&
+                  !!cell.isPreview &&
+                  previewPosition != null;
+                const isLastMoveFromHologram =
+                  isLastMoveOldPosition &&
+                  !isLastMoveNewPosition &&
+                  lastMoveActionType !== ActionType.Retreat;
+                const isHoldPreview =
+                  isHoldPreviewActive &&
+                  !!cell &&
+                  selectedShipId === cell.shipId &&
+                  previewPosition != null &&
+                  previewPosition.row === rowIndex &&
+                  previewPosition.col === colIndex;
+                const isLastMoveHold =
+                  !!cell &&
+                  lastMoveShipId === cell.shipId &&
+                  lastMoveOldPosition != null &&
+                  lastMoveNewPosition != null &&
+                  lastMoveActionType !== ActionType.Retreat &&
+                  lastMoveOldPosition.row === lastMoveNewPosition.row &&
+                  lastMoveOldPosition.col === lastMoveNewPosition.col &&
+                  rowIndex === lastMoveNewPosition.row &&
+                  colIndex === lastMoveNewPosition.col;
+                const isHoldHologramPulse = isHoldPreview || isLastMoveHold;
+                const isMoveHologramShip =
+                  !!cell &&
+                  !isHoldHologramPulse &&
+                  (isLastMoveFromHologram || isProposedMoveToHologram);
+                // Last-move To keeps ship art/star color so the destination
+                // still reads as that ship. Last-move From is the hologram.
+                const showMovedGrayscale = !!(
+                  hasShipMoved &&
+                  !isLastMoveNewPosition &&
+                  !isLastMoveFromHologram
+                );
 
                 // Check if this cell contains a valid target
                 // When dragging, use dragValidTargets; otherwise use validTargets
@@ -197,18 +296,15 @@ export function GameGridCell({
                   selectedShipId &&
                   isCurrentPlayerTurn &&
                   isShipOwnedByCurrentPlayer(selectedShipId) &&
-                  (() => {
-                    // Check if this is a valid target based on weapon type
-                    const isValidTargetType =
-                      selectedWeaponType === "special"
-                        ? specialType === 3 // Flak
-                          ? cell.shipId !== selectedShipId // Flak hits ALL ships in range except itself
-                          : specialType === 1 // EMP
-                            ? !isShipOwnedByCurrentPlayer(cell.shipId) // EMP targets enemy ships
-                            : isShipOwnedByCurrentPlayer(cell.shipId) // Other special abilities target friendly ships
-                        : !isShipOwnedByCurrentPlayer(cell.shipId); // Weapons target enemy ships
-                    return isValidTargetType;
-                  })() &&
+                  isValidActionTargetType({
+                    selectedWeaponType,
+                    specialType,
+                    shipVariant: shipMap.get(selectedShipId)?.traits.variant,
+                    factionAbilityIsHeal,
+                    cellShipId: cell.shipId,
+                    selectedShipId,
+                    isFriendly: isShipOwnedByCurrentPlayer(cell.shipId),
+                  }) &&
                   (effectiveDragCell
                     ? effectiveValidTargetIdSet.has(cell.shipId)
                     : validTargetIdSet.has(cell.shipId));
@@ -323,7 +419,7 @@ export function GameGridCell({
                       // In weapon range only, out of both, or move already staged elsewhere:
                       // fall through to normal targeting
                     }
-                    // Check for repair drone auto-switch FIRST (before any other logic)
+                    // Repair targeting only when that heal action is already selected.
                     if (
                       selectedShipId &&
                       isCurrentPlayerTurn &&
@@ -333,18 +429,49 @@ export function GameGridCell({
                         cell.shipId,
                       );
                       const selectedShip = shipMap.get(selectedShipId);
-                      const hasRepairDrones =
-                        selectedShip?.equipment.special === 2; // Repair special
+                      const hasRepairDrones = isRepairDronesSpecial(
+                        selectedShip?.traits.variant ?? 1,
+                        selectedShip?.equipment.special ?? 0,
+                      );
+                      const hasFactionRepair = factionAbilityIsHeal;
 
-                      if (isFriendlyShip && hasRepairDrones) {
-                        // Check if the friendly ship is in repair range
-                        const isInRepairRange = validTargetIdSet.has(cell.shipId);
-                        if (isInRepairRange) {
-                          // Switch to repair drones and target this ship
-                          setSelectedWeaponType("special");
-                          setTargetShipId(cell.shipId);
-                          return;
+                      // Only treat a friendly (including self) as a repair
+                      // target when that heal action is already selected.
+                      // Variant 2 self-click otherwise falls through to the
+                      // movement/threat ↔ hold toggle below.
+                      const repairActionSelected =
+                        (hasRepairDrones && selectedWeaponType === "special") ||
+                        (hasFactionRepair && selectedWeaponType === "ram");
+                      if (
+                        isFriendlyShip &&
+                        repairActionSelected &&
+                        validTargetIdSet.has(cell.shipId)
+                      ) {
+                        setTargetShipId(cell.shipId);
+                        // Confirm widget only appears once a move is staged.
+                        // Self-repair (and stay-and-repair) is a hold.
+                        if (previewPosition === null) {
+                          const isSelf = cell.shipId === selectedShipId;
+                          if (isSelf) {
+                            setPreviewPosition({ row: rowIndex, col: colIndex });
+                          } else {
+                            for (let r = 0; r < grid.length; r++) {
+                              const gridRow = grid[r];
+                              for (let c = 0; c < gridRow.length; c++) {
+                                const cellAt = gridRow[c];
+                                if (
+                                  cellAt &&
+                                  cellAt.shipId === selectedShipId &&
+                                  !cellAt.isPreview
+                                ) {
+                                  setPreviewPosition({ row: r, col: c });
+                                  break;
+                                }
+                              }
+                            }
+                          }
                         }
+                        return;
                       }
                     }
 
@@ -354,15 +481,15 @@ export function GameGridCell({
                       isCurrentPlayerTurn &&
                       isShipOwnedByCurrentPlayer(selectedShipId)
                     ) {
-                      // Check if this is a valid target based on weapon type
-                      const isValidTargetType =
-                        selectedWeaponType === "special"
-                          ? specialType === 3 // Flak
-                            ? cell.shipId !== selectedShipId // Flak hits ALL ships in range except itself
-                            : specialType === 1 // EMP
-                              ? !isShipOwnedByCurrentPlayer(cell.shipId) // EMP targets enemy ships
-                              : isShipOwnedByCurrentPlayer(cell.shipId) // Other special abilities target friendly ships
-                          : !isShipOwnedByCurrentPlayer(cell.shipId); // Weapons target enemy ships
+                      const isValidTargetType = isValidActionTargetType({
+                        selectedWeaponType,
+                        specialType,
+                        shipVariant: shipMap.get(selectedShipId)?.traits.variant,
+                        factionAbilityIsHeal,
+                        cellShipId: cell.shipId,
+                        selectedShipId,
+                        isFriendly: isShipOwnedByCurrentPlayer(cell.shipId),
+                      });
 
                       if (isValidTargetType) {
                         const isInShootingRange = validTargetIdSet.has(cell.shipId);
@@ -416,12 +543,36 @@ export function GameGridCell({
                       }
                     }
 
-                    // If clicking on the same ship: deselect on second click.
-                    // Hold Position is an explicit button in the action panel.
+                    // Same ship: toggle movement + threat vs weapon range
+                    // from the current tile (hold). Empty-cell / right-click
+                    // still deselect. Ships that cannot act just deselect.
                     if (selectedShipId === cell.shipId) {
-                      setSelectedShipId(null);
-                      setPreviewPosition(null);
-                      setTargetShipId(null);
+                      const canToggleHold =
+                        isCurrentPlayerTurn &&
+                        isShipOwnedByCurrentPlayer(cell.shipId) &&
+                        !movedShipIdsSet.has(cell.shipId);
+                      const holdAttrs = canToggleHold
+                        ? getShipAttributes(cell.shipId)
+                        : null;
+                      const isDisabled =
+                        !!holdAttrs && holdAttrs.hullPoints === 0;
+                      if (canToggleHold && !isDisabled) {
+                        const holdingHere =
+                          previewPosition !== null &&
+                          previewPosition.row === rowIndex &&
+                          previewPosition.col === colIndex;
+                        if (holdingHere) {
+                          setPreviewPosition(null);
+                          setTargetShipId(null);
+                        } else {
+                          setPreviewPosition({ row: rowIndex, col: colIndex });
+                          setTargetShipId(null);
+                        }
+                      } else {
+                        setSelectedShipId(null);
+                        setPreviewPosition(null);
+                        setTargetShipId(null);
+                      }
                     } else {
                       // Check if this is the current player's turn and they're trying to select a moved ship.
                       // Exception: ships with 0 hull (disabled) should still be selectable so players can inspect reactor overload.
@@ -457,7 +608,13 @@ export function GameGridCell({
                   ) {
                     // Only allow moving ships owned by the current player
                     setPreviewPosition({ row: rowIndex, col: colIndex });
-                    setTargetShipId(null); // Clear target when moving
+                    // Flak is self-centered AoE. Keep it armed so the burst
+                    // preview still plays from the To tile.
+                    if (selectedWeaponType === "special" && specialType === 3) {
+                      setTargetShipId(0);
+                    } else {
+                      setTargetShipId(null);
+                    }
                   } else if (selectedShipId !== null) {
                     // Empty cell that is not a valid move and not a target: clear selection
                     setSelectedShipId(null);
@@ -537,6 +694,7 @@ export function GameGridCell({
                   hoveredCell.row === rowIndex &&
                   hoveredCell.col === colIndex;
                 const isHidingDestinationPreview =
+                  !isHoldHologramPulse &&
                   isHoveringThisCellAsValidTarget && (
                     (previewPosition !== null &&
                       rowIndex === previewPosition.row &&
@@ -551,30 +709,34 @@ export function GameGridCell({
                     key={`cell-${rowIndex}-${colIndex}`}
                     data-grid-row={rowIndex}
                     data-grid-col={colIndex}
-                    className={`min-h-0 min-w-0 h-full w-full ${
+                    className={`min-h-0 min-w-0 h-full w-full isolate ${
                       isShipOnScoringTile
                         ? isOnlyOnceScoringActive
                           ? "border-2 border-teal-400"
                           : "border-2 border-amber"
                         : "border-0"
                     } outline outline-1 outline-near-black relative cursor-pointer ${(() => {
-                      // Check if this is the "from" position (original position when proposing a move)
-                      const isProposedMoveOriginal =
-                        selectedShipId === cell?.shipId && previewPosition && !isHidingDestinationPreview && !cell?.isPreview;
-                      // Check if this is the "to" position (preview cell)
+                      // Preview To (isPreview ghost). Preview From uses selected styling below.
                       const isProposedMovePreview =
                         cell?.isPreview &&
                         previewPosition !== null &&
                         selectedShipId !== null;
-                      // Show blue background for "from" or "to" positions
-                      if (isProposedMoveOriginal || (isProposedMovePreview && !isHidingDestinationPreview)) {
-                        // Add blue background, but still need to handle other conditions
-                        const baseBg = canMoveShip
-                          ? "bg-cyan/20 ring-2 ring-inset ring-cyan"
-                          : "bg-purple/20 ring-2 ring-inset ring-purple";
+                      // Hold (same-tile): pulse hologram wash ↔ regular selected / last-move tile.
+                      if (isHoldHologramPulse && !isSelectedTarget && !isHidingDestinationPreview) {
+                        return isHoldPreview
+                          ? "hold-hologram-cell-preview"
+                          : "hold-hologram-cell-last-move";
+                      }
+                      // Preview To and last-move From: same green hologram wash.
+                      // Preview From stays the live selected tile.
+                      if (
+                        isLastMoveFromHologram ||
+                        (isProposedMovePreview && !isHidingDestinationPreview)
+                      ) {
+                        const baseBg = "bg-phosphor-green/20 ring-2 ring-inset ring-phosphor-green";
 
-                        // Moved ships: base tile only; grey veil is an absolute layer (z-10) below tutorial (z-11).
-                        if (hasShipMoved) {
+                        // Last-move From is the hologram ghost of that mover, so keep the green wash.
+                        if (hasShipMoved && !isLastMoveFromHologram) {
                           return "bg-near-black cursor-not-allowed";
                         }
                         if (isSelectedTarget) {
@@ -590,7 +752,6 @@ export function GameGridCell({
                               : "bg-cyan/20 ring-2 ring-inset ring-cyan"
                             : "bg-warning-red/20 ring-2 ring-inset ring-warning-red";
                         }
-                        // Return blue background for from/to positions
                         return baseBg;
                       }
 
@@ -646,6 +807,11 @@ export function GameGridCell({
                                 ? "bg-phosphor-green/10"
                                 : "bg-near-black";
                     })()} ${hoveredCell?.fromFleet && hoveredCell.shipId === cell?.shipId ? isShipOwnedByCurrentPlayer(hoveredCell.shipId) ? "ring-2 ring-inset ring-cyan" : "ring-2 ring-inset ring-warning-red" : ""}`}
+                    style={
+                      isHoldHologramPulse && !isSelectedTarget && !isHidingDestinationPreview
+                        ? { animationDuration: `${HOLD_HOLOGRAM_CYCLE_MS}ms` }
+                        : undefined
+                    }
                     onClick={handleCellClick}
                     onMouseEnter={
                       shouldRenderShipContent
@@ -770,9 +936,9 @@ export function GameGridCell({
                       </div>
                     )}
 
-                    {/* Crystal for scoring positions that can only be claimed once */}
+                    {/* Crystal / gold art and occupied tint stay behind ships (z-0). */}
                     {onlyOnceGrid[rowIndex][colIndex] && (
-                      <div className="absolute inset-0 z-[1]">
+                      <div className="pointer-events-none absolute inset-0 z-0">
                         <Image
                           src="/img/crystal.png"
                           alt="Crystal deposit"
@@ -782,10 +948,9 @@ export function GameGridCell({
                       </div>
                     )}
 
-                    {/* Gold deposit for regular scoring positions */}
                     {scoringGrid[rowIndex][colIndex] > 0 &&
                       !onlyOnceGrid[rowIndex][colIndex] && (
-                        <div className="absolute inset-0 z-[1]">
+                        <div className="pointer-events-none absolute inset-0 z-0">
                           <Image
                             src="/img/gold-deposit.png"
                             alt="Gold deposit"
@@ -795,16 +960,15 @@ export function GameGridCell({
                         </div>
                       )}
 
-                    {/* Above crystal/gold art (z-[1]), below range highlights and ships */}
                     {showOnlyOnceOccupiedWash && (
                       <div
-                        className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-b from-sky-400/58 via-cyan-500/72 to-teal-800/84 shadow-[inset_0_0_32px_rgba(34,211,238,0.34)]"
+                        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-sky-400/58 via-cyan-500/72 to-teal-800/84 shadow-[inset_0_0_32px_rgba(34,211,238,0.34)]"
                         aria-hidden
                       />
                     )}
                     {showReusableScoringOccupiedWash && (
                       <div
-                        className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-b from-amber-300/62 via-amber-500/75 to-amber-800/84 shadow-[inset_0_0_32px_rgba(252,211,77,0.35)]"
+                        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-amber-300/62 via-amber-500/75 to-amber-800/84 shadow-[inset_0_0_32px_rgba(252,211,77,0.35)]"
                         aria-hidden
                       />
                     )}
@@ -823,7 +987,13 @@ export function GameGridCell({
                     {/* Shooting range highlight */}
                     {isShootingTile && (
                       <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
-                        selectedWeaponType === "special" && specialType === 2
+                        selectedWeaponType === "special" &&
+                        isRepairDronesSpecial(
+                          selectedShipId != null
+                            ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+                            : 1,
+                          specialType,
+                        )
                           ? "border-cyan/50 bg-cyan/10"
                           : "border-amber/50 bg-amber/10"
                       }`} />
@@ -831,9 +1001,16 @@ export function GameGridCell({
 
                     {/* Targeting reticle — corner brackets on the locked-on target cell */}
                     {isSelectedTarget && (
-                      <div className="pointer-events-none absolute inset-0 z-[14]" aria-hidden>
+                      <div className="pointer-events-none absolute inset-0 z-[18]" aria-hidden>
                         {(() => {
-                          const isRepair = selectedWeaponType === "special" && specialType === 2;
+                          const isRepair =
+                            selectedWeaponType === "special" &&
+                            isRepairDronesSpecial(
+                              selectedShipId != null
+                                ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+                                : 1,
+                              specialType,
+                            );
                           const color = isRepair ? "var(--color-cyan)" : "var(--color-warning-red)";
                           return (
                             <svg viewBox="0 0 100 100" className="h-full w-full" style={{ overflow: "visible" }}>
@@ -852,7 +1029,13 @@ export function GameGridCell({
                       <>
                         {selectedWeaponType !== "ram" && effectiveShootingTileSet.has(`${rowIndex},${colIndex}`) && (
                           <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
-                            selectedWeaponType === "special" && specialType === 2
+                            selectedWeaponType === "special" &&
+                            isRepairDronesSpecial(
+                              selectedShipId != null
+                                ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+                                : 1,
+                              specialType,
+                            )
                               ? "border-cyan/50 bg-cyan/10"
                               : "border-amber/50 bg-amber/10"
                           }`} />
@@ -901,10 +1084,10 @@ export function GameGridCell({
                           isLastMoveDestroyedTargetCell || shouldPreviewDestroyedTarget;
                         if (!shouldShowDestroyedArt) return null;
 
-                        // Keep destroyed art above moved-ship dim veil (z-[10]) so it
+                        // Keep destroyed art above the ship stack (z-[16]) so it
                         // remains visible in move preview and last-move states.
                         return (
-                          <div className="absolute inset-0 z-[13] flex items-center justify-center pointer-events-none">
+                          <div className="absolute inset-0 z-[17] flex items-center justify-center pointer-events-none">
                             <img
                               src="/img/ship-destroyed.png"
                               alt="Predicted destroyed target ship"
@@ -918,21 +1101,29 @@ export function GameGridCell({
                           </div>
                         );
                       })()}
-                    {/* Moved this round: grey veil (z-10), then tutorial pulse (z-11), then ship (z-12). */}
-                    {cell && movedShipIdsSet.has(cell.shipId) && (
+                    {/* Moved this round: grey veil under the ship, above scoring art. */}
+                    {cell && movedShipIdsSet.has(cell.shipId) && !isLastMoveFromHologram && (
                       <div
                         className="absolute inset-0 z-[10] pointer-events-none bg-steel/60"
                         aria-hidden
                       />
                     )}
-                    {/* Tutorial highlight: above moved veil (z-10), below ship stack (z-12). */}
+                    {/* Tutorial highlight: below ship stack. */}
                     {isTutorialHighlightCell && (
                       <div className="absolute inset-0 z-[11] pointer-events-none border border-amber/90 bg-amber/24 animate-pulse" />
                     )}
                     {shouldRenderShipContent && ship && !isHidingDestinationPreview ? (
                       <>
                       <div
-                        className="w-full h-full relative z-[12]"
+                        className={`relative isolate z-20 h-full w-full${
+                          isHoldHologramPulse
+                            ? ""
+                            : isMoveHologramShip
+                              ? isLastMoveFromHologram
+                                ? " move-hologram move-hologram-steady"
+                                : " move-hologram"
+                              : ""
+                        }`}
                         draggable={
                           isCurrentPlayerTurn &&
                           isShipOwnedByCurrentPlayer(cell.shipId) &&
@@ -1031,11 +1222,11 @@ export function GameGridCell({
                           const shouldPreviewDestroyedTarget =
                             destroyPreviewShipIds.has(cell.shipId);
                           const isForceRetreating = false;
-                          const imageClassName = `w-full h-full relative z-0 ${
+                          const imageClassName = `w-full h-full relative z-10 ${
                             retreatPrepShipId === cell.shipId || isForceRetreating
                               ? "opacity-0 pointer-events-none"
                               : cell.isCreator
-                                ? "scale-x-[-1]"
+                                ? "[&_img]:scale-x-[-1]"
                                 : ""
                           } ${(() => {
                             // Last move old position: hide ghost when showing Retreat zoom-off
@@ -1048,14 +1239,15 @@ export function GameGridCell({
                             ) {
                               return "opacity-0 pointer-events-none";
                             }
-                            // Last move old position: 50% opacity, no animation (check first)
+                            // Last-move From is the hologram ghost (full strength, matches preview To).
+                            // Last-move To and preview From stay full-color live ships.
                             if (
                               lastMoveShipId === cell.shipId &&
                               lastMoveOldPosition &&
                               rowIndex === lastMoveOldPosition.row &&
                               colIndex === lastMoveOldPosition.col
                             ) {
-                              return "opacity-50";
+                              return "";
                             }
 
                             // Last move new position: 100% opacity (no class = default 100%)
@@ -1068,18 +1260,6 @@ export function GameGridCell({
                               !cell.isPreview
                             ) {
                               return ""; // No opacity class = 100% opacity
-                            }
-
-                            // Staging a move: dim only the ship's current tile, not the preview/destination tile
-                            // (and not a non-preview ship already at the destination after optimistic placement).
-                            if (
-                              selectedShipId === cell.shipId &&
-                              previewPosition &&
-                              !cell.isPreview &&
-                              (rowIndex !== previewPosition.row ||
-                                colIndex !== previewPosition.col)
-                            ) {
-                              return "opacity-50";
                             }
 
                             // Proposed move preview (to position): 100% opacity
@@ -1097,8 +1277,13 @@ export function GameGridCell({
                               return ""; // No opacity class = 100% opacity
                             }
 
-                            // Preview cells: animation only
-                            if (cell.isPreview) {
+                            // Preview cells: animation only. Last-move From is a
+                            // steady hologram, not the 1s preview pulse.
+                            if (
+                              cell.isPreview &&
+                              !isLastMoveFromHologram &&
+                              !isHoldHologramPulse
+                            ) {
                               return "animate-pulse-preview";
                             }
 
@@ -1108,16 +1293,32 @@ export function GameGridCell({
                             isLastMoveDestroyedTargetCell || shouldPreviewDestroyedTarget;
 
                           return (
+                            <>
                             <GridShipImage
                               ship={ship}
                               className={`${imageClassName} ${
                                 shouldHideShipArt
                                   ? "opacity-0 pointer-events-none"
                                   : ""
-                              }`}
+                              } ${showMovedGrayscale ? "grayscale" : ""}`}
                               showLoadingState={true}
                               hideRankStars
                             />
+                            {isHoldHologramPulse && !shouldHideShipArt && (
+                              <div
+                                className="hold-hologram-overlay"
+                                aria-hidden
+                                style={{ animationDuration: `${HOLD_HOLOGRAM_CYCLE_MS}ms` }}
+                              >
+                                <GridShipImage
+                                  ship={ship}
+                                  className={imageClassName}
+                                  showLoadingState={false}
+                                  hideRankStars
+                                />
+                              </div>
+                            )}
+                            </>
                           );
                         })()}
                         {/* Hull strip: inside cell top edge (team dot + stars sit below when visible) */}
@@ -1264,13 +1465,6 @@ export function GameGridCell({
                         )}
                         {/* Team dot + rank stars: same top row, opposite corners (not inside mirrored ShipImage) */}
                         {(() => {
-                          const isProposedMoveOriginal =
-                            selectedShipId === cell.shipId &&
-                            previewPosition &&
-                            !cell.isPreview &&
-                            (rowIndex !== previewPosition.row ||
-                              colIndex !== previewPosition.col);
-
                           const isProposedMovePreview =
                             cell.isPreview &&
                             previewPosition !== null &&
@@ -1283,17 +1477,8 @@ export function GameGridCell({
                             );
 
                           let teamPulseClasses = "";
-                          if (isProposedMoveOriginal) {
-                            teamPulseClasses = "opacity-50";
-                          } else if (isProposedMovePreview) {
+                          if (isProposedMovePreview || isLastMoveFromHologram) {
                             teamPulseClasses = "";
-                          } else if (
-                            lastMoveShipId === cell.shipId &&
-                            lastMoveOldPosition &&
-                            rowIndex === lastMoveOldPosition.row &&
-                            colIndex === lastMoveOldPosition.col
-                          ) {
-                            teamPulseClasses = "opacity-50";
                           } else if (cell.isPreview) {
                             teamPulseClasses = "animate-pulse-preview";
                           }
@@ -1319,7 +1504,9 @@ export function GameGridCell({
                           const stars =
                             rank > 0 ? (
                               <div
-                                className="flex shrink-0 flex-row items-center gap-px leading-none text-amber"
+                                className={`flex shrink-0 flex-row items-center gap-px leading-none text-amber ${
+                                  showMovedGrayscale ? "grayscale" : ""
+                                }`}
                                 style={{
                                   // Use container-relative sizing so desktop viewport size
                                   // does not inflate in-cell rank stars.
@@ -1367,35 +1554,6 @@ export function GameGridCell({
                         {/* Movement path borders */}
                         {(() => {
                           const isPreviewCell = cell.isPreview;
-                          const isProposedMoveOriginal =
-                            selectedShipId === cell.shipId &&
-                            previewPosition &&
-                            !isPreviewCell &&
-                            (rowIndex !== previewPosition.row ||
-                              colIndex !== previewPosition.col);
-                          const isLastMoveOldPosition =
-                            lastMoveShipId === cell.shipId &&
-                            lastMoveOldPosition &&
-                            rowIndex === lastMoveOldPosition.row &&
-                            colIndex === lastMoveOldPosition.col;
-                          // Compared directly against the real new-position
-                          // coordinate rather than inferred as "matches
-                          // lastMoveShipId and isn't the old-position cell" —
-                          // that heuristic misfires when the grid still has a
-                          // leftover ghost cell from an earlier, already-
-                          // superseded move with the same shipId (e.g. right
-                          // after a hold-and-fire submit, before game.lastMove
-                          // itself has refetched), mislabeling that stale
-                          // ghost as "new position" instead of correctly
-                          // showing nothing extra.
-                          const isLastMoveNewPosition =
-                            lastMoveShipId === cell.shipId &&
-                            lastMoveNewPosition != null &&
-                            rowIndex === lastMoveNewPosition.row &&
-                            colIndex === lastMoveNewPosition.col;
-
-                          // Check if this is a proposed move preview (to position)
-                          // It's a proposed move preview if: it's a preview cell AND there's an active proposed move (previewPosition exists) AND it's not the last move old position
                           const isProposedMovePreview =
                             isPreviewCell &&
                             previewPosition !== null &&
@@ -1404,20 +1562,16 @@ export function GameGridCell({
 
                           const shouldShowBorder =
                             isPreviewCell ||
-                            isProposedMoveOriginal ||
                             isLastMoveOldPosition ||
                             isLastMoveNewPosition ||
                             isLastMoveAttackTargetCell;
 
                           if (!shouldShowBorder) return null;
 
-                          // For proposed moves: preview (to) is solid, original (from) is dashed
-                          // For last move: old position is dashed, new position is solid
-                          // Dashed for: proposed move original position, last move old position
-                          // Solid for: proposed move preview (to), last move new position, last move target
+                          // Preview To: solid green hologram. Preview From has no extra border
+                          // (live selected tile). Last-move From: dashed hologram. Last-move To: solid team.
                           const isDashed =
-                            (isProposedMoveOriginal || isLastMoveOldPosition) &&
-                            !isLastMoveAttackTargetCell;
+                            isLastMoveOldPosition && !isLastMoveAttackTargetCell;
                           // Don't animate "from" position, new position of last move, or last move old position
                           const shouldAnimate =
                             isPreviewCell &&
@@ -1450,7 +1604,9 @@ export function GameGridCell({
                           // so a shot into an enemy cell stays red and a shot into your ship stays blue.
                           const isLastMoveCell =
                             isLastMoveOldPosition || isLastMoveNewPosition;
-                          const borderColor = isLastMoveAttackTargetCell
+                          const borderColor = isProposedMovePreview || isLastMoveFromHologram
+                            ? "border-phosphor-green"
+                            : isLastMoveAttackTargetCell
                             ? !address
                               ? "border-amber"
                               : isShipOwnedByCurrentPlayer(cell.shipId)
@@ -1548,12 +1704,13 @@ export function GameGridCell({
                           return (
                             <button
                               type="button"
-                              className="absolute bottom-0 left-0 right-0 z-[25] pointer-events-auto flex items-center justify-center uppercase font-bold tracking-wider transition-colors duration-100"
+                              className={`absolute bottom-0 left-0 right-0 z-[25] pointer-events-auto flex items-center justify-center uppercase font-bold tracking-wider transition-colors duration-100 hover:text-phosphor-green ${
+                                isHoldActive ? "text-cyan" : "text-text-muted"
+                              }`}
                               style={{
                                 fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
                                 fontSize: "clamp(5px, 1.2vmin, 10px)",
                                 padding: "clamp(1px, 0.6vmin, 4px) 0",
-                                color: isHoldActive ? "var(--color-cyan)" : "var(--color-text-muted)",
                                 backgroundColor: isHoldActive
                                   ? "color-mix(in srgb, var(--color-cyan) 14%, var(--color-slate))"
                                   : "var(--color-slate)",
@@ -1568,7 +1725,6 @@ export function GameGridCell({
                                 } else {
                                   setPreviewPosition({ row: rowIndex, col: colIndex });
                                   setTargetShipId(null);
-                                  setSelectedWeaponType("weapon");
                                 }
                               }}
                             >

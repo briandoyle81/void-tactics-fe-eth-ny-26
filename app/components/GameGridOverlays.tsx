@@ -1,20 +1,100 @@
 "use client";
 
 import React from "react";
-import { Attributes, ActionType } from "../types/types";
+import { Attributes, ActionType, canonicalSpecialSlot } from "../types/types";
+import {
+  isAttackDronesSpecial,
+  isRepairDronesSpecial,
+  requireSpecialConfigWeb2,
+} from "../utils/specialConfigWeb2";
+import { requireShipValue } from "../utils/requireShipValue";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { LaserShootingAnimation } from "./weapon-animations/LaserShootingAnimation";
 import { MissileShootingAnimation } from "./weapon-animations/MissileShootingAnimation";
 import { PlasmaShootingAnimation } from "./weapon-animations/PlasmaShootingAnimation";
+import { MiningDrillAnimation } from "./weapon-animations/MiningDrillAnimation";
 import { RailgunShootingAnimation } from "./weapon-animations/RailgunShootingAnimation";
 import { FlakExplosionAnimation } from "./weapon-animations/FlakExplosionAnimation";
 import { RepairDroneAnimation } from "./weapon-animations/RepairDroneAnimation";
+import { AttackDroneAnimation } from "./weapon-animations/AttackDroneAnimation";
 import { EmpWaveAnimation } from "./weapon-animations/EmpWaveAnimation";
+import { LightningFieldAnimation } from "./weapon-animations/LightningFieldAnimation";
 import { WarpFieldCollapseAnimation } from "./weapon-animations/WarpFieldCollapseAnimation";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 
 type Position = { row: number; col: number };
 type TargetRef = { shipId: number; position: Position };
+function isLightningFieldShip(ship: GridShip | undefined): boolean {
+  if (!ship) return false;
+  return (
+    Number(ship.traits.variant) === 2 &&
+    canonicalSpecialSlot(ship.traits.variant, ship.equipment.special) === 1
+  );
+}
+
+function hologramWeaponFire(active: boolean, node: React.ReactNode) {
+  if (!active || node == null) return node;
+  return (
+    <div className="weapon-hologram absolute inset-0 pointer-events-none">
+      {node}
+    </div>
+  );
+}
+
+function lightningFieldRange(ship: GridShip | undefined): number {
+  if (!ship) {
+    throw new Error("Missing ship value: lighteningFieldRange");
+  }
+  return requireShipValue(
+    "lighteningFieldRange",
+    requireSpecialConfigWeb2(Number(ship.traits.variant), ship.equipment.special).range,
+  );
+}
+
+function isFlakArrayShip(ship: GridShip | undefined): boolean {
+  if (!ship) return false;
+  const variant = Number(ship.traits.variant);
+  return (
+    variant !== 2 &&
+    canonicalSpecialSlot(variant, ship.equipment.special) === 3
+  );
+}
+
+function flakArrayRange(ship: GridShip | undefined): number {
+  if (!ship) {
+    throw new Error("Missing ship value: flakArrayRange");
+  }
+  return requireShipValue(
+    "flakArrayRange",
+    requireSpecialConfigWeb2(Number(ship.traits.variant), ship.equipment.special).range,
+  );
+}
+
+function lastMoveIsRam(
+  lastMoveActionNum: number,
+  lastMoveShipId: number | null | undefined,
+  shipMap: Map<number, GridShip>,
+): boolean {
+  if (lastMoveActionNum !== ActionType.FactionAbility) return false;
+  if (lastMoveShipId == null) return false;
+  return Number(shipMap.get(lastMoveShipId)?.traits.variant) !== 2;
+}
+
+function cellsInManhattanRange(
+  origin: Position,
+  range: number,
+  grid: (GridShipPosition | null)[][],
+): Position[] {
+  const cells: Position[] = [];
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      const dist = Math.abs(r - origin.row) + Math.abs(c - origin.col);
+      if (dist > 0 && dist <= range) cells.push({ row: r, col: c });
+    }
+  }
+  return cells;
+}
+
 type HoveredCell = {
   shipId: number;
   row: number;
@@ -41,6 +121,7 @@ interface GameGridOverlaysProps {
   isCurrentPlayerTurn: boolean;
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
   specialType: number;
+  specialRange?: number;
   calculateDamage: (
     targetShipId: number,
     weaponType?: "weapon" | "special",
@@ -60,6 +141,8 @@ interface GameGridOverlaysProps {
   lastMoveTargetShipId?: number | null;
   rammingPreviewPosition?: Position | null;
   isRammingMovePreview?: boolean;
+  factionAbilityIsHeal?: boolean;
+  factionAbilityStrength?: number;
   showLastMoveEmpReplayWhenSelected?: boolean;
   retreatPrepShipId?: number | null;
   tutorialHighlightCells?: readonly {
@@ -103,6 +186,7 @@ export function GameGridOverlays({
   isCurrentPlayerTurn,
   isShipOwnedByCurrentPlayer,
   specialType,
+  specialRange,
   calculateDamage,
   getShipAttributes,
   gridContainerRef,
@@ -113,6 +197,8 @@ export function GameGridOverlays({
   lastMoveTargetShipId,
   rammingPreviewPosition = null,
   isRammingMovePreview = false,
+  factionAbilityIsHeal = false,
+  factionAbilityStrength,
   showLastMoveEmpReplayWhenSelected = false,
   retreatPrepShipId,
   tutorialHighlightCells,
@@ -130,6 +216,8 @@ export function GameGridOverlays({
     lastMoveActionType != null ? Number(lastMoveActionType) : NaN;
   const showLastMoveEmpReplay =
     !selectedShipId || showLastMoveEmpReplayWhenSelected;
+  // Preview weapon fire is a hologram at To. Last-move fire is live color at To.
+  const hologramFire = !!(previewPosition && selectedShipId);
 
   return (
           <div className="absolute inset-0 z-50 pointer-events-none">
@@ -414,7 +502,8 @@ export function GameGridOverlays({
                   grid[attackerRow]?.[attackerCol]?.isCreator ??
                   false;
 
-                return (
+                return hologramWeaponFire(
+                  hologramFire,
                   <LaserShootingAnimation
                     gridContainerRef={gridContainerRef}
                     attackerRow={attackerRow}
@@ -422,7 +511,8 @@ export function GameGridOverlays({
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
                     facingRight={attackerIsCreator}
-                  />
+                    variant={Number(ship.traits.variant)}
+                  />,
                 );
               })()}
 
@@ -484,7 +574,10 @@ export function GameGridOverlays({
                   return null;
                 }
 
-                const targetPosition = findShipPositionById(targetShipId);
+                if (!directedWeaponBeamTargetId) return null;
+                const targetPosition = findShipPositionById(
+                  directedWeaponBeamTargetId,
+                );
                 if (!targetPosition) {
                   return null;
                 }
@@ -494,7 +587,8 @@ export function GameGridOverlays({
                   grid[attackerRow]?.[attackerCol]?.isCreator ??
                   false;
 
-                return (
+                return hologramWeaponFire(
+                  hologramFire,
                   <MissileShootingAnimation
                     gridContainerRef={gridContainerRef}
                     attackerRow={attackerRow}
@@ -502,7 +596,8 @@ export function GameGridOverlays({
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
                     facingRight={attackerIsCreator}
-                  />
+                    variant={Number(ship.traits.variant)}
+                  />,
                 );
               })()}
 
@@ -523,11 +618,12 @@ export function GameGridOverlays({
                   return null;
                 }
 
-                // Check if the ship has a Plasma weapon (mainWeapon === 3)
+                // Check if the ship has a Plasma / Mining Drill (mainWeapon === 3)
                 const ship = shipMap.get(shipId);
                 if (!ship || ship.equipment.mainWeapon !== 3) {
                   return null;
                 }
+                const isMiningDrill = Number(ship.traits.variant) === 2;
 
                 // Find positions of attacking and target ships.
                 // See Laser block above for details - same origin rules.
@@ -571,15 +667,27 @@ export function GameGridOverlays({
                   grid[attackerRow]?.[attackerCol]?.isCreator ??
                   false;
 
-                return (
-                  <PlasmaShootingAnimation
-                    gridContainerRef={gridContainerRef}
-                    attackerRow={attackerRow}
-                    attackerCol={attackerCol}
-                    targetRow={targetPosition.row}
-                    targetCol={targetPosition.col}
-                    facingRight={attackerIsCreator}
-                  />
+                return hologramWeaponFire(
+                  hologramFire,
+                  isMiningDrill ? (
+                    <MiningDrillAnimation
+                      gridContainerRef={gridContainerRef}
+                      attackerRow={attackerRow}
+                      attackerCol={attackerCol}
+                      targetRow={targetPosition.row}
+                      targetCol={targetPosition.col}
+                      facingRight={attackerIsCreator}
+                    />
+                  ) : (
+                    <PlasmaShootingAnimation
+                      gridContainerRef={gridContainerRef}
+                      attackerRow={attackerRow}
+                      attackerCol={attackerCol}
+                      targetRow={targetPosition.row}
+                      targetCol={targetPosition.col}
+                      facingRight={attackerIsCreator}
+                    />
+                  ),
                 );
               })()}
 
@@ -648,7 +756,8 @@ export function GameGridOverlays({
                   grid[attackerRow]?.[attackerCol]?.isCreator ??
                   false;
 
-                return (
+                return hologramWeaponFire(
+                  hologramFire,
                   <RailgunShootingAnimation
                     gridContainerRef={gridContainerRef}
                     attackerRow={attackerRow}
@@ -656,25 +765,93 @@ export function GameGridOverlays({
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
                     facingRight={attackerIsCreator}
+                    variant={Number(ship.traits.variant)}
+                  />,
+                );
+              })()}
+
+            {/* Flak Area-of-Effect animation. AoE does not need a locked
+                target id; requiring targetShipId === 0 hid the bursts after
+                a move tile click cleared the target. */}
+            {selectedShipId &&
+              selectedWeaponType === "special" &&
+              specialType === 3 &&
+                hologramWeaponFire(
+                  hologramFire,
+                  <FlakExplosionAnimation
+                    gridContainerRef={gridContainerRef}
+                    targetCells={flakEffectCells}
+                  />,
+                )}
+
+            {showLastMoveEmpReplay &&
+              lastMoveActionType != null &&
+              Number(lastMoveActionType) === ActionType.Special &&
+              lastMoveShipId != null &&
+              !selectedShipId &&
+              isFlakArrayShip(shipMap.get(lastMoveShipId)) &&
+              (() => {
+                const origin =
+                  lastMoveNewPosition ?? findShipPositionById(lastMoveShipId);
+                if (!origin) return null;
+                const range = flakArrayRange(shipMap.get(lastMoveShipId));
+                return (
+                  <FlakExplosionAnimation
+                    gridContainerRef={gridContainerRef}
+                    targetCells={cellsInManhattanRange(origin, range, grid)}
                   />
                 );
               })()}
 
-            {/* Flak Area-of-Effect animation */}
-            {selectedShipId &&
-              selectedWeaponType === "special" &&
-              specialType === 3 &&
-              targetShipId === 0 && (
-                <FlakExplosionAnimation
-                  gridContainerRef={gridContainerRef}
-                  targetCells={flakEffectCells}
-                />
-              )}
-
-            {/* EMP wave animation (selected + has a target ship) */}
+            {/* Lightening Field: blue jagged sparks across every tile in range */}
             {selectedShipId &&
               selectedWeaponType === "special" &&
               specialType === 1 &&
+              specialRange != null &&
+              isLightningFieldShip(shipMap.get(selectedShipId)) &&
+              (() => {
+                const origin =
+                  previewPosition ??
+                  effectiveDragCell ??
+                  findShipPositionById(selectedShipId);
+                if (!origin) return null;
+                const range = requireShipValue("lighteningFieldRange", specialRange);
+                return hologramWeaponFire(
+                  hologramFire,
+                  <LightningFieldAnimation
+                    gridContainerRef={gridContainerRef}
+                    originRow={origin.row}
+                    originCol={origin.col}
+                    range={range}
+                  />,
+                );
+              })()}
+
+            {showLastMoveEmpReplay &&
+              lastMoveActionType != null &&
+              Number(lastMoveActionType) === ActionType.Special &&
+              lastMoveShipId != null &&
+              !selectedShipId &&
+              isLightningFieldShip(shipMap.get(lastMoveShipId)) &&
+              (() => {
+                const origin = lastMoveNewPosition ?? findShipPositionById(lastMoveShipId);
+                if (!origin) return null;
+                const range = lightningFieldRange(shipMap.get(lastMoveShipId));
+                return (
+                  <LightningFieldAnimation
+                    gridContainerRef={gridContainerRef}
+                    originRow={origin.row}
+                    originCol={origin.col}
+                    range={range}
+                  />
+                );
+              })()}
+
+            {/* EMP wave animation (selected + has a target ship). Variant 2 slot 1 is Lightening Field, not EMP. */}
+            {selectedShipId &&
+              selectedWeaponType === "special" &&
+              specialType === 1 &&
+              !isLightningFieldShip(shipMap.get(selectedShipId)) &&
               targetShipId != null &&
               targetShipId !== 0 &&
               !showLastMoveEmpReplayWhenSelected &&
@@ -709,14 +886,15 @@ export function GameGridOverlays({
                   return null;
                 }
 
-                return (
+                return hologramWeaponFire(
+                  hologramFire,
                   <EmpWaveAnimation
                     gridContainerRef={gridContainerRef}
                     attackerRow={attackerRow}
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
-                  />
+                  />,
                 );
               })()}
 
@@ -727,6 +905,7 @@ export function GameGridOverlays({
               lastMoveShipId != null &&
               lastMoveTargetShipId != null &&
               Number(shipMap.get(lastMoveShipId)?.equipment.special) === 1 &&
+              !isLightningFieldShip(shipMap.get(lastMoveShipId)) &&
               (() => {
                 // Use the explicit "to" position for the last move when available.
                 // Fallback to current grid position if needed.
@@ -792,12 +971,20 @@ export function GameGridOverlays({
                 );
               })()}
 
-            {/* Repair drones animation (selected + has a target ship) */}
+            {/* Repair drones animation (selected + has a target ship).
+                Variant 1 uses the Repair Drones special; variant 2 uses the
+                innate Repair faction ability (weapon type "ram"). */}
             {selectedShipId &&
-              selectedWeaponType === "special" &&
-              specialType === 2 &&
               targetShipId != null &&
               targetShipId !== 0 &&
+              ((selectedWeaponType === "special" &&
+                isRepairDronesSpecial(
+                  selectedShipId != null
+                    ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+                    : 1,
+                  specialType,
+                )) ||
+                (selectedWeaponType === "ram" && factionAbilityIsHeal)) &&
               (() => {
                 // Determine attacker position: preview > drag > current
                 let attackerRow = -1;
@@ -829,23 +1016,80 @@ export function GameGridOverlays({
                   return null;
                 }
 
-                return (
+                return hologramWeaponFire(
+                  hologramFire,
                   <RepairDroneAnimation
                     gridContainerRef={gridContainerRef}
                     attackerRow={attackerRow}
                     attackerCol={attackerCol}
                     targetRow={targetPosition.row}
                     targetCol={targetPosition.col}
-                  />
+                  />,
                 );
               })()}
 
-            {/* Repair drones animation for last move (when last move was repair) */}
+            {/* Attack drones (variant 2 slot 2): orange swarm that cuts the target. */}
+            {selectedShipId &&
+              targetShipId != null &&
+              targetShipId !== 0 &&
+              selectedWeaponType === "special" &&
+              isAttackDronesSpecial(
+                Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+                specialType,
+              ) &&
+              (() => {
+                let attackerRow = -1;
+                let attackerCol = -1;
+                if (previewPosition) {
+                  attackerRow = previewPosition.row;
+                  attackerCol = previewPosition.col;
+                } else if (draggedShipId && dragOverCell) {
+                  attackerRow = dragOverCell.row;
+                  attackerCol = dragOverCell.col;
+                } else {
+                  grid.forEach((row, r) => {
+                    row.forEach((cell, c) => {
+                      if (cell?.shipId === selectedShipId && !cell.isPreview) {
+                        attackerRow = r;
+                        attackerCol = c;
+                      }
+                    });
+                  });
+                }
+
+                const targetPosition = findShipPositionById(targetShipId);
+                if (
+                  attackerRow === -1 ||
+                  attackerCol === -1 ||
+                  !targetPosition
+                ) {
+                  return null;
+                }
+
+                return hologramWeaponFire(
+                  hologramFire,
+                  <AttackDroneAnimation
+                    gridContainerRef={gridContainerRef}
+                    attackerRow={attackerRow}
+                    attackerCol={attackerCol}
+                    targetRow={targetPosition.row}
+                    targetCol={targetPosition.col}
+                  />,
+                );
+              })()}
+
+            {/* Repair drones animation for last move (special Repair Drones
+                or variant 2 faction Repair). */}
             {lastMoveShipId != null &&
-              (lastMoveActionType as ActionType) === ActionType.Special &&
               lastMoveTargetShipId != null &&
               lastMoveTargetShipId !== 0 &&
-              shipMap.get(lastMoveShipId)?.equipment.special === 2 &&
+              (((lastMoveActionType as ActionType) === ActionType.Special &&
+                isRepairDronesSpecial(
+                  Number(shipMap.get(lastMoveShipId)?.traits.variant),
+                  shipMap.get(lastMoveShipId)?.equipment.special ?? 0,
+                )) ||
+                ((lastMoveActionType as ActionType) === ActionType.FactionAbility &&
+                  Number(shipMap.get(lastMoveShipId)?.traits.variant) === 2)) &&
               (() => {
                 let attackerRow = -1;
                 let attackerCol = -1;
@@ -878,6 +1122,49 @@ export function GameGridOverlays({
                 );
               })()}
 
+            {lastMoveShipId != null &&
+              lastMoveTargetShipId != null &&
+              lastMoveTargetShipId !== 0 &&
+              (lastMoveActionType as ActionType) === ActionType.Special &&
+              isAttackDronesSpecial(
+                Number(shipMap.get(lastMoveShipId)?.traits.variant),
+                shipMap.get(lastMoveShipId)?.equipment.special ?? 0,
+              ) &&
+              (() => {
+                let attackerRow = -1;
+                let attackerCol = -1;
+                if (lastMoveNewPosition) {
+                  attackerRow = lastMoveNewPosition.row;
+                  attackerCol = lastMoveNewPosition.col;
+                } else {
+                  grid.forEach((row, r) => {
+                    row.forEach((cell, c) => {
+                      if (cell?.shipId === lastMoveShipId) {
+                        attackerRow = r;
+                        attackerCol = c;
+                      }
+                    });
+                  });
+                }
+                const targetPosition = findShipPositionById(lastMoveTargetShipId);
+                if (
+                  attackerRow === -1 ||
+                  attackerCol === -1 ||
+                  !targetPosition
+                ) {
+                  return null;
+                }
+                return (
+                  <AttackDroneAnimation
+                    gridContainerRef={gridContainerRef}
+                    attackerRow={attackerRow}
+                    attackerCol={attackerCol}
+                    targetRow={targetPosition.row}
+                    targetCol={targetPosition.col}
+                  />
+                );
+              })()}
+
             {/* Damage Labels - grid level; z-40 so tutorial "Click here" overlay (z-[60]) can sit above */}
             {(() => {
                 const targetsToShow = collectDamageLabelTargets({
@@ -892,12 +1179,22 @@ export function GameGridOverlays({
                   labelTargets,
                   selectedWeaponType,
                   specialType,
+                  shipVariant: selectedShipId != null
+                    ? shipMap.get(selectedShipId)?.traits.variant
+                    : undefined,
+                  previewPosition,
+                  specialRange,
+                  factionAbilityIsHeal,
                 });
 
+                const lastMoveWasRam = lastMoveIsRam(
+                  lastMoveActionNum,
+                  lastMoveShipId,
+                  shipMap,
+                );
                 const shouldShowRammingLabels =
                   (isRammingMovePreview && rammingPreviewPosition != null) ||
-                  ((lastMoveActionNum === ActionType.Ram ||
-                    lastMoveActionNum === ActionType.FactionAbility) &&
+                  (lastMoveWasRam &&
                     lastMoveNewPosition != null &&
                     lastMoveNewPosition.row >= 0 &&
                     lastMoveNewPosition.col >= 0);
@@ -917,6 +1214,7 @@ export function GameGridOverlays({
                 const ramPreviewTargets: { row: number; col: number }[] = (() => {
                   if (
                     selectedWeaponType !== "ram" ||
+                    factionAbilityIsHeal ||
                     !selectedShipId ||
                     previewPosition ||
                     !isCurrentPlayerTurn
@@ -965,6 +1263,20 @@ export function GameGridOverlays({
                         return null;
                       }
 
+                      const isFactionHealPreview =
+                        selectedWeaponType === "ram" && factionAbilityIsHeal;
+                      const factionHealAmount = factionAbilityStrength ?? 50;
+                      const selectedVariant =
+                        selectedShipId != null
+                          ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+                          : 1;
+                      const isRepairDronesPreview =
+                        selectedWeaponType === "special" &&
+                        isRepairDronesSpecial(selectedVariant, specialType);
+                      const isAttackDronesPreview =
+                        selectedWeaponType === "special" &&
+                        isAttackDronesSpecial(selectedVariant, specialType);
+
                       const damage = calculateDamage(
                         target.shipId,
                         selectedWeaponType === "ram" ? "weapon" : selectedWeaponType,
@@ -980,12 +1292,14 @@ export function GameGridOverlays({
                         !!targetAttributes &&
                         targetAttributes.reactorCriticalTimer + 1 >= 3;
                       let labelText: string;
-                      if (useCompactMobileDamageLabels) {
+                      if (isFactionHealPreview) {
+                        labelText = useCompactMobileDamageLabels
+                          ? String(factionHealAmount)
+                          : `REPAIR ${factionHealAmount} HP`;
+                      } else if (useCompactMobileDamageLabels) {
                         labelText = String(damage.reducedDamage);
                       } else if (selectedWeaponType === "special") {
-                        // Flak does damage, other special abilities repair/heal
-                        if (specialType === 3) {
-                          // Flak special - show damage effect
+                        if (specialType === 3 || isAttackDronesPreview) {
                           if (willDestroyByReactor) {
                             labelText = "[DESTROY]";
                           } else if (damage.reactorCritical) {
@@ -996,13 +1310,13 @@ export function GameGridOverlays({
                             labelText = `${damage.reducedDamage} DMG`;
                           }
                         } else if (specialType === 1) {
-                          // EMP: show reactor damage label (not repair)
                           labelText = willDestroyByReactor
                             ? "[DESTROY]"
                             : "REACTOR DMG";
-                        } else {
-                          // Other special abilities - show repair/heal effect
+                        } else if (isRepairDronesPreview) {
                           labelText = `REPAIR ${damage.reducedDamage} HP`;
+                        } else {
+                          labelText = `${damage.reducedDamage} DMG`;
                         }
                       } else if (willDestroyByReactor) {
                         labelText = "[DESTROY]";
@@ -1022,12 +1336,14 @@ export function GameGridOverlays({
                               ? "px-1.5 py-0.5 text-[11px] font-bold"
                               : "px-2 py-1 text-xs"
                           } ${
-                            selectedWeaponType === "special"
-                              ? specialType === 3 // Flak
-                                ? "bg-amber/60 border border-amber" // Flak
-                                : specialType === 1 // EMP
-                                  ? "bg-warning-red/60 border border-warning-red" // EMP reactor damage
-                                  : "bg-cyan/60 border border-cyan" // Other specials
+                            isFactionHealPreview || isRepairDronesPreview
+                              ? "bg-cyan/60 border border-cyan"
+                              : selectedWeaponType === "special"
+                              ? specialType === 3
+                                ? "bg-amber/60 border border-amber"
+                                : specialType === 1
+                                  ? "bg-warning-red/60 border border-warning-red"
+                                  : "bg-warning-red/60 border border-warning-red"
                               : "bg-warning-red/60 border border-warning-red"
                           }`}
                           style={{
@@ -1080,10 +1396,10 @@ export function GameGridOverlays({
                       );
                     })()}
                     {(() => {
-                      // Last-move ram labels — same two labels as staged preview, at the to-position
+                      // Last-move ram labels — same two labels as staged preview, at the to-position.
+                      // Variant 2 FactionAbility is Repair, not Ram.
                       if (
-                        (lastMoveActionNum !== ActionType.Ram &&
-                          lastMoveActionNum !== ActionType.FactionAbility) ||
+                        !lastMoveWasRam ||
                         !lastMoveNewPosition ||
                         lastMoveNewPosition.row < 0 ||
                         lastMoveNewPosition.col < 0

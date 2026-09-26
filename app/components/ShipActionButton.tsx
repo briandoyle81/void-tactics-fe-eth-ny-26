@@ -5,12 +5,13 @@ import { useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { toast } from "react-hot-toast";
 import { TransactionButton } from "./TransactionButton";
-import { CONTRACT_ADDRESSES, getContractAddresses } from "../config/contracts";
+import { CONTRACT_ABIS, CONTRACT_ADDRESSES, getContractAddresses } from "../config/contracts";
 import { useRevealRandomness } from "../hooks/useRandomManager";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 import { useSwitchToSelectedChainIfNeeded } from "../hooks/useSwitchToSelectedChainIfNeeded";
 import { useTransaction } from "../providers/TransactionContext";
 import { getLegacyGasPriceOverridesForWrite } from "../utils/legacyGasPriceForWrite";
+import { invalidateShipAttributesByIdsCache } from "../utils/shipAttributesLocalCache";
 import type { Ship } from "../types/types";
 import type { Abi } from "viem";
 import posthog from "posthog-js";
@@ -32,6 +33,14 @@ interface ShipActionButtonProps {
   onError?: (error: Error) => void;
 }
 
+// constructShips reverts the whole batch if any id is already constructed
+// (selector 0xa6639c3e). Include the error so viem can decode it.
+const SHIP_CONSTRUCTED_ERROR = {
+  type: "error" as const,
+  name: "ShipConstructed",
+  inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+};
+
 const SHIP_ACTION_CONFIG = {
   construct: {
     functionName: "constructShip",
@@ -43,6 +52,7 @@ const SHIP_ACTION_CONFIG = {
         stateMutability: "nonpayable",
         type: "function",
       },
+      SHIP_CONSTRUCTED_ERROR,
     ] as Abi,
   },
   constructAll: {
@@ -55,6 +65,7 @@ const SHIP_ACTION_CONFIG = {
         stateMutability: "nonpayable",
         type: "function",
       },
+      SHIP_CONSTRUCTED_ERROR,
     ] as Abi,
   },
   constructShips: {
@@ -73,6 +84,7 @@ const SHIP_ACTION_CONFIG = {
         stateMutability: "nonpayable",
         type: "function",
       },
+      SHIP_CONSTRUCTED_ERROR,
     ] as Abi,
   },
   recycle: {
@@ -287,20 +299,63 @@ function RevealThenConstructButton({
     startTransaction(transactionId);
     try {
       await switchToSelectedChainIfNeeded();
+      if (!publicClient) throw new Error("No RPC client available");
 
-      const unconstructed = ships.filter((s) => !s.shipData.constructed);
-      if (unconstructed.length > 0) {
+      const shipsAddress = contractAddresses.SHIPS as `0x${string}`;
+
+      // Navy ship rows can lag a successful construct (same IDs, wagmi still
+      // serving the pre-construct snapshot). constructShips reverts the whole
+      // batch on ShipConstructed, so drop any id that is already built onchain
+      // before we spend another signature.
+      const candidateIds =
+        functionName === "constructShips"
+          ? ((args[0] as bigint[] | undefined) ?? [])
+          : functionName === "constructShip"
+            ? ((args[0] != null ? [args[0] as bigint] : []) )
+            : ships.filter((s) => !s.shipData.constructed).map((s) => s.id);
+
+      let stillUnconstructedIds = candidateIds;
+      if (candidateIds.length > 0) {
+        const liveShips = (await publicClient.readContract({
+          address: shipsAddress,
+          abi: CONTRACT_ABIS.SHIPS as Abi,
+          functionName: "getShipsByIds",
+          args: [candidateIds],
+        })) as Array<{ id: bigint; shipData: { constructed: boolean } }>;
+        stillUnconstructedIds = liveShips
+          .filter((s) => !s.shipData.constructed)
+          .map((s) => s.id);
+      }
+
+      if (functionName !== "constructAllMyShips" && stillUnconstructedIds.length === 0) {
+        invalidateShipAttributesByIdsCache(activeChainId);
+        completeTransaction(transactionId, true);
+        onSuccess();
+        return;
+      }
+
+      const toReveal = ships.filter(
+        (s) =>
+          !s.shipData.constructed &&
+          stillUnconstructedIds.some((id) => id === s.id),
+      );
+      if (toReveal.length > 0) {
         setStep("reveal");
-        await revealAllForShips(unconstructed);
+        await revealAllForShips(toReveal);
       }
 
       setStep("construct");
-      if (!publicClient) throw new Error("No RPC client available");
+      const writeArgs =
+        functionName === "constructShips"
+          ? [stillUnconstructedIds]
+          : functionName === "constructShip"
+            ? [stillUnconstructedIds[0]]
+            : args;
       const hash = await writeContractAsync({
-        address: contractAddresses.SHIPS as `0x${string}`,
+        address: shipsAddress,
         abi,
         functionName,
-        args,
+        args: writeArgs,
         chainId: activeChainId,
         ...(await getLegacyGasPriceOverridesForWrite(activeChainId, publicClient)),
       });
@@ -312,6 +367,13 @@ function RevealThenConstructButton({
       if (receipt.status === "reverted") {
         throw new Error("Transaction reverted on-chain");
       }
+
+      // Construction is what populates a ship's real attributes (equipment is
+      // all zeros until then). The by-ids attributes cache is keyed only by
+      // the shipIds list, which doesn't change when a ship goes
+      // unconstructed -> constructed, so without this the navy keeps serving
+      // the pre-construction zeros (e.g. 0% armor/shield damage reduction).
+      invalidateShipAttributesByIdsCache(activeChainId);
 
       completeTransaction(transactionId, true);
       onSuccess();
@@ -329,6 +391,14 @@ function RevealThenConstructButton({
         toast.error(
           "Ship randomness isn't ready to reveal yet — try again in a few seconds.",
         );
+      } else if (
+        message.includes("ShipConstructed") ||
+        message.includes("0xa6639c3e")
+      ) {
+        toast.error(
+          "Some ships in this batch are already constructed. Refreshing your navy.",
+        );
+        onSuccess();
       } else {
         toast.error(`Failed to construct: ${message}`);
       }

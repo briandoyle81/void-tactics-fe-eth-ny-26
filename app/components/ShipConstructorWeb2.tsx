@@ -357,7 +357,10 @@ const ShipConstructorWeb2: React.FC = () => {
                     className="w-full px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
                     style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
                   >
-                    {validSpecials.map((v) => (
+                    {(validSpecials.includes(special)
+                      ? validSpecials
+                      : [...validSpecials, special]
+                    ).map((v) => (
                       <option key={v} value={v}>
                         {getSpecialName(v, variant)}
                       </option>

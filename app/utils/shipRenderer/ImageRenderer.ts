@@ -45,7 +45,7 @@ export function renderShip(ship: ShipVisual): string {
     // For constructed and non-destroyed ships, render the SVG
     let svg = BASE_SVG;
 
-    if (ship.traits.variant === 2) {
+    if (Number(ship.traits.variant) === 2) {
       // Variant 2 ("Drone" faction) has its own, fully distinct rendering
       // pipeline — see ImageRendererV2.ts / renderersV2/*.
       svg += renderShipV2Body(ship);

@@ -200,6 +200,9 @@ const LobbiesWeb2: React.FC = () => {
     moveShip,
     findNextPosition,
     clearSelection: clearFleetSelectionState,
+    selectedVariant,
+    setSelectedVariant,
+    variantLocked,
   } = fleet;
 
   const [tapPendingShipId, setTapPendingShipId] = useState<number | null>(null);
@@ -383,11 +386,14 @@ const LobbiesWeb2: React.FC = () => {
       return;
     }
     if (lastHydratedDraftLobbyRef.current === selectedLobbyId) return;
+    if (ships.length === 0) return;
 
     const drafts = readFleetDraftsWeb2(userId);
     const raw = drafts[selectedLobbyId.toString()];
     skipNextDraftPersistRef.current = true;
     if (raw?.shipIds?.length) {
+      const first = ships.find((s) => raw.shipIds.includes(s.id));
+      if (first) setSelectedVariant(first.traits.variant);
       fleet.setSelectedShips(raw.shipIds);
       setShipPositions(raw.positions ?? []);
     } else {
@@ -397,7 +403,7 @@ const LobbiesWeb2: React.FC = () => {
     setSelectedShipId(null);
     lastHydratedDraftLobbyRef.current = selectedLobbyId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLobbyId, userId, selectedLobby, selectedLobbyPlayerHasFleet]);
+  }, [selectedLobbyId, userId, selectedLobby, selectedLobbyPlayerHasFleet, ships.length]);
 
   useEffect(() => {
     if (!selectedLobbyId || !userId || !selectedLobby || selectedLobbyPlayerHasFleet) {
@@ -514,7 +520,13 @@ const LobbiesWeb2: React.FC = () => {
     let unavailableCount = 0;
     for (const shipIdString of composition.shipIds) {
       const ship = ships.find((s) => String(s.id) === shipIdString);
-      if (!ship || !ship.shipData.constructed || ship.shipData.timestampDestroyed > 0 || ship.shipData.inFleet) {
+      if (
+        !ship ||
+        ship.traits.variant !== selectedVariant ||
+        !ship.shipData.constructed ||
+        ship.shipData.timestampDestroyed > 0 ||
+        ship.shipData.inFleet
+      ) {
         unavailableCount++;
         continue;
       }
@@ -1100,7 +1112,7 @@ const LobbiesWeb2: React.FC = () => {
               fleetFilters={fleetFilters}
               onFleetFiltersChange={setFleetFilters}
               shownCount={filteredShips.length}
-              totalCount={ships.length}
+              totalCount={ships.filter((s) => s.traits.variant === selectedVariant).length}
               showInGameProperties={showInGameProperties}
               onToggleInGameProperties={setShowInGameProperties}
               isAttributesFromCache={isFromCache}
@@ -1112,6 +1124,9 @@ const LobbiesWeb2: React.FC = () => {
                 const id = Number(shipId);
                 if (!Number.isNaN(id)) removeShipFromFleet(id);
               }}
+              selectedVariant={selectedVariant}
+              onSelectVariant={setSelectedVariant}
+              variantLocked={variantLocked}
             />
           );
         })()}

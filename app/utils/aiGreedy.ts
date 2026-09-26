@@ -188,8 +188,8 @@ export function applyActionToState(state: GameDataView, action: AiAction): GameD
       break;
     }
 
-    case ActionType.Ram: {
-      // Rammer moves onto the disabled target's tile; target is removed without reactor damage
+    case ActionType.FactionAbility: {
+      // Variant 1 Ram: rammer moves onto the disabled target's tile; target is removed without reactor damage
       s = moveShipInState(s, shipId, row, col);
       s = {
         ...s,
@@ -378,7 +378,7 @@ export function generateLegalActions(
     if (manhattan(pos.row, pos.col, dep.row, dep.col) <= movRange) {
       actions.push({
         shipId, row: dep.row, col: dep.col,
-        actionType: ActionType.Ram, targetShipId: dep.id, specialType: 0,
+        actionType: ActionType.FactionAbility, targetShipId: dep.id, specialType: 0,
       });
     }
   }

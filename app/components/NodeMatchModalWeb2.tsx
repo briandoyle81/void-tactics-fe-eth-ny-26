@@ -196,7 +196,7 @@ export function NodeMatchModalWeb2({
       fleetFilters={fleet.fleetFilters}
       onFleetFiltersChange={fleet.setFleetFilters}
       shownCount={fleet.filteredShips.length}
-      totalCount={fleet.ships.length}
+      totalCount={fleet.ships.filter((s) => s.traits.variant === fleet.selectedVariant).length}
       showInGameProperties={showInGameProperties}
       onToggleInGameProperties={setShowInGameProperties}
       isAttributesFromCache={isAttributesFromCache}
@@ -208,6 +208,9 @@ export function NodeMatchModalWeb2({
         const parsed = Number(shipId);
         if (!Number.isNaN(parsed)) fleet.removeShip(parsed);
       }}
+      selectedVariant={fleet.selectedVariant}
+      onSelectVariant={fleet.setSelectedVariant}
+      variantLocked={fleet.variantLocked}
     />
   );
 }

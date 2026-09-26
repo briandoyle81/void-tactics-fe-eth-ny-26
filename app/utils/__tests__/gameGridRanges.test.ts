@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { computeMovementRange, computeShootingRange, hasMovementPath } from "../gameGridRanges";
+import {
+  computeMovementRange,
+  computeShootingRange,
+  hasMovementPath,
+  collectDamageLabelTargets,
+  selectedShipHasEffectLabel,
+  computeConfirmWidgetAnchor,
+  SELF_EFFECT_LABEL_CLEARANCE_PX,
+} from "../gameGridRanges";
 import { Attributes, ShipPosition } from "../../types/types";
+import { GridShipPosition } from "../../types/gridDisplay";
 
 const GRID_W = 17;
 const GRID_H = 11;
@@ -310,5 +319,228 @@ describe("computeShootingRange — preview mode", () => {
     );
     expect(result).toContainEqual({ row: 4, col: 8 });
     expect(result).toContainEqual({ row: 6, col: 8 });
+  });
+});
+
+describe("collectDamageLabelTargets — Lightening Field", () => {
+  function pos(shipId: number, row: number, col: number, isCreator: boolean): GridShipPosition {
+    return { shipId, position: { row, col }, isCreator };
+  }
+
+  it("labels every ship in range, including friendlies and the caster", () => {
+    const caster = pos(1, 5, 5, true);
+    const ally = pos(2, 5, 6, true);
+    const enemy = pos(3, 5, 7, false);
+    const outOfRange = pos(4, 5, 10, false);
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: [caster, ally, enemy, outOfRange],
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: [],
+      selectedWeaponType: "special",
+      specialType: 1,
+      shipVariant: 2,
+      previewPosition: null,
+      specialRange: 2,
+    });
+    const ids = result.map((t) => t.shipId).sort();
+    expect(ids).toEqual([1, 2, 3]);
+    expect(result.find((t) => t.shipId === 1)).toEqual({ shipId: 1, row: 5, col: 5 });
+  });
+
+  it("uses the ship's field range when it is larger than 2", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: [pos(1, 5, 5, true), pos(4, 5, 10, false)],
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: [],
+      selectedWeaponType: "special",
+      specialType: 1,
+      shipVariant: 2,
+      previewPosition: null,
+      specialRange: 5,
+    });
+    expect(result.map((t) => t.shipId).sort()).toEqual([1, 4]);
+  });
+
+  it("does not treat variant 1 EMP as a field that hits friendlies", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: [pos(1, 5, 5, true), pos(2, 5, 6, true)],
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: [{ shipId: 2, position: { row: 5, col: 6 } }],
+      selectedWeaponType: "special",
+      specialType: 1,
+      shipVariant: 1,
+      previewPosition: null,
+    });
+    expect(result.map((t) => t.shipId)).not.toContain(1);
+  });
+});
+
+describe("collectDamageLabelTargets — Repair Drones vs Attack Drones", () => {
+  function pos(shipId: number, row: number, col: number, isCreator: boolean): GridShipPosition {
+    return { shipId, position: { row, col }, isCreator };
+  }
+
+  const friendliesAndEnemy = [
+    pos(1, 5, 5, true),
+    pos(2, 5, 6, true),
+    pos(3, 5, 7, false),
+  ];
+  const bothSidesAsTargets = [
+    { shipId: 2, position: { row: 5, col: 6 } },
+    { shipId: 3, position: { row: 5, col: 7 } },
+  ];
+
+  it("variant 1 slot 2 (Repair Drones) labels friendlies only", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: friendliesAndEnemy,
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: bothSidesAsTargets,
+      selectedWeaponType: "special",
+      specialType: 2,
+      shipVariant: 1,
+    });
+    expect(result.map((t) => t.shipId).sort()).toEqual([2]);
+  });
+
+  it("variant 2 slot 2 (Attack Drones) labels enemies only", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: friendliesAndEnemy,
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: bothSidesAsTargets,
+      selectedWeaponType: "special",
+      specialType: 2,
+      shipVariant: 2,
+    });
+    expect(result.map((t) => t.shipId).sort()).toEqual([3]);
+  });
+});
+
+describe("collectDamageLabelTargets — faction Repair", () => {
+  function pos(shipId: number, row: number, col: number, isCreator: boolean): GridShipPosition {
+    return { shipId, position: { row, col }, isCreator };
+  }
+
+  it("labels friendlies when ram mode is a heal", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: [pos(1, 5, 5, true), pos(2, 5, 6, true), pos(3, 5, 7, false)],
+      selectedShipId: 1,
+      targetShipId: null,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: [
+        { shipId: 1, position: { row: 5, col: 5 } },
+        { shipId: 2, position: { row: 5, col: 6 } },
+      ],
+      selectedWeaponType: "ram",
+      specialType: 0,
+      factionAbilityIsHeal: true,
+    });
+    expect(result.map((t) => t.shipId).sort()).toEqual([1, 2]);
+  });
+
+  it("still hides labels for variant 1 ram", () => {
+    const result = collectDamageLabelTargets({
+      grid: [],
+      allShipPositions: [pos(1, 5, 5, true), pos(3, 5, 7, false)],
+      selectedShipId: 1,
+      targetShipId: 3,
+      draggedShipId: null,
+      dragOverCell: null,
+      dragValidTargets: [],
+      validTargets: [{ shipId: 3, position: { row: 5, col: 7 } }],
+      selectedWeaponType: "ram",
+      specialType: 0,
+      factionAbilityIsHeal: false,
+    });
+    expect(result).toEqual([]);
+  });
+});
+
+describe("selectedShipHasEffectLabel", () => {
+  it("is true for faction Repair", () => {
+    expect(
+      selectedShipHasEffectLabel({
+        selectedShipId: 1,
+        targetShipId: null,
+        selectedWeaponType: "ram",
+        specialType: 0,
+        shipVariant: 2,
+        factionAbilityIsHeal: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("is false for variant 1 ram", () => {
+    expect(
+      selectedShipHasEffectLabel({
+        selectedShipId: 1,
+        targetShipId: 3,
+        selectedWeaponType: "ram",
+        specialType: 0,
+        shipVariant: 1,
+        factionAbilityIsHeal: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("computeConfirmWidgetAnchor — self-effect label clearance", () => {
+  it("nudges the below placement off a row-0 self-heal label", () => {
+    const ship: GridShipPosition = {
+      shipId: 1,
+      position: { row: 0, col: 8 },
+      isCreator: true,
+    };
+    const grid = Array.from({ length: GRID_H }, () =>
+      Array.from({ length: GRID_W }, () => null as GridShipPosition | null),
+    );
+    grid[0][8] = ship;
+
+    const clear = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 0, col: 8 },
+      selectedShipId: 1,
+      targetShipId: 1,
+      grid,
+      selfHasEffectLabel: true,
+    });
+    const covered = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 0, col: 8 },
+      selectedShipId: 1,
+      targetShipId: 1,
+      grid,
+      selfHasEffectLabel: false,
+    });
+
+    expect(clear?.transform).toBe(`translate(-50%, ${3 + SELF_EFFECT_LABEL_CLEARANCE_PX}px)`);
+    expect(covered?.transform).toBe("translate(-50%, 3px)");
   });
 });

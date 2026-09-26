@@ -28,12 +28,19 @@ export function useRandomManagerContract() {
   };
 }
 
-// Reveals the serial numbers of every not-yet-constructed ship in `ships`,
-// one player-signed transaction each (RandomManager has no batch reveal).
+// Reveals the serial numbers of every not-yet-constructed ship in `ships` in
+// a SINGLE player-signed transaction via RandomManager.revealRandomnessBatch.
 // Per CLAUDE.md's "No Backend Services in Place of Contract Functions" rule,
 // this is player-signed rather than a keeper — revealRandomness has no
 // access control, so there's no privileged-credential reason for a backend
 // service to do it instead.
+//
+// Why one batch tx and not one tx per serial: with an embedded/WaaS wallet
+// (Dynamic), every transaction is signed through an MPC `signMessage` HTTP
+// call. Revealing a whole pack one serial at a time fires a burst of those
+// calls and trips Dynamic's rate limiter (HTTP 429, long retry-after), which
+// breaks construct-and-reveal for anything more than a couple of ships. The
+// batch collapses N signatures into 1.
 export function useRevealRandomness() {
   const { writeContractAsync } = useWriteContract();
   const config = useConfig();
@@ -42,13 +49,16 @@ export function useRevealRandomness() {
   const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
   const publicClient = usePublicClient({ chainId: activeChainId });
 
-  // Resolves once a serial number's randomness is revealable, or throws
-  // TooSoonToReveal if it never flips true within the timeout — callers
+  // Resolves once every serial number in the batch is revealable, or throws
+  // TooSoonToReveal if they don't all flip true within the timeout — callers
   // should surface that as "still waiting on-chain, try again shortly"
-  // rather than retry-submitting paid transactions in a loop.
+  // rather than retry-submitting paid transactions in a loop. canRevealBatch
+  // returns true only when ALL requests are ready (already-revealed ones
+  // count as ready), so this also handles mixed already/not-yet-revealed sets.
   const waitUntilRevealable = useCallback(
-    async (serialNumber: bigint) => {
+    async (serialNumbers: bigint[]) => {
       if (!publicClient) throw new Error("No RPC client available");
+      if (serialNumbers.length === 0) return;
       const address = contractAddresses.RANDOM_MANAGER as `0x${string}`;
       const deadline = Date.now() + CAN_REVEAL_TIMEOUT_MS;
       for (;;) {
@@ -56,7 +66,7 @@ export function useRevealRandomness() {
           address,
           abi: RANDOM_MANAGER_ABI,
           functionName: "canRevealBatch",
-          args: [[serialNumber]],
+          args: [serialNumbers],
         });
         if (ready) return;
         if (Date.now() > deadline) {
@@ -70,29 +80,45 @@ export function useRevealRandomness() {
     [publicClient, contractAddresses],
   );
 
-  // Reveals a single serial number. If it's already been revealed (e.g. a
-  // prior attempt succeeded but the ship wasn't constructed yet), skip
-  // straight through — canRevealBatch would otherwise report "not
-  // revealable" forever for an already-revealed request, since there's
-  // nothing left to reveal, and waitUntilRevealable would time out.
-  const revealOne = useCallback(
-    async (serialNumber: bigint) => {
+  // Reveals every ship in `ships` that isn't constructed yet in one batch
+  // transaction (a single wallet signature) — call before constructShip/
+  // constructAllMyShips/constructShips, which now revert NotYetRevealed
+  // otherwise. Already-revealed serials (e.g. a prior attempt revealed but
+  // didn't construct) are skipped so we never submit an empty/pointless tx.
+  const revealAllForShips = useCallback(
+    async (ships: Ship[]) => {
       if (!publicClient) throw new Error("No RPC client available");
+      await switchToSelectedChainIfNeeded();
       const address = contractAddresses.RANDOM_MANAGER as `0x${string}`;
-      const [, , revealed] = (await publicClient.readContract({
-        address,
-        abi: RANDOM_MANAGER_ABI,
-        functionName: "requests",
-        args: [serialNumber],
-      })) as [bigint, bigint, boolean, bigint];
-      if (revealed) return;
 
-      await waitUntilRevealable(serialNumber);
+      const serials = ships
+        .filter((s) => !s.shipData.constructed)
+        .map((s) => s.traits.serialNumber);
+      if (serials.length === 0) return;
+
+      // Drop serials that are already revealed — reads hit the public RPC,
+      // not the wallet, so this costs no signatures.
+      const revealedFlags = await Promise.all(
+        serials.map(async (serial) => {
+          const [, , revealed] = (await publicClient.readContract({
+            address,
+            abi: RANDOM_MANAGER_ABI,
+            functionName: "requests",
+            args: [serial],
+          })) as [bigint, bigint, boolean, bigint];
+          return revealed;
+        }),
+      );
+      const toReveal = serials.filter((_, i) => !revealedFlags[i]);
+      if (toReveal.length === 0) return;
+
+      await waitUntilRevealable(toReveal);
+
       const hash = await writeContractAsync({
         address,
         abi: RANDOM_MANAGER_ABI,
-        functionName: "revealRandomness",
-        args: [serialNumber],
+        functionName: "revealRandomnessBatch",
+        args: [toReveal],
         chainId: activeChainId,
         ...(await getLegacyGasPriceOverridesForWrite(
           activeChainId,
@@ -110,24 +136,10 @@ export function useRevealRandomness() {
       activeChainId,
       contractAddresses,
       publicClient,
+      switchToSelectedChainIfNeeded,
       waitUntilRevealable,
     ],
   );
 
-  // Reveals every ship in `ships` that isn't constructed yet, sequentially
-  // (one wallet signature each) — call before constructShip/
-  // constructAllMyShips/constructShips, which now revert NotYetRevealed
-  // otherwise.
-  const revealAllForShips = useCallback(
-    async (ships: Ship[]) => {
-      await switchToSelectedChainIfNeeded();
-      const unconstructed = ships.filter((s) => !s.shipData.constructed);
-      for (const ship of unconstructed) {
-        await revealOne(ship.traits.serialNumber);
-      }
-    },
-    [revealOne, switchToSelectedChainIfNeeded],
-  );
-
-  return { revealOne, revealAllForShips };
+  return { revealAllForShips };
 }

@@ -4,8 +4,21 @@ import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID, getContractAddresses } f
 import { getVariantForChainId } from "../config/networks";
 import type { Attributes } from "../types/types";
 
+// Bumped v2 -> v3 to abandon caches written before construct-time
+// invalidation existed: a ship's attributes are computed from its equipment,
+// which is all zeros (damage reduction 0, base hull, etc.) until it's
+// constructed. Viewing unconstructed ships cached those zeroed attributes
+// under the (long-lived) blob, and since constructing a ship doesn't change
+// the shipIds cache key, the stale zeros were served forever afterward
+// (most visibly: variant 2 ships showing 0% armor/shield damage reduction).
 const SHIP_ATTRIBUTES_BY_IDS_CACHE_KEY_PREFIX =
-  "ship-attributes-cache-v2" as const;
+  "ship-attributes-cache-v3" as const;
+
+// Dispatched whenever a chain's by-ids attributes blob is invalidated so any
+// mounted useShipAttributesByIds can drop its in-memory memo and refetch,
+// rather than only picking up the change on the next mount/reload.
+export const SHIP_ATTRIBUTES_CACHE_INVALIDATED_EVENT =
+  "void-tactics-ship-attributes-cache-invalidated" as const;
 
 function shipAttributesByIdsCacheKey(chainId: number): string {
   return `${SHIP_ATTRIBUTES_BY_IDS_CACHE_KEY_PREFIX}:${chainId}`;
@@ -145,6 +158,11 @@ export function invalidateShipAttributesByIdsCache(
       if (!parsed.shipIds.includes(shipId.toString())) return;
     }
     localStorage.removeItem(key);
+    window.dispatchEvent(
+      new CustomEvent(SHIP_ATTRIBUTES_CACHE_INVALIDATED_EVENT, {
+        detail: { chainId },
+      }),
+    );
   } catch (e) {
     console.warn("Failed to invalidate ship attributes by-ids cache:", e);
   }

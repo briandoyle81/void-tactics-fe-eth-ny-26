@@ -52,7 +52,13 @@ export function GameFleetCard({
           outlineOffset: "2px",
         }}
       >
-        <div className={flip ? "scale-x-[-1] w-full h-full" : "w-full h-full"}>{shipImage}</div>
+        <div
+          className={`${flip ? "scale-x-[-1] w-full h-full" : "w-full h-full"} ${
+            hasMoved ? "grayscale" : ""
+          }`}
+        >
+          {shipImage}
+        </div>
         {isSOS && (
           <>
             <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100">

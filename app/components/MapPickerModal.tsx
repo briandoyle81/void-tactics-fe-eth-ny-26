@@ -75,7 +75,11 @@ export function MapPickerModal({ maps, selectedMapId, onSelect, onClose }: MapPi
                     : undefined
                 }
               >
-                <MapPreviewCard map={map} modeLabel={map.modeLabel} onEdit={() => onSelect(map.id)} />
+                <MapPreviewCard
+                  map={map}
+                  modeLabel={map.modeLabel}
+                  onSelect={() => onSelect(map.id)}
+                />
               </div>
             ))}
           </div>

@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { getSpecialName } from "../../types/types";
 import {
   getSpecialConfigWeb2,
   isAoeSpecialWeb2,
   isActivatableSpecialWeb2,
+  isLightningFieldSpecial,
+  isRepairDronesSpecial,
+  isAttackDronesSpecial,
 } from "../specialConfigWeb2";
 
 // Regression coverage for the 2026-09-20/21 redesign: Special is a
@@ -27,6 +31,22 @@ describe("getSpecialConfigWeb2", () => {
   it("variant 2 slot 3 (Additional Thruster) is a pure passive movement bonus", () => {
     expect(getSpecialConfigWeb2(2, 3)).toEqual({ range: 0, strength: 0, movement: 3 });
   });
+
+  it("leftover variant 2 slots 4/5/6/7 have no config", () => {
+    expect(getSpecialConfigWeb2(2, 4)).toBeUndefined();
+    expect(getSpecialConfigWeb2(2, 5)).toBeUndefined();
+    expect(getSpecialConfigWeb2(2, 6)).toBeUndefined();
+    expect(getSpecialConfigWeb2(2, 7)).toBeUndefined();
+  });
+});
+
+describe("getSpecialName leftover slots", () => {
+  it("does not alias leftover variant 2 slots to Attack Drones or Lightening Field", () => {
+    expect(getSpecialName(2, 2)).toBe("Attack Drones");
+    expect(getSpecialName(5, 2)).toBe("Unknown (5)");
+    expect(getSpecialName(4, 2)).toBe("Unknown (4)");
+    expect(getSpecialName(7, 2)).toBe("Unknown (7)");
+  });
 });
 
 describe("isActivatableSpecialWeb2", () => {
@@ -46,6 +66,13 @@ describe("isActivatableSpecialWeb2", () => {
     expect(isActivatableSpecialWeb2(1, 0)).toBe(false);
     expect(isActivatableSpecialWeb2(2, 0)).toBe(false);
   });
+
+  it("leftover variant 2 slots 4/5/6/7 are not activatable", () => {
+    expect(isActivatableSpecialWeb2(2, 4)).toBe(false);
+    expect(isActivatableSpecialWeb2(2, 5)).toBe(false);
+    expect(isActivatableSpecialWeb2(2, 6)).toBe(false);
+    expect(isActivatableSpecialWeb2(2, 7)).toBe(false);
+  });
 });
 
 describe("isAoeSpecialWeb2", () => {
@@ -63,5 +90,24 @@ describe("isAoeSpecialWeb2", () => {
   it("variant 1's slot 1/2 are not AoE even though variant 2's slot 1 is — the same slot number means different things per faction", () => {
     expect(isAoeSpecialWeb2(1, 1)).toBe(false);
     expect(isAoeSpecialWeb2(2, 1)).toBe(true);
+  });
+});
+
+describe("isRepairDronesSpecial / isAttackDronesSpecial", () => {
+  it("slot 2 is heal for variant 1 and damage for variant 2", () => {
+    expect(isRepairDronesSpecial(1, 2)).toBe(true);
+    expect(isAttackDronesSpecial(1, 2)).toBe(false);
+    expect(isRepairDronesSpecial(2, 2)).toBe(false);
+    expect(isAttackDronesSpecial(2, 2)).toBe(true);
+    expect(isAttackDronesSpecial(2, 5)).toBe(false);
+  });
+});
+
+describe("isLightningFieldSpecial", () => {
+  it("is only variant 2 slot 1", () => {
+    expect(isLightningFieldSpecial(2, 1)).toBe(true);
+    expect(isLightningFieldSpecial(2, 4)).toBe(false);
+    expect(isLightningFieldSpecial(1, 1)).toBe(false);
+    expect(isLightningFieldSpecial(2, 2)).toBe(false);
   });
 });

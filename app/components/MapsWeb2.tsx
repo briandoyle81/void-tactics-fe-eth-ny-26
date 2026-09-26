@@ -271,7 +271,7 @@ export default function MapsWeb2() {
               // No deployment-zone data source in web2 yet — omitted, not [].
             }}
             modeLabel={MapMode[map.mode]}
-            onEdit={() => handleEditMap(map)}
+            onEdit={canCreateMaps ? () => handleEditMap(map) : undefined}
           />
         ))}
       </MapsListShell>

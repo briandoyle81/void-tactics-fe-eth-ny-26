@@ -259,13 +259,13 @@ const ShipCard: React.FC<ShipCardProps> = ({
         }
       }}
     >
-      {/* Ship Image - Bigger */}
-      <div
-        className="relative mb-3 h-48 w-full min-h-0 [container-type:size]"
-        style={flipShip ? { transform: "scaleX(-1)" } : undefined}
-      >
+      {/* Ship Image - Bigger. Flip only descendant <img> hull art so rank
+          stars and special overlays stay upright for creator-side cards. */}
+      <div className="relative mb-3 h-48 w-full min-h-0 [container-type:size]">
         <div
-          className="h-full w-full border border-solid"
+          className={`h-full w-full border border-solid ${flipShip ? "[&_img]:scale-x-[-1]" : ""} ${
+            hasMoved ? "grayscale" : ""
+          }`}
           style={{
             borderColor: shipArtBorderColor,
             borderRadius: 0, // Square corners
@@ -282,11 +282,6 @@ const ShipCard: React.FC<ShipCardProps> = ({
               <div
                 className="absolute -top-2 left-0 right-0 z-10"
                 dir="ltr"
-                style={
-                  flipShip
-                    ? { transform: "scaleX(-1)" }
-                    : undefined
-                }
               >
                 <div
                   className="relative h-1 w-full overflow-hidden transition-all duration-300"

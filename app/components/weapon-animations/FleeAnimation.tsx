@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FLEE_GLOW_BUILD_MS, FLEE_ZOOM_DURATION_MS } from "../../constants/animationTiming";
 import { Ship } from "../../types/types";
 import { ShipImage } from "../ShipImage";
+import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
 
 interface FleeAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -35,13 +36,7 @@ export const FleeAnimation = React.memo(function FleeAnimation({
   const getCellCenter = useCallback(
     (row: number, col: number) => {
       if (!gridContainerRef.current) return { x: 0, y: 0 };
-      const gridRect = gridContainerRef.current.getBoundingClientRect();
-      const cellWidth = gridRect.width / 17;
-      const cellHeight = gridRect.height / 11;
-      return {
-        x: col * cellWidth + cellWidth / 2,
-        y: row * cellHeight + cellHeight / 2,
-      };
+      return cellCenterOnGrid(gridContainerRef.current, row, col);
     },
     [gridContainerRef]
   );
@@ -69,9 +64,9 @@ export const FleeAnimation = React.memo(function FleeAnimation({
 
   if (!gridContainerRef.current) return null;
 
-  const gridRect = gridContainerRef.current.getBoundingClientRect();
-  const cellWidth = gridRect.width / 17;
-  const cellHeight = gridRect.height / 11;
+  const { width, height, cellWidth, cellHeight } = gridLayoutSize(
+    gridContainerRef.current,
+  );
   const center = getCellCenter(fromRow, fromCol);
 
   // In game: creator has scale-x-[-1], joiner has no flip. When retreating = opposite of in-game.
@@ -85,8 +80,8 @@ export const FleeAnimation = React.memo(function FleeAnimation({
       style={{
         left: 0,
         top: 0,
-        width: gridRect.width,
-        height: gridRect.height,
+        width,
+        height,
       }}
     >
       <div

@@ -84,7 +84,7 @@ export function ManageNavyMobileTutorialSheet({
   onNotNow,
 }: {
   kind: ManageNavyMobileTutorialKind;
-  constructButtonLabel: "[CONSTRUCT ALL SHIPS]" | "[CONSTRUCT 150 SHIPS]";
+  constructButtonLabel: "[CONSTRUCT ALL SHIPS]" | "[CONSTRUCT 60 SHIPS]";
   onNotNow: (dontShowAgain: boolean) => void;
 }) {
   const title =
@@ -234,7 +234,7 @@ export function ManageNavyConstructDeliveryBrief({
   className = "",
 }: {
   onNotNow: (dontShowAgain: boolean) => void;
-  constructButtonLabel: "[CONSTRUCT ALL SHIPS]" | "[CONSTRUCT 150 SHIPS]";
+  constructButtonLabel: "[CONSTRUCT ALL SHIPS]" | "[CONSTRUCT 60 SHIPS]";
   className?: string;
 }) {
   return (

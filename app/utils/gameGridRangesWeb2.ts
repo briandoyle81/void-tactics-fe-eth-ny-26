@@ -1,6 +1,8 @@
 import { Attributes } from "../types/types";
 import { Web2ShipPosition } from "../types/web2Game";
 import { hasLineOfSight, hasMovementPath } from "./gameGridRanges";
+import { requireShipValue, resolveActionRange } from "./requireShipValue";
+import { isRepairDronesSpecial } from "./specialConfigWeb2";
 
 // "ram" mode covers both faction abilities (Ram/variant 1, Repair/variant
 // 2 — see useFactionAbilityConfig.ts): a valid target is a downed enemy for
@@ -16,6 +18,26 @@ function isValidFactionAbilityTarget(
 ): boolean {
   if (isHeal) return targetOwner === playerAddress;
   return targetOwner !== playerAddress && targetHullPoints === 0;
+}
+
+/** After a staged move the acting ship is still listed at FROM; heal/self-repair aims from To. */
+function actingShipTargetPosition(
+  shipId: number,
+  selectedShipId: number,
+  livePosition: { row: number; col: number },
+  previewPosition: { row: number; col: number } | null,
+  selectedWeaponType: "weapon" | "special" | "ram",
+  specialType: number,
+  factionAbilityIsHeal: boolean,
+  shipVariant = 1,
+): { row: number; col: number } {
+  const isSelfHeal =
+    shipId === selectedShipId &&
+    previewPosition != null &&
+    ((selectedWeaponType === "ram" && factionAbilityIsHeal) ||
+      (selectedWeaponType === "special" &&
+        isRepairDronesSpecial(shipVariant, specialType)));
+  return isSelfHeal ? previewPosition : livePosition;
 }
 
 // `number`-typed parallel of the five `bigint`-typed range functions in
@@ -84,9 +106,10 @@ export function computeMovementRange({
 
   const attributes = getShipAttributes(selectedShipId);
   // Disabled ships (0 HP) cannot move; only retreat is available
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRange = attributes?.movement || 1;
+  const movementRange = requireShipValue("movement", attributes.movement);
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -165,17 +188,17 @@ export function computeShootingRange({
 
   const attributes = getShipAttributes(selectedShipId);
   // Disabled ships (0 HP) have no move or threat range; only retreat is available
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRange = attributes?.movement || 1;
-  // Use special range if special is selected, faction-ability range in ram
-  // mode, otherwise weapon range.
-  const shootingRange =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
-        ? factionAbilityRange
-        : attributes?.range || 1;
+  const movementRange = requireShipValue("movement", attributes.movement);
+  const shootingRange = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    factionAbilityRange,
+    gunRange: attributes.range,
+  });
+  if (shootingRange === undefined) return [];
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -453,6 +476,7 @@ interface LabelTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  shipVariant?: number;
   factionAbilityRange?: number | undefined;
   factionAbilityIsHeal?: boolean;
   blockedGrid: boolean[][];
@@ -471,6 +495,7 @@ export function computeLabelTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  shipVariant = 1,
   factionAbilityRange,
   factionAbilityIsHeal = false,
   blockedGrid,
@@ -481,15 +506,17 @@ export function computeLabelTargets({
   if (isRammingMovePreview) return [];
 
   const attributes = getShipAttributes(selectedShipId);
-  if (attributes && attributes.hullPoints === 0) return [];
+  if (!attributes) return [];
+  if (attributes.hullPoints === 0) return [];
 
-  const movementRangeAttr = attributes?.movement || 1;
-  const shootingRangeAttr =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
-        ? factionAbilityRange
-        : attributes?.range || 1;
+  const movementRangeAttr = requireShipValue("movement", attributes.movement);
+  const shootingRangeAttr = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    factionAbilityRange,
+    gunRange: attributes.range,
+  });
+  if (shootingRangeAttr === undefined) return [];
 
   const currentPosition = shipPositions.find(
     (pos) => pos.shipId === selectedShipId,
@@ -539,8 +566,10 @@ export function computeLabelTargets({
           if (shipPosition.shipId === selectedShipId) return;
         } else if (specialType === 1) {
           if (ship.owner === playerAddress) return;
-        } else {
+        } else if (isRepairDronesSpecial(shipVariant, specialType)) {
           if (ship.owner !== playerAddress) return;
+        } else {
+          if (ship.owner === playerAddress) return;
         }
       } else if (selectedWeaponType === "ram") {
         const targetHp = getShipAttributes(shipPosition.shipId)?.hullPoints;
@@ -549,10 +578,23 @@ export function computeLabelTargets({
         if (ship.owner === playerAddress) return;
       }
 
-      const targetRow = shipPosition.position.row;
-      const targetCol = shipPosition.position.col;
+      const { row: targetRow, col: targetCol } = actingShipTargetPosition(
+        shipPosition.shipId,
+        selectedShipId,
+        shipPosition.position,
+        previewPosition,
+        selectedWeaponType,
+        specialType,
+        factionAbilityIsHeal,
+        shipVariant,
+      );
       const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
-      const isSelfRepair = selectedWeaponType === "ram" && factionAbilityIsHeal && shipPosition.shipId === selectedShipId && distance === 0;
+      const isSelfRepair =
+        ((selectedWeaponType === "ram" && factionAbilityIsHeal) ||
+          (selectedWeaponType === "special" &&
+            isRepairDronesSpecial(shipVariant, specialType))) &&
+        shipPosition.shipId === selectedShipId &&
+        distance === 0;
       const canShoot = distance === 1 || distance <= shootingRangeAttr;
 
       if ((canShoot && distance > 0) || isSelfRepair) {
@@ -588,6 +630,7 @@ interface HoverValidTargetsParams {
   selectedWeaponType: "weapon" | "special" | "ram";
   specialRange: number | undefined;
   specialType: number;
+  shipVariant?: number;
   factionAbilityRange?: number | undefined;
   factionAbilityIsHeal?: boolean;
   blockedGrid: boolean[][];
@@ -604,6 +647,7 @@ export function computeHoverValidTargets({
   selectedWeaponType,
   specialRange,
   specialType,
+  shipVariant = 1,
   factionAbilityRange,
   factionAbilityIsHeal = false,
   blockedGrid,
@@ -611,12 +655,13 @@ export function computeHoverValidTargets({
   if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
-  const range =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
-        ? factionAbilityRange
-        : attributes.range || 1;
+  const range = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    factionAbilityRange,
+    gunRange: attributes.range,
+  });
+  if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const targets: { shipId: number; position: { row: number; col: number } }[] = [];
@@ -628,8 +673,10 @@ export function computeHoverValidTargets({
         if (shipPosition.shipId === selectedShipId) return;
       } else if (spec === 1) {
         if (ship.owner === playerAddress) return;
-      } else {
+      } else if (isRepairDronesSpecial(shipVariant, spec)) {
         if (ship.owner !== playerAddress) return;
+      } else {
+        if (ship.owner === playerAddress) return;
       }
     } else if (selectedWeaponType === "ram") {
       const targetHp = getShipAttributes(shipPosition.shipId)?.hullPoints;
@@ -637,10 +684,25 @@ export function computeHoverValidTargets({
     } else {
       if (ship.owner === playerAddress) return;
     }
-    const { row: targetRow, col: targetCol } = shipPosition.position;
+    const { row: targetRow, col: targetCol } = actingShipTargetPosition(
+      shipPosition.shipId,
+      selectedShipId,
+      shipPosition.position,
+      hoverPreviewPosition,
+      selectedWeaponType,
+      specialType,
+      factionAbilityIsHeal,
+      shipVariant,
+    );
     const distance = Math.abs(targetRow - startRow) + Math.abs(targetCol - startCol);
+    const isSelfRepair =
+      ((selectedWeaponType === "ram" && factionAbilityIsHeal) ||
+        (selectedWeaponType === "special" &&
+          isRepairDronesSpecial(shipVariant, specialType))) &&
+      shipPosition.shipId === selectedShipId &&
+      distance === 0;
     const canShoot = distance === 1 || distance <= range;
-    if (canShoot && distance > 0) {
+    if ((canShoot && distance > 0) || isSelfRepair) {
       const shouldCheckLOS =
         distance > 1 &&
         (selectedWeaponType !== "special" ||
@@ -688,12 +750,13 @@ export function computeHoverShootingRange({
   if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
-  const range =
-    selectedWeaponType === "special" && specialRange !== undefined
-      ? specialRange
-      : selectedWeaponType === "ram" && factionAbilityRange !== undefined
-        ? factionAbilityRange
-        : attributes.range || 1;
+  const range = resolveActionRange({
+    selectedWeaponType,
+    specialRange,
+    factionAbilityRange,
+    gunRange: attributes.range,
+  });
+  if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
   const positions: { row: number; col: number }[] = [];

@@ -186,7 +186,7 @@ function calcBaseMovement(ship: Ship, table: VariantAttributeTable): number {
   const speedIdx = Math.max(0, Math.min(table.engineSpeeds.length - 1, ship.traits.speed));
 
   const gun = table.guns[ship.equipment.mainWeapon] ?? table.guns[0];
-  const special = table.specials[ship.equipment.special] ?? table.specials[0];
+  const special = table.specials[Number(ship.equipment.special)];
 
   // Defensive gear's movement: a piece only counts when actually equipped.
   // The tables' "None" entries (index 0) are the once-only no-gear bonus,
@@ -216,7 +216,7 @@ function calcBaseMovement(ship: Ship, table: VariantAttributeTable): number {
   baseMovement += gun.movement;
   baseMovement += armorMovement;
   baseMovement += shieldMovement;
-  baseMovement += special.movement; // e.g. variant 2's Additional Thruster
+  baseMovement += special?.movement ?? 0;
 
   return baseMovement;
 }

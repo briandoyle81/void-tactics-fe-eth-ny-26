@@ -226,19 +226,9 @@ function validateDestinationAndTarget(params: {
   if (!isStayingPut) {
     const shipMap = new Map<number, true>(state.shipIds.map((id) => [id, true]));
     const attrsByShip = new Map(state.shipIds.map((id, i) => [id, state.shipAttributes[i]]));
-    // Mirrors the client's canEnterOccupiedCell (useGameplayInteraction.ts)
-    // exactly: a Ram may move onto a tile occupied by a disabled enemy ship.
-    const opponentActiveIds = shipPos.isCreator
-      ? state.joinerActiveShipIds
-      : state.creatorActiveShipIds;
-    // ActionType.Ram (legacy, variant-unrestricted) is the one action that
-    // may move directly onto an occupied tile — matches the old on-chain
-    // auto-ram-on-move model. ActionType.FactionAbility (the real, unified
-    // Ram/Repair action new submissions use — see gameGridWeaponSelector's
-    // client-side counterpart) is NOT exempted here: it moves to a normal,
-    // legal tile like any other action, and the ability's own effect
-    // (below) relocates the rammer onto the victim's tile afterward,
-    // mirroring RamResolver.sol exactly.
+    // FactionAbility (Ram/Repair) moves to a normal legal tile like any
+    // other action. Ram's resolver relocates the rammer onto the victim's
+    // tile afterward, mirroring RamResolver.sol.
     const reachable = computeMovementRange({
       gridWidth: state.gridDimensions.gridWidth,
       gridHeight: state.gridDimensions.gridHeight,
@@ -248,11 +238,7 @@ function validateDestinationAndTarget(params: {
       getShipAttributes: (id) => attrsByShip.get(id) ?? null,
       shipPositions: state.shipPositions,
       previewPosition: null,
-      canEnterOccupiedCell: (_row, _col, occupyingShipId) =>
-        actionType === ActionType.Ram &&
-        occupyingShipId !== shipId &&
-        opponentActiveIds.includes(occupyingShipId) &&
-        attrsByShip.get(occupyingShipId)?.hullPoints === 0,
+      canEnterOccupiedCell: () => false,
       impassableGrid,
     });
     if (!reachable.some((p) => p.row === row && p.col === col)) {
@@ -272,14 +258,6 @@ function validateDestinationAndTarget(params: {
     }
     if (distance > 1 && !hasLineOfSight(row, col, targetPos.position.row, targetPos.position.col, blockedGrid)) {
       throw new GameActionError(400, "No line of sight to target");
-    }
-  }
-
-  if (actionType === ActionType.Ram) {
-    const targetPos = state.shipPositions.find((p) => p.shipId === targetShipId);
-    if (!targetPos) throw new GameActionError(400, "Invalid ram target");
-    if (targetPos.position.row !== row || targetPos.position.col !== col) {
-      throw new GameActionError(400, "Ram destination must be the target ship's tile");
     }
   }
 
@@ -565,62 +543,6 @@ export async function applyGameAction(
       break;
     }
 
-    case ActionType.Ram: {
-      // Legacy action, kept for any stale client still sending it (current
-      // clients submit the unified ActionType.FactionAbility above
-      // instead) — restricted to variant 1, which is the only faction with
-      // Ram at all; variant 2's innate ability is Repair.
-      if (variant === 2) throw new GameActionError(400, "This faction cannot ram");
-      if (!targetShipId) throw new GameActionError(400, "Target required for ram");
-      // Must be an enemy ship, not one of the ramming player's own —
-      // ramming your own disabled ship has no legitimate use (it can only
-      // deny yourself a future reactor-tick kill credit).
-      const opponentActiveIdsForRam = isCreator ? state.joinerActiveShipIds : state.creatorActiveShipIds;
-      if (!opponentActiveIdsForRam.some((id) => id === targetShipId)) {
-        throw new GameActionError(400, "Can only ram enemy ships");
-      }
-      const ramTargetIdx = newState.shipIds.findIndex((id) => id === targetShipId);
-      if (ramTargetIdx === -1) throw new GameActionError(400, "Target ship not found");
-      const ramTargetAttrs = newState.shipAttributes[ramTargetIdx];
-      if (!ramTargetAttrs || ramTargetAttrs.hullPoints > 0) {
-        throw new GameActionError(400, "Can only ram disabled ships");
-      }
-
-      // Move ramming ship to the target's position
-      moveShipTo(shipId, row, col);
-
-      // Remove rammed ship from the board and both active lists — no reactor damage to it
-      newState = {
-        ...newState,
-        shipPositions: newState.shipPositions.filter((p) => p.shipId !== targetShipId),
-        creatorActiveShipIds: newState.creatorActiveShipIds.filter((id) => id !== targetShipId),
-        joinerActiveShipIds: newState.joinerActiveShipIds.filter((id) => id !== targetShipId),
-      };
-
-      // Ramming ship takes +1 reactor damage
-      const rammerIdx = newState.shipIds.findIndex((id) => id === shipId);
-      if (rammerIdx !== -1) {
-        const newAttrs = [...newState.shipAttributes];
-        const rammerAttrs = { ...newAttrs[rammerIdx]! };
-        rammerAttrs.reactorCriticalTimer = (rammerAttrs.reactorCriticalTimer || 0) + 1;
-        newAttrs[rammerIdx] = rammerAttrs;
-        if (rammerAttrs.reactorCriticalTimer >= 3) {
-          newState = {
-            ...newState,
-            shipAttributes: newAttrs,
-            shipPositions: newState.shipPositions.filter((p) => p.shipId !== shipId),
-            creatorActiveShipIds: newState.creatorActiveShipIds.filter((id) => id !== shipId),
-            joinerActiveShipIds: newState.joinerActiveShipIds.filter((id) => id !== shipId),
-          };
-        } else {
-          newState = { ...newState, shipAttributes: newAttrs };
-        }
-      }
-
-      lastMove = { shipId, oldRow, oldCol, newRow: row, newCol: col, actionType: ActionType.Ram, targetShipId, timestamp: now };
-      break;
-    }
-
     case ActionType.FactionAbility: {
       // Every ship's innate ability — Ram (variant 1) or Repair (variant
       // 2) — dispatched uniformly, mirroring Game.sol's
@@ -822,7 +744,6 @@ export async function applyGameAction(
   );
   const destroyedShipIds = [...opponentActivesBefore].filter((id) => {
     if (opponentActivesAfter.has(id)) return false;
-    if (actionType === ActionType.Ram && id === targetShipId) return false;
     if (actionType === ActionType.FactionAbility && variant !== 2 && id === targetShipId) return false;
     return true;
   });

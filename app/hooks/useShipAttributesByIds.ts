@@ -7,6 +7,7 @@ import {
   readValidShipAttributesByIdsCache,
   shipIdsToCacheKeyString,
   writeShipAttributesByIdsCache,
+  SHIP_ATTRIBUTES_CACHE_INVALIDATED_EVENT,
 } from "../utils/shipAttributesLocalCache";
 
 // `chainIdOverride` pins the read to a specific chain instead of following
@@ -21,9 +22,38 @@ export function useShipAttributesByIds(shipIds: bigint[], chainIdOverride?: numb
     [shipIds],
   );
 
+  // Bumped when the local attributes cache is invalidated (e.g. after a ship
+  // is constructed or modified) so the memo below re-reads localStorage and
+  // falls through to a contract refetch within the same session, instead of
+  // holding the now-stale in-memory array until the next mount/reload.
+  const [cacheBust, setCacheBust] = React.useState(0);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onInvalidated = (event: Event) => {
+      const detail = (event as CustomEvent<{ chainId?: number }>).detail;
+      // No chainId in the event means "clear everything"; otherwise only
+      // react to our own chain's invalidation.
+      if (detail?.chainId == null || detail.chainId === chainId) {
+        setCacheBust((n) => n + 1);
+      }
+    };
+    window.addEventListener(
+      SHIP_ATTRIBUTES_CACHE_INVALIDATED_EVENT,
+      onInvalidated,
+    );
+    return () =>
+      window.removeEventListener(
+        SHIP_ATTRIBUTES_CACHE_INVALIDATED_EVENT,
+        onInvalidated,
+      );
+  }, [chainId]);
+
   const getCachedData = React.useCallback((): Attributes[] | null => {
     return readValidShipAttributesByIdsCache(chainId, shipIdsString);
-  }, [chainId, shipIdsString]);
+    // cacheBust intentionally in deps: it forces a fresh localStorage read
+    // after an invalidation even when chainId/shipIdsString are unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainId, shipIdsString, cacheBust]);
 
   // Get cached data
   const cachedData = React.useMemo(() => getCachedData(), [getCachedData]);

@@ -19,6 +19,7 @@ import { useMapWeb2 } from "../hooks/useMapWeb2";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
 import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { RoundStartModal } from "./RoundStartModal";
+import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
 import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import {
@@ -33,6 +34,7 @@ import {
 import { apiMutate } from "../lib/apiMutate";
 import { apiFetch } from "../lib/apiFetch";
 import { getSpecialConfigWeb2 } from "../utils/specialConfigWeb2";
+import { requireShipValue } from "../utils/requireShipValue";
 import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 import { AI_USER_ID } from "../config/aiUser";
 import { useAITurnLoopWeb2 } from "../hooks/useAITurnLoopWeb2";
@@ -115,7 +117,9 @@ export default function GameDisplayWeb2({
   const gameId = Number(initialGame.metadata.gameId);
 
   const { data: gameData, refetch: refetchGame } = useGetGame(gameId);
-  const game = gameData || initialGame;
+  const latestGameDataRef = React.useRef(initialGame);
+  if (gameData) latestGameDataRef.current = gameData;
+  const game = gameData ?? latestGameDataRef.current;
 
   // ── Replay ──────────────────────────────────────────────────────────────
   // Server-authoritative Prisma GameTurn history (vs. GameDisplay.tsx's
@@ -212,7 +216,12 @@ export default function GameDisplayWeb2({
   const gameplayShipMap = useMemo(() => {
     const map = new Map<number, GameplayShip>();
     shipMap.forEach((ship, id) =>
-      map.set(id, { id: ship.id, owner: ship.owner, equipment: ship.equipment }),
+      map.set(id, {
+        id: ship.id,
+        owner: ship.owner,
+        equipment: ship.equipment,
+        traits: { variant: Number(ship.traits.variant) },
+      }),
     );
     return map;
   }, [shipMap]);
@@ -321,50 +330,29 @@ export default function GameDisplayWeb2({
   // round's end doesn't pop this alongside the result screen. Also captures
   // each side's round-only score gain by diffing against a snapshot taken
   // the last time a round started — undefined on the very first showing.
-  const [roundStartInfo, setRoundStartInfo] = React.useState<{
-    round: number;
-    isMyTurnFirst: boolean;
-    myRoundScore?: number;
-    opponentRoundScore?: number;
-    myScore: number;
-    opponentScore: number;
-    maxScore?: number;
-  } | null>(null);
-  const prevRoundForModalRef = React.useRef<number | undefined>(undefined);
   const prevRoundScoreRef = React.useRef<{ myScore: number; opponentScore: number } | undefined>(
     undefined,
   );
-  React.useEffect(() => {
-    if (isGameOver) return;
-    const round = game.turnState.currentRound;
-    if (prevRoundForModalRef.current === round) return;
-    prevRoundForModalRef.current = round;
-
-    const isCreatorNow = game.metadata.creator === userId;
-    const myScoreNow = isCreatorNow ? game.creatorScore : game.joinerScore;
-    const opponentScoreNow = isCreatorNow ? game.joinerScore : game.creatorScore;
-    const prevScores = prevRoundScoreRef.current;
-    prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
-
-    setRoundStartInfo({
-      round,
-      isMyTurnFirst: game.turnState.currentTurn === userId,
-      myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
-      opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
-      myScore: myScoreNow,
-      opponentScore: opponentScoreNow,
-      maxScore: game.maxScore,
-    });
-  }, [
+  const { roundStartInfo, handleCloseRoundStart } = useRoundStartAnnouncement(
+    gameId,
     game.turnState.currentRound,
-    game.turnState.currentTurn,
-    game.creatorScore,
-    game.joinerScore,
-    game.maxScore,
-    game.metadata.creator,
-    userId,
     isGameOver,
-  ]);
+    () => {
+      const isCreatorNow = game.metadata.creator === userId;
+      const myScoreNow = isCreatorNow ? game.creatorScore : game.joinerScore;
+      const opponentScoreNow = isCreatorNow ? game.joinerScore : game.creatorScore;
+      const prevScores = prevRoundScoreRef.current;
+      prevRoundScoreRef.current = { myScore: myScoreNow, opponentScore: opponentScoreNow };
+      return {
+        isMyTurnFirst: game.turnState.currentTurn === userId,
+        myRoundScore: prevScores ? myScoreNow - prevScores.myScore : undefined,
+        opponentRoundScore: prevScores ? opponentScoreNow - prevScores.opponentScore : undefined,
+        myScore: myScoreNow,
+        opponentScore: opponentScoreNow,
+        maxScore: game.maxScore,
+      };
+    },
+  );
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
@@ -373,24 +361,43 @@ export default function GameDisplayWeb2({
   // special's slot number is per-faction (see specialConfigWeb2.ts), so the
   // ship's own variant must come along with its equipped special.
   const selectedShip = selectedShipId != null ? shipMap.get(selectedShipId) : undefined;
-  const selectedShipSpecialType = selectedShip?.equipment.special ?? 0;
-  const selectedShipVariant = selectedShip?.traits.variant ?? 1;
-  const selectedShipSpecialRange = getSpecialConfigWeb2(selectedShipVariant, selectedShipSpecialType)?.range;
+  const selectedShipVariant = selectedShip
+    ? requireShipValue("variant", selectedShip.traits.variant)
+    : undefined;
+  const selectedShipSpecialType = selectedShip
+    ? Number(selectedShip.equipment.special)
+    : 0;
+  const selectedShipSpecialConfig =
+    selectedShipVariant != null
+      ? getSpecialConfigWeb2(selectedShipVariant, selectedShipSpecialType)
+      : undefined;
+  const selectedShipSpecialRange = selectedShipSpecialConfig?.range;
   const selectedShipSpecialData = useMemo(
-    () => ({
-      strength: getSpecialConfigWeb2(selectedShipVariant, selectedShipSpecialType)?.strength ?? 0,
-    }),
-    [selectedShipVariant, selectedShipSpecialType],
+    () =>
+      selectedShipSpecialConfig != null
+        ? { strength: selectedShipSpecialConfig.strength }
+        : null,
+    [selectedShipSpecialConfig],
   );
   const draggedShip = draggedShipId != null ? shipMap.get(draggedShipId) : undefined;
-  const draggedShipSpecialType = draggedShip?.equipment.special ?? 0;
-  const draggedShipVariant = draggedShip?.traits.variant ?? 1;
-  const draggedShipSpecialRange = getSpecialConfigWeb2(draggedShipVariant, draggedShipSpecialType)?.range;
+  const draggedShipVariant = draggedShip
+    ? requireShipValue("variant", draggedShip.traits.variant)
+    : undefined;
+  const draggedShipSpecialType = draggedShip
+    ? Number(draggedShip.equipment.special)
+    : 0;
+  const draggedShipSpecialRange =
+    draggedShipVariant != null
+      ? getSpecialConfigWeb2(draggedShipVariant, draggedShipSpecialType)?.range
+      : undefined;
 
   // Every ship's innate faction ability (Ram/variant 1, Repair/variant 2) —
   // web2's own engine, so (unlike web3, which is chain-gated) this is
   // always supported.
-  const selectedShipFactionAbility = getFactionAbilityConfigWeb2(selectedShipVariant);
+  const selectedShipFactionAbility =
+    selectedShipVariant != null
+      ? getFactionAbilityConfigWeb2(selectedShipVariant)
+      : undefined;
 
   const interaction = useGameplayInteraction({
     gridWidth: GRID_WIDTH,
@@ -415,8 +422,8 @@ export default function GameDisplayWeb2({
     selectedShipSpecialRange,
     selectedShipSpecialData,
     draggedShipSpecialRange,
-    selectedShipFactionAbilityRange: selectedShipFactionAbility.range,
-    selectedShipFactionAbilityIsHeal: selectedShipFactionAbility.isHeal,
+    selectedShipFactionAbilityRange: selectedShipFactionAbility?.range,
+    selectedShipFactionAbilityIsHeal: selectedShipFactionAbility?.isHeal === true,
     isFactionAbilitySupported: true,
   });
 
@@ -445,6 +452,7 @@ export default function GameDisplayWeb2({
     retreatPrepShipId,
     retreatPrepIsCreator,
     specialType,
+    specialRange,
     specialData,
     handleCancelMove,
     handleGridRightClickDeselect,
@@ -480,6 +488,7 @@ export default function GameDisplayWeb2({
     selectedWeaponType,
     specialData,
     specialType,
+    shipVariant: selectedShipVariant,
   });
 
   const recordPlayerMoveRef = React.useRef<(() => void) | null>(null);
@@ -603,6 +612,10 @@ export default function GameDisplayWeb2({
   const lastMoveShipId = lastMove?.shipId ?? null;
   const lastMoveOldPosition = lastMove ? { row: lastMove.oldRow, col: lastMove.oldCol } : null;
   const lastMoveNewPosition = lastMove ? { row: lastMove.newRow, col: lastMove.newCol } : null;
+  const lastMoveResolvedTo =
+    lastMove && lastMove.newRow >= 0 && lastMove.newCol >= 0
+      ? { shipId: lastMove.shipId, row: lastMove.newRow, col: lastMove.newCol }
+      : null;
   const lastMoveActionType = lastMove?.actionType ?? null;
   const lastMoveTargetShipId = lastMove?.targetShipId ?? null;
   const lastMoveIsCurrentPlayer = lastMove ? shipMap.get(lastMove.shipId)?.owner === userId : undefined;
@@ -685,7 +698,7 @@ export default function GameDisplayWeb2({
       myScore={roundStartInfo.myScore}
       opponentScore={roundStartInfo.opponentScore}
       maxScore={roundStartInfo.maxScore}
-      onClose={() => setRoundStartInfo(null)}
+      onClose={handleCloseRoundStart}
     />
   );
 
@@ -785,6 +798,7 @@ export default function GameDisplayWeb2({
       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
       movedShipIdsSet={movedShipIdsSet}
       specialType={specialType}
+      specialRange={specialRange}
       blockedGrid={blockedGrid}
       impassableGrid={impassableGrid}
       scoringGrid={scoringGrid}
@@ -797,12 +811,15 @@ export default function GameDisplayWeb2({
       lastMoveShipId={lastMoveShipId}
       lastMoveOldPosition={lastMoveOldPosition}
       lastMoveNewPosition={lastMoveNewPosition}
+      lastMoveResolvedTo={lastMoveResolvedTo}
       lastMoveActionType={lastMoveActionType}
       lastMoveTargetShipId={lastMoveTargetShipId}
       lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
       isRammingMovePreview={isRammingMovePreview}
       isFactionAbilitySupported
-      factionAbilityRange={selectedShipFactionAbility.range}
+      factionAbilityRange={selectedShipFactionAbility?.range}
+      factionAbilityIsHeal={selectedShipFactionAbility?.isHeal === true}
+      factionAbilityStrength={selectedShipFactionAbility?.strength}
       retreatPrepShipId={retreatPrepShipId}
       retreatPrepIsCreator={retreatPrepIsCreator}
       onGridRightClickDeselect={handleGridRightClickDeselect}
@@ -1245,14 +1262,6 @@ export default function GameDisplayWeb2({
                 />
               )
             )}
-            <button
-              type="button"
-              onClick={() => setShowReplay((v) => !v)}
-              className="px-3 py-1.5 text-xs uppercase font-bold tracking-wider border-2 border-solid"
-              style={{ ...STYLE_LABEL, borderColor: "var(--color-gunmetal)", color: "var(--color-text-secondary)", backgroundColor: "var(--color-slate)", borderRadius: 0 }}
-            >
-              {showReplay ? "Hide Replay" : "View Replay"}
-            </button>
           </div>
 
           {/* Fleet status panel */}
@@ -1337,70 +1346,87 @@ export default function GameDisplayWeb2({
               label={replayStep! < 0 ? "Replay · Start" : `Replay · Move ${replayStep! + 1}/${replayData!.turns.length}`}
             />
           )}
-          {showReplay && (
-            <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
-              <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
-                {!replayData ? (
-                  <div
-                    className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs"
-                    style={{
-                      ...STYLE_LABEL,
-                      borderColor: "var(--color-steel)",
-                      color: "var(--color-text-secondary)",
-                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                      borderRadius: 0,
-                    }}
+          {/* Replay controls (bottom-left). Same single entry as GameDisplay.tsx. */}
+          <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
+            <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+              {!showReplay && (
+                <button
+                  type="button"
+                  onClick={() => setShowReplay(true)}
+                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs transition-colors duration-150"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-text-secondary)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  Replay
+                </button>
+              )}
+              {showReplay && !replayData && (
+                <div
+                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-xs"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-steel)",
+                    color: "var(--color-text-secondary)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  Loading replay…
+                </div>
+              )}
+              {showReplay && replayData && replayData.turns.length === 0 && (
+                <div
+                  className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
+                  style={{
+                    ...STYLE_LABEL,
+                    borderColor: "var(--color-warning-red)",
+                    color: "var(--color-warning-red)",
+                    backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
+                    borderRadius: 0,
+                  }}
+                >
+                  <span>No moves recorded yet.</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowReplay(false)}
+                    className="px-1.5 py-0.5 border border-solid"
+                    style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
                   >
-                    Loading replay…
-                  </div>
-                ) : replayData.turns.length === 0 ? (
-                  <div
-                    className="flex items-center gap-2 border-2 border-solid px-2 py-1 text-[11px]"
-                    style={{
-                      ...STYLE_LABEL,
-                      borderColor: "var(--color-warning-red)",
-                      color: "var(--color-warning-red)",
-                      backgroundColor: "color-mix(in srgb, var(--color-near-black) 88%, transparent)",
-                      borderRadius: 0,
-                    }}
-                  >
-                    <span>No moves recorded yet.</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowReplay(false)}
-                      className="px-1.5 py-0.5 border border-solid"
-                      style={{ ...STYLE_LABEL, borderColor: "var(--color-warning-red)", color: "var(--color-warning-red)", backgroundColor: "transparent", borderRadius: 0 }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <GameReplayControls
-                    stepLabel={
-                      replayStep! < 0
-                        ? "Start"
-                        : `Move ${replayStep! + 1}/${replayData.turns.length} · Rd ${replayData.turns[replayStep!]?.round ?? ""}`
-                    }
-                    onPrev={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
-                    canPrev={(replayStep ?? -1) > -1}
-                    onNext={() => setReplayStep((s) => (s === null ? null : Math.min(replayData.turns.length - 1, s + 1)))}
-                    canNext={(replayStep ?? -1) < replayData.turns.length - 1}
-                    isPlaying={replayAutoPlay}
-                    onTogglePlay={() => setReplayAutoPlay((p) => !p)}
-                    onExit={() => setShowReplay(false)}
-                    extraInfo={
-                      replaySnapshotGame && (
-                        <div className="w-full font-mono text-xs text-text-muted">
-                          Score: {replaySnapshotGame.creatorScore} — {replaySnapshotGame.joinerScore} · Round{" "}
-                          {replaySnapshotGame.turnState.currentRound}
-                        </div>
-                      )
-                    }
-                  />
-                )}
-              </div>
+                    ✕
+                  </button>
+                </div>
+              )}
+              {showReplay && replayData && replayData.turns.length > 0 && (
+                <GameReplayControls
+                  stepLabel={
+                    replayStep! < 0
+                      ? "Start"
+                      : `Move ${replayStep! + 1}/${replayData.turns.length} · Rd ${replayData.turns[replayStep!]?.round ?? ""}`
+                  }
+                  onPrev={() => setReplayStep((s) => (s === null ? null : Math.max(-1, s - 1)))}
+                  canPrev={(replayStep ?? -1) > -1}
+                  onNext={() => setReplayStep((s) => (s === null ? null : Math.min(replayData.turns.length - 1, s + 1)))}
+                  canNext={(replayStep ?? -1) < replayData.turns.length - 1}
+                  isPlaying={replayAutoPlay}
+                  onTogglePlay={() => setReplayAutoPlay((p) => !p)}
+                  onExit={() => setShowReplay(false)}
+                  extraInfo={
+                    replaySnapshotGame && (
+                      <div className="w-full font-mono text-xs text-text-muted">
+                        Score: {replaySnapshotGame.creatorScore} - {replaySnapshotGame.joinerScore} · Round{" "}
+                        {replaySnapshotGame.turnState.currentRound}
+                      </div>
+                    )
+                  }
+                />
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 

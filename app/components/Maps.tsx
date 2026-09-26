@@ -235,7 +235,7 @@ export default function Maps() {
               joinerZonePositions: joinerZoneByMapId.get(map.id),
             }}
             modeLabel={MapMode[modeByMapId.get(map.id) ?? MapMode.Both]}
-            onEdit={() => handleEditMap(map.id)}
+            onEdit={canCreateMaps ? () => handleEditMap(map.id) : undefined}
           />
         ))}
       </MapsListShell>

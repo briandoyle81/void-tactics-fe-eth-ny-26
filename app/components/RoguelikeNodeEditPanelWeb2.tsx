@@ -416,7 +416,7 @@ export function RoguelikeNodeEditPanelWeb2({
 
           {isCombat && selectedMapPreview && (
             <div className="mt-6 border-t border-steel pt-4">
-              <MapPreviewCard map={selectedMapPreview} onEdit={() => setShowMapPicker(true)} />
+              <MapPreviewCard map={selectedMapPreview} onSelect={() => setShowMapPicker(true)} />
             </div>
           )}
         </div>

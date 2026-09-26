@@ -6,7 +6,7 @@ import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { useGridCellSets } from "../hooks/useGridCellSets";
 import { useGridPanZoom } from "../hooks/useGridPanZoom";
 import { useGridEffectPreviews } from "../hooks/useGridEffectPreviews";
-import { computeConfirmWidgetAnchor } from "../utils/gameGridRanges";
+import { computeConfirmWidgetAnchor, selectedShipHasEffectLabel } from "../utils/gameGridRanges";
 import { GameGridCell } from "./GameGridCell";
 import { GameGridOverlays } from "./GameGridOverlays";
 import { GameGridTooltip, GameGridTooltipHoveredCell } from "./GameGridTooltip";
@@ -100,6 +100,7 @@ interface GameGridProps {
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
   movedShipIdsSet: Set<number>;
   specialType: number;
+  specialRange?: number;
   blockedGrid: boolean[][];
   /** Movement-blocking terrain, independent of blockedGrid's LOS-only blocking. Optional — omitted renders no impassable-terrain overlay. */
   impassableGrid?: boolean[][];
@@ -126,6 +127,8 @@ interface GameGridProps {
   // effects for the last move, the beam should originate from this "to"
   // position rather than the old position.
   lastMoveNewPosition?: { row: number; col: number } | null;
+  /** Last mover's to-tile for weapon-effect aiming, even when last-move chrome is hidden. */
+  lastMoveResolvedTo?: { shipId: number; row: number; col: number } | null;
   lastMoveActionType?: ActionType | null; // When Retreat, show warp collapse at old position
   lastMoveTargetShipId?: number | null;
   lastMoveIsCurrentPlayer?: boolean | undefined; // true = blue outline, false = red outline
@@ -136,6 +139,8 @@ interface GameGridProps {
   /** See useFactionAbilityConfig.ts — gates the real Ram/Repair targeting flow vs. the legacy auto-ram chains still run. */
   isFactionAbilitySupported?: boolean;
   factionAbilityRange?: number | undefined;
+  factionAbilityIsHeal?: boolean;
+  factionAbilityStrength?: number;
   /** When set, last-move EMP replay still shows while a ship is selected (e.g. tutorial ship-destruction). */
   showLastMoveEmpReplayWhenSelected?: boolean;
   retreatPrepShipId?: number | null;
@@ -214,6 +219,7 @@ export function GameGrid({
   isShipOwnedByCurrentPlayer,
   movedShipIdsSet,
   specialType,
+  specialRange,
   blockedGrid,
   impassableGrid,
   scoringGrid,
@@ -227,6 +233,7 @@ export function GameGrid({
   lastMoveShipId,
   lastMoveOldPosition,
   lastMoveNewPosition,
+  lastMoveResolvedTo,
   lastMoveActionType,
   lastMoveTargetShipId,
   lastMoveIsCurrentPlayer,
@@ -234,6 +241,8 @@ export function GameGrid({
   isRammingMovePreview = false,
   isFactionAbilitySupported = false,
   factionAbilityRange,
+  factionAbilityIsHeal = false,
+  factionAbilityStrength,
   showLastMoveEmpReplayWhenSelected = false,
   retreatPrepShipId,
   retreatPrepIsCreator,
@@ -345,15 +354,54 @@ export function GameGrid({
     labelTargets,
     selectedWeaponType,
     specialType,
+    shipVariant: selectedShipId != null ? shipMap.get(selectedShipId)?.traits.variant : undefined,
+    specialRange,
     isCurrentPlayerTurn,
     isShipOwnedByCurrentPlayer,
     lastMoveTargetShipId,
+    lastMoveShipId,
+    lastMoveNewPosition,
+    lastMoveResolvedTo,
+    factionAbilityIsHeal,
+    factionAbilityStrength,
     calculateDamage,
     getShipAttributes,
   });
 
   // Compute the best placement for the confirm widget to avoid covering the target ship,
   // weapon beam path, and move arrow. See computeConfirmWidgetAnchor for the algorithm.
+  const isHoldPreviewActive = React.useMemo(() => {
+    if (selectedShipId == null || previewPosition == null || isRammingMovePreview) {
+      return false;
+    }
+    let fromRow = -1;
+    let fromCol = -1;
+    outer: for (let r = 0; r < grid.length; r++) {
+      const row = grid[r] ?? [];
+      for (let c = 0; c < row.length; c++) {
+        const cell = row[c];
+        if (cell?.shipId === selectedShipId && !cell.isPreview) {
+          fromRow = r;
+          fromCol = c;
+          break outer;
+        }
+      }
+    }
+    if (fromRow < 0) {
+      fromRow = previewPosition.row;
+      fromCol = previewPosition.col;
+    }
+    return fromRow === previewPosition.row && fromCol === previewPosition.col;
+  }, [selectedShipId, previewPosition, isRammingMovePreview, grid]);
+
+  const selfHasEffectLabel = selectedShipHasEffectLabel({
+    selectedShipId,
+    targetShipId,
+    selectedWeaponType,
+    specialType,
+    shipVariant: selectedShipId != null ? shipMap.get(selectedShipId)?.traits.variant : undefined,
+    factionAbilityIsHeal,
+  });
   const confirmWidgetAnchor = React.useMemo(
     () => computeConfirmWidgetAnchor({
       showConfirmWidget,
@@ -362,8 +410,9 @@ export function GameGrid({
       targetShipId,
       grid,
       allShipPositions,
+      selfHasEffectLabel,
     }),
-    [showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions],
+    [showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions, selfHasEffectLabel],
   );
 
   const handleGridContextMenu = React.useCallback(
@@ -472,6 +521,8 @@ export function GameGrid({
                   lastMoveTargetShipId={lastMoveTargetShipId}
                   lastMoveIsCurrentPlayer={lastMoveIsCurrentPlayer}
                   isRammingMovePreview={isRammingMovePreview}
+                  isHoldPreviewActive={isHoldPreviewActive}
+                  factionAbilityIsHeal={factionAbilityIsHeal}
                   retreatPrepShipId={retreatPrepShipId}
                   retreatPrepIsCreator={retreatPrepIsCreator}
                   isMyTurn={isMyTurn}
@@ -523,6 +574,7 @@ export function GameGrid({
             isCurrentPlayerTurn={isCurrentPlayerTurn}
             isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
             specialType={specialType}
+            specialRange={specialRange}
             calculateDamage={calculateDamage}
             getShipAttributes={getShipAttributes}
             gridContainerRef={gridContainerRef}
@@ -533,6 +585,8 @@ export function GameGrid({
             lastMoveTargetShipId={lastMoveTargetShipId}
             rammingPreviewPosition={rammingPreviewPosition}
             isRammingMovePreview={isRammingMovePreview}
+            factionAbilityIsHeal={factionAbilityIsHeal}
+            factionAbilityStrength={factionAbilityStrength}
             showLastMoveEmpReplayWhenSelected={showLastMoveEmpReplayWhenSelected}
             retreatPrepShipId={retreatPrepShipId}
             tutorialHighlightCells={tutorialHighlightCells}
@@ -597,6 +651,9 @@ export function GameGrid({
                 targetShipId={targetShipId}
                 isRammingMovePreview={isRammingMovePreview ?? false}
                 retreatPrepShipId={retreatPrepShipId}
+                isFactionAbilitySupported={isFactionAbilitySupported}
+                factionAbilityRange={factionAbilityRange}
+                previewPosition={previewPosition}
                 movementRange={movementRange}
                 grid={grid}
                 isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}

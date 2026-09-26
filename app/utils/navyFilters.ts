@@ -4,12 +4,21 @@ import {
   getArmorName,
   getShieldName,
   getSpecialName,
+  canonicalSpecialSlot,
 } from "../types/types";
 import { calculateShipRank } from "./shipLevel";
 import { toShipVisual } from "./toShipVisual";
 
-/** Matches construct-all UI: batch cap when there are more than this many targets. */
-export const STALE_COST_SYNC_BATCH_CAP = 150;
+/**
+ * Max ships built per construct transaction. Also the batched construct-all
+ * cap (when there are more targets than this, they're constructed in slices of
+ * this size). Constructing costs ~151k gas per ship on-chain, and Base
+ * Sepolia / Flow enforce a 16,777,216 (2^24) block gas cap — so ~110 ships is
+ * the hard ceiling and anything near it reverts "out of gas" during estimate.
+ * 60 (~9.1M gas, ~54% of the cap) keeps a comfortable margin. Keep in sync
+ * with the "[CONSTRUCT N SHIPS]" button labels in ManageNavy.
+ */
+export const STALE_COST_SYNC_BATCH_CAP = 60;
 
 export type NavyFilterCategory =
   | "all"
@@ -235,7 +244,10 @@ export function shipMatchesNavyFilter(
     case "eq_shield":
       return numOk && ship.equipment.shields === n;
     case "eq_special":
-      return numOk && ship.equipment.special === n;
+      return (
+        numOk &&
+        canonicalSpecialSlot(ship.traits.variant, ship.equipment.special) === n
+      );
     case "trait_accuracy":
       return numOk && ship.traits.accuracy === n;
     case "trait_hull":

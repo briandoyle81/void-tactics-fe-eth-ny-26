@@ -803,7 +803,10 @@ const ShipConstructor: React.FC = () => {
                       borderColor: "var(--color-cyan)",
                     }}
                   >
-                    {validSpecialsForVariant(variant).map((v) => (
+                    {(validSpecialsForVariant(variant).includes(special)
+                      ? validSpecialsForVariant(variant)
+                      : [...validSpecialsForVariant(variant), special]
+                    ).map((v) => (
                       <option key={v} value={v}>
                         {getSpecialName(v, variant)}
                       </option>

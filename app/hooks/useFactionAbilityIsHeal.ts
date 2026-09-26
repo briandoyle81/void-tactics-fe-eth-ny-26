@@ -19,5 +19,5 @@
  * including 2 — the exact live bug this replaced).
  */
 export function useFactionAbilityIsHeal(variant: number | undefined) {
-  return { isHeal: variant === 2, isLoading: false };
+  return { isHeal: Number(variant) === 2, isLoading: false };
 }

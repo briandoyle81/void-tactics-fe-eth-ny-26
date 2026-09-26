@@ -280,7 +280,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
       fleetFilters={fleet.fleetFilters}
       onFleetFiltersChange={fleet.setFleetFilters}
       shownCount={fleet.filteredShips.length}
-      totalCount={fleet.ships.length}
+      totalCount={fleet.ships.filter((s) => s.traits.variant === fleet.selectedVariant).length}
       showInGameProperties={showInGameProperties}
       onToggleInGameProperties={setShowInGameProperties}
       isAttributesFromCache={isAttributesFromCache}
@@ -295,6 +295,9 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
           // Not a valid ship id (e.g. a drag originating outside this modal) — ignore.
         }
       }}
+      selectedVariant={fleet.selectedVariant}
+      onSelectVariant={fleet.setSelectedVariant}
+      variantLocked={fleet.variantLocked}
     />
   );
 }

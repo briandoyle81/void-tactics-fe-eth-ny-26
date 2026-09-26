@@ -1,4 +1,5 @@
 import { Attributes } from "../types/types";
+import { isAttackDronesSpecial, isRepairDronesSpecial } from "./specialConfigWeb2";
 
 // `number`-typed parallel of `calculateDamage.ts`. Isomorphic — used both
 // client-side (GameDisplayWeb2.tsx, damage preview) and server-side
@@ -25,6 +26,7 @@ export function calculateDamage({
   selectedWeaponType,
   specialData,
   specialType,
+  shipVariant = 1,
   weaponType,
   showReducedDamage,
 }: {
@@ -34,6 +36,7 @@ export function calculateDamage({
   selectedWeaponType: "weapon" | "special";
   specialData: SpecialLike | null | undefined;
   specialType: number;
+  shipVariant?: number;
   weaponType?: "weapon" | "special";
   showReducedDamage?: boolean;
 }): DamageResult {
@@ -57,8 +60,11 @@ export function calculateDamage({
     return { ...empty, reactorCritical: true };
   }
 
-  // Repair: always show repair amount, ignores DR, can target 0-HP ships
-  if (currentWeaponType === "special" && specialType === 2) {
+  // Repair Drones (variant 1 slot 2): heal amount, ignores DR
+  if (
+    currentWeaponType === "special" &&
+    isRepairDronesSpecial(shipVariant, specialType)
+  ) {
     const baseDamage =
       specialData?.strength ?? shooterAttributes.gunDamage;
     return { baseDamage, reducedDamage: baseDamage, willKill: false, reactorCritical: false };
@@ -75,10 +81,13 @@ export function calculateDamage({
       : shooterAttributes.gunDamage;
 
   const reduction = targetAttributes.damageReduction;
-  const reducedDamage =
-    currentWeaponType === "special" && !showReducedDamage
-      ? baseDamage
-      : Math.max(0, baseDamage - Math.floor((baseDamage * reduction) / 100));
+  const applyDamageReduction =
+    currentWeaponType !== "special" ||
+    showReducedDamage ||
+    isAttackDronesSpecial(shipVariant, specialType);
+  const reducedDamage = applyDamageReduction
+    ? Math.max(0, baseDamage - Math.floor((baseDamage * reduction) / 100))
+    : baseDamage;
 
   const willKill = reducedDamage >= targetAttributes.hullPoints;
 

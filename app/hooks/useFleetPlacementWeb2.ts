@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GRID_DIMENSIONS } from "../types/types";
 import type { Web2Ship } from "../types/web2Ship";
 import {
@@ -45,6 +45,8 @@ export function useFleetPlacementWeb2({
   requiredVariant,
   zoneTiles,
 }: FleetPlacementWeb2Params) {
+  const required =
+    requiredVariant != null && requiredVariant > 0 ? requiredVariant : null;
   const zone = isCreatorSide ? CREATOR_ZONE : JOINER_ZONE;
   const hasCustomZone = !!zoneTiles && zoneTiles.length > 0;
 
@@ -59,6 +61,41 @@ export function useFleetPlacementWeb2({
     { row: number; col: number } | null
   >(null);
   const [hasManuallyMoved, setHasManuallyMoved] = useState(false);
+  // Always filter the ship list to one variant. Campaigns pin this via
+  // `requiredVariant`; PvP defaults to faction 1 and the modal picker
+  // changes it. Switching variants clears the in-progress fleet so we
+  // never submit a MixedVariantFleet.
+  const [selectedVariant, setSelectedVariantState] = useState(required ?? 1);
+  const prevSelectedVariantRef = useRef(selectedVariant);
+
+  useEffect(() => {
+    if (required != null) setSelectedVariantState(required);
+  }, [required]);
+
+  useEffect(() => {
+    if (prevSelectedVariantRef.current === selectedVariant) return;
+    prevSelectedVariantRef.current = selectedVariant;
+    setSelectedShips((prev) => {
+      if (prev.length === 0) return prev;
+      const allMatch = prev.every((id) => {
+        const ship = ships.find((s) => s.id === id);
+        return !!ship && ship.traits.variant === selectedVariant;
+      });
+      if (allMatch) return prev;
+      setShipPositions([]);
+      setSelectedShipId(null);
+      setHasManuallyMoved(false);
+      return [];
+    });
+  }, [selectedVariant, ships]);
+
+  const setSelectedVariant = useCallback(
+    (variant: number) => {
+      if (required != null) return;
+      setSelectedVariantState(variant);
+    },
+    [required],
+  );
 
   const findNextPosition = useCallback(
     (existingPositions: Array<{ row: number; col: number }>) => {
@@ -92,12 +129,8 @@ export function useFleetPlacementWeb2({
     [isCreatorSide, zone, hasCustomZone, zoneTiles],
   );
 
-  const lockedVariant = useMemo(() => {
-    if (requiredVariant != null && requiredVariant > 0) return requiredVariant;
-    if (selectedShips.length === 0) return null;
-    const firstShip = ships.find((s) => s.id === selectedShips[0]);
-    return firstShip?.traits.variant ?? null;
-  }, [requiredVariant, selectedShips, ships]);
+  const lockedVariant = selectedVariant;
+  const variantLocked = required != null;
 
   const addShip = useCallback(
     (shipId: number) => {
@@ -167,7 +200,7 @@ export function useFleetPlacementWeb2({
 
         if (selectedShips.includes(ship.id)) return costsVersionOk;
         if (!costsVersionOk) return false;
-        if (lockedVariant != null && ship.traits.variant !== lockedVariant) {
+        if (ship.traits.variant !== selectedVariant) {
           return false;
         }
 
@@ -188,7 +221,7 @@ export function useFleetPlacementWeb2({
           fleetFilters,
         );
       }),
-    [ships, fleetFilters, costsVersion, selectedShips, lockedVariant],
+    [ships, fleetFilters, costsVersion, selectedShips, selectedVariant],
   );
 
   const hasStaleCostsVersion = useMemo(() => {
@@ -233,6 +266,9 @@ export function useFleetPlacementWeb2({
     clearSelection,
     filteredShips,
     lockedVariant,
+    selectedVariant,
+    setSelectedVariant,
+    variantLocked,
     totalCost,
     isOverLimit,
     isUnder90Percent,

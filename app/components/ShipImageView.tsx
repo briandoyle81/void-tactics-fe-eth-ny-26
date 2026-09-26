@@ -32,6 +32,8 @@ interface ShipImageViewProps {
   rankStarsSize?: "default" | "large";
   /** Game grid draws rank stars below the team dot; hide here to avoid overlap with mirrored art. */
   hideRankStars?: boolean;
+  /** Mirror the hull art only. Rank stars and other HTML overlays stay upright. */
+  flip?: boolean;
 }
 
 export function ShipImageView({
@@ -47,11 +49,14 @@ export function ShipImageView({
   style,
   rankStarsSize = "default",
   hideRankStars = false,
+  flip = false,
 }: ShipImageViewProps) {
   const rankStarBox =
     rankStarsSize === "large"
       ? SHIP_IMAGE_RANK_STAR_BOX_LARGE
       : SHIP_IMAGE_RANK_STAR_BOX;
+
+  const hullClassName = `h-full w-full object-contain ${flip ? "scale-x-[-1]" : ""}`;
 
   const rankStarsOverlay =
     !isNotConstructed && !hideRankStars ? (
@@ -77,7 +82,7 @@ export function ShipImageView({
         <img
           src="/img/ship-destroyed.png"
           alt={`Destroyed ${idLabel}`}
-          className="h-full w-full object-contain opacity-75"
+          className={`${hullClassName} opacity-75`}
         />
         {rankStarsOverlay}
       </div>
@@ -94,7 +99,7 @@ export function ShipImageView({
         <img
           src="/img/dry-dock.png"
           alt={`Unconstructed ${idLabel}`}
-          className="h-full w-full object-contain opacity-75"
+          className={`${hullClassName} opacity-75`}
         />
       </div>
     );
@@ -139,7 +144,7 @@ export function ShipImageView({
       <img
         src={dataUrl}
         alt={idLabel}
-        className="h-full w-full object-contain"
+        className={hullClassName}
         onError={(e) => {
           console.error("Failed to load ship image:", e);
           // The error will be handled by the hook's error state

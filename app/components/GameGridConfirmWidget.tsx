@@ -2,9 +2,11 @@
 
 import React from "react";
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
+import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
 import { STYLE_LABEL } from "../styles/fontStyles";
 import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
+import { canOfferFactionAbility } from "./GameGridWeaponSelector";
 
 interface ConfirmWidgetAnchor {
   left: string;
@@ -28,6 +30,9 @@ interface GameGridConfirmWidgetProps {
   /** Non-null (== selectedShipId) whenever the selection is in retreat mode
    * — see GameGridWeaponSelector.tsx's matching prop. */
   retreatPrepShipId?: number | null;
+  isFactionAbilitySupported?: boolean;
+  factionAbilityRange?: number;
+  previewPosition?: { row: number; col: number } | null;
   movementRange: readonly { row: number; col: number }[];
   grid: (GridShipPosition | null)[][];
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
@@ -49,6 +54,9 @@ export function GameGridConfirmWidget({
   targetShipId,
   isRammingMovePreview,
   retreatPrepShipId = null,
+  isFactionAbilitySupported = false,
+  factionAbilityRange,
+  previewPosition = null,
   movementRange,
   grid,
   isShipOwnedByCurrentPlayer,
@@ -73,15 +81,27 @@ export function GameGridConfirmWidget({
     if (retreatPrepShipId != null) {
       return null;
     }
-    const hasSpecial = ship.equipment.special > 0;
-    const hasRamTarget = movementRange.some(({ row: r, col: c }) => {
+    const hasSpecial = shipHasActivatableSpecial(ship);
+    const hasLegacyRamTarget = movementRange.some(({ row: r, col: c }) => {
       const cell = grid[r]?.[c];
       if (!cell || cell.isPreview) return false;
       if (isShipOwnedByCurrentPlayer(cell.shipId)) return false;
       return (getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0;
     });
+    const hasFactionAbilityTarget = canOfferFactionAbility({
+      isFactionAbilitySupported,
+      factionAbilityIsHeal: currentShipFactionAbilityIsHeal,
+      factionAbilityRange,
+      origins: previewPosition ? [previewPosition] : [...movementRange],
+      grid,
+      isShipOwnedByCurrentPlayer,
+      getShipAttributes,
+    });
+    const showFactionAbility = hasFactionAbilityTarget || (
+      !isFactionAbilitySupported && hasLegacyRamTarget
+    );
     const weapons: { value: "weapon" | "special" | "ram"; label: string }[] = [
-      ...(hasRamTarget
+      ...(showFactionAbility
         ? [{ value: "ram" as const, label: currentShipFactionAbilityIsHeal ? "REPAIR" : "RAM" }]
         : []),
       { value: "weapon", label: getMainWeaponName(ship.equipment.mainWeapon, ship.traits.variant) },

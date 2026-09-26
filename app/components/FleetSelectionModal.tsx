@@ -101,6 +101,11 @@ export interface FleetSelectionModalProps {
    * see FleetShipListPanel's onDropShip for the mechanics. Omit to leave
    * the list a drag source only (removal still works via click-to-toggle). */
   onDropShip?: (shipId: string) => void;
+  /** Faction shown in the ship list. Required so mixed-variant fleets
+   * cannot be assembled. Campaigns that pin a variant pass variantLocked. */
+  selectedVariant: number;
+  onSelectVariant: (variant: number) => void;
+  variantLocked?: boolean;
 }
 
 export function FleetSelectionModal({
@@ -137,7 +142,39 @@ export function FleetSelectionModal({
   shipListItems,
   mapDisplay,
   onDropShip,
+  selectedVariant,
+  onSelectVariant,
+  variantLocked = false,
 }: FleetSelectionModalProps) {
+  const factionPicker = (
+    <div className="mb-3 grid grid-cols-2 gap-2">
+      {(
+        [
+          { variant: 1, label: "Faction 1" },
+          { variant: 2, label: "Faction 2" },
+        ] as const
+      ).map((faction) => {
+        const isSelected = selectedVariant === faction.variant;
+        const disabled = variantLocked && !isSelected;
+        return (
+          <button
+            key={faction.variant}
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelectVariant(faction.variant)}
+            className={`px-2 py-1.5 rounded-none border-2 font-mono text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+              isSelected
+                ? "border-cyan bg-cyan/10 text-cyan"
+                : "border-gunmetal text-text-muted hover:border-steel hover:text-text-secondary"
+            }`}
+          >
+            {faction.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[400]">
       <div className="bg-near-black border border-cyan rounded-none p-6 w-[100vw] h-[100vh] flex flex-col">
@@ -296,14 +333,19 @@ export function FleetSelectionModal({
             Loading ships...
           </div>
         ) : (
-          <div className="flex gap-4 flex-1">
+          <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
             {isCreator ? (
               <>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
+                  <FleetShipListPanel
+                    widthClass="w-1/4"
+                    items={shipListItems}
+                    onDropShip={onDropShip}
+                    header={factionPicker}
+                  />
                 )}
                 <div
-                  className={`${participantHasFleet ? "w-full" : "w-3/4"} h-full flex items-center justify-center`}
+                  className={`${participantHasFleet ? "w-full" : "w-3/4"} flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden`}
                 >
                   {mapDisplay}
                 </div>
@@ -311,12 +353,17 @@ export function FleetSelectionModal({
             ) : (
               <>
                 <div
-                  className={`${participantHasFleet ? "w-full" : "w-3/4"} h-full flex items-center justify-center`}
+                  className={`${participantHasFleet ? "w-full" : "w-3/4"} flex h-full min-h-0 min-w-0 items-center justify-center overflow-hidden`}
                 >
                   {mapDisplay}
                 </div>
                 {!participantHasFleet && (
-                  <FleetShipListPanel widthClass="w-1/4" items={shipListItems} onDropShip={onDropShip} />
+                  <FleetShipListPanel
+                    widthClass="w-1/4"
+                    items={shipListItems}
+                    onDropShip={onDropShip}
+                    header={factionPicker}
+                  />
                 )}
               </>
             )}

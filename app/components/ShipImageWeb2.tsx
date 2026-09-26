@@ -11,6 +11,7 @@ interface ShipImageWeb2Props {
   style?: React.CSSProperties;
   rankStarsSize?: "default" | "large";
   hideRankStars?: boolean;
+  flip?: boolean;
 }
 
 // Web2-mode adapter for the shared `ShipImageView` — resolves the REST-
@@ -24,6 +25,7 @@ export function ShipImageWeb2({
   style,
   rankStarsSize = "default",
   hideRankStars = false,
+  flip = false,
 }: ShipImageWeb2Props) {
   const { dataUrl, isLoading, error } = useShipRendererWeb2(ship);
 
@@ -41,6 +43,7 @@ export function ShipImageWeb2({
       style={style}
       rankStarsSize={rankStarsSize}
       hideRankStars={hideRankStars}
+      flip={flip}
     />
   );
 }

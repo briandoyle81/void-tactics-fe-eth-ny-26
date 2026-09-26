@@ -18,6 +18,7 @@
 // direct on-chain reads return identical numbers across every valid
 // variant within its own faction, so this static table is correct, not an
 // oversight.
+
 export interface SpecialConfigEntry {
   range: number;
   strength: number;
@@ -41,24 +42,65 @@ const VARIANT_2_SPECIALS: Record<number, SpecialConfigEntry> = {
 export const SPECIAL_CONFIG = VARIANT_1_SPECIALS;
 
 export function getSpecialConfigWeb2(variant: number, slot: number): SpecialConfigEntry | undefined {
-  const table = variant === 2 ? VARIANT_2_SPECIALS : VARIANT_1_SPECIALS;
-  return table[slot];
+  const table = Number(variant) === 2 ? VARIANT_2_SPECIALS : VARIANT_1_SPECIALS;
+  return table[Number(slot)];
+}
+
+export function requireSpecialConfigWeb2(variant: number, slot: number): SpecialConfigEntry {
+  const equipped = Number(slot);
+  if (equipped === 0) {
+    throw new Error(`Missing ship value: special (variant ${variant}, slot ${slot})`);
+  }
+  const entry = getSpecialConfigWeb2(variant, slot);
+  if (!entry) {
+    throw new Error(
+      `Missing special config for variant ${variant} slot ${slot}`,
+    );
+  }
+  return entry;
 }
 
 /**
- * Whether a (variant, slot) special can be used as an active ActionType.Special
- * — false for variant 2's Additional Thruster (slot 3), which is passive-only
- * (SpecialData.movement) and has no resolver registered on-chain
- * (Game.specialResolvers[2][Slot3] is deliberately unset there, making an
- * attempt to *use* it revert). Every other configured slot is activatable.
+ * Whether a (variant, slot) special can be used as an active ActionType.Special.
+ * Matches Game.specialResolvers: only configured, non-passive slots. Variant 2
+ * slot 3 (Additional Thruster) is passive-only. Leftover slots 4–7 have no
+ * resolver and are not activatable.
  */
 export function isActivatableSpecialWeb2(variant: number, slot: number): boolean {
-  if (slot === 0) return false; // None
-  if (variant === 2 && slot === 3) return false; // Additional Thruster: passive-only
+  const equipped = Number(slot);
+  if (equipped === 0) return false;
+  if (Number(variant) === 2 && equipped === 3) return false;
   return getSpecialConfigWeb2(variant, slot) !== undefined;
+}
+
+export function shipHasActivatableSpecial(ship: {
+  traits?: { variant?: number };
+  equipment?: { special?: number };
+} | null | undefined): boolean {
+  if (!ship) return false;
+  return isActivatableSpecialWeb2(
+    Number(ship.traits?.variant ?? 0),
+    Number(ship.equipment?.special ?? 0),
+  );
 }
 
 /** True for a special resolved as a self-centered AoE hitting every active ship (both sides + the caster), not a single chosen target — Flak Array (v1 slot 3) and Electric Storm (v2 slot 1). */
 export function isAoeSpecialWeb2(variant: number, slot: number): boolean {
-  return (variant !== 2 && slot === 3) || (variant === 2 && slot === 1);
+  const equipped = Number(slot);
+  return (Number(variant) !== 2 && equipped === 3) || (Number(variant) === 2 && equipped === 1);
+}
+
+/** Variant 2 slot 1: Lightening Field / Electric Storm. Hits every ship in range, including the caster. */
+export function isLightningFieldSpecial(variant: number, slot: number): boolean {
+  return Number(variant) === 2 && Number(slot) === 1;
+}
+
+/** Variant 1 slot 2: Repair Drones. Heals a friendly, including self. */
+export function isRepairDronesSpecial(variant: number, slot: number): boolean {
+  return Number(variant) !== 2 && Number(slot) === 2;
+}
+
+/** Variant 2 slot 2: Attack Drones / Drone Swarm. Single-target hull damage vs an enemy. */
+export function isAttackDronesSpecial(variant: number, slot: number): boolean {
+  return Number(variant) === 2 && Number(slot) === 2;
 }

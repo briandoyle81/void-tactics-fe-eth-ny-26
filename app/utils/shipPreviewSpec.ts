@@ -1,4 +1,5 @@
 import { getPreviewDisplayRanks } from "./shipPurchaseTierDisplay";
+import { validSpecialsForVariant } from "../types/types";
 
 // Shared between ShipPurchaseInterface.tsx (web3) and
 // ShipPurchaseInterfaceWeb2.tsx (web2) — the synthetic preview-ship
@@ -9,6 +10,20 @@ import { getPreviewDisplayRanks } from "./shipPurchaseTierDisplay";
 // deliberately NOT shared — web3 and web2 use different kill-count tables
 // for the same rank, which is a content choice, not incidental duplication.
 export const PREVIEW_SHIP_ID_OFFSET = 900000;
+
+// Deterministic, well-distributed integer hash. Needed because each tier's
+// preview seeds are strided by a fixed amount (see getPreviewShipSpecsForTier),
+// and a raw `seed % 4` aliases to the same value on every tier's primary ship
+// whenever that stride is a multiple of 4 — which froze `mainWeapon` and
+// `special` (both mod-4 lookups) to one value across all tiers. Hashing first
+// breaks that aliasing; `salt` gives each property an independent stream so
+// they randomize separately from one another.
+function hashInt(seed: number, salt: number): number {
+  let h = (Math.trunc(seed) ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  return (h ^ (h >>> 16)) >>> 0;
+}
 
 export interface ShipPreviewSpec {
   seed: number;
@@ -27,14 +42,20 @@ export function buildShipPreviewSpec(
   shipsDestroyed: number,
   variant: number = 1,
 ): ShipPreviewSpec {
+  // Special values are per-variant: pick deterministically from the set valid
+  // for this ship's variant (same source generateRandomShip/generateShip use),
+  // so a variant-2 preview never renders a special its faction can't equip.
+  const validSpecials = validSpecialsForVariant(variant);
   return {
     seed,
     shipsDestroyed,
     equipment: {
-      mainWeapon: seed % 4,
+      // Hashed (not raw `seed % 4`) so weapon/special don't alias to the same
+      // value on every tier's primary ship — see hashInt above.
+      mainWeapon: hashInt(seed, 1) % 4,
       armor: (seed % 3) + 1,
       shields: 0,
-      special: (seed + 1) % 4,
+      special: validSpecials[hashInt(seed, 2) % validSpecials.length]!,
     },
     colors: {
       h1: (seed * 47) % 360,

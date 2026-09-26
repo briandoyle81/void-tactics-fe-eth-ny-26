@@ -91,15 +91,10 @@ describe("calculateAttributesFromContractsWeb2 — per-variant table selection",
     expect(v2.damageReduction).toBe(60);
   });
 
-  it("an unrecognized variant falls back to variant 1's table rather than throwing", () => {
+  it("an unrecognized variant raises instead of defaulting to variant 1", () => {
     expect(() =>
       calculateAttributesFromContractsWeb2(makeShip({ variant: 0 }), DEFAULT_ATTRIBUTE_TABLES_BY_VARIANT),
-    ).not.toThrow();
-    const attrs = calculateAttributesFromContractsWeb2(
-      makeShip({ variant: 0 }),
-      DEFAULT_ATTRIBUTE_TABLES_BY_VARIANT,
-    );
-    expect(attrs.hullPoints).toBe(100);
+    ).toThrow(/Missing ship value: attributeTables/);
   });
 });
 

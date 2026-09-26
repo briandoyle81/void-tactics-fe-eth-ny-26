@@ -290,10 +290,14 @@ export function MapDisplayView({
   }
 
   return (
-    <div className={`bg-near-black relative w-full h-full flex flex-col items-center justify-center ${className}`}>
+    <div className={`bg-near-black relative flex h-full min-h-0 w-full flex-col items-center justify-center ${className}`}>
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size]">
       <div
-        className="w-full"
-        style={{ aspectRatio: `${GRID_DIMENSIONS.WIDTH} / ${GRID_DIMENSIONS.HEIGHT}` }}
+        className="max-h-full max-w-full"
+        style={{
+          aspectRatio: `${GRID_DIMENSIONS.WIDTH} / ${GRID_DIMENSIONS.HEIGHT}`,
+          width: `min(100cqw, calc(100cqh * ${GRID_DIMENSIONS.WIDTH} / ${GRID_DIMENSIONS.HEIGHT}))`,
+        }}
       >
         <div
           ref={mapGridRef}
@@ -381,7 +385,7 @@ export function MapDisplayView({
                       return (
                         <div className="absolute inset-0 z-[1] pointer-events-none">
                           {hasCardData ? (
-                            <div className={`h-full w-full min-h-0 ${flipThis ? "scale-x-[-1]" : ""}`}>
+                            <div className={`h-full w-full min-h-0 ${flipThis ? "[&_img]:scale-x-[-1]" : ""}`}>
                               {getShipArt(shipId)}
                             </div>
                           ) : (
@@ -637,9 +641,10 @@ export function MapDisplayView({
             })()}
         </div>
       </div>
+      </div>
 
       {/* Key/Legend */}
-      <div className="mt-4 w-full">
+      <div className="mt-2 w-full shrink-0">
         <div className="flex flex-wrap gap-4 text-xs text-text-secondary">
           <div className="flex items-center gap-2">
             <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-gunmetal bg-near-black">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { VariantPicker } from "./VariantPicker";
@@ -8,6 +8,7 @@ import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
 import { ShipPurchaseButton } from "./ShipPurchaseButton";
 import { FlowPaymentButton } from "./FlowPaymentButton";
+import { PurchaseConfirmModal } from "./PurchaseConfirmModal";
 import { ShipImage } from "./ShipImage";
 import { ShipPurchaseTierCard } from "./ShipPurchaseTierCard";
 import { ShipPurchaseShell } from "./ShipPurchaseShell";
@@ -33,6 +34,11 @@ interface ShipPurchaseInterfaceProps {
   onPaymentMethodChange?: (method: "FLOW" | "UTC" | "USD") => void;
 }
 
+// How often the demo/preview ships shown on the tier cards reroll — matched
+// to HeroShipShowcase's default rotation cadence on the Info page (10s) so the
+// two "living" ship displays feel consistent.
+const PREVIEW_REFRESH_INTERVAL_MS = 10000;
+
 // Truncates (not rounds) a decimal string to at most 8 fractional digits,
 // dropping any resulting trailing zeros so a whole-number price stays clean.
 function truncateTo8Decimals(value: string): string {
@@ -51,12 +57,24 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   const { refetch } = useOwnedShips();
   const { chainId: walletChainId } = useAccount();
   const activeGameChainId = walletChainId ?? getSelectedChainId();
-  const previewSeed = useMemo(() => Math.floor(Math.random() * 1_000_000), []);
+  const [previewSeed, setPreviewSeed] = useState(() =>
+    Math.floor(Math.random() * 1_000_000),
+  );
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPreviewSeed(Math.floor(Math.random() * 1_000_000));
+    }, PREVIEW_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   // Faction/variant to mint. Variant 2 (Shattered Hive) is gated on the medal
   // NFT — VariantPicker shows it grayed out and blocks selecting it without
   // the NFT. Default to variant 1 (ungated).
   const [selectedVariant, setSelectedVariant] = useState(1);
+
+  // Which tier the FLOW/UTC confirm modal is open for (null = closed). USD has
+  // its own checkout flow (FlowPaymentModal) and skips this.
+  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
 
   const paymentMethod = externalPaymentMethod ?? "FLOW";
   const paymentMethodLabel = paymentMethod === "FLOW" ? "TOKENS" : "UTC";
@@ -148,7 +166,9 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     );
   }
 
-  const tierCards = tiers.map((tier: number, index: number) => {
+  // Per-tier data computed once so the grid card and the confirm modal render
+  // from the same source (the modal shows the exact card that was clicked).
+  const tierData = tiers.map((tier: number, index: number) => {
     const price = prices[index];
     const shipsCount = maxPerTier[index];
     const priceFormatted = price ? truncateTo8Decimals(formatEther(price)) : "0";
@@ -157,82 +177,133 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     const tierCallout = getTierCallout(tier);
     const badge = getTierBadge(tier, tierCount);
     const previewShips = getPreviewShipsForTier(tier);
+    const flowTier = FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!;
+    return {
+      tier,
+      index,
+      price,
+      shipsCount,
+      priceFormatted,
+      colors,
+      guaranteedRanksDisplay,
+      tierCallout,
+      badge,
+      previewShips,
+      flowTier,
+    };
+  });
 
+  type TierDatum = (typeof tierData)[number];
+
+  const renderTierCard = (d: TierDatum) => (
+    <ShipPurchaseTierCard
+      tierCallout={d.tierCallout}
+      badge={d.badge}
+      priceLabel={`${d.priceFormatted} ${paymentMethodLabel}`}
+      shipsCount={d.shipsCount ?? 0}
+      guaranteedRanksDisplay={d.guaranteedRanksDisplay}
+      previewShipImages={d.previewShips.map((ship, idx) => (
+        <ShipImage
+          key={ship.id.toString()}
+          ship={ship}
+          showLoadingState={false}
+          rankStarsSize={idx === 0 ? "large" : "default"}
+        />
+      ))}
+    />
+  );
+
+  const tierCards = tierData.map((d) => {
     if (paymentMethod === "USD") {
-      const flowTier = FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!;
       return (
         <FlowPaymentButton
-          key={index}
-          tier={tier}
+          key={d.index}
+          tier={d.tier}
           gameChainId={activeGameChainId}
-          flowTier={flowTier}
-          shipsCount={shipsCount ?? 0}
-          tierCallout={tierCallout}
-          badge={badge}
-          previewShips={previewShips}
-          colors={colors}
+          flowTier={d.flowTier}
+          shipsCount={d.shipsCount ?? 0}
+          tierCallout={d.tierCallout}
+          badge={d.badge}
+          previewShips={d.previewShips}
+          colors={d.colors}
           variant={selectedVariant}
           onSuccess={() => { refetch(); onClose(); }}
         />
       );
     }
 
+    // FLOW / UTC: clicking a tier now opens a confirmation modal instead of
+    // firing the wallet transaction immediately.
     return (
-      <ShipPurchaseButton
-        key={index}
-        tier={tier}
-        price={price ?? BigInt(0)}
-        paymentMethod={paymentMethod}
-        variant={selectedVariant}
-        className={`relative min-h-[420px] px-4 py-3 border-2 ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
-        refetch={refetch}
+      <button
+        key={d.index}
+        type="button"
+        onClick={() => setConfirmIndex(d.index)}
+        className={`relative min-h-[420px] px-4 py-3 border-2 text-left ${d.colors.border} ${d.colors.text} ${d.colors.hoverBorder} ${d.colors.hoverText} ${d.colors.hoverBg} font-mono tracking-wider transition-all duration-200`}
       >
-        <ShipPurchaseTierCard
-          tierCallout={tierCallout}
-          badge={badge}
-          priceLabel={`${priceFormatted} ${paymentMethodLabel}`}
-          shipsCount={shipsCount ?? 0}
-          guaranteedRanksDisplay={guaranteedRanksDisplay}
-          previewShipImages={previewShips.map((ship, idx) => (
-            <ShipImage
-              key={ship.id.toString()}
-              ship={ship}
-              showLoadingState={false}
-              rankStarsSize={idx === 0 ? "large" : "default"}
-            />
-          ))}
-        />
-      </ShipPurchaseButton>
+        {renderTierCard(d)}
+      </button>
     );
   });
 
   const footerPaymentNote =
     paymentMethod === "UTC"
-      ? "Click to approve UTC. After approval, click to purchase."
+      ? "Click a pack to review, then approve and confirm."
       : paymentMethod === "USD"
         ? "Pay with any token from any chain. Powered by Fireblocks Flow."
-        : "Click to purchase.";
+        : "Click a pack to review, then confirm.";
+
+  const confirmData =
+    confirmIndex !== null && paymentMethod !== "USD" ? tierData[confirmIndex] : null;
 
   return (
-    <ShipPurchaseShell
-      tierCards={tierCards}
-      footerPaymentNote={footerPaymentNote}
-      topContent={
-        <div className="space-y-2">
-          <div
-            className="text-[11px] uppercase tracking-[0.12em] text-text-muted"
-            style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
-          >
-            Choose faction
+    <>
+      <ShipPurchaseShell
+        tierCards={tierCards}
+        footerPaymentNote={footerPaymentNote}
+        topContent={
+          <div className="space-y-2">
+            <div
+              className="text-[11px] uppercase tracking-[0.12em] text-text-muted"
+              style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
+            >
+              Choose faction
+            </div>
+            <VariantPicker
+              selectedVariant={selectedVariant}
+              onSelect={setSelectedVariant}
+              className="max-w-2xl"
+            />
           </div>
-          <VariantPicker
-            selectedVariant={selectedVariant}
-            onSelect={setSelectedVariant}
-            className="max-w-2xl"
-          />
-        </div>
-      }
-    />
+        }
+      />
+
+      {confirmData && (
+        <PurchaseConfirmModal
+          show
+          card={renderTierCard(confirmData)}
+          tokenPriceLabel={`${confirmData.priceFormatted} ${paymentMethodLabel}`}
+          usdApproxLabel={`≈ $${confirmData.flowTier.displayPrice} USD`}
+          onCancel={() => setConfirmIndex(null)}
+          confirmButton={
+            <ShipPurchaseButton
+              tier={confirmData.tier}
+              price={confirmData.price ?? BigInt(0)}
+              paymentMethod={paymentMethod as "FLOW" | "UTC"}
+              variant={selectedVariant}
+              className="border-2 border-phosphor-green px-6 py-2 font-mono font-bold tracking-wider text-phosphor-green transition-all duration-200 hover:bg-phosphor-green/10"
+              refetch={refetch}
+              onSuccess={() => {
+                setConfirmIndex(null);
+                refetch();
+              }}
+            >
+              CONFIRM PURCHASE
+            </ShipPurchaseButton>
+          }
+        />
+      )}
+    </>
   );
 };
 

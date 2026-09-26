@@ -41,20 +41,29 @@ export function RoundStartModal({
 }: RoundStartModalProps) {
   const hasRoundScore = myRoundScore != null && opponentRoundScore != null;
   const hasCurrentScore = myScore != null && opponentScore != null;
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+  // Parent re-renders (game poll, 1s timer tick) used to pass a new onClose
+  // every time and reset this timeout, so the overlay never auto-dismissed.
   React.useEffect(() => {
-    const timer = setTimeout(onClose, autoDismissMs);
+    const timer = setTimeout(() => onCloseRef.current(), autoDismissMs);
     return () => clearTimeout(timer);
-  }, [onClose, autoDismissMs]);
+  }, [autoDismissMs]);
 
   const accentColor = isMyTurnFirst
     ? "var(--color-cyan)"
     : "var(--color-warning-red)";
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 p-4">
+    <div
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
         className="relative w-full max-w-md border-2 bg-near-black p-6 font-mono text-center"
         style={{ borderColor: accentColor, borderRadius: 0 }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="text-sm uppercase tracking-widest text-text-muted">
           Round {round.toString()}

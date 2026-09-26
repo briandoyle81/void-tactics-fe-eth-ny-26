@@ -17,5 +17,7 @@ const RAM_CONFIG: FactionAbilityConfig = { range: 1, isHeal: false };
 const REPAIR_CONFIG: FactionAbilityConfig = { range: 1, strength: 50, isHeal: true };
 
 export function getFactionAbilityConfigWeb2(variant: number): FactionAbilityConfig {
-  return variant === 2 ? REPAIR_CONFIG : RAM_CONFIG;
+  if (Number(variant) === 2) return REPAIR_CONFIG;
+  if (Number(variant) === 1) return RAM_CONFIG;
+  throw new Error(`Missing ship value: factionAbility (variant ${variant})`);
 }

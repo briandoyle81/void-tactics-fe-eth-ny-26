@@ -145,10 +145,21 @@ export function getShieldName(value: number): string {
   );
 }
 
+/**
+ * Equipped special slot as stored on the ship. No aliasing: leftover
+ * variant 2 values 4/5/6/7 stay 4/5/6/7. The contract only resolves
+ * slots 1/2/3, so callers must not invent a working special for those
+ * leftover numbers.
+ */
+export function canonicalSpecialSlot(_variant: number, special: number): number {
+  return Number(special);
+}
+
 export function getSpecialName(value: number, variant: number = 1): string {
-  const names = variant === 2 ? SPECIAL_NAMES_V2 : SPECIAL_NAMES;
+  const slot = canonicalSpecialSlot(variant, value);
+  const names = Number(variant) === 2 ? SPECIAL_NAMES_V2 : SPECIAL_NAMES;
   return (
-    names[value as keyof typeof names] || `Unknown (${value})`
+    names[slot as keyof typeof names] || `Unknown (${value})`
   );
 }
 
@@ -408,14 +419,15 @@ export interface GameDataView {
 }
 
 // NOTE: values 0-4 (Pass..Special) match the on-chain Game.ActionType 1:1.
-// ClaimPoints (5) and Ram (6) are web2/simulated-only — the real contract's
-// on-chain ActionType enum has no equivalents (scoring is automatic per
-// round, and ramming is now dispatched as FactionAbility). Raw on-chain
-// value 5 must be normalized to FactionAbility (7) at the web3 read
-// boundary — see useGetGame in useGameContract.ts — before it reaches any
-// shared component, since literal 5 would otherwise collide with
-// ClaimPoints. Do not renumber/remove ClaimPoints or Ram: web2 persists
-// these raw integers directly (see app/api/games/[id]/action/route.ts).
+// ClaimPoints (5) is web2-only — the real contract has no equivalent
+// (scoring is automatic per round). Ramming is ActionType.FactionAbility,
+// same as Repair. Raw on-chain value 5 must be normalized to
+// FactionAbility (7) at the web3 read boundary — see useGetGame in
+// useGameContract.ts — before it reaches any shared component, since
+// literal 5 would otherwise collide with ClaimPoints. FactionAbility is
+// pinned at 7 so that mapping stays stable. Do not renumber ClaimPoints:
+// web2 persists these raw integers directly (see
+// app/api/games/[id]/action/route.ts).
 export enum ActionType {
   Pass,
   Shoot,
@@ -423,8 +435,7 @@ export enum ActionType {
   Assist,
   Special,
   ClaimPoints,
-  Ram,
-  FactionAbility,
+  FactionAbility = 7,
 }
 
 // SinglePlayerMatch / AIEncounters types
