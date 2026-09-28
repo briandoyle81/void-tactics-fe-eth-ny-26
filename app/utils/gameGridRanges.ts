@@ -3,17 +3,64 @@ import { GridShipPosition } from "../types/gridDisplay";
 import { isLightningFieldSpecial, isRepairDronesSpecial } from "./specialConfigWeb2";
 import { requireShipValue, resolveActionRange } from "./requireShipValue";
 
+function isGridSet(grid: boolean[][] | undefined, row: number, col: number): boolean {
+  return Boolean(grid?.[row]?.[col]);
+}
+
+function isPathTileBlocked(
+  terrainGrid: boolean[][] | undefined,
+  extraGrid: boolean[][] | undefined,
+  row: number,
+  col: number,
+): boolean {
+  return isGridSet(terrainGrid, row, col) || isGridSet(extraGrid, row, col);
+}
+
+/**
+ * Enemy-occupied tiles for Maps.hasMovementPathAvoidingShips /
+ * hasMapsAvoidingShips. Allies are omitted: they still block landing on
+ * their exact tile (handled by occupancy checks), but they do not block
+ * movement-through or line of sight. See
+ * docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §1.
+ */
+export function buildEnemyOccupiedGrid(
+  gridWidth: number,
+  gridHeight: number,
+  shipPositions: readonly {
+    shipId: number | bigint | string;
+    position: { row: number; col: number };
+    isCreator: boolean;
+  }[],
+  actingShipId: number | bigint | string,
+  actingIsCreator: boolean,
+): boolean[][] {
+  const grid: boolean[][] = Array.from({ length: gridHeight }, () =>
+    Array<boolean>(gridWidth).fill(false),
+  );
+  const actingKey = String(actingShipId);
+  for (const pos of shipPositions) {
+    if (String(pos.shipId) === actingKey) continue;
+    if (pos.isCreator === actingIsCreator) continue;
+    const { row, col } = pos.position;
+    if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+      grid[row][col] = true;
+    }
+  }
+  return grid;
+}
+
 export function hasLineOfSight(
   row0: number,
   col0: number,
   row1: number,
   col1: number,
   blockedGrid: boolean[][],
+  extraBlockingGrid?: boolean[][],
 ): boolean {
-  if (blockedGrid[row0] && blockedGrid[row0][col0]) return false;
+  if (isGridSet(blockedGrid, row0, col0)) return false;
 
   if (row0 === row1 && col0 === col1) {
-    return !(blockedGrid[row1] && blockedGrid[row1][col1]);
+    return !isGridSet(blockedGrid, row1, col1);
   }
 
   const dRow = Math.abs(row1 - row0);
@@ -27,17 +74,17 @@ export function hasLineOfSight(
 
   while (true) {
     if (row === row1 && col === col1) {
-      return !(blockedGrid[row1] && blockedGrid[row1][col1]);
+      // Dest terrain still blocks (nebula). An enemy standing on the dest
+      // tile is the target, so extra occupancy does not block dest.
+      return !isGridSet(blockedGrid, row1, col1);
     }
 
     const e2 = err * 2;
 
     if (e2 === 0) {
       if (
-        blockedGrid[row] &&
-        blockedGrid[row][col + sCol] &&
-        blockedGrid[row + sRow] &&
-        blockedGrid[row + sRow][col]
+        isPathTileBlocked(blockedGrid, extraBlockingGrid, row, col + sCol) &&
+        isPathTileBlocked(blockedGrid, extraBlockingGrid, row + sRow, col)
       ) {
         return false;
       }
@@ -47,8 +94,7 @@ export function hasLineOfSight(
       err += dCol;
       if (
         (row !== row1 || col !== col1) &&
-        blockedGrid[row] &&
-        blockedGrid[row][col]
+        isPathTileBlocked(blockedGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }
@@ -60,8 +106,7 @@ export function hasLineOfSight(
       col += sCol;
       if (
         (row !== row1 || col !== col1) &&
-        blockedGrid[row] &&
-        blockedGrid[row][col]
+        isPathTileBlocked(blockedGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }
@@ -72,8 +117,7 @@ export function hasLineOfSight(
       row += sRow;
       if (
         (row !== row1 || col !== col1) &&
-        blockedGrid[row] &&
-        blockedGrid[row][col]
+        isPathTileBlocked(blockedGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }
@@ -88,15 +132,18 @@ export function hasLineOfSight(
 // leave it, even if that tile is later marked impassable. Mirrors
 // Maps.sol's hasMovementPath exactly. See
 // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1.
+// Optional extraBlockingGrid is OR'd in the same way Maps.hasMovementPathAvoidingShips
+// ORs the enemy-occupied bitmap (2026-09-26 combat-blocking doc §1).
 export function hasMovementPath(
   row0: number,
   col0: number,
   row1: number,
   col1: number,
-  impassableGrid: boolean[][],
+  impassableGrid?: boolean[][],
+  extraBlockingGrid?: boolean[][],
 ): boolean {
   if (row0 === row1 && col0 === col1) {
-    return !(impassableGrid[row1] && impassableGrid[row1][col1]);
+    return !isPathTileBlocked(impassableGrid, extraBlockingGrid, row1, col1);
   }
 
   const dRow = Math.abs(row1 - row0);
@@ -110,17 +157,15 @@ export function hasMovementPath(
 
   while (true) {
     if (row === row1 && col === col1) {
-      return !(impassableGrid[row1] && impassableGrid[row1][col1]);
+      return !isPathTileBlocked(impassableGrid, extraBlockingGrid, row1, col1);
     }
 
     const e2 = err * 2;
 
     if (e2 === 0) {
       if (
-        impassableGrid[row] &&
-        impassableGrid[row][col + sCol] &&
-        impassableGrid[row + sRow] &&
-        impassableGrid[row + sRow][col]
+        isPathTileBlocked(impassableGrid, extraBlockingGrid, row, col + sCol) &&
+        isPathTileBlocked(impassableGrid, extraBlockingGrid, row + sRow, col)
       ) {
         return false;
       }
@@ -130,8 +175,7 @@ export function hasMovementPath(
       err += dCol;
       if (
         (row !== row1 || col !== col1) &&
-        impassableGrid[row] &&
-        impassableGrid[row][col]
+        isPathTileBlocked(impassableGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }
@@ -143,8 +187,7 @@ export function hasMovementPath(
       col += sCol;
       if (
         (row !== row1 || col !== col1) &&
-        impassableGrid[row] &&
-        impassableGrid[row][col]
+        isPathTileBlocked(impassableGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }
@@ -155,8 +198,7 @@ export function hasMovementPath(
       row += sRow;
       if (
         (row !== row1 || col !== col1) &&
-        impassableGrid[row] &&
-        impassableGrid[row][col]
+        isPathTileBlocked(impassableGrid, extraBlockingGrid, row, col)
       ) {
         return false;
       }

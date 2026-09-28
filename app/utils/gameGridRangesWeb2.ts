@@ -1,8 +1,30 @@
 import { Attributes } from "../types/types";
 import { Web2ShipPosition } from "../types/web2Game";
-import { hasLineOfSight, hasMovementPath } from "./gameGridRanges";
+import {
+  hasLineOfSight,
+  hasMovementPath,
+  buildEnemyOccupiedGrid,
+} from "./gameGridRanges";
 import { requireShipValue, resolveActionRange } from "./requireShipValue";
 import { isRepairDronesSpecial } from "./specialConfigWeb2";
+
+function enemyOccupiedFor(
+  gridWidth: number,
+  gridHeight: number,
+  shipPositions: readonly Web2ShipPosition[],
+  selectedShipId: number | null,
+): boolean[][] | undefined {
+  if (selectedShipId == null) return undefined;
+  const selected = shipPositions.find((p) => p.shipId === selectedShipId);
+  if (!selected) return undefined;
+  return buildEnemyOccupiedGrid(
+    gridWidth,
+    gridHeight,
+    shipPositions,
+    selectedShipId,
+    selected.isCreator,
+  );
+}
 
 // "ram" mode covers both faction abilities (Ram/variant 1, Repair/variant
 // 2 — see useFactionAbilityConfig.ts): a valid target is a downed enemy for
@@ -85,6 +107,8 @@ interface ShootingRangeParams {
   specialType: number;
   factionAbilityRange?: number | undefined;
   blockedGrid: boolean[][];
+  /** Same movement-blocking terrain used by computeMovementRange. */
+  impassableGrid?: boolean[][];
 }
 
 export function computeMovementRange({
@@ -126,6 +150,12 @@ export function computeMovementRange({
   const validMoves: { row: number; col: number }[] = [];
   const startRow = currentPosition.position.row;
   const startCol = currentPosition.position.col;
+  const enemyOccupiedGrid = enemyOccupiedFor(
+    gridWidth,
+    gridHeight,
+    shipPositions,
+    selectedShipId,
+  );
 
   // Check all positions within movement range
   for (
@@ -140,9 +170,18 @@ export function computeMovementRange({
     ) {
       const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
       if (distance <= movementRange && distance > 0) {
-        // Blocked tiles only block line of sight, not movement — impassable
-        // ones (independent bit, see impassableGrid's doc comment) do.
-        if (impassableGrid && !hasMovementPath(startRow, startCol, row, col, impassableGrid)) {
+        // Impassable tiles and enemy ships both block movement-through
+        // (see 2026-09-26 combat-blocking doc §1). Allies only block landing.
+        if (
+          !hasMovementPath(
+            startRow,
+            startCol,
+            row,
+            col,
+            impassableGrid,
+            enemyOccupiedGrid,
+          )
+        ) {
           continue;
         }
         // Check if position is not occupied by another ship
@@ -180,6 +219,7 @@ export function computeShootingRange({
   specialType,
   factionAbilityRange,
   blockedGrid,
+  impassableGrid,
 }: ShootingRangeParams): { row: number; col: number }[] {
   if (!selectedShipId || !hasShips) return [];
 
@@ -205,6 +245,13 @@ export function computeShootingRange({
   );
 
   if (!currentPosition) return [];
+
+  const enemyOccupiedGrid = enemyOccupiedFor(
+    gridWidth,
+    gridHeight,
+    shipPositions,
+    selectedShipId,
+  );
 
   const validShootingPositions: { row: number; col: number }[] = [];
 
@@ -273,7 +320,14 @@ export function computeShootingRange({
 
             if (
               !shouldCheckLineOfSight ||
-              hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+              hasLineOfSight(
+                startRow,
+                startCol,
+                row,
+                col,
+                blockedGrid,
+                enemyOccupiedGrid,
+              )
             ) {
               validShootingPositions.push({ row, col });
             }
@@ -334,7 +388,17 @@ export function computeShootingRange({
                     pos.position.col === moveCol,
                 );
 
-                if (!isMoveOccupied) {
+                if (
+                  !isMoveOccupied &&
+                  hasMovementPath(
+                    startRow,
+                    startCol,
+                    moveRow,
+                    moveCol,
+                    impassableGrid,
+                    enemyOccupiedGrid,
+                  )
+                ) {
                   // Check if this position is exactly 1 square away from this move position
                   const adjacentDistance =
                     Math.abs(moveRow - row) + Math.abs(moveCol - col);
@@ -409,7 +473,17 @@ export function computeShootingRange({
                     pos.position.col === moveCol,
                 );
 
-                if (!isMoveOccupied) {
+                if (
+                  !isMoveOccupied &&
+                  hasMovementPath(
+                    startRow,
+                    startCol,
+                    moveRow,
+                    moveCol,
+                    impassableGrid,
+                    enemyOccupiedGrid,
+                  )
+                ) {
                   // Check if this move position can shoot to the target
                   const shootDistance =
                     Math.abs(moveRow - row) + Math.abs(moveCol - col);
@@ -438,6 +512,7 @@ export function computeShootingRange({
                         row,
                         col,
                         blockedGrid,
+                        enemyOccupiedGrid,
                       )
                     ) {
                       canShootFromSomewhere = true;
@@ -523,6 +598,13 @@ export function computeLabelTargets({
   );
   if (!currentPosition) return [];
 
+  const enemyOccupiedGrid = enemyOccupiedFor(
+    gridWidth,
+    gridHeight,
+    shipPositions,
+    selectedShipId,
+  );
+
   const origins: { row: number; col: number }[] = [];
   if (previewPosition) {
     origins.push({ row: previewPosition.row, col: previewPosition.col });
@@ -548,7 +630,19 @@ export function computeLabelTargets({
           const occupied = shipPositions.some(
             (pos) => pos.position.row === row && pos.position.col === col,
           );
-          if (!occupied) origins.push({ row, col });
+          if (
+            !occupied &&
+            hasMovementPath(
+              currentPosition.position.row,
+              currentPosition.position.col,
+              row,
+              col,
+              undefined,
+              enemyOccupiedGrid,
+            )
+          ) {
+            origins.push({ row, col });
+          }
         }
       }
     }
@@ -605,7 +699,14 @@ export function computeLabelTargets({
 
         if (
           !shouldCheckLineOfSight ||
-          hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
+          hasLineOfSight(
+            startRow,
+            startCol,
+            targetRow,
+            targetCol,
+            blockedGrid,
+            enemyOccupiedGrid,
+          )
         ) {
           targetMap.set(shipPosition.shipId, {
             shipId: shipPosition.shipId,
@@ -664,6 +765,12 @@ export function computeHoverValidTargets({
   if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
+  const enemyOccupiedGrid = enemyOccupiedFor(
+    blockedGrid[0]?.length ?? 0,
+    blockedGrid.length,
+    shipPositions,
+    selectedShipId,
+  );
   const targets: { shipId: number; position: { row: number; col: number } }[] = [];
   shipPositions.forEach((shipPosition) => {
     const ship = shipMap.get(shipPosition.shipId);
@@ -709,7 +816,14 @@ export function computeHoverValidTargets({
           (spec !== 1 && spec !== 2 && spec !== 3));
       if (
         !shouldCheckLOS ||
-        hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)
+        hasLineOfSight(
+          startRow,
+          startCol,
+          targetRow,
+          targetCol,
+          blockedGrid,
+          enemyOccupiedGrid,
+        )
       ) {
         targets.push({ shipId: shipPosition.shipId, position: { row: targetRow, col: targetCol } });
       }
@@ -759,6 +873,12 @@ export function computeHoverShootingRange({
   if (range === undefined) return [];
   const { row: startRow, col: startCol } = hoverPreviewPosition;
   const spec = specialType;
+  const enemyOccupiedGrid = enemyOccupiedFor(
+    gridWidth,
+    gridHeight,
+    shipPositions,
+    selectedShipId,
+  );
   const positions: { row: number; col: number }[] = [];
   for (let row = Math.max(0, startRow - range); row <= Math.min(gridHeight - 1, startRow + range); row++) {
     for (let col = Math.max(0, startCol - range); col <= Math.min(gridWidth - 1, startCol + range); col++) {
@@ -774,7 +894,14 @@ export function computeHoverShootingRange({
               (spec !== 1 && spec !== 2 && spec !== 3));
           if (
             !shouldCheckLOS ||
-            hasLineOfSight(startRow, startCol, row, col, blockedGrid)
+            hasLineOfSight(
+              startRow,
+              startCol,
+              row,
+              col,
+              blockedGrid,
+              enemyOccupiedGrid,
+            )
           ) {
             positions.push({ row, col });
           }

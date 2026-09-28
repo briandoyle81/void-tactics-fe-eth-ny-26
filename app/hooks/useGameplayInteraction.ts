@@ -9,7 +9,7 @@ import {
   computeHoverValidTargets,
   computeHoverShootingRange,
 } from "../utils/gameGridRangesWeb2";
-import { hasLineOfSight } from "../utils/gameGridRanges";
+import { hasLineOfSight, buildEnemyOccupiedGrid } from "../utils/gameGridRanges";
 import { resolveActionRange } from "../utils/requireShipValue";
 import { isRepairDronesSpecial, shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { useResetSelectionOnTurnChange } from "./useResetSelectionOnTurnChange";
@@ -276,6 +276,30 @@ export function useGameplayInteraction({
   const specialRange = selectedShipSpecialRange;
   const specialData = selectedShipSpecialData;
 
+  const enemyOccupiedForShip = useCallback(
+    (shipId: number | null) => {
+      if (shipId == null) return undefined;
+      const pos = aliveShipPositions.find((p) => p.shipId === shipId);
+      if (!pos) return undefined;
+      return buildEnemyOccupiedGrid(
+        gridWidth,
+        gridHeight,
+        aliveShipPositions,
+        shipId,
+        pos.isCreator,
+      );
+    },
+    [aliveShipPositions, gridWidth, gridHeight],
+  );
+  const selectedEnemyOccupiedGrid = useMemo(
+    () => enemyOccupiedForShip(selectedShipId),
+    [enemyOccupiedForShip, selectedShipId],
+  );
+  const draggedEnemyOccupiedGrid = useMemo(
+    () => enemyOccupiedForShip(draggedShipId),
+    [enemyOccupiedForShip, draggedShipId],
+  );
+
   // Legacy auto-ram-on-plain-move detection — only meaningful on chains
   // without the FactionAbility/resolver system (Flow/Ronin/Xai today,
   // running the older Game.sol where ramming is an automatic side effect of
@@ -399,14 +423,14 @@ export function useGameplayInteraction({
       if ((canShoot && distance > 0) || isSelfRepair) {
         const shouldCheckLineOfSight =
           distance > 1 && (selectedWeaponType !== "special" || (specialType !== 1 && specialType !== 2 && specialType !== 3));
-        if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)) {
+        if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid, selectedEnemyOccupiedGrid)) {
           targets.push({ shipId: shipPosition.shipId, position: { row: targetRow, col: targetCol } });
         }
       }
     });
 
     return targets;
-  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview, isFactionAbilitySupported, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal]);
+  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview, isFactionAbilitySupported, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedEnemyOccupiedGrid]);
 
   const labelTargets = useMemo(
     () =>
@@ -454,8 +478,9 @@ export function useGameplayInteraction({
             specialType,
             factionAbilityRange: selectedShipFactionAbilityRange,
             blockedGrid,
+            impassableGrid,
           }),
-    [gridWidth, gridHeight, selectedShipId, isRammingMovePreview, shipMap, getShipAttributes, aliveShipPositions, previewPosition, selectedWeaponType, specialRange, specialType, blockedGrid, selectedShipFactionAbilityRange],
+    [gridWidth, gridHeight, selectedShipId, isRammingMovePreview, shipMap, getShipAttributes, aliveShipPositions, previewPosition, selectedWeaponType, specialRange, specialType, blockedGrid, selectedShipFactionAbilityRange, impassableGrid],
   );
 
   // Drag preview uses the DRAGGED ship's own remembered weapon preference
@@ -519,14 +544,14 @@ export function useGameplayInteraction({
 
       if (canShoot && distance > 0) {
         const shouldCheckLineOfSight = distance > 1 && (dragWeaponPlan.mode !== "special" || (spec !== 1 && spec !== 2 && spec !== 3));
-        if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid)) {
+        if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, targetRow, targetCol, blockedGrid, draggedEnemyOccupiedGrid)) {
           targets.push({ shipId: shipPosition.shipId, position: { row: targetRow, col: targetCol } });
         }
       }
     });
 
     return targets;
-  }, [draggedShipId, dragOverCell, shipMap, playerAddress, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid]);
+  }, [draggedShipId, dragOverCell, shipMap, playerAddress, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid, draggedEnemyOccupiedGrid]);
 
   const dragShootingRange = useMemo(() => {
     if (!draggedShipId || !dragOverCell || shipMap.size === 0) return [];
@@ -563,7 +588,7 @@ export function useGameplayInteraction({
           const isOccupied = aliveShipPositions.some((pos) => pos.position.row === row && pos.position.col === col);
           if (!isOccupied) {
             const shouldCheckLineOfSight = distance > 1 && (dragWeaponPlan.mode !== "special" || (spec !== 1 && spec !== 2 && spec !== 3));
-            if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, row, col, blockedGrid)) {
+            if (!shouldCheckLineOfSight || hasLineOfSight(startRow, startCol, row, col, blockedGrid, draggedEnemyOccupiedGrid)) {
               validShootingPositions.push({ row, col });
             }
           }
@@ -572,7 +597,7 @@ export function useGameplayInteraction({
     }
 
     return validShootingPositions;
-  }, [draggedShipId, dragOverCell, shipMap, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid, gridWidth, gridHeight]);
+  }, [draggedShipId, dragOverCell, shipMap, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid, gridWidth, gridHeight, draggedEnemyOccupiedGrid]);
 
   const hoverValidTargets = useMemo(
     () =>

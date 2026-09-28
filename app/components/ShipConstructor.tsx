@@ -11,14 +11,32 @@ import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
+import { useMaxSpecialSlot } from "../hooks/useGameContract";
 import { invalidateShipAttributesByIdsCache } from "../utils/shipAttributesLocalCache";
 
-const ShipConstructor: React.FC = () => {
+interface ShipConstructorProps {
+  initialShipId?: bigint | null;
+  onClose?: () => void;
+}
+
+const ShipConstructor: React.FC<ShipConstructorProps> = ({
+  initialShipId = null,
+  onClose,
+}) => {
   const { address } = useAccount();
   const selectedChainId = useSelectedChainId();
   const { ships, isLoading: isLoadingShips } = useOwnedShips();
   const [mode, setMode] = useState<"create" | "customize">("customize");
-  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<bigint | null>(
+    initialShipId,
+  );
+
+  useEffect(() => {
+    if (initialShipId != null) {
+      setSelectedShipId(initialShipId);
+      setMode("customize");
+    }
+  }, [initialShipId]);
   const [showTooltip, setShowTooltip] = useState(false);
   // Store the original ship snapshot when it's first loaded
   const [originalShipSnapshot, setOriginalShipSnapshot] = useState<Ship | null>(
@@ -39,6 +57,13 @@ const ShipConstructor: React.FC = () => {
   const [speed, setSpeed] = useState<number>(0);
   const [variant, setVariant] = useState<number>(0);
   const [shipName, setShipName] = useState<string>("Constructor Preview");
+  const { maxSlot: maxSpecialSlot } = useMaxSpecialSlot(
+    variant > 0 ? variant : undefined,
+  );
+  const validSpecials = useMemo(
+    () => validSpecialsForVariant(variant, maxSpecialSlot),
+    [variant, maxSpecialSlot],
+  );
 
   // Colors state
   const [h1, setH1] = useState<number>(220);
@@ -399,15 +424,15 @@ const ShipConstructor: React.FC = () => {
   ]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className={`w-full ${onClose ? "" : "max-w-7xl mx-auto"}`}>
       <div
         className="border border-cyan/30 bg-near-black p-3 md:p-6"
         style={{
           borderRadius: 0, // Square corners for industrial theme
         }}
       >
-        <div className="mb-4 flex items-center justify-between md:mb-6">
-          <div className="flex w-full items-center gap-4">
+        <div className="mb-4 flex items-center justify-between gap-3 md:mb-6">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <button
                 onClick={() => setMode("customize")}
@@ -437,6 +462,16 @@ const ShipConstructor: React.FC = () => {
               </button>
             </div>
           </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 border-2 border-gunmetal px-3 py-2 text-xs font-mono font-bold tracking-wider text-text-muted transition-colors duration-150 hover:border-cyan hover:text-cyan sm:px-4 sm:text-sm"
+              style={{ borderRadius: 0 }}
+            >
+              CLOSE
+            </button>
+          )}
         </div>
 
         {mode === "customize" && (
@@ -803,9 +838,9 @@ const ShipConstructor: React.FC = () => {
                       borderColor: "var(--color-cyan)",
                     }}
                   >
-                    {(validSpecialsForVariant(variant).includes(special)
-                      ? validSpecialsForVariant(variant)
-                      : [...validSpecialsForVariant(variant), special]
+                    {(validSpecials.includes(special)
+                      ? validSpecials
+                      : [...validSpecials, special]
                     ).map((v) => (
                       <option key={v} value={v}>
                         {getSpecialName(v, variant)}
@@ -1077,12 +1112,29 @@ const ShipConstructor: React.FC = () => {
                         selectedShipId ?? undefined,
                       );
                     }}
+                    onError={(error) => {
+                      const msg = error.message ?? "";
+                      if (msg.includes("InvalidSpecial")) {
+                        toast.error(
+                          "That special is not available for this ship's faction",
+                        );
+                      } else if (msg.includes("ArmorAndShieldsBothSet")) {
+                        toast.error("Cannot equip both armor and shields");
+                      } else if (msg.includes("InvalidTraitValue")) {
+                        toast.error("Invalid trait value");
+                      } else if (msg.includes("InvalidModification")) {
+                        toast.error("That modification is not allowed");
+                      }
+                    }}
                     validateBeforeTransaction={() => {
                       if (!address) {
                         return "Please connect your wallet";
                       }
                       if (!selectedShipId) {
                         return "Please select a ship to customize";
+                      }
+                      if (!validSpecials.includes(special)) {
+                        return "That special is not available for this ship's faction";
                       }
                       if (!modificationCost) {
                         return "Cost not available";

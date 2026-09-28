@@ -3,6 +3,7 @@ import {
   computeMovementRange,
   computeShootingRange,
   hasMovementPath,
+  hasLineOfSight,
   collectDamageLabelTargets,
   selectedShipHasEffectLabel,
   computeConfirmWidgetAnchor,
@@ -297,6 +298,27 @@ describe("hasMovementPath", () => {
     impassable[5][6] = true;
     impassable[6][5] = true;
     expect(hasMovementPath(5, 5, 6, 6, impassable)).toBe(false);
+  });
+
+  it("OR's extra occupancy into the path the same way enemy ships block on-chain", () => {
+    const extra = emptyGrid();
+    extra[5][7] = true;
+    expect(hasMovementPath(5, 5, 5, 9, emptyGrid(), extra)).toBe(false);
+    expect(hasMovementPath(5, 5, 5, 6, emptyGrid(), extra)).toBe(true);
+  });
+});
+
+describe("hasLineOfSight — enemy occupancy", () => {
+  it("blocks shooting through an extra-occupied intermediate tile", () => {
+    const extra = emptyGrid();
+    extra[5][10] = true;
+    expect(hasLineOfSight(5, 8, 5, 12, emptyGrid(), extra)).toBe(false);
+  });
+
+  it("still allows shooting the dest tile even if dest is extra-occupied (the target itself)", () => {
+    const extra = emptyGrid();
+    extra[5][12] = true;
+    expect(hasLineOfSight(5, 8, 5, 12, emptyGrid(), extra)).toBe(true);
   });
 });
 

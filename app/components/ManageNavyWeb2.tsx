@@ -27,6 +27,7 @@ import { useRecycleEligibilityWeb2 } from "../hooks/useRecycleEligibilityWeb2";
 import { ManageNavyActionButton } from "./ManageNavyActionButton";
 import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetCompositionCardSlot";
+import ShipConstructorWeb2 from "./ShipConstructorWeb2";
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { ClaimFreeButtonWeb2 } from "./ClaimFreeButtonWeb2";
 import { useClaimFreeEligibilityWeb2 } from "../hooks/useClaimFreeEligibilityWeb2";
@@ -84,6 +85,16 @@ const ManageNavyWeb2: React.FC = () => {
   // Matches web3 ManageNavy.tsx's `fleetStats.unconstructedShips === 0` gate.
   const hasUnconstructedShips = ships.some((s) => !s.shipData.constructed);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [customizeShipId, setCustomizeShipId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (customizeShipId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCustomizeShipId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [customizeShipId]);
   const [busy, setBusy] = useState(false);
   const [showDebugButtons, setShowDebugButtons] = useState(false);
   const [showRecycleModal, setShowRecycleModal] = useState(false);
@@ -781,6 +792,7 @@ const ManageNavyWeb2: React.FC = () => {
             isSelected={selected.has(ship.id)}
             onToggleSelection={() => toggleSelect(ship.id)}
             onRecycleClick={() => handleRecycleClick(ship)}
+            onCustomizeClick={() => setCustomizeShipId(ship.id)}
             showInGameProperties={showInGameProperties}
             inGameAttributes={attributesByShipId.get(ship.id)}
             attributesLoading={attributesLoading}
@@ -820,6 +832,22 @@ const ManageNavyWeb2: React.FC = () => {
             onNotNow={dismissDroneFactoryTutorialNotNow}
           />
         )}
+      {customizeShipId != null && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center bg-black/80 p-3"
+          onClick={() => setCustomizeShipId(null)}
+        >
+          <div
+            className="max-h-[92vh] w-[95%] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ShipConstructorWeb2
+              initialShipId={customizeShipId}
+              onClose={() => setCustomizeShipId(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

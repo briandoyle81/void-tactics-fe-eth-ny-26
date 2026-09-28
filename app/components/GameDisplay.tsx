@@ -1091,7 +1091,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         toast.error("Ship not found in this game");
       } else if (errorMessage.includes("InvalidMove")) {
         toast.error(
-          "Invalid move — target may have fled or been destroyed, the path may cross impassable terrain, or check ship position and movement range",
+          "Invalid move. The path may be blocked by terrain or an enemy ship, or check ship position and movement range",
         );
       } else if (errorMessage.includes("PositionOccupied")) {
         toast.error("Target position is already occupied");

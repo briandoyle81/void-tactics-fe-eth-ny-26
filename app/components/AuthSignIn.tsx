@@ -5,7 +5,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import posthog from "posthog-js";
 
 /** Web2 (NextAuth/Google) sign-in / sign-out button, styled to match the game header. */
-const AuthSignIn: React.FC = () => {
+const AuthSignIn: React.FC<{ hideSignOut?: boolean }> = ({ hideSignOut }) => {
   const { data: session, status } = useSession();
 
   const handleSignIn = () => {
@@ -37,14 +37,16 @@ const AuthSignIn: React.FC = () => {
         <span className="font-mono text-sm text-text-muted hidden md:inline">
           {session.user.name ?? session.user.email}
         </span>
-        <button
-          onClick={handleSignOut}
-          type="button"
-          className="border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold py-2 px-6 tracking-wider transition-colors duration-150"
-          style={{ borderRadius: 0 }}
-        >
-          Sign Out
-        </button>
+        {!hideSignOut && (
+          <button
+            onClick={handleSignOut}
+            type="button"
+            className="border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold py-2 px-6 tracking-wider transition-colors duration-150"
+            style={{ borderRadius: 0 }}
+          >
+            Sign Out
+          </button>
+        )}
       </div>
     );
   }

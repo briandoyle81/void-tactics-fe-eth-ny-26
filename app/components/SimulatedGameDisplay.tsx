@@ -74,6 +74,9 @@ import {
   computeLabelTargets,
   computeHoverValidTargets,
   computeHoverShootingRange,
+  hasLineOfSight as hasLineOfSightPath,
+  hasMovementPath,
+  buildEnemyOccupiedGrid,
 } from "../utils/gameGridRanges";
 import { requireShipValue, resolveActionRange } from "../utils/requireShipValue";
 import { isRepairDronesSpecial, shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
@@ -295,10 +298,10 @@ export function SimulatedGameDisplay({
     error: tutorialClaimWriteError,
   } = useWriteContract();
 
-  // Gates completeTutorialWinPath/completeTutorialLossPath on Selfie Check verification (see
-  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3) — fully open
-  // until TutorialClaim.eligibilityProvider is actually set. Checked before submitting, not just
-  // left to revert.
+  // Gates completeTutorialWinPath/completeTutorialLossPath on Selfie Check
+  // verification when TutorialClaim.eligibilityProvider is set. Already live:
+  // that pointer is address(0), so tutorial claims stay fully open
+  // (2026-09-26 combat-blocking doc §3). Checked before submitting.
   const tutorialSelfieCheckEligibility = useSelfieCheckEligibility("tutorialClaim", address);
   const isTutorialSelfieCheckBlocking =
     tutorialSelfieCheckEligibility.isEligible === false;
@@ -1051,48 +1054,30 @@ export function SimulatedGameDisplay({
       col1: number,
       blockedGrid: boolean[][],
     ): boolean => {
-      if (blockedGrid[row0] && blockedGrid[row0][col0]) {
-        return false;
-      }
-      if (blockedGrid[row1] && blockedGrid[row1][col1]) {
-        return false;
-      }
-
-      const dx = Math.abs(col1 - col0);
-      const dy = Math.abs(row1 - row0);
-      const sx = col0 < col1 ? 1 : -1;
-      const sy = row0 < row1 ? 1 : -1;
-      let err = dx - dy;
-
-      let x = col0;
-      let y = row0;
-
-      while (true) {
-        if (x === col1 && y === row1) break;
-
-        const e2 = 2 * err;
-        if (e2 > -dy) {
-          err -= dy;
-          x += sx;
-        }
-        if (e2 < dx) {
-          err += dx;
-          y += sy;
-        }
-
-        if (
-          (x !== col0 || y !== row0) &&
-          (x !== col1 || y !== row1) &&
-          blockedGrid[y] &&
-          blockedGrid[y][x]
-        ) {
-          return false;
-        }
-      }
-
-      return true;
+      const actingId = selectedShipId?.toString();
+      const actingPos = actingId
+        ? gameState.shipPositions.find((p) => p.shipId === actingId)
+        : undefined;
+      const extra =
+        actingId && actingPos
+          ? buildEnemyOccupiedGrid(
+              GRID_WIDTH,
+              GRID_HEIGHT,
+              gameState.shipPositions.filter((p) => (p.status ?? 0) === 0),
+              actingId,
+              actingPos.isCreator,
+            )
+          : undefined;
+      return hasLineOfSightPath(
+        row0,
+        col0,
+        row1,
+        col1,
+        blockedGrid,
+        extra,
+      );
     },
-    [],
+    [selectedShipId, gameState.shipPositions],
   );
 
   // Create a 2D array to represent the grid
@@ -1245,6 +1230,13 @@ export function SimulatedGameDisplay({
     const baseMoves: { row: number; col: number }[] = [];
     const startRow = currentPosition.position.row;
     const startCol = currentPosition.position.col;
+    const enemyOccupiedGrid = buildEnemyOccupiedGrid(
+      GRID_WIDTH,
+      GRID_HEIGHT,
+      gameState.shipPositions.filter((p) => (p.status ?? 0) === 0),
+      selectedShipId.toString(),
+      currentPosition.isCreator,
+    );
 
     // Check all positions within movement range
     for (
@@ -1269,6 +1261,18 @@ export function SimulatedGameDisplay({
             occupyingShip != null &&
             occupyingShip.shipId !== selectedShipId.toString() &&
             isEnemyDisabledTutorialShipId(occupyingShip.shipId);
+          if (
+            !hasMovementPath(
+              startRow,
+              startCol,
+              row,
+              col,
+              undefined,
+              enemyOccupiedGrid,
+            )
+          ) {
+            continue;
+          }
 
           if (!occupyingShip || canRamDisabledEnemy) {
             baseMoves.push({ row, col });

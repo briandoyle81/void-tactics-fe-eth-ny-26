@@ -30,6 +30,8 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import { setAppMode, type AppMode } from "../config/appMode";
 import { useAppMode } from "../hooks/useAppMode";
+import { signOut } from "next-auth/react";
+import posthog from "posthog-js";
 import AuthSignIn from "./AuthSignIn";
 import { PasskeyEnablePrompt } from "./PasskeyEnablePrompt";
 
@@ -89,6 +91,48 @@ function HeaderAlphaBadge({ compact }: { compact?: boolean }) {
     >
       [TESTNET ALPHA]
     </div>
+  );
+}
+
+function dispatchNavigateToProfile() {
+  window.dispatchEvent(
+    new CustomEvent("void-tactics-navigate-to-profile", { bubbles: true }),
+  );
+  document.dispatchEvent(
+    new CustomEvent("void-tactics-navigate-to-profile", { bubbles: true }),
+  );
+}
+
+function HeaderMenuItem({
+  children,
+  onClick,
+  title,
+  danger,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title?: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
+      style={{
+        fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+        color: danger ? "var(--color-warning-red)" : "var(--color-cyan)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "var(--color-slate)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -1026,7 +1070,59 @@ const Header: React.FC = () => {
                         {creditBalance} UTC
                       </span>
                     </button>
-                    <AuthSignIn />
+                    <AuthSignIn hideSignOut />
+                    <div ref={accountMenuRef} className="relative w-full sm:w-28">
+                      <button
+                        type="button"
+                        onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                        className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full flex items-center justify-center gap-1.5 text-xs h-8"
+                        style={{
+                          fontFamily:
+                            "var(--font-rajdhani), 'Arial Black', sans-serif",
+                          borderColor: "var(--color-cyan)",
+                          color: "var(--color-cyan)",
+                          backgroundColor: "var(--color-steel)",
+                          borderRadius: 0,
+                        }}
+                      >
+                        [MENU]
+                        <span className="text-[10px] leading-none">
+                          {isAccountMenuOpen ? "▲" : "▼"}
+                        </span>
+                      </button>
+
+                      {isAccountMenuOpen && (
+                        <div
+                          className="absolute right-0 top-[calc(100%+4px)] z-[130] w-48 border border-solid"
+                          style={{
+                            backgroundColor: "var(--color-near-black)",
+                            borderColor: "var(--color-cyan)",
+                            borderTopColor: "var(--color-steel)",
+                            borderLeftColor: "var(--color-steel)",
+                          }}
+                        >
+                          <HeaderMenuItem
+                            onClick={() => {
+                              setIsAccountMenuOpen(false);
+                              setIsMobileMenuOpen(false);
+                              dispatchNavigateToProfile();
+                            }}
+                          >
+                            Profile
+                          </HeaderMenuItem>
+                          <HeaderMenuItem
+                            danger
+                            onClick={() => {
+                              setIsAccountMenuOpen(false);
+                              posthog.capture("web2_sign_out_clicked");
+                              void signOut();
+                            }}
+                          >
+                            Sign Out
+                          </HeaderMenuItem>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1307,7 +1403,7 @@ const Header: React.FC = () => {
 
                     {/* Action buttons */}
                     <div className="flex gap-2 flex-col items-stretch">
-                      {/* Account menu — My Account / Log Out */}
+                      {/* Account menu — Profile / My Account / Log Out */}
                       <div ref={accountMenuRef} className="relative w-full md:w-48">
                         <button
                           type="button"
@@ -1338,30 +1434,24 @@ const Header: React.FC = () => {
                               borderLeftColor: "var(--color-steel)",
                             }}
                           >
-                            <button
-                              type="button"
+                            <HeaderMenuItem
+                              onClick={() => {
+                                setIsAccountMenuOpen(false);
+                                setIsMobileMenuOpen(false);
+                                dispatchNavigateToProfile();
+                              }}
+                            >
+                              Profile
+                            </HeaderMenuItem>
+                            <HeaderMenuItem
+                              title="Manage connected wallets, security, and passkeys"
                               onClick={() => {
                                 setIsAccountMenuOpen(false);
                                 setShowDynamicUserProfile(true);
                               }}
-                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
-                              style={{
-                                fontFamily:
-                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                color: "var(--color-cyan)",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "var(--color-slate)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "transparent";
-                              }}
-                              title="Manage connected wallets, security, and passkeys"
                             >
                               My Account
-                            </button>
+                            </HeaderMenuItem>
                             <HeaderLogoutButton
                               onBeforeLogOut={() => {
                                 setIsAccountMenuOpen(false);

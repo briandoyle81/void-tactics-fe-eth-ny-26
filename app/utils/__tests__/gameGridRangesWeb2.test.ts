@@ -80,3 +80,43 @@ describe("computeMovementRange — impassable terrain", () => {
     expect(result).toContainEqual({ row: 6, col: 5 });
   });
 });
+
+describe("computeMovementRange — enemy ships block movement-through", () => {
+  it("excludes a tile whose straight-line path crosses an enemy ship", () => {
+    const attrs = makeAttrs();
+    const result = computeMovementRange({
+      gridWidth: GRID_W,
+      gridHeight: GRID_H,
+      selectedShipId: SHIP_ID,
+      hasShips: true,
+      shipMap: new Map([[SHIP_ID, {}], [2, {}]]),
+      getShipAttributes: () => attrs,
+      shipPositions: [
+        makePosition(SHIP_ID, 5, 5),
+        { shipId: 2, position: { row: 5, col: 7 }, isCreator: false, status: 0 },
+      ],
+      previewPosition: null,
+    });
+    expect(result).not.toContainEqual({ row: 5, col: 9 });
+    expect(result).toContainEqual({ row: 5, col: 6 });
+  });
+
+  it("does not treat an allied ship as a movement-through obstacle", () => {
+    const attrs = makeAttrs();
+    const result = computeMovementRange({
+      gridWidth: GRID_W,
+      gridHeight: GRID_H,
+      selectedShipId: SHIP_ID,
+      hasShips: true,
+      shipMap: new Map([[SHIP_ID, {}], [2, {}]]),
+      getShipAttributes: () => attrs,
+      shipPositions: [
+        makePosition(SHIP_ID, 5, 5),
+        { shipId: 2, position: { row: 5, col: 7 }, isCreator: true, status: 0 },
+      ],
+      previewPosition: null,
+    });
+    expect(result).toContainEqual({ row: 5, col: 9 });
+    expect(result).not.toContainEqual({ row: 5, col: 7 });
+  });
+});

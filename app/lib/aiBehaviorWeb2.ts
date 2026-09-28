@@ -1,6 +1,6 @@
 import { ActionType, Archetype, Attributes, ScoringPosition } from "../types/types";
 import type { Web2GameDataView, Web2ShipPosition } from "../types/web2Game";
-import { hasLineOfSight } from "../utils/gameGridRanges";
+import { hasLineOfSight, hasMovementPath, buildEnemyOccupiedGrid } from "../utils/gameGridRanges";
 import { getSpecialConfigWeb2 } from "../utils/specialConfigWeb2";
 import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 
@@ -36,6 +36,7 @@ interface Position {
 interface Ctx {
   g: Web2GameDataView;
   blockedGrid: boolean[][];
+  enemyOccupiedGrid: boolean[][];
   shipId: number;
   isCreatorSide: boolean; // true if the AI is playing the creator side
   pos: Position;
@@ -144,7 +145,7 @@ function bestEnemyWithin(
     if (sp.shipId === ctx.shipId || sp.status !== 0 || sp.isCreator !== !ctx.isCreatorSide) continue;
     const dist = manhattan(fromPos, sp.position);
     if (dist > range) continue;
-    if (needsLineOfSight && dist > 1 && !hasLineOfSight(fromPos.row, fromPos.col, sp.position.row, sp.position.col, ctx.blockedGrid)) {
+    if (needsLineOfSight && dist > 1 && !hasLineOfSight(fromPos.row, fromPos.col, sp.position.row, sp.position.col, ctx.blockedGrid, ctx.enemyOccupiedGrid)) {
       continue;
     }
     const attrs = findAttributes(ctx.g, sp.shipId);
@@ -322,7 +323,7 @@ function enemyThreatensTile(ctx: Ctx, tilePos: Position): boolean {
     if (!attrs) return false;
     const dist = manhattan(sp.position, tilePos);
     if (dist > attrs.range) return false;
-    if (dist > 1 && !hasLineOfSight(sp.position.row, sp.position.col, tilePos.row, tilePos.col, ctx.blockedGrid)) return false;
+    if (dist > 1 && !hasLineOfSight(sp.position.row, sp.position.col, tilePos.row, tilePos.col, ctx.blockedGrid, ctx.enemyOccupiedGrid)) return false;
     return true;
   });
 }
@@ -358,7 +359,56 @@ function toDecision(
   // gameEngineWeb2.ts's ActionType.Special case reads `specialType` to know
   // which of the ship's slots to resolve — every "use a special" decision
   // below must pass the real equipped slot, not the default 0.
-  return { shipId: ctx.shipId, row: dest.row, col: dest.col, actionType, targetShipId, specialType };
+  const legalDest = legalMoveDestination(ctx, dest);
+  return { shipId: ctx.shipId, row: legalDest.row, col: legalDest.col, actionType, targetShipId, specialType };
+}
+
+function legalMoveDestination(ctx: Ctx, dest: Position): Position {
+  if (dest.row === ctx.pos.row && dest.col === ctx.pos.col) return dest;
+  if (
+    !isOccupiedByOther(ctx, dest) &&
+    hasMovementPath(
+      ctx.pos.row,
+      ctx.pos.col,
+      dest.row,
+      dest.col,
+      undefined,
+      ctx.enemyOccupiedGrid,
+    )
+  ) {
+    return dest;
+  }
+  const dr = Math.sign(dest.row - ctx.pos.row);
+  const dc = Math.sign(dest.col - ctx.pos.col);
+  const candidates: Position[] = [];
+  if (dr !== 0) candidates.push({ row: ctx.pos.row + dr, col: ctx.pos.col });
+  if (dc !== 0) candidates.push({ row: ctx.pos.row, col: ctx.pos.col + dc });
+  for (const p of [
+    { row: ctx.pos.row - 1, col: ctx.pos.col },
+    { row: ctx.pos.row + 1, col: ctx.pos.col },
+    { row: ctx.pos.row, col: ctx.pos.col - 1 },
+    { row: ctx.pos.row, col: ctx.pos.col + 1 },
+  ]) {
+    if (!candidates.some((c) => c.row === p.row && c.col === p.col)) candidates.push(p);
+  }
+  for (const p of candidates) {
+    if (p.row < 0 || p.col < 0 || p.row >= ctx.gridHeight || p.col >= ctx.gridWidth) continue;
+    if (Math.abs(p.row - ctx.pos.row) + Math.abs(p.col - ctx.pos.col) > ctx.attrs.movement) continue;
+    if (isOccupiedByOther(ctx, p)) continue;
+    if (
+      hasMovementPath(
+        ctx.pos.row,
+        ctx.pos.col,
+        p.row,
+        p.col,
+        undefined,
+        ctx.enemyOccupiedGrid,
+      )
+    ) {
+      return p;
+    }
+  }
+  return ctx.pos;
 }
 
 // Shared fallback movement used once a ship's primary directive (shoot,
@@ -968,6 +1018,13 @@ export function decideAIMove(params: DecideAIMoveParams): AIDecision | null {
   const ctx: Ctx = {
     g,
     blockedGrid,
+    enemyOccupiedGrid: buildEnemyOccupiedGrid(
+      g.gridDimensions.gridWidth,
+      g.gridDimensions.gridHeight,
+      g.shipPositions.filter((p) => p.status === 0),
+      shipId,
+      isCreatorSide,
+    ),
     shipId,
     isCreatorSide,
     pos: shipPos.position,

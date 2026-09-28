@@ -84,6 +84,7 @@ import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
 import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetCompositionCardSlot";
+import ShipConstructor from "./ShipConstructor";
 
 
 const ManageNavy: React.FC = () => {
@@ -208,11 +209,10 @@ const ManageNavy: React.FC = () => {
     isConfirmed: isClaimFreeShipsConfirmed,
   } = useFreeShipClaiming();
 
-  // Gates the claim on Selfie Check verification (see
-  // docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3) — fully open
-  // (isEligible === true) until the redeploy that wires eligibilityProvider on FreeShipClaim
-  // actually sets it, same "not configured yet" convention as droneStorefront elsewhere in that
-  // contract. Only block on a definitive `false`, not while still loading.
+  // Gates the claim on Selfie Check verification when FreeShipClaim.eligibilityProvider
+  // is set. Already live: that pointer is address(0), so claims stay fully open
+  // (see docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §3).
+  // Only block on a definitive `false`, not while still loading.
   const selfieCheckEligibility = useSelfieCheckEligibility("freeShipClaim", address);
   const isSelfieCheckBlocking = selfieCheckEligibility.isEligible === false;
   const isEligibleForClaim = isEligible && !isSelfieCheckBlocking;
@@ -417,6 +417,18 @@ const ManageNavy: React.FC = () => {
   const [selectedShips, setSelectedShips] = React.useState<Set<string>>(
     new Set(),
   );
+  const [customizeShipId, setCustomizeShipId] = React.useState<bigint | null>(
+    null,
+  );
+
+  React.useEffect(() => {
+    if (customizeShipId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCustomizeShipId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [customizeShipId]);
   const SHIPS_PER_PAGE = 100;
   const filterState = useNavyFilterState(SHIPS_PER_PAGE);
   const [showDebugButtons, setShowDebugButtons] = React.useState(false);
@@ -1437,6 +1449,7 @@ const ManageNavy: React.FC = () => {
                     toggleShipSelection(ship.id.toString())
                   }
                   onRecycleClick={() => handleRecycleClick(ship)}
+                  onCustomizeClick={() => setCustomizeShipId(ship.id)}
                   showInGameProperties={showInGameProperties}
                   inGameAttributes={attributesMap.get(ship.id)}
                   attributesLoading={attributesLoading}
@@ -1574,6 +1587,22 @@ const ManageNavy: React.FC = () => {
             onNotNow={dismissDroneFactoryTutorialNotNow}
           />
         )}
+      {customizeShipId != null && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center bg-black/80 p-3"
+          onClick={() => setCustomizeShipId(null)}
+        >
+          <div
+            className="max-h-[92vh] w-[95%] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ShipConstructor
+              initialShipId={customizeShipId}
+              onClose={() => setCustomizeShipId(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

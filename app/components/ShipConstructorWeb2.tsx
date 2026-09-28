@@ -27,9 +27,25 @@ interface CostPreview {
   totalModsAfter: number;
 }
 
-const ShipConstructorWeb2: React.FC = () => {
+interface ShipConstructorWeb2Props {
+  initialShipId?: number | null;
+  onClose?: () => void;
+}
+
+const ShipConstructorWeb2: React.FC<ShipConstructorWeb2Props> = ({
+  initialShipId = null,
+  onClose,
+}) => {
   const { ships, isLoading: isLoadingShips, refetch } = useOwnedShipsWeb2();
-  const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<number | null>(
+    initialShipId,
+  );
+
+  useEffect(() => {
+    if (initialShipId != null) {
+      setSelectedShipId(initialShipId);
+    }
+  }, [initialShipId]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [originalShip, setOriginalShip] = useState<Web2Ship | null>(null);
 
@@ -173,10 +189,20 @@ const ShipConstructorWeb2: React.FC = () => {
   const shipInFleet = originalShip?.shipData.inFleet ?? false;
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className={`w-full ${onClose ? "" : "max-w-7xl mx-auto"}`}>
       <div className="border border-cyan/30 bg-near-black p-3 md:p-6" style={{ borderRadius: 0 }}>
-        <div className="mb-4 flex items-center justify-between md:mb-6">
+        <div className="mb-4 flex items-center justify-between gap-3 md:mb-6">
           <h2 className="text-lg font-mono font-bold tracking-wider text-amber">CUSTOMIZE</h2>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 border-2 border-gunmetal px-3 py-2 text-xs font-mono font-bold tracking-wider text-text-muted transition-colors duration-150 hover:border-cyan hover:text-cyan sm:px-4 sm:text-sm"
+              style={{ borderRadius: 0 }}
+            >
+              CLOSE
+            </button>
+          )}
         </div>
 
         <div className="mb-4 border border-gunmetal bg-steel p-3 md:mb-6 md:p-4" style={{ borderRadius: 0 }}>

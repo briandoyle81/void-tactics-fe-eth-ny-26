@@ -130,6 +130,21 @@ export function useGetGame(gameId: number, chainIdOverride?: number) {
   return { ...result, data };
 }
 
+/** How many real special slots a faction has (0 = None). Owner-set, currently 3 for both variants. */
+export function useMaxSpecialSlot(variant: number | undefined) {
+  const args = useMemo(
+    () => (variant != null && variant > 0 ? ([variant] as const) : undefined),
+    [variant],
+  );
+  const result = useGameRead("maxSpecialSlot", args, {
+    query: { enabled: variant != null && variant > 0 },
+  });
+  const raw = result.data as number | bigint | undefined;
+  const parsed = raw == null ? 3 : Number(raw);
+  const maxSlot = Number.isFinite(parsed) && parsed >= 0 ? parsed : 3;
+  return { ...result, maxSlot };
+}
+
 export function useGetGamesFromIds(gameIds: number[], chainIdOverride?: number) {
   const args = useMemo(
     () => [gameIds.map((id) => BigInt(id))] as const,

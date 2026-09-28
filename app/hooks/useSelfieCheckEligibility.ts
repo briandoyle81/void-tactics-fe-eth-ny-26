@@ -17,13 +17,11 @@ const SELFIE_CHECK_ABI = CONTRACT_ABIS.SELFIE_CHECK_ELIGIBILITY_PROVIDER as Abi;
 type ClaimKind = "freeShipClaim" | "tutorialClaim";
 
 /**
- * Gates FreeShipClaim/TutorialClaim on SelfieCheckEligibilityProvider (see
- * docs/eth-global-remote/uniswap-lottery-selfie-check-frontend-integration.md §3). Reads the
- * consuming contract's own `eligibilityProvider()` pointer rather than assuming it's wired — per
- * the doc, address(0) there means "not configured yet, stays fully open," which is real current
- * state until the redeploy that sets it, not a bug. Only once that pointer is non-zero does
- * eligibility genuinely gate the claim. Per the doc's explicit instruction: check this before
- * showing a claim button, don't just catch the NotEligible revert.
+ * Gates FreeShipClaim/TutorialClaim on SelfieCheckEligibilityProvider when the
+ * consuming contract's `eligibilityProvider()` is non-zero. address(0) means
+ * fully open, which is the live Base Sepolia state after
+ * FreeShipClaim/TutorialClaim.setEligibilityProvider(address(0)) (see
+ * docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §3).
  */
 export function useSelfieCheckEligibility(kind: ClaimKind, player: `0x${string}` | undefined) {
   const activeChainId = useSelectedChainId();

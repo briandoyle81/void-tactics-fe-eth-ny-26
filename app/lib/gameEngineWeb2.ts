@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { getEconomyConfig } from "./economyConfig";
 import { getMapTiles } from "./getMapTiles";
 import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
-import { hasLineOfSight } from "../utils/gameGridRanges";
+import { hasLineOfSight, buildEnemyOccupiedGrid } from "../utils/gameGridRanges";
 import { computeMovementRange } from "../utils/gameGridRangesWeb2";
 import { ActionType, ScoringPosition } from "../types/types";
 import type { Web2GameDataView, Web2LastMove } from "../types/web2Game";
@@ -221,6 +221,13 @@ function validateDestinationAndTarget(params: {
   const shipPos = state.shipPositions.find((p) => p.shipId === shipId);
   if (!shipPos) throw new GameActionError(400, "Ship position not found");
   const { row: curRow, col: curCol } = shipPos.position;
+  const enemyOccupiedGrid = buildEnemyOccupiedGrid(
+    state.gridDimensions.gridWidth,
+    state.gridDimensions.gridHeight,
+    state.shipPositions.filter((p) => (p.status ?? 0) === 0),
+    shipId,
+    shipPos.isCreator,
+  );
 
   const isStayingPut = row === curRow && col === curCol;
   if (!isStayingPut) {
@@ -242,7 +249,7 @@ function validateDestinationAndTarget(params: {
       impassableGrid,
     });
     if (!reachable.some((p) => p.row === row && p.col === col)) {
-      throw new GameActionError(400, "Destination out of movement range or crosses impassable terrain");
+      throw new GameActionError(400, "Destination out of movement range or path is blocked");
     }
   }
 
@@ -256,7 +263,7 @@ function validateDestinationAndTarget(params: {
     if (distance !== 1 && distance > range) {
       throw new GameActionError(400, "Target out of weapon range");
     }
-    if (distance > 1 && !hasLineOfSight(row, col, targetPos.position.row, targetPos.position.col, blockedGrid)) {
+    if (distance > 1 && !hasLineOfSight(row, col, targetPos.position.row, targetPos.position.col, blockedGrid, enemyOccupiedGrid)) {
       throw new GameActionError(400, "No line of sight to target");
     }
   }
@@ -296,6 +303,22 @@ function validateDestinationAndTarget(params: {
       const range = getSpecialConfigWeb2(variant, specialType)?.range ?? 0;
       if (distance > range) {
         throw new GameActionError(400, "Target out of special range");
+      }
+      if (
+        distance > 1 &&
+        specialType !== 1 &&
+        specialType !== 2 &&
+        specialType !== 3 &&
+        !hasLineOfSight(
+          row,
+          col,
+          targetPos.position.row,
+          targetPos.position.col,
+          blockedGrid,
+          enemyOccupiedGrid,
+        )
+      ) {
+        throw new GameActionError(400, "No line of sight to target");
       }
     }
   }

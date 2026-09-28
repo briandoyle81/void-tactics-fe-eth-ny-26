@@ -32,16 +32,12 @@ import MapsWeb2 from "./components/MapsWeb2";
 import ShipAttributes from "./components/ShipAttributes";
 import EligibilityControls from "./components/EligibilityControls";
 import ShipAttributesWeb2 from "./components/ShipAttributesWeb2";
-import ShipConstructor from "./components/ShipConstructor";
-import ShipConstructorWeb2 from "./components/ShipConstructorWeb2";
 import ShipPurchasePrices from "./components/ShipPurchasePrices";
 import ShipPurchasePricesWeb2 from "./components/ShipPurchasePricesWeb2";
 import { Tournaments } from "./components/Tournaments";
 import { TournamentsWeb2 } from "./components/TournamentsWeb2";
 import { useShipAttributesOwner } from "./hooks/useShipAttributesContract";
 import { useShipPurchasePricesAccess } from "./hooks/useShipPurchasePricesAccess";
-import { useOwnedShips } from "./hooks/useOwnedShips";
-import { useOwnedShipsWeb2 } from "./hooks/useOwnedShipsWeb2";
 import { usePlayerGames } from "./hooks/usePlayerGames";
 import { usePlayerGamesWeb2 } from "./hooks/usePlayerGamesWeb2";
 import { useCurrentUser } from "./hooks/useCurrentUser";
@@ -63,7 +59,6 @@ const KNOWN_TAB_NAMES = new Set<string>([
   "Games",
   "Profile",
   "Maps",
-  "Customize Ship",
   "Ship Attributes",
   "Purchase Prices",
   "Tournaments",
@@ -73,12 +68,9 @@ export default function Home() {
   const { status, address, isConnected } = useAccount();
   const { isOwner } = useShipAttributesOwner();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
-  const { ships, isLoading: shipsLoading } = useOwnedShips();
-  const { ships: shipsWeb2, isLoading: shipsLoadingWeb2 } = useOwnedShipsWeb2();
-  const { games: playerGames, isLoading: gamesLoading, refetch: refetchPlayerGames } = usePlayerGames();
+  const { games: playerGames, refetch: refetchPlayerGames } = usePlayerGames();
   const {
     games: playerGamesWeb2,
-    isLoading: gamesLoadingWeb2,
     refetch: refetchPlayerGamesWeb2,
   } = usePlayerGamesWeb2();
   const { userId: currentUserId, isLoggedIn, isLoading: isUserLoading } =
@@ -147,6 +139,8 @@ export default function Home() {
       localStorage.removeItem("void-tactics-force-games-tab");
     } else if (savedGameId) {
       nextTab = "Games";
+    } else if (savedTab === "Customize Ship") {
+      nextTab = "Manage Navy";
     } else if (savedTab && KNOWN_TAB_NAMES.has(savedTab)) {
       // Campaign tab is hidden for now; Roguelike was renamed to Mission.
       if (savedTab === "Campaign") nextTab = "Info";
@@ -366,6 +360,33 @@ export default function Home() {
     };
   }, []);
 
+  // Profile lives under the header [MENU], not the tab bar.
+  useEffect(() => {
+    const handleNavigateToProfile = () => {
+      setActiveTab("Profile");
+      posthog.capture("tab_navigated", { tab_name: "Profile" });
+    };
+
+    window.addEventListener(
+      "void-tactics-navigate-to-profile",
+      handleNavigateToProfile,
+    );
+    document.addEventListener(
+      "void-tactics-navigate-to-profile",
+      handleNavigateToProfile,
+    );
+    return () => {
+      window.removeEventListener(
+        "void-tactics-navigate-to-profile",
+        handleNavigateToProfile,
+      );
+      document.removeEventListener(
+        "void-tactics-navigate-to-profile",
+        handleNavigateToProfile,
+      );
+    };
+  }, []);
+
   // Once both identities are definitively logged out (not mid-connect/
   // mid-session-check), force the tab back to Info — a tab restored from a
   // previous logged-in session (e.g. an admin tab) shouldn't linger after
@@ -401,13 +422,6 @@ export default function Home() {
     };
   }, []);
 
-  // Keep tabs visible during loading to avoid flash-of-hidden-tabs for returning users.
-  const hasShips =
-    appMode === "web2" ? shipsLoadingWeb2 || shipsWeb2.length > 0 : shipsLoading || ships.length > 0;
-  const hasGames =
-    appMode === "web2"
-      ? gamesLoadingWeb2 || playerGamesWeb2.length > 0
-      : gamesLoading || playerGames.length > 0;
   const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
   const hasYourTurn =
     appMode === "web2"
@@ -420,8 +434,6 @@ export default function Home() {
             g.metadata.winner === ZERO_ADDR &&
             g.turnState.currentTurn === address,
         );
-  const showGames = hasGames || activeTab === "Games" || activeTab === "Profile";
-  const showCustomizeShip = hasShips || activeTab === "Customize Ship";
   // Web2 mode signs in via NextAuth, never connects a wallet — `status`
   // (wagmi) would stay "disconnected" forever for those users, so the tab
   // bar needs a mode-aware "signed in" check instead.
@@ -440,8 +452,6 @@ export default function Home() {
     activeTab,
     isOwner,
     canAdminShipPurchasePrices,
-    showGames,
-    showCustomizeShip,
     status,
     hideGlobalChrome,
   ]);
@@ -598,9 +608,8 @@ export default function Home() {
                 tabs.push("Mission");
                 // Games shows whenever Lobbies does (i.e. unconditionally) —
                 // previously gated behind hasGames, which hid the tab until
-                // a player's first game existed. Profile keeps its own gate.
+                // a player's first game existed. Profile is under [MENU].
                 tabs.push("Games");
-                if (showGames) tabs.push("Profile");
                 if (
                   address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() ||
                   isWeb2Admin ||
@@ -608,7 +617,6 @@ export default function Home() {
                 ) {
                   tabs.push("Maps");
                 }
-                if (showCustomizeShip) tabs.push("Customize Ship");
                 if (isOwner || isWeb2Admin || activeTab === "Ship Attributes") {
                   tabs.push("Ship Attributes");
                 }
@@ -779,8 +787,6 @@ export default function Home() {
                 ) : (
                   <ShipPurchasePrices />
                 ))}
-              {activeTab === "Customize Ship" &&
-                (appMode === "web2" ? <ShipConstructorWeb2 /> : <ShipConstructor />)}
               {activeTab === "Tournaments" &&
                 (appMode === "web2" ? <TournamentsWeb2 /> : <Tournaments />)}
             </div>

@@ -169,13 +169,20 @@ export function getSpecialName(value: number, variant: number = 1): string {
 // their meaning/name is (see SPECIAL_NAMES_V2 above). Shared by
 // customize-ship forms (option lists) and validation (app/lib/customizeCost.ts)
 // so both stay in sync with SPECIAL_NAMES/SPECIAL_NAMES_V2 above.
-const VALID_SPECIALS_BY_VARIANT: Record<number, readonly number[]> = {
-  2: [0, 1, 2, 3],
-};
-const DEFAULT_VALID_SPECIALS: readonly number[] = [0, 1, 2, 3];
+// Cap comes from Game.maxSpecialSlot(variant) on-chain (currently 3 for both
+// factions); see
+// docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §2.
+export const DEFAULT_MAX_SPECIAL_SLOT = 3;
 
-export function validSpecialsForVariant(variant: number): readonly number[] {
-  return VALID_SPECIALS_BY_VARIANT[variant] ?? DEFAULT_VALID_SPECIALS;
+export function validSpecialsForVariant(
+  variant: number,
+  maxSlot: number = DEFAULT_MAX_SPECIAL_SLOT,
+): readonly number[] {
+  const cap =
+    Number.isInteger(maxSlot) && maxSlot >= 0
+      ? maxSlot
+      : DEFAULT_MAX_SPECIAL_SLOT;
+  return Array.from({ length: cap + 1 }, (_, i) => i);
 }
 
 // New types for Game and Lobbies contracts

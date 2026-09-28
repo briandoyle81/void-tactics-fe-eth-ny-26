@@ -22,6 +22,8 @@ interface ShipCardProps {
   isSelected: boolean;
   onToggleSelection: () => void;
   onRecycleClick: () => void;
+  /** Manage Navy: open the customize-ship modal for this card. */
+  onCustomizeClick?: () => void;
   showInGameProperties: boolean;
   inGameAttributes?: Attributes;
   attributesLoading?: boolean;
@@ -65,6 +67,7 @@ const ShipCard: React.FC<ShipCardProps> = ({
   isSelected,
   onToggleSelection,
   onRecycleClick,
+  onCustomizeClick,
   showInGameProperties,
   inGameAttributes,
   attributesLoading = false,
@@ -436,6 +439,33 @@ const ShipCard: React.FC<ShipCardProps> = ({
           </h5>
         </div>
         <div className="flex items-center gap-2">
+          {onCustomizeClick && data.isConstructed && !data.isDestroyed && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCustomizeClick();
+              }}
+              className="p-1 text-cyan hover:text-cyan hover:bg-cyan/10 rounded-none transition-all duration-200"
+              title="Customize ship"
+              aria-label="Customize ship"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11.42 15.17l-5.38 5.38a2.12 2.12 0 11-3-3l5.38-5.38m3 3l5.38-5.38a4.24 4.24 0 00-3-7.24 4.24 4.24 0 00-3 1.18L8.42 9.17m3 3l-3-3"
+                />
+              </svg>
+            </button>
+          )}
           {/* Recycle icon */}
           {!hideRecycle && (
             <button
