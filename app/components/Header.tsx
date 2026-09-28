@@ -399,7 +399,7 @@ function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
         }
         style={{
           fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-          color: "var(--color-text-primary)",
+          color: "var(--color-text-primary, #e2e8f0)",
         }}
       >
         VOID TACTICS
@@ -957,9 +957,9 @@ const Header: React.FC = () => {
     <header
       className="relative z-[300] border-b-2 border-solid overflow-visible"
       style={{
-        backgroundColor: "var(--color-slate)",
-        borderColor: "var(--color-gunmetal)",
-        borderTopColor: "var(--color-steel)",
+        backgroundColor: "var(--color-slate, #1a2430)",
+        borderColor: "var(--color-gunmetal, #2b2f36)",
+        borderTopColor: "var(--color-steel, #223041)",
       }}
     >
       <div className="mx-auto max-w-7xl overflow-visible px-3 sm:px-6 lg:px-8">

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Rajdhani, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 // Ensure BigInt JSON serialization is safe before anything else runs
@@ -23,6 +23,11 @@ const siteUrl =
 
 const defaultPageTitle =
   "Void Tactics | Fully Onchain Turn-Based PvP Fleet Game";
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#0c1117",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -107,10 +112,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      style={{ backgroundColor: "#0c1117", colorScheme: "dark" }}
+    >
       <body
         className={`${rajdhani.variable} ${jetbrainsMono.variable}`}
+        style={{
+          backgroundColor: "#0c1117",
+          color: "#e2e8f0",
+          margin: 0,
+          // Hidden until globals.css loads so the unstyled header/logo
+          // never paints on the default white canvas.
+          opacity: 0,
+        }}
       >
+        <noscript>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: "body{opacity:1!important}",
+            }}
+          />
+        </noscript>
         {/*
           Inline so it applies before globals.css / Tailwind. Header Discord/X
           SVGs have no intrinsic size; without this they paint at the SVG
@@ -119,6 +142,7 @@ export default function RootLayout({
         <style
           dangerouslySetInnerHTML={{
             __html: `
+              html,body{background:#0c1117;color:#e2e8f0}
               .vt-header-social-btn{width:36px;height:36px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#56d6ff}
               .vt-header-social-btn.vt-header-social-btn-compact{width:32px;height:32px}
               .vt-header-social-icon{width:16px!important;height:16px!important;max-width:16px;max-height:16px;display:block;flex-shrink:0}

@@ -76,6 +76,8 @@
 
 html {
   font-size: 100%;
+  background: var(--color-near-black);
+  color-scheme: dark;
 }
 
 /* Slightly larger type on small screens (matches Tailwind `md` at 768px). */
@@ -92,6 +94,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Reveals the boot-time opacity:0 on <body> in layout.tsx. */
+  opacity: 1 !important;
 }
 
 /* Global CRT scanline effect — fixed overlay, covers entire viewport */
