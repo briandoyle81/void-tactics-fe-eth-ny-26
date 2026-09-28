@@ -7,7 +7,7 @@ import {
   LASER_LINE_FADEOUT_MS,
   LASER_TRACE_PERIOD_MS,
 } from "../../constants/animationTiming";
-import { cellLayoutBox, gridLayoutSize } from "./gridLayout";
+import { cellLayoutBox, gridLayoutSize, scaleCellPx } from "./gridLayout";
 import { createOverlaySizeSync, setCircle, setLine } from "./overlayPaint";
 
 const BEAM_GREEN = "#6bff8f";
@@ -45,9 +45,10 @@ function faction1LaserOrigin(
   const box = cellLayoutBox(grid, row, col);
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
+  const dir = facingRight ? 1 : -1;
   return {
-    x: cx + (facingRight ? box.width * 0.08 : -box.width * 0.08),
-    y: cy + (facingRight ? -box.height * 0.15 : 0) - 15,
+    x: cx + dir * box.width * 0.08,
+    y: cy + (facingRight ? -box.height * 0.15 : 0),
   };
 }
 
@@ -60,13 +61,10 @@ function miningLaserOrigin(
   const box = cellLayoutBox(grid, row, col);
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
+  const dir = facingRight ? 1 : -1;
   return {
-    x:
-      cx +
-      (facingRight ? box.width * 0.05 : -box.width * 0.05) +
-      (facingRight ? 25 : -25) +
-      (facingRight ? -2 : 2),
-    y: cy + (facingRight ? -box.height * 0.15 : 0) - 15 + 10 + 3,
+    x: cx + dir * (box.width * 0.05 + scaleCellPx(box.width, 23)),
+    y: cy + (facingRight ? -box.height * 0.15 : 0) + scaleCellPx(box.height, -2),
   };
 }
 

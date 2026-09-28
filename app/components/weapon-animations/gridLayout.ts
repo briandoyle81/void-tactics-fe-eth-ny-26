@@ -1,6 +1,14 @@
 import { GRID_DIMENSIONS } from "../../types/types";
 
 /**
+ * Unzoomed live-game cells are about this many CSS pixels (17-wide grid
+ * in an ~850px board). Pixel muzzle nudges are stored against this size
+ * and scaled by `scaleCellPx` so zoom and cropped hero cells keep the
+ * same seat on the sprite.
+ */
+const UNZOOMED_CELL_PX = 50;
+
+/**
  * Layout size of the game grid in untransformed pixels.
  * Overlays live inside the pan/zoom CSS transform, so getBoundingClientRect
  * is already scaled and would double-apply zoom. offsetWidth/offsetHeight
@@ -15,6 +23,11 @@ export function gridLayoutSize(el: HTMLElement) {
     cellWidth: width / GRID_DIMENSIONS.WIDTH,
     cellHeight: height / GRID_DIMENSIONS.HEIGHT,
   };
+}
+
+/** Map a layout-px nudge (tuned at `UNZOOMED_CELL_PX`) onto the current cell. */
+export function scaleCellPx(cellSize: number, pxAtUnzoomed: number) {
+  return (pxAtUnzoomed / UNZOOMED_CELL_PX) * cellSize;
 }
 
 export function cellLayoutBox(

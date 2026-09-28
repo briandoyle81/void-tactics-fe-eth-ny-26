@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
-import { cellLayoutBox } from "./gridLayout";
+import { cellLayoutBox, scaleCellPx } from "./gridLayout";
 import { createOverlaySizeSync, setCircle, setLine } from "./overlayPaint";
 
 interface MiningDrillAnimationProps {
@@ -31,9 +31,10 @@ function drillOrigin(
   const box = cellLayoutBox(grid, row, col);
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
+  const dir = facingRight ? 1 : -1;
   return {
-    x: cx + (facingRight ? box.width * 0.1 : -box.width * 0.1) + (facingRight ? 11 : -11),
-    y: cy - box.height * 0.14 - 4,
+    x: cx + dir * (box.width * 0.1 + scaleCellPx(box.width, 11)),
+    y: cy - box.height * 0.14 + scaleCellPx(box.height, -4),
   };
 }
 

@@ -143,9 +143,14 @@ const DEMO_MAP_ID = 14;
 const PHASE_DURATIONS = [1000, 1000, 1600, 1800, 2600];
 
 function buildDemoShips() {
+  const allyBase = generateRandomShip(ALLY_ID, 1);
   const ally: Ship = {
-    ...generateRandomShip(ALLY_ID, 1),
+    ...allyBase,
     owner: DEMO_PLAYER_ADDRESS,
+    equipment: {
+      ...allyBase.equipment,
+      mainWeapon: 0,
+    },
   };
   const enemy: Ship = {
     ...generateRandomShip(ENEMY_ID, 1),
