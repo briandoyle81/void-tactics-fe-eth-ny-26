@@ -534,7 +534,8 @@ export default function GameDisplayWeb2({
       // RamResolver.sol / gameEngineWeb2.ts's FactionAbility case). Repair
       // never relocates anyone.
       const isRamRelocate =
-        finalActionType === ActionType.FactionAbility && !selectedShipFactionAbility.isHeal;
+        finalActionType === ActionType.FactionAbility &&
+        selectedShipFactionAbility?.isHeal === false;
       const ramTargetPosition = isRamRelocate
         ? aliveShipPositions.find((p) => p.shipId === finalTargetShipId)?.position
         : undefined;

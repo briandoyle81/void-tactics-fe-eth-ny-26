@@ -1344,7 +1344,7 @@ export function SimulatedGameDisplay({
           ? "HOLD FIRE"
           : selectedWeaponType === "special" &&
                 isRepairDronesSpecial(
-                  Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+                  Number(selectedShip?.traits.variant ?? 1),
                   specialType,
                 ) &&
                 targetShipId != null
@@ -1352,7 +1352,7 @@ export function SimulatedGameDisplay({
               : targetShipId != null && targetShipId !== 0n
                 ? "FIRE"
                 : "SUBMIT",
-    [computedActionType, selectedWeaponType, specialType, targetShipId],
+    [computedActionType, selectedWeaponType, specialType, targetShipId, selectedShip],
   );
 
   // Last-move new position pulse on the grid when no ship is selected (in-game parity).
@@ -1803,7 +1803,7 @@ export function SimulatedGameDisplay({
           if (ship.owner === TUTORIAL_PLAYER_ADDRESS) return;
         } else if (
           isRepairDronesSpecial(
-            Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+            Number(selectedShip?.traits.variant ?? 1),
             specialType,
           )
         ) {
@@ -1834,7 +1834,7 @@ export function SimulatedGameDisplay({
       const isSelfRepair =
         selectedWeaponType === "special" &&
         isRepairDronesSpecial(
-          Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+          Number(selectedShip?.traits.variant ?? 1),
           specialType,
         ) &&
         distance === 0;
@@ -2278,7 +2278,7 @@ export function SimulatedGameDisplay({
         specialType,
         shipVariant:
           selectedShipId != null
-            ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+            ? Number(selectedShip?.traits.variant ?? 1)
             : 1,
         blockedGrid,
         gridWidth: GRID_WIDTH,
@@ -2303,7 +2303,7 @@ export function SimulatedGameDisplay({
         specialType,
         shipVariant:
           selectedShipId != null
-            ? Number(shipMap.get(selectedShipId)?.traits.variant ?? 1)
+            ? Number(selectedShip?.traits.variant ?? 1)
             : 1,
         blockedGrid,
       }),
@@ -4568,7 +4568,7 @@ export function SimulatedGameDisplay({
                               const isRepair =
                                 selectedWeaponType === "special" &&
                                 isRepairDronesSpecial(
-                                  Number(shipMap.get(selectedShipId)?.traits.variant ?? 1),
+                                  Number(selectedShip?.traits.variant ?? 1),
                                   specialType,
                                 );
                               const accentColor = isRepair

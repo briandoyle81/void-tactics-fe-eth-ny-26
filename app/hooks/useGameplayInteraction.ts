@@ -381,7 +381,7 @@ export function useGameplayInteraction({
       if (!ship) return;
 
       if (selectedWeaponType === "special") {
-        const selectedVariant = shipMap.get(selectedShipId)?.traits.variant ?? 1;
+        const selectedVariant = selectedShip?.traits.variant ?? 1;
         if (specialType === 3) {
           if (shipPosition.shipId === selectedShipId) return;
         } else if (specialType === 1) {
@@ -403,7 +403,7 @@ export function useGameplayInteraction({
         if (ship.owner === playerAddress) return;
       }
 
-      const selectedVariant = shipMap.get(selectedShipId)?.traits.variant ?? 1;
+      const selectedVariant = selectedShip?.traits.variant ?? 1;
       const isSelfHealAction =
         (selectedWeaponType === "special" &&
           isRepairDronesSpecial(selectedVariant, specialType)) ||
@@ -430,7 +430,7 @@ export function useGameplayInteraction({
     });
 
     return targets;
-  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview, isFactionAbilitySupported, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedEnemyOccupiedGrid]);
+  }, [selectedShipId, previewPosition, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, isRammingMovePreview, isFactionAbilitySupported, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedEnemyOccupiedGrid, selectedShip]);
 
   const labelTargets = useMemo(
     () =>
@@ -445,14 +445,14 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
-        shipVariant: shipMap.get(selectedShipId)?.traits.variant,
+        shipVariant: selectedShip?.traits.variant,
         factionAbilityRange: selectedShipFactionAbilityRange,
         factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
         gridWidth,
         gridHeight,
       }),
-    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal],
+    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedShip],
   );
 
   // Assist isn't exposed in the UI (removed from web3's contract; kept as
@@ -612,12 +612,12 @@ export function useGameplayInteraction({
         selectedWeaponType,
         specialRange,
         specialType,
-        shipVariant: shipMap.get(selectedShipId)?.traits.variant,
+        shipVariant: selectedShip?.traits.variant,
         factionAbilityRange: selectedShipFactionAbilityRange,
         factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
       }),
-    [selectedShipId, hoverPreviewPosition, shipMap, playerAddress, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal],
+    [selectedShipId, hoverPreviewPosition, shipMap, playerAddress, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedShip],
   );
 
   const hoverShootingRange = useMemo(
@@ -704,7 +704,7 @@ export function useGameplayInteraction({
             ? (selectedShipFactionAbilityIsHeal ? "REPAIR" : "RAM")
             : selectedWeaponType === "special" &&
                 isRepairDronesSpecial(
-                  shipMap.get(selectedShipId)?.traits.variant ?? 1,
+                  selectedShip?.traits.variant ?? 1,
                   specialType,
                 ) &&
                 targetShipId != null

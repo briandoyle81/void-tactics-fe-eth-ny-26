@@ -111,6 +111,23 @@ export default function RootLayout({
       <body
         className={`${rajdhani.variable} ${jetbrainsMono.variable}`}
       >
+        {/*
+          Inline so it applies before globals.css / Tailwind. Header Discord/X
+          SVGs have no intrinsic size; without this they paint at the SVG
+          default (~300x150) in black on the unstyled page.
+        */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              .vt-header-social-btn{width:36px;height:36px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#56d6ff}
+              .vt-header-social-btn.vt-header-social-btn-compact{width:32px;height:32px}
+              .vt-header-social-icon{width:16px!important;height:16px!important;max-width:16px;max-height:16px;display:block;flex-shrink:0}
+              .vt-header-social-btn-compact .vt-header-social-icon{width:14px!important;height:14px!important;max-width:14px;max-height:14px}
+              @media (max-width:767px){.vt-header-desktop-title-row{display:none!important}}
+              @media (min-width:768px){.vt-header-mobile-title-row{display:none!important}}
+            `,
+          }}
+        />
         <Providers>{children}</Providers>
         <Toaster
           position="top-right"
