@@ -1402,6 +1402,125 @@ select:focus {
   animation: hold-hologram-cell-last-move 1.5s linear infinite;
 }
 
+/* Rank stars stay in the untilted overlay; hide the copy inside listed hull art. */
+.sos-art-tilt .ship-rank-stars {
+  visibility: hidden;
+}
+
+.sos-hull-breach {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(-11deg);
+}
+
+.sos-hull-hole {
+  position: absolute;
+  inset: 12% 22% 12% 10%;
+  z-index: 2;
+  border-radius: 58% 42% 52% 48%;
+  background:
+    radial-gradient(circle at 40% 50%, #050201 0 38%, #1a0703 58%, #c44a0a 78%, #ff7700 90%, transparent 100%);
+  box-shadow:
+    inset 0 0 2px #000,
+    0 0 3px #ff7700;
+}
+
+.sos-hull-cloud {
+  position: absolute;
+  left: 42%;
+  top: 18%;
+  z-index: 1;
+  width: 280%;
+  height: 70%;
+  border-radius: 40% 80% 80% 40%;
+  background:
+    radial-gradient(ellipse 32% 70% at 8% 50%, #ffe9a0 0%, transparent 55%),
+    radial-gradient(ellipse 50% 90% at 36% 50%, #ff7700 0%, transparent 64%),
+    radial-gradient(ellipse 65% 100% at 82% 50%, rgba(255, 77, 77, 0.55) 0%, transparent 76%);
+  transform-origin: 0 50%;
+  animation-name: sos-hull-cloud;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+@keyframes sos-hull-cloud {
+  0% {
+    transform: scaleX(0.82) scaleY(0.92);
+    opacity: 0.62;
+    filter: saturate(0.9) brightness(0.85);
+  }
+  100% {
+    transform: scaleX(1.18) translateX(18%);
+    opacity: 0.95;
+    filter: saturate(1.15) brightness(1.2);
+  }
+}
+
+.sos-hull-spark {
+  position: absolute;
+  left: 14%;
+  top: 30%;
+  z-index: 3;
+  width: 38%;
+  height: 40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffde8 0%, #ffb84d 36%, transparent 70%);
+  animation-name: sos-hull-spark;
+  animation-timing-function: steps(2, end);
+  animation-iteration-count: infinite;
+}
+
+@keyframes sos-hull-spark {
+  0%,
+  100% {
+    opacity: 0.12;
+    filter: hue-rotate(0deg) brightness(0.8);
+  }
+  25% {
+    opacity: 0.95;
+    filter: hue-rotate(-12deg) brightness(1.55);
+  }
+  50% {
+    opacity: 0.2;
+    filter: hue-rotate(18deg) brightness(0.9);
+  }
+  75% {
+    opacity: 0.8;
+    filter: hue-rotate(-8deg) brightness(1.35);
+  }
+}
+
+.sos-hull-vent {
+  position: absolute;
+  transform: translate(0, -50%);
+  transform-origin: 0 50%;
+  border-radius: 40% 70% 70% 40%;
+  background: linear-gradient(
+    to right,
+    rgba(230, 244, 255, 0.55) 0%,
+    rgba(186, 214, 228, 0.28) 42%,
+    transparent 100%
+  );
+  animation-name: sos-hull-vent;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes sos-hull-vent {
+  0% {
+    transform: translate(0, -50%) scaleX(0.55);
+    opacity: 0.18;
+  }
+  32% {
+    opacity: 0.48;
+  }
+  100% {
+    transform: translate(55%, -50%) scaleX(1.35);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .move-hologram {
     animation: none;
@@ -1416,6 +1535,26 @@ select:focus {
 
   .hold-hologram-overlay {
     display: none;
+  }
+
+  .sos-hull-cloud,
+  .sos-hull-spark,
+  .sos-hull-vent {
+    animation: none;
+  }
+
+  .sos-hull-cloud {
+    opacity: 0.8;
+    transform: none;
+  }
+
+  .sos-hull-spark {
+    opacity: 0.45;
+  }
+
+  .sos-hull-vent {
+    opacity: 0.3;
+    transform: translate(20%, -50%);
   }
 }
 

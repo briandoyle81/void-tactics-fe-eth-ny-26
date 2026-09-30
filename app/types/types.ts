@@ -214,6 +214,8 @@ export interface LobbyGameConfig {
   turnTime: bigint;
   selectedMapId: bigint;
   maxScore: bigint; // Maximum score needed to win the game
+  /** Engine this lobby's game will start on, pinned at lobby creation. */
+  pvpMatch: Address;
 }
 
 export interface LobbyState {

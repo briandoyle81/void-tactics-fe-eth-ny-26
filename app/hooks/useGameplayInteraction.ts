@@ -287,9 +287,10 @@ export function useGameplayInteraction({
         aliveShipPositions,
         shipId,
         pos.isCreator,
+        (id) => getShipAttributes(Number(id))?.hullPoints === 0,
       );
     },
-    [aliveShipPositions, gridWidth, gridHeight],
+    [aliveShipPositions, getShipAttributes, gridWidth, gridHeight],
   );
   const selectedEnemyOccupiedGrid = useMemo(
     () => enemyOccupiedForShip(selectedShipId),

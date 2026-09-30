@@ -12,6 +12,7 @@ import { getRankColor, getRankColorVar } from "../utils/shipLevel";
 import { formatDestroyedDate } from "../utils/dateUtils";
 import { Attributes } from "../types/types";
 import type { ShipCardData } from "../types/shipCardData";
+import { SosHullFires } from "./SosHullFires";
 
 interface ShipCardProps {
   ship: ShipCardData;
@@ -92,6 +93,10 @@ const ShipCard: React.FC<ShipCardProps> = ({
   hideRankLabel = false,
   hideOuterFrame = false,
 }) => {
+  const isSosArt =
+    !!inGameAttributes &&
+    inGameAttributes.hullPoints === 0 &&
+    !data.isDestroyed;
   const useCompactStatGrid = gameViewMode && hideRarityLabel && hideRankLabel;
   const useTeamArtBorder = gameViewMode && hideOuterFrame;
   const shipArtBorderColor = useTeamArtBorder
@@ -266,16 +271,47 @@ const ShipCard: React.FC<ShipCardProps> = ({
           stars and special overlays stay upright for creator-side cards. */}
       <div className="relative mb-3 h-48 w-full min-h-0 [container-type:size]">
         <div
-          className={`h-full w-full border border-solid ${flipShip ? "[&_img]:scale-x-[-1]" : ""} ${
-            hasMoved ? "grayscale" : ""
+          className={`h-full w-full border border-solid ${
+            isSosArt ? "overflow-visible" : "overflow-hidden"
           }`}
           style={{
             borderColor: shipArtBorderColor,
             borderRadius: 0, // Square corners
           }}
         >
-          {shipImage}
+          <div
+            className={`relative h-full w-full origin-center ${
+              isSosArt ? "sos-art-tilt rotate-[15deg]" : ""
+            }`}
+          >
+            <div
+              className={`relative h-full w-full ${
+                isSosArt && flipShip
+                  ? "sos-art-flip scale-x-[-1]"
+                  : flipShip
+                    ? "[&_img]:scale-x-[-1]"
+                    : ""
+              }`}
+            >
+              <div className={`h-full w-full ${hasMoved ? "grayscale" : ""}`}>
+                {shipImage}
+              </div>
+              {isSosArt && <SosHullFires shipId={data.id} />}
+            </div>
+          </div>
         </div>
+        {isSosArt && data.rank > 0 && (
+          <div
+            className={`ship-rank-stars pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber ${
+              hasMoved ? "grayscale" : ""
+            }`}
+            style={{ fontSize: SHIP_IMAGE_RANK_STAR_BOX }}
+          >
+            {Array.from({ length: data.rank }, (_, i) => (
+              <span key={i}>⭐</span>
+            ))}
+          </div>
+        )}
 
         {/* Game view indicators for tooltip */}
         {(tooltipMode || gameViewMode) && inGameAttributes && (

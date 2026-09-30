@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
 import { getCurrentCostsByVariant } from "@/app/lib/getCurrentCosts";
 import { recalcStaleShips } from "@/app/lib/recalcStaleShips";
+import { hasDuplicateShipIds } from "@/app/utils/fleetShipIds";
 
 export async function POST(
   req: NextRequest,
@@ -29,6 +30,12 @@ export async function POST(
   };
 
   if (!shipIds?.length) return NextResponse.json({ error: "shipIds required" }, { status: 400 });
+  if (hasDuplicateShipIds(shipIds)) {
+    return NextResponse.json(
+      { error: "The same ship can't appear twice in one fleet." },
+      { status: 400 },
+    );
+  }
 
   // Verify all ships belong to this user and aren't destroyed
   const ships = await prisma.ship.findMany({

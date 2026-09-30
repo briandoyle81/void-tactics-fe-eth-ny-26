@@ -8,6 +8,7 @@ import { GridShipImage } from "./GridShipImage";
 import { calculateShipRank } from "../utils/shipLevel";
 import { setMirroredDragImage } from "../utils/dragShipImage";
 import { RetreatPrepAnimation } from "./weapon-animations/RetreatPrepAnimation";
+import { SosHullFires } from "./SosHullFires";
 import { HOLD_HOLOGRAM_CYCLE_MS } from "../constants/animationTiming";
 import { isRepairDronesSpecial } from "../utils/specialConfigWeb2";
 
@@ -1222,10 +1223,15 @@ export function GameGridCell({
                           const shouldPreviewDestroyedTarget =
                             destroyPreviewShipIds.has(cell.shipId);
                           const isForceRetreating = false;
+                          const sosAttrs = getShipAttributes(cell.shipId);
+                          const isSosArt =
+                            !!sosAttrs &&
+                            sosAttrs.hullPoints === 0 &&
+                            (cell.status ?? 0) !== 1;
                           const imageClassName = `w-full h-full relative z-10 ${
                             retreatPrepShipId === cell.shipId || isForceRetreating
                               ? "opacity-0 pointer-events-none"
-                              : cell.isCreator
+                              : cell.isCreator && !isSosArt
                                 ? "[&_img]:scale-x-[-1]"
                                 : ""
                           } ${(() => {
@@ -1293,7 +1299,16 @@ export function GameGridCell({
                             isLastMoveDestroyedTargetCell || shouldPreviewDestroyedTarget;
 
                           return (
-                            <>
+                            <div
+                              className={`relative h-full w-full origin-center ${
+                                isSosArt ? "sos-art-tilt rotate-[15deg]" : ""
+                              }`}
+                            >
+                            <div
+                              className={`relative h-full w-full ${
+                                isSosArt && cell.isCreator ? "scale-x-[-1]" : ""
+                              }`}
+                            >
                             <GridShipImage
                               ship={ship}
                               className={`${imageClassName} ${
@@ -1304,6 +1319,9 @@ export function GameGridCell({
                               showLoadingState={true}
                               hideRankStars
                             />
+                            {isSosArt && !shouldHideShipArt && (
+                              <SosHullFires shipId={cell.shipId} />
+                            )}
                             {isHoldHologramPulse && !shouldHideShipArt && (
                               <div
                                 className="hold-hologram-overlay"
@@ -1318,7 +1336,8 @@ export function GameGridCell({
                                 />
                               </div>
                             )}
-                            </>
+                            </div>
+                            </div>
                           );
                         })()}
                         {/* Hull strip: inside cell top edge (team dot + stars sit below when visible) */}

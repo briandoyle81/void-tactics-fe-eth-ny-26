@@ -2,6 +2,7 @@
 
 import { STYLE_MONO } from "../styles/fontStyles";
 import type { GameFleetCardData } from "../types/gameDisplayData";
+import { SosHullFires } from "./SosHullFires";
 
 // Shared per-ship fleet-status card between GameDisplay.tsx (web3) and
 // GameDisplayWeb2.tsx (web2) — number-native (see app/types/gameDisplayData.ts).
@@ -52,12 +53,15 @@ export function GameFleetCard({
           outlineOffset: "2px",
         }}
       >
-        <div
-          className={`${flip ? "scale-x-[-1] w-full h-full" : "w-full h-full"} ${
-            hasMoved ? "grayscale" : ""
-          }`}
-        >
-          {shipImage}
+        <div className={`relative w-full h-full origin-center ${isSOS ? "rotate-[15deg]" : ""}`}>
+          <div
+            className={`relative ${flip ? "scale-x-[-1] w-full h-full" : "w-full h-full"}`}
+          >
+            <div className={`w-full h-full ${hasMoved ? "grayscale" : ""}`}>
+              {shipImage}
+            </div>
+            {isSOS && <SosHullFires shipId={card.shipId} />}
+          </div>
         </div>
         {isSOS && (
           <>

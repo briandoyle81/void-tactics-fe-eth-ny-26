@@ -17,6 +17,7 @@ import { FleetShipListPanel } from "./FleetShipListPanel";
 import { NavyFilterToolbar } from "./NavyFilterToolbar";
 import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { NavyPagination } from "./NavyPagination";
+import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
 
 const SHIPS_PER_PAGE = 100;
 
@@ -103,6 +104,10 @@ export function RoguelikeRunStartWeb2({ onRunStarted }: RoguelikeRunStartWeb2Pro
   const handleStartRun = async () => {
     if (fleet.selectedShips.length === 0) {
       toast.error("Select at least one ship for your roster");
+      return;
+    }
+    if (hasDuplicateShipIds(fleet.selectedShips)) {
+      toast.error(DUPLICATE_SHIP_ID_TOAST);
       return;
     }
     if (isOverCap) {

@@ -20,8 +20,11 @@ function isPathTileBlocked(
  * Enemy-occupied tiles for Maps.hasMovementPathAvoidingShips /
  * hasMapsAvoidingShips. Allies are omitted: they still block landing on
  * their exact tile (handled by occupancy checks), but they do not block
- * movement-through or line of sight. See
- * docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §1.
+ * movement-through or line of sight. Disabled (0 HP) enemies are omitted
+ * the same way: they still block landing on their tile, but no longer
+ * block movement-through or line of sight. See
+ * docs/eth-global-remote/frontend-handoff-combat-blocking-and-ship-specials-2026-09-26.md §1
+ * and docs/eth-global-remote/frontend-handoff-engine-registry-and-redeploy-2026-09-30.md §3.
  */
 export function buildEnemyOccupiedGrid(
   gridWidth: number,
@@ -33,6 +36,7 @@ export function buildEnemyOccupiedGrid(
   }[],
   actingShipId: number | bigint | string,
   actingIsCreator: boolean,
+  isDisabled?: (shipId: number | bigint | string) => boolean,
 ): boolean[][] {
   const grid: boolean[][] = Array.from({ length: gridHeight }, () =>
     Array<boolean>(gridWidth).fill(false),
@@ -41,6 +45,7 @@ export function buildEnemyOccupiedGrid(
   for (const pos of shipPositions) {
     if (String(pos.shipId) === actingKey) continue;
     if (pos.isCreator === actingIsCreator) continue;
+    if (isDisabled?.(pos.shipId)) continue;
     const { row, col } = pos.position;
     if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
       grid[row][col] = true;

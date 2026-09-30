@@ -18,6 +18,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { AI_USER_ID, ensureAiUser } from "@/app/lib/aiUser";
 import { generateAiFleetForMap, NoAIPlacementsError } from "@/app/lib/aiFleetWeb2";
 import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
+import { hasDuplicateShipIds } from "@/app/utils/fleetShipIds";
 
 export async function POST(
   req: NextRequest,
@@ -41,6 +42,12 @@ export async function POST(
   const startingPositions = body.startingPositions ?? [];
   if (shipIds.length === 0) {
     return NextResponse.json({ error: "Select at least one ship" }, { status: 400 });
+  }
+  if (hasDuplicateShipIds(shipIds)) {
+    return NextResponse.json(
+      { error: "The same ship can't appear twice in one fleet." },
+      { status: 400 },
+    );
   }
 
   const node = await prisma.campaignNode.findUnique({

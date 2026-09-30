@@ -23,6 +23,7 @@ import { FleetShipListPanel } from "./FleetShipListPanel";
 import { NavyFilterToolbar } from "./NavyFilterToolbar";
 import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { NavyPagination } from "./NavyPagination";
+import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
 
 const SHIPS_PER_PAGE = 100;
 
@@ -137,6 +138,10 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
       toast.error("Select at least one ship for your roster");
       return;
     }
+    if (hasDuplicateShipIds(fleet.selectedShips)) {
+      toast.error(DUPLICATE_SHIP_ID_TOAST);
+      return;
+    }
     if (isOverCap) {
       toast.error(`Roster cost exceeds this campaign's ${costLimit} limit.`);
       return;
@@ -153,6 +158,8 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
         toast.error("Select at least one ship for your roster");
       } else if (message.includes("WrongCampaignVariant")) {
         toast.error("This campaign requires a different faction's fleet.");
+      } else if (message.includes("DuplicateShipId")) {
+        toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else if (message.includes("RunAlreadyActive")) {
         toast.error("You already have a run in progress.");
       } else if (message.includes("CampaignNotFound") || message.includes("CampaignHasNoRoot")) {

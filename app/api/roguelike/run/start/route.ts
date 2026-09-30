@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
+import { hasDuplicateShipIds } from "@/app/utils/fleetShipIds";
 
 export async function POST(req: NextRequest) {
   const { userId, error } = await requireAuth();
@@ -30,6 +31,12 @@ export async function POST(req: NextRequest) {
   }
   if (shipIds.length === 0) {
     return NextResponse.json({ error: "Select at least one ship for your roster" }, { status: 400 });
+  }
+  if (hasDuplicateShipIds(shipIds)) {
+    return NextResponse.json(
+      { error: "The same ship can't appear twice in one fleet." },
+      { status: 400 },
+    );
   }
 
   const existing = await prisma.roguelikeRun.findFirst({

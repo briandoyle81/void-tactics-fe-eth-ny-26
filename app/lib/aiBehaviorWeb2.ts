@@ -1024,6 +1024,7 @@ export function decideAIMove(params: DecideAIMoveParams): AIDecision | null {
       g.shipPositions.filter((p) => p.status === 0),
       shipId,
       isCreatorSide,
+      (id) => (findAttributes(g, Number(id))?.hullPoints ?? 1) === 0,
     ),
     shipId,
     isCreatorSide,

@@ -1066,6 +1066,12 @@ export function SimulatedGameDisplay({
               gameState.shipPositions.filter((p) => (p.status ?? 0) === 0),
               actingId,
               actingPos.isCreator,
+              (id) => {
+                const attrs = getShipAttributes(
+                  typeof id === "bigint" ? id : (String(id) as TutorialShipId),
+                );
+                return !!attrs && attrs.hullPoints === 0;
+              },
             )
           : undefined;
       return hasLineOfSightPath(
@@ -1077,7 +1083,7 @@ export function SimulatedGameDisplay({
         extra,
       );
     },
-    [selectedShipId, gameState.shipPositions],
+    [selectedShipId, gameState.shipPositions, getShipAttributes],
   );
 
   // Create a 2D array to represent the grid
@@ -1236,6 +1242,12 @@ export function SimulatedGameDisplay({
       gameState.shipPositions.filter((p) => (p.status ?? 0) === 0),
       selectedShipId.toString(),
       currentPosition.isCreator,
+      (id) => {
+        const attrs = getShipAttributes(
+          typeof id === "bigint" ? id : (String(id) as TutorialShipId),
+        );
+        return !!attrs && attrs.hullPoints === 0;
+      },
     );
 
     // Check all positions within movement range

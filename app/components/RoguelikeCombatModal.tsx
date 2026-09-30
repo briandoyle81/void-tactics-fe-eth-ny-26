@@ -23,6 +23,7 @@ import { RoguelikeRun, RoguelikeNode } from "../types/roguelike";
 import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { CONTRACT_ABIS } from "../config/contracts";
 import { navigateToGame } from "../utils/navigateToGame";
+import { DUPLICATE_SHIP_ID_TOAST } from "../utils/fleetShipIds";
 
 const ENEMY_PREVIEW_ID_OFFSET = 100_000_000n;
 
@@ -153,6 +154,8 @@ export function RoguelikeCombatModal({
         toast.error("This node isn't a combat node.");
       } else if (message.includes("NoAIPlacementsConfigured")) {
         toast.error("This mission has no enemy fleet configured yet.");
+      } else if (message.includes("DuplicateShipId")) {
+        toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else if (message.includes("User rejected") || message.includes("User denied")) {
         toast.error("Transaction declined by user");
       } else {

@@ -4,6 +4,7 @@ import { baseSepolia } from "viem/chains";
 import {
   CONTRACT_ABIS,
   CONTRACT_ADDRESSES_BY_CHAIN_ID,
+  ZERO_ADDRESS,
   getContractAddresses,
 } from "../config/contracts";
 import type { Abi } from "viem";
@@ -11,18 +12,71 @@ import { getSelectedChainId } from "../config/networks";
 import { GameDataView } from "../types/types";
 import { normalizeGameDataView } from "../utils/normalizeGameDataView";
 
+function getGameEngineRegistryAddress(chainId: number): `0x${string}` {
+  const addresses = getContractAddresses(chainId) as Record<
+    string,
+    `0x${string}` | undefined
+  >;
+  return addresses.GAME_ENGINE_REGISTRY ?? ZERO_ADDRESS;
+}
+
+/**
+ * Trustless Game-engine lookup for an existing gameId. Falls back to the
+ * currently-known Game address when the registry is missing or returns
+ * address(0). See
+ * docs/eth-global-remote/frontend-handoff-engine-registry-and-redeploy-2026-09-30.md §2.
+ */
+export function useEngineOfGame(
+  gameId: number | bigint | undefined,
+  chainIdOverride?: number,
+) {
+  const { chainId: walletChainId } = useAccount();
+  const activeChainId = chainIdOverride ?? walletChainId ?? getSelectedChainId();
+  const fallbackGame = useMemo(
+    () => getContractAddresses(activeChainId).GAME as `0x${string}`,
+    [activeChainId],
+  );
+  const registryAddress = useMemo(
+    () => getGameEngineRegistryAddress(activeChainId),
+    [activeChainId],
+  );
+  const enabled =
+    registryAddress !== ZERO_ADDRESS &&
+    gameId != null &&
+    Number(gameId) > 0;
+  const args = useMemo(() => [BigInt(gameId ?? 0)] as const, [gameId]);
+
+  const { data } = useReadContract({
+    address: registryAddress,
+    abi: CONTRACT_ABIS.GAME_ENGINE_REGISTRY as Abi,
+    chainId: activeChainId,
+    functionName: "engineOfGame",
+    args,
+    query: { enabled },
+  });
+
+  const recorded = data as `0x${string}` | undefined;
+  if (recorded && recorded !== ZERO_ADDRESS) return recorded;
+  return fallbackGame;
+}
+
 // Hook for reading contract data
 // `chainIdOverride` pins to a specific chain instead of following the wallet
 // or header network picker — needed anywhere a game is known to live on a
 // specific chain (currently: everywhere, since Game is Base-Sepolia-only
 // while multi-chain support is temporarily disabled — see networks.ts).
-export function useGameContract(chainIdOverride?: number) {
+// Optional `gameId` resolves the Game engine that actually serves that
+// match via GameEngineRegistry (falls back to the current Game address).
+export function useGameContract(
+  chainIdOverride?: number,
+  gameId?: number | bigint,
+) {
   const { chainId: walletChainId } = useAccount();
   const activeChainId = chainIdOverride ?? walletChainId ?? getSelectedChainId();
-  const contractAddresses = getContractAddresses(activeChainId);
+  const address = useEngineOfGame(gameId, chainIdOverride);
 
   return {
-    address: contractAddresses.GAME as `0x${string}`,
+    address,
     abi: CONTRACT_ABIS.GAME as Abi,
     chainId: activeChainId,
   };
@@ -113,13 +167,18 @@ export function useGetGamesForPlayer(playerAddress: string, chainIdOverride?: nu
 }
 
 export function useGetGame(gameId: number, chainIdOverride?: number) {
+  const { chainId: walletChainId } = useAccount();
+  const activeChainId = chainIdOverride ?? walletChainId ?? getSelectedChainId();
+  const address = useEngineOfGame(gameId, chainIdOverride);
   const args = useMemo(() => [BigInt(gameId)] as const, [gameId]);
-  const result = useGameRead(
-    "getGame",
+  const result = useReadContract({
+    address,
+    abi: CONTRACT_ABIS.GAME as Abi,
+    chainId: activeChainId,
+    functionName: "getGame",
     args,
-    { query: { enabled: gameId > 0 } },
-    chainIdOverride,
-  );
+    query: { enabled: gameId > 0 },
+  });
   const data = useMemo(
     () =>
       result.data

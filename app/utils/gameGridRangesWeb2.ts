@@ -13,6 +13,7 @@ function enemyOccupiedFor(
   gridHeight: number,
   shipPositions: readonly Web2ShipPosition[],
   selectedShipId: number | null,
+  getShipAttributes?: (shipId: number) => Attributes | null,
 ): boolean[][] | undefined {
   if (selectedShipId == null) return undefined;
   const selected = shipPositions.find((p) => p.shipId === selectedShipId);
@@ -23,6 +24,7 @@ function enemyOccupiedFor(
     shipPositions,
     selectedShipId,
     selected.isCreator,
+    (id) => getShipAttributes?.(Number(id))?.hullPoints === 0,
   );
 }
 
@@ -155,6 +157,7 @@ export function computeMovementRange({
     gridHeight,
     shipPositions,
     selectedShipId,
+    getShipAttributes,
   );
 
   // Check all positions within movement range
@@ -251,6 +254,7 @@ export function computeShootingRange({
     gridHeight,
     shipPositions,
     selectedShipId,
+    getShipAttributes,
   );
 
   const validShootingPositions: { row: number; col: number }[] = [];
@@ -603,6 +607,7 @@ export function computeLabelTargets({
     gridHeight,
     shipPositions,
     selectedShipId,
+    getShipAttributes,
   );
 
   const origins: { row: number; col: number }[] = [];
@@ -770,6 +775,7 @@ export function computeHoverValidTargets({
     blockedGrid.length,
     shipPositions,
     selectedShipId,
+    getShipAttributes,
   );
   const targets: { shipId: number; position: { row: number; col: number } }[] = [];
   shipPositions.forEach((shipPosition) => {
@@ -878,6 +884,7 @@ export function computeHoverShootingRange({
     gridHeight,
     shipPositions,
     selectedShipId,
+    getShipAttributes,
   );
   const positions: { row: number; col: number }[] = [];
   for (let row = Math.max(0, startRow - range); row <= Math.min(gridHeight - 1, startRow + range); row++) {

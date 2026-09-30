@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
   }
   const addShipIds = body.addShipIds ?? [];
   const removeShipIds = body.removeShipIds ?? [];
+  if (new Set(addShipIds).size !== addShipIds.length) {
+    return NextResponse.json(
+      { error: "The same ship can't appear twice in one fleet." },
+      { status: 400 },
+    );
+  }
 
   const run = await prisma.roguelikeRun.findFirst({
     where: { userId: userId!, status: "ACTIVE" },

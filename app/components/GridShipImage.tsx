@@ -39,7 +39,7 @@ export function GridShipImage({
   const rankStarsOverlay =
     ship.shipData.constructed && !hideRankStars ? (
       <div
-        className="pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
+        className="ship-rank-stars pointer-events-none absolute right-[2.5%] top-[5%] z-10 leading-none text-amber"
         style={{
           fontSize: rankStarBox,
         }}

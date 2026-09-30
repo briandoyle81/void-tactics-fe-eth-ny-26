@@ -16,6 +16,7 @@ import { useFleetShipAttributes } from "../hooks/useFleetShipAttributes";
 import { useRoguelikeRosterHP } from "../hooks/useRoguelikeRun";
 import { useRepairCostPerHP, useRoguelikeResupply, ROGUELIKE_RESUPPLY_ADDRESS } from "../hooks/useRoguelikeResupply";
 import { RoguelikeRun, RoguelikeNode } from "../types/roguelike";
+import { DUPLICATE_SHIP_ID_TOAST } from "../utils/fleetShipIds";
 
 const UTC_APPROVE_ABI = [
   {
@@ -54,6 +55,7 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
     () => ownedShips.filter((s) => rosterIdSet.has(s.id.toString())),
     [ownedShips, rosterIdSet],
   );
+  const requiredVariant = Number(run.requiredVariantAtStart ?? 0);
   const availableShips = React.useMemo(
     () =>
       ownedShips.filter(
@@ -62,9 +64,13 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
           s.shipData.constructed &&
           s.shipData.timestampDestroyed === 0n &&
           !s.shipData.inFleet &&
-          (rosterShips[0] ? s.traits.variant === rosterShips[0].traits.variant : true),
+          (requiredVariant > 0
+            ? s.traits.variant === requiredVariant
+            : rosterShips[0]
+              ? s.traits.variant === rosterShips[0].traits.variant
+              : true),
       ),
-    [ownedShips, rosterIdSet, rosterShips],
+    [ownedShips, requiredVariant, rosterIdSet, rosterShips],
   );
 
   const { attributesMap } = useFleetShipAttributes(
@@ -147,6 +153,8 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
         toast.error("That ship can't be added right now.");
       } else if (message.includes("WrongCampaignVariant")) {
         toast.error("That ship's faction doesn't match this run's roster.");
+      } else if (message.includes("DuplicateShipId")) {
+        toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else if (message.includes("ActiveGameInProgress")) {
         toast.error(
           "A match is still in progress — return to it or let it finish before changing your roster.",

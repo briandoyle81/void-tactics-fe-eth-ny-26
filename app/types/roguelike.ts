@@ -31,6 +31,8 @@ export interface RoguelikeRun {
    * match (ActiveGameInProgress otherwise) before retreatRun(0) can end
    * the run. See docs/update/Frontend_Updates_2026-08-26.md. */
   activeGameId: bigint;
+  /** Campaign required faction, pinned at startRun (0 = unrestricted). */
+  requiredVariantAtStart: number;
 }
 
 export interface RoguelikeEdge {

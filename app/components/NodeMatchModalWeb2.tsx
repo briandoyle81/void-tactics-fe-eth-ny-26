@@ -12,6 +12,7 @@ import { buildFleetShipListItemsWeb2 } from "../utils/buildFleetShipListItemsWeb
 import { useStartCampaignNodeWeb2, type CampaignWeb2Node } from "../hooks/useCampaignWeb2";
 import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
 import type { Web2Ship } from "../types/web2Ship";
+import { hasDuplicateShipIds } from "../utils/fleetShipIds";
 
 interface AIMapPlacementWeb2 {
   id: number;
@@ -95,7 +96,8 @@ export function NodeMatchModalWeb2({
       fleet.selectedShips.length > fleet.maxShips ||
       fleet.isOverLimit ||
       fleet.isUnder90Percent ||
-      !fleet.hasMovedShip
+      !fleet.hasMovedShip ||
+      hasDuplicateShipIds(fleet.selectedShips)
     );
   }
 

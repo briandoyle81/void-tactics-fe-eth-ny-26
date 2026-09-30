@@ -35,6 +35,7 @@ import HealAboveFloorWinEffectContract from "../contracts/artifacts/DeployModule
 import ShipGrantWinEffectContract from "../contracts/artifacts/DeployModule#ShipGrantWinEffect.json";
 import FactionRewardTokenRegistryContract from "../contracts/artifacts/DeployModule#FactionRewardTokenRegistry.json";
 import SelfieCheckEligibilityProviderContract from "../contracts/artifacts/DeployModule#SelfieCheckEligibilityProvider.json";
+import GameEngineRegistryContract from "../contracts/artifacts/DeployModule#GameEngineRegistry.json";
 import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { getSelectedChainId, xaiTestnet } from "./networks";
 import flowTestnetDeployedAddresses from "../contracts/flow-testnet/deployed_addresses.json";
@@ -252,6 +253,11 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   SELFIE_CHECK_ELIGIBILITY_PROVIDER:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#SelfieCheckEligibilityProvider"] ??
     ZERO_ADDRESS,
+  // Resolves which Game engine serves a given gameId. See
+  // docs/eth-global-remote/frontend-handoff-engine-registry-and-redeploy-2026-09-30.md §2.
+  GAME_ENGINE_REGISTRY:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#GameEngineRegistry"] ??
+    ZERO_ADDRESS,
 } as const;
 
 const XAI_TESTNET_CONTRACT_ADDRESSES = {
@@ -374,6 +380,7 @@ export const CONTRACT_ABIS = {
   SHIP_GRANT_WIN_EFFECT: ShipGrantWinEffectContract.abi,
   FACTION_REWARD_TOKEN_REGISTRY: FactionRewardTokenRegistryContract.abi,
   SELFIE_CHECK_ELIGIBILITY_PROVIDER: SelfieCheckEligibilityProviderContract.abi,
+  GAME_ENGINE_REGISTRY: GameEngineRegistryContract.abi,
 } as const;
 
 // Contract types for wagmi

@@ -183,7 +183,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // this, a wallet connected to a different chain (still selectable via
   // RainbowKit even though the in-app picker is locked to Base Sepolia)
   // silently reads the wrong chain's Game contract.
-  const gameContract = useGameContract(baseSepolia.id);
+  const gameContract = useGameContract(
+    baseSepolia.id,
+    initialGame.metadata.gameId,
+  );
   const pvpMatchContract = usePvPMatchContract();
 
   // ── Game record (persisted to localStorage) ────────────────────────────────

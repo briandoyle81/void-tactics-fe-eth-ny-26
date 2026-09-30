@@ -221,18 +221,21 @@ function validateDestinationAndTarget(params: {
   const shipPos = state.shipPositions.find((p) => p.shipId === shipId);
   if (!shipPos) throw new GameActionError(400, "Ship position not found");
   const { row: curRow, col: curCol } = shipPos.position;
+  const attrsByShip = new Map(
+    state.shipIds.map((id, i) => [id, state.shipAttributes[i]]),
+  );
   const enemyOccupiedGrid = buildEnemyOccupiedGrid(
     state.gridDimensions.gridWidth,
     state.gridDimensions.gridHeight,
     state.shipPositions.filter((p) => (p.status ?? 0) === 0),
     shipId,
     shipPos.isCreator,
+    (id) => (attrsByShip.get(Number(id))?.hullPoints ?? 1) === 0,
   );
 
   const isStayingPut = row === curRow && col === curCol;
   if (!isStayingPut) {
     const shipMap = new Map<number, true>(state.shipIds.map((id) => [id, true]));
-    const attrsByShip = new Map(state.shipIds.map((id, i) => [id, state.shipAttributes[i]]));
     // FactionAbility (Ram/Repair) moves to a normal legal tile like any
     // other action. Ram's resolver relocates the rammer onto the victim's
     // tile afterward, mirroring RamResolver.sol.

@@ -28,6 +28,7 @@ import {
   LobbyStatus,
 } from "../types/types";
 import { toast } from "react-hot-toast";
+import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
 import { cacheShipsData } from "../hooks/useShipDataCache";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
@@ -1131,6 +1132,11 @@ const Lobbies: React.FC = () => {
       return;
     }
 
+    if (hasDuplicateShipIds(selectedShips)) {
+      toast.error(DUPLICATE_SHIP_ID_TOAST);
+      return;
+    }
+
     if (selectedFleetHasStaleCostsVersion) {
       toast.error(
         "Remove or update ships that are not on the current cost version (Manage Navy) before creating a fleet.",
@@ -1204,7 +1210,11 @@ const Lobbies: React.FC = () => {
   React.useEffect(() => {
     if (fleetCreationError && lastFleetCreationLobbyRef.current) {
       const errorMessage = fleetCreationError.message || "Transaction failed";
-      toast.error(`Fleet creation failed: ${errorMessage}`);
+      toast.error(
+        errorMessage.includes("DuplicateShipId")
+          ? DUPLICATE_SHIP_ID_TOAST
+          : `Fleet creation failed: ${errorMessage}`,
+      );
       lastFleetCreationLobbyRef.current = null;
       setIsCreatingFleet(false);
     }
@@ -1217,6 +1227,11 @@ const Lobbies: React.FC = () => {
       toast.error(
         `A fleet can have at most ${MAX_SHIPS_PER_FLEET} ships for this map.`,
       );
+      return;
+    }
+
+    if (hasDuplicateShipIds(selectedShips)) {
+      toast.error(DUPLICATE_SHIP_ID_TOAST);
       return;
     }
 
@@ -1272,6 +1287,8 @@ const Lobbies: React.FC = () => {
         toast.error(
           "A fleet can't mix ships from different factions — select ships of one faction only.",
         );
+      } else if (errorMessage.includes("DuplicateShipId")) {
+        toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else {
         toast.error(`Fleet creation failed: ${errorMessage}`);
       }

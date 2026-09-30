@@ -4,6 +4,7 @@ import {
   computeShootingRange,
   hasMovementPath,
   hasLineOfSight,
+  buildEnemyOccupiedGrid,
   collectDamageLabelTargets,
   selectedShipHasEffectLabel,
   computeConfirmWidgetAnchor,
@@ -305,6 +306,38 @@ describe("hasMovementPath", () => {
     extra[5][7] = true;
     expect(hasMovementPath(5, 5, 5, 9, emptyGrid(), extra)).toBe(false);
     expect(hasMovementPath(5, 5, 5, 6, emptyGrid(), extra)).toBe(true);
+  });
+});
+
+describe("buildEnemyOccupiedGrid — disabled enemies", () => {
+  it("omits 0 HP enemies from movement-through and LOS occupancy", () => {
+    const grid = buildEnemyOccupiedGrid(
+      GRID_W,
+      GRID_H,
+      [
+        { shipId: 1, position: { row: 5, col: 8 }, isCreator: true },
+        { shipId: 2, position: { row: 5, col: 10 }, isCreator: false },
+      ],
+      1,
+      true,
+      (id) => String(id) === "2",
+    );
+    expect(grid[5][10]).toBe(false);
+  });
+
+  it("still marks living enemies as blocking", () => {
+    const grid = buildEnemyOccupiedGrid(
+      GRID_W,
+      GRID_H,
+      [
+        { shipId: 1, position: { row: 5, col: 8 }, isCreator: true },
+        { shipId: 2, position: { row: 5, col: 10 }, isCreator: false },
+      ],
+      1,
+      true,
+      () => false,
+    );
+    expect(grid[5][10]).toBe(true);
   });
 });
 

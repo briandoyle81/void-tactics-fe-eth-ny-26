@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
+import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useLobbiesWeb2 } from "../hooks/useLobbiesWeb2";
 import { useOwnedShipsWeb2 } from "../hooks/useOwnedShipsWeb2";
@@ -562,6 +563,11 @@ const LobbiesWeb2: React.FC = () => {
       toast.error(
         `A fleet can have at most ${MAX_SHIPS_PER_FLEET} ships for this map. Remove ships until you are at or below the limit.`,
       );
+      return;
+    }
+
+    if (hasDuplicateShipIds(shipPositions.map((p) => p.shipId))) {
+      toast.error(DUPLICATE_SHIP_ID_TOAST);
       return;
     }
 

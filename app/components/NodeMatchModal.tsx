@@ -21,6 +21,7 @@ import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { CONTRACT_ABIS } from "../config/contracts";
 import { useCampaignRequiredVariant, type CampaignGraphNode } from "../hooks/useNodeMap";
 import { navigateToGame } from "../utils/navigateToGame";
+import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
 
 // AIShipConfig ids and the player's own owned-ship ids are separate
 // namespaces on-chain and can collide (e.g. both could have id 3) — this
@@ -150,6 +151,8 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         toast.error(
           "A fleet can't mix ships from different factions — select ships of one faction only.",
         );
+      } else if (message.includes("DuplicateShipId")) {
+        toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else if (message.includes("User rejected") || message.includes("User denied")) {
         toast.error("Transaction declined by user");
       } else {
@@ -167,7 +170,8 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
       fleet.isOverLimit ||
       fleet.isUnder90Percent ||
       !fleet.hasMovedShip ||
-      fleet.hasStaleCostsVersion
+      fleet.hasStaleCostsVersion ||
+      hasDuplicateShipIds(fleet.selectedShips)
     );
   }
 
