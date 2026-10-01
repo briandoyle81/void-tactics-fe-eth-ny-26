@@ -14,10 +14,14 @@ const REFETCH_RETRY_MS = 2000;
 // hook), so a player browsing a different picked chain still sees their
 // real, submittable Base Sepolia ships and attributes rather than whatever
 // chain the picker happens to be on.
-export function useOwnedShips(chainIdOverride?: number) {
+export function useOwnedShips(
+  chainIdOverride?: number,
+  options?: { enabled?: boolean },
+) {
   const { address } = useAccount();
   const pickerChainId = useSelectedChainId();
   const activeChainId = chainIdOverride ?? pickerChainId;
+  const queryEnabled = options?.enabled ?? true;
 
   const baselineOwnedIdsKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -28,13 +32,23 @@ export function useOwnedShips(chainIdOverride?: number) {
     () => (address ? [address] : undefined),
     [address],
   );
-  const shipIdsResult = useShipsRead("getShipIdsOwned", shipIdsArgs, chainIdOverride);
+  const shipIdsResult = useShipsRead(
+    "getShipIdsOwned",
+    shipIdsArgs,
+    chainIdOverride,
+    queryEnabled && !!address,
+  );
 
   const shipsDataArgs = useMemo(
     () => (shipIdsResult.data ? [shipIdsResult.data] : undefined),
     [shipIdsResult.data],
   );
-  const shipsDataResult = useShipsRead("getShipsByIds", shipsDataArgs, chainIdOverride);
+  const shipsDataResult = useShipsRead(
+    "getShipsByIds",
+    shipsDataArgs,
+    chainIdOverride,
+    queryEnabled && !!shipIdsResult.data,
+  );
 
   const prevChainIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -95,13 +109,22 @@ export function useOwnedShips(chainIdOverride?: number) {
 
   // Refetch IDs first, then ship rows. Same-ID updates (construct, attribute sync)
   // are served by the second refetch. New IDs rely on `ownedIdsKey` effect above.
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
+
   const refetch = useCallback(async () => {
     await shipIdsResult.refetch();
     await shipsDataResult.refetch();
-    setTimeout(() => {
-      void shipsDataResult.refetch();
-    }, REFETCH_DEBOUNCE_MS);
-    setTimeout(() => {
+    await new Promise((resolve) => setTimeout(resolve, REFETCH_DEBOUNCE_MS));
+    await shipIdsResult.refetch();
+    await shipsDataResult.refetch();
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    retryTimeoutRef.current = setTimeout(() => {
+      retryTimeoutRef.current = null;
       void shipsDataResult.refetch();
     }, REFETCH_RETRY_MS);
   }, [shipIdsResult.refetch, shipsDataResult.refetch]);

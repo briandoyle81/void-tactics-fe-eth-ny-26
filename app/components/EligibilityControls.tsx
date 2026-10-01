@@ -74,9 +74,9 @@ function EligibilityToggleCard({ contract }: { contract: EligibilityGatedContrac
           functionName="setEligibilityProvider"
           args={[ZERO_ADDRESS]}
           className="w-full px-3 py-2 border border-warning-red text-warning-red rounded-none font-mono hover:bg-warning-red/10 transition-colors text-sm"
-          onSuccess={() => {
+          onSuccess={async () => {
             toast.success(`${CONTRACT_LABEL[contract]} verification disabled`);
-            refetch();
+            await refetch();
           }}
           onError={(e) => {
             console.error(`Failed to disable ${contract} eligibility provider:`, e);
@@ -94,9 +94,9 @@ function EligibilityToggleCard({ contract }: { contract: EligibilityGatedContrac
           args={[selfieCheckAddress]}
           disabled={!canReEnable}
           className="w-full px-3 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors text-sm disabled:opacity-50"
-          onSuccess={() => {
+          onSuccess={async () => {
             toast.success(`${CONTRACT_LABEL[contract]} verification enabled`);
-            refetch();
+            await refetch();
           }}
           onError={(e) => {
             console.error(`Failed to enable ${contract} eligibility provider:`, e);

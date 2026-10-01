@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlayerGames } from "../hooks/usePlayerGames";
-import { useContractEvents } from "../hooks/useContractEvents";
 import GameDisplay from "./GameDisplay";
 import { GameLogCard } from "./GameLogCard";
 import { GamesListShell } from "./GamesListShell";
@@ -13,8 +12,10 @@ import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 
 const Games: React.FC = () => {
   const { address, isConnected } = useAccount();
-  const { games, isLoading, error, refetch } = usePlayerGames();
   const [selectedGame, setSelectedGame] = useState<GameDataView | null>(null);
+  const { games, isLoading, isFetching, error, refetch } = usePlayerGames({
+    enabled: !selectedGame,
+  });
   const queryClient = useQueryClient();
   const [isResettingCache, setIsResettingCache] = useState(false);
 
@@ -39,19 +40,18 @@ const Games: React.FC = () => {
   // Track if component has mounted (client-side only)
   const [isMounted, setIsMounted] = useState(false);
 
-  // Ticker to update countdown timers
+  // Ticker to update countdown timers (list view only).
   const [, setTick] = useState(0);
 
-  // Enable real-time event listening for game updates
-  useContractEvents();
-
-  // Update ticker every second to refresh countdown timers
+  // Update ticker every second to refresh countdown timers. Pause while a
+  // match is open so this parent clock does not re-render GameDisplay at 1Hz.
   useEffect(() => {
+    if (selectedGame) return;
     const interval = setInterval(() => {
       setTick((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedGame]);
 
   // Helper function to calculate time remaining for a game
   const calculateTimeRemaining = (game: GameDataView): number => {
@@ -88,9 +88,6 @@ const Games: React.FC = () => {
     [address]
   );
 
-  // Track if we've attempted restoration
-  const hasAttemptedRestore = useRef(false);
-
   // Mark component as mounted after hydration
   useEffect(() => {
     setIsMounted(true);
@@ -104,7 +101,6 @@ const Games: React.FC = () => {
       typeof window !== "undefined" &&
       isConnected &&
       address &&
-      !isLoading &&
       !selectedGame &&
       games.length > 0
     ) {
@@ -122,17 +118,13 @@ const Games: React.FC = () => {
           );
           if (gameToRestore) {
             setSelectedGame(gameToRestore);
-          } else if (!hasAttemptedRestore.current) {
-            // Game not found, clear the saved ID (only once)
-            localStorage.removeItem(storageKey);
-            hasAttemptedRestore.current = true;
           }
+          // Do not delete the seeded id just because this snapshot does not
+          // include it yet. GO TO GAMES writes the new gameId before this
+          // tab's list has refetched, and wiping it left joiners on an empty
+          // or stale list until a hard refresh.
         } catch (error) {
           console.warn("Failed to restore selectedGame:", error);
-          if (!hasAttemptedRestore.current) {
-            localStorage.removeItem(storageKey);
-            hasAttemptedRestore.current = true;
-          }
         }
       }
     }
@@ -147,10 +139,36 @@ const Games: React.FC = () => {
     isConnected,
   ]);
 
-  // Reset restoration flag when address changes
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+  const stableListRefetch = useCallback(() => {
+    void refetchRef.current();
+  }, []);
+
+  const [mountRefetchDone, setMountRefetchDone] = useState(false);
   useEffect(() => {
-    hasAttemptedRestore.current = false;
-  }, [address]);
+    if (!isMounted || !isConnected) return;
+    let cancelled = false;
+    void refetchRef.current().finally(() => {
+      if (!cancelled) setMountRefetchDone(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isMounted, isConnected]);
+
+  const waitingForSeededGame = (() => {
+    if (!isMounted || typeof window === "undefined" || selectedGame) {
+      return false;
+    }
+    if (localStorage.getItem(viewModeKey) !== "detail") return false;
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return false;
+    return !games.some((game) => game.metadata.gameId.toString() === saved);
+  })();
+  const showGamesLoading =
+    isLoading ||
+    (waitingForSeededGame && (!mountRefetchDone || isFetching));
 
   // Validate restored game - ensure user is still part of it
   useEffect(() => {
@@ -189,6 +207,7 @@ const Games: React.FC = () => {
         // Don't clear on initial mount when it's null
         localStorage.removeItem(storageKey);
         localStorage.setItem(viewModeKey, "list");
+        void refetchRef.current();
       }
       prevSelectedGameRef.current = selectedGame;
     }
@@ -237,27 +256,29 @@ const Games: React.FC = () => {
       if (typeof window !== "undefined") {
         localStorage.removeItem("selectedGameId");
       }
-      void refetch();
+      void refetchRef.current();
     };
     window.addEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, onChainChanged);
     return () => {
       window.removeEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, onChainChanged);
     };
-  }, [refetch]);
+  }, []);
+
+  const handleBackToList = useCallback(() => {
+    setSelectedGame(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(storageKey);
+      localStorage.setItem(viewModeKey, "list");
+    }
+  }, [storageKey, viewModeKey]);
 
   // If a game is selected, show the game display
   if (selectedGame) {
     return (
       <GameDisplay
         game={selectedGame}
-        onBack={() => {
-          setSelectedGame(null);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(storageKey);
-            localStorage.setItem(viewModeKey, "list");
-          }
-        }}
-        refetch={refetch}
+        onBack={handleBackToList}
+        refetch={stableListRefetch}
       />
     );
   }
@@ -280,7 +301,7 @@ const Games: React.FC = () => {
       <GamesListShell
         isAuthenticated={isConnected}
         authRequiredMessage="Please connect your wallet to view your games."
-        isLoading={isLoading}
+        isLoading={showGamesLoading}
         error={error}
         count={sortedGames.length}
       >

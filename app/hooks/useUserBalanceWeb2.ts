@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { useCurrentUser } from "./useCurrentUser";
 
 export const USER_BALANCE_QUERY_KEY = ["user", "me", "balance"] as const;
+
+const GAMES_DETAIL_ACTIVE_EVENT = "void-tactics-games-detail-active";
 
 // Web2-mode counterpart to reading a connected wallet's native-token balance
 // (see Header.tsx's "Flow Balance" widget) — the signed-in user's UTC
@@ -13,12 +16,26 @@ export const USER_BALANCE_QUERY_KEY = ["user", "me", "balance"] as const;
 // without an explicit refetch from the flow that changed it.
 export function useUserBalanceWeb2() {
   const { isLoggedIn } = useCurrentUser();
+  const [pausePolling, setPausePolling] = useState(false);
+  useEffect(() => {
+    const onDetail = (event: Event) => {
+      const custom = event as CustomEvent<{ active?: boolean }>;
+      setPausePolling(Boolean(custom.detail?.active));
+    };
+    window.addEventListener(GAMES_DETAIL_ACTIVE_EVENT, onDetail as EventListener);
+    return () =>
+      window.removeEventListener(
+        GAMES_DETAIL_ACTIVE_EVENT,
+        onDetail as EventListener,
+      );
+  }, []);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: USER_BALANCE_QUERY_KEY,
     queryFn: () =>
       apiFetch<{ creditBalance: number; decBalance: number; droneCoreTier: number }>("/api/user/me"),
     enabled: isLoggedIn,
-    refetchInterval: 30_000,
+    refetchInterval: pausePolling ? false : 30_000,
+    refetchOnWindowFocus: !pausePolling,
   });
 
   return {

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import posthog from "posthog-js";
+import type { TransactionFollowUp } from "./TransactionButton";
 
 interface FreeShipClaimButtonProps {
   isEligible: boolean;
@@ -17,7 +18,7 @@ interface FreeShipClaimButtonProps {
   analyticsSurface?: "info" | "manage_navy" | "unknown";
   /** Fires when the user activates the button (before eligibility checks and claim). */
   onPress?: () => void;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 
@@ -45,8 +46,10 @@ export function FreeShipClaimButton({
 }: FreeShipClaimButtonProps) {
   const { address } = useAccount();
   const hasCalledOnSuccess = useRef(false);
+  const [followUpPending, setFollowUpPending] = useState(false);
 
-  // Call onSuccess when transaction is confirmed (only once)
+  // Call onSuccess when transaction is confirmed (only once). Stay in the
+  // claiming state until parent follow-up (navy refetch) finishes.
   useEffect(() => {
     if (isConfirmed && !hasCalledOnSuccess.current) {
       hasCalledOnSuccess.current = true;
@@ -54,7 +57,10 @@ export function FreeShipClaimButton({
         wallet_address: address,
         surface: analyticsSurface,
       });
-      onSuccess?.();
+      setFollowUpPending(true);
+      void Promise.resolve(onSuccess?.()).finally(() => {
+        setFollowUpPending(false);
+      });
     }
   }, [isConfirmed, onSuccess, address, analyticsSurface]);
 
@@ -91,7 +97,7 @@ export function FreeShipClaimButton({
     }
   };
 
-  const isDisabled = disabled || !isEligible || isPending;
+  const isDisabled = disabled || !isEligible || isPending || followUpPending;
 
   // Remove rounded classes from className to enforce square corners
   const cleanedClassName = className
@@ -109,7 +115,7 @@ export function FreeShipClaimButton({
         borderRadius: 0,
       }}
     >
-      {isPending ? "[CLAIMING...]" : children}
+      {isPending || followUpPending ? "[CLAIMING...]" : children}
     </button>
   );
 }

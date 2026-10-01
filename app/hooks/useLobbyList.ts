@@ -35,6 +35,20 @@ export function useLobbyList() {
   );
   const openLobbyIds = useLobbiesRead("getOpenLobbies");
 
+  const stickyMineIdsKey = useMemo(() => {
+    if (!address) return "";
+    const me = address.toLowerCase();
+    return lobbies
+      .filter((lobby) => {
+        const creator = lobby.basic.creator?.toLowerCase();
+        const joiner = lobby.players.joiner?.toLowerCase();
+        return creator === me || joiner === me;
+      })
+      .map((lobby) => lobby.basic.id.toString())
+      .sort()
+      .join(",");
+  }, [lobbies, address]);
+
   const allLobbyIds = useMemo(() => {
     const ids = new Set<string>();
     (playerLobbyIds.data as readonly bigint[] | undefined)?.forEach((id) =>
@@ -43,8 +57,14 @@ export function useLobbyList() {
     (openLobbyIds.data as readonly bigint[] | undefined)?.forEach((id) =>
       ids.add(id.toString()),
     );
+    // After join, the lobby leaves Open before getPlayerLobbies includes it.
+    // Keep any lobby we already show as ours so the card does not vanish
+    // (and JOIN does not come back) until the player list catches up.
+    if (stickyMineIdsKey) {
+      for (const id of stickyMineIdsKey.split(",")) ids.add(id);
+    }
     return Array.from(ids, (s) => BigInt(s));
-  }, [playerLobbyIds.data, openLobbyIds.data]);
+  }, [playerLobbyIds.data, openLobbyIds.data, stickyMineIdsKey]);
 
   const lobbyStructs = useReadContracts({
     contracts: allLobbyIds.map((id) => ({
@@ -57,14 +77,17 @@ export function useLobbyList() {
     query: { enabled: allLobbyIds.length > 0 },
   });
 
-  const processLobbyData = useCallback((): Lobby[] => {
-    return (lobbyStructs.data ?? [])
-      .map((r) => r.result as Lobby | undefined)
-      .filter(
-        (l): l is Lobby =>
-          !!l && typeof l === "object" && !!l.basic && l.basic.id != null,
-      );
-  }, [lobbyStructs.data]);
+  const processLobbyData = useCallback(
+    (data: typeof lobbyStructs.data = lobbyStructs.data): Lobby[] => {
+      return (data ?? [])
+        .map((r) => r.result as Lobby | undefined)
+        .filter(
+          (l): l is Lobby =>
+            !!l && typeof l === "object" && !!l.basic && l.basic.id != null,
+        );
+    },
+    [lobbyStructs.data],
+  );
 
   const prevChainIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -123,17 +146,14 @@ export function useLobbyList() {
   ]);
 
   const refetch = async (): Promise<Lobby[]> => {
-    // The id-list reads must resolve (and the component re-render, updating
-    // allLobbyIds) before lobbyStructs' own contracts array reflects any
-    // newly-appeared lobby id — but for the common case (an existing
-    // lobby's state changed, id set unchanged), lobbyStructs also needs its
-    // own explicit refetch since its query key wouldn't otherwise change.
-    await Promise.all([
-      playerLobbyIds.refetch(),
-      openLobbyIds.refetch(),
-      lobbyStructs.refetch(),
-    ]);
-    const processed = processLobbyData();
+    // Id lists first so a join that leaves Open can land in Player before we
+    // decide which structs to keep. Then use the *refetch result*, not the
+    // hook's closed-over `lobbyStructs.data` — that snapshot is from this
+    // render and still has the pre-join joiner/status, which made JOIN
+    // re-enable while the card still looked open.
+    await Promise.all([playerLobbyIds.refetch(), openLobbyIds.refetch()]);
+    const structsResult = await lobbyStructs.refetch();
+    const processed = processLobbyData(structsResult.data);
     setLobbies(processed);
     return processed;
   };

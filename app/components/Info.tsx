@@ -256,7 +256,7 @@ const Info: React.FC = () => {
                   !hasClaimStatusError &&
                   isEligible &&
                   (appMode === "web2" ? (
-                    <ClaimFreeButtonWeb2 onSuccess={() => refetch()} analyticsSurface="info" />
+                    <ClaimFreeButtonWeb2 onSuccess={async () => { await refetch(); }} analyticsSurface="info" />
                   ) : (
                     <FreeShipClaimButton
                       isEligible={isEligible}
@@ -265,7 +265,9 @@ const Info: React.FC = () => {
                       claimFreeShips={claimFreeShips}
                       analyticsSurface="info"
                       className="px-5 sm:px-6 md:px-8 py-3.5 md:py-4 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wide md:tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto text-xs sm:text-sm"
-                      onSuccess={() => refetch()}
+                      onSuccess={async () => {
+                        await refetch();
+                      }}
                     >
                       [CLAIM FREE SHIPS]
                     </FreeShipClaimButton>

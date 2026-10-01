@@ -9,7 +9,7 @@ import { apiMutate } from "../lib/apiMutate";
 // `renderConfirmButton`.
 interface FleeConfirmButtonWeb2Props {
   gameId: number;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
 
 export function FleeConfirmButtonWeb2({ gameId, onSuccess }: FleeConfirmButtonWeb2Props) {
@@ -20,7 +20,7 @@ export function FleeConfirmButtonWeb2({ gameId, onSuccess }: FleeConfirmButtonWe
     try {
       await apiMutate(`/api/games/${gameId}/flee`, "POST");
       toast.success("Disengaged from battle.");
-      onSuccess();
+      await onSuccess();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Disengage failed");
     } finally {

@@ -27,7 +27,7 @@ export interface AdminStuckAction {
 
 interface AdminMatchRowProps {
   match: AdminMatchRowData;
-  onAction: () => void;
+  onAction: () => void | Promise<unknown>;
   onCreateLobby: () => Promise<unknown>;
   stuckActions: AdminStuckAction[];
 }
@@ -44,7 +44,7 @@ export function AdminMatchRow({ match, onAction, onCreateLobby, stuckActions }: 
       setError(null);
       try {
         await fn();
-        onAction();
+        await onAction();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Action failed");
       } finally {

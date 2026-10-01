@@ -911,13 +911,11 @@ export function SimulatedGameDisplay({
       return;
     }
     setSelectedWeaponType(saved);
-  }, [
-    selectedShipId,
-    weaponPreferenceByShipId,
-    shipMap,
-    getShipAttributes,
-    tutorialLastMoveGhostVisible,
-  ]);
+    // Restore only when the selected ship changes. Re-running on
+    // shipMap / getShipAttributes / preference identity would overwrite a
+    // ram/special switch as soon as the player locked a target.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShipId, tutorialLastMoveGhostVisible]);
 
   /**
    * Pulse the Submit / Submit Retreat button (same idea as tutorial highlight)

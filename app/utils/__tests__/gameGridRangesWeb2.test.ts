@@ -79,6 +79,14 @@ describe("computeMovementRange — impassable terrain", () => {
     expect(result).toContainEqual({ row: 4, col: 5 });
     expect(result).toContainEqual({ row: 6, col: 5 });
   });
+
+  it("does not include a dest whose Bresenham line crosses impassable terrain, even if that dest is a scoring tile", () => {
+    const impassable = emptyGrid();
+    impassable[5][7] = true; // between (5,5) and (5,9)
+    const result = computeMovementRange(baseParams(impassable));
+    expect(result).not.toContainEqual({ row: 5, col: 9 });
+    expect(result).not.toContainEqual({ row: 5, col: 7 });
+  });
 });
 
 describe("computeMovementRange — enemy ships block movement-through", () => {

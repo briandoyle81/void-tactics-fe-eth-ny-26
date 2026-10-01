@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 import { useAccount } from "wagmi";
 
@@ -10,7 +10,7 @@ interface LobbyRejectButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 

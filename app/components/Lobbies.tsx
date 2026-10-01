@@ -26,9 +26,11 @@ import {
   Attributes,
   MapMode,
   LobbyStatus,
+  GameDataView,
 } from "../types/types";
 import { toast } from "react-hot-toast";
 import { DUPLICATE_SHIP_ID_TOAST, hasDuplicateShipIds } from "../utils/fleetShipIds";
+import { waitUntil } from "../utils/waitUntil";
 import { cacheShipsData } from "../hooks/useShipDataCache";
 import { ShipImage } from "./ShipImage";
 import ShipCard from "./ShipCard";
@@ -62,6 +64,8 @@ import {
 import type { MapPickerMap } from "./MapPickerModal";
 import type { MapPosition, ScoringPosition } from "../types/types";
 import { usePlayerGames } from "../hooks/usePlayerGames";
+import { navigateToGame } from "../utils/navigateToGame";
+import { normalizeGameDataView } from "../utils/normalizeGameDataView";
 import { useLobby } from "../hooks/useLobbiesContract";
 import {
   readFleetDrafts,
@@ -94,6 +98,24 @@ import { usePlayerStats } from "../hooks/usePlayerStats";
 import { WinLossBadge } from "./WinLossBadge";
 import { LobbyCardActions } from "./LobbyCardActions";
 import { lobbyStatusColor, lobbyStatusLabel } from "../utils/lobbyStatusDisplay";
+
+function findGameForLobby(
+  data: unknown,
+  lobbyId: bigint,
+): GameDataView | undefined {
+  if (!Array.isArray(data)) return undefined;
+  const want = lobbyId.toString();
+  for (const raw of data) {
+    if (!raw || typeof raw !== "object") continue;
+    const game = normalizeGameDataView(raw as GameDataView);
+    if (game.metadata?.lobbyId?.toString() === want) return game;
+  }
+  return undefined;
+}
+
+function hasGameForLobby(games: GameDataView[], lobbyId: bigint): boolean {
+  return findGameForLobby(games, lobbyId) != null;
+}
 
 function CreatorStats({
   address,
@@ -242,9 +264,20 @@ const Lobbies: React.FC = () => {
   const needsPaymentForLobby =
     activeLobbiesCount >= Number(freeGamesPerAddress || 0n);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [pendingCreateLobbyHash, setPendingCreateLobbyHash] = useState<
-    `0x${string}` | undefined
-  >(undefined);
+  const lobbyIdsAtCreateRef = useRef<Set<string>>(new Set());
+  const waitForLobby = useCallback(
+    async (
+      lobbyId: bigint,
+      isReady: (lobby: Lobby | undefined) => boolean,
+    ) => {
+      const id = lobbyId.toString();
+      await waitUntil(async () => {
+        const list = await loadLobbies();
+        return isReady(list.find((lobby) => lobby.basic.id.toString() === id));
+      });
+    },
+    [loadLobbies],
+  );
 
   // Navigate to Games tab (used by the Go to Games button elsewhere in this
   // file once a game actually exists to navigate to).
@@ -267,44 +300,16 @@ const Lobbies: React.FC = () => {
     );
   }, []);
 
-  const { isSuccess: isCreateLobbyConfirmed } =
-    useWaitForTransactionReceipt({
-      hash: pendingCreateLobbyHash,
-      chainId,
-      query: { enabled: !!pendingCreateLobbyHash },
-    });
-
-  React.useEffect(() => {
-    if (!isCreateLobbyConfirmed || !pendingCreateLobbyHash) return;
-    setPendingCreateLobbyHash(undefined);
-
-    (async () => {
-      // Wait for the new lobby to actually land in the list before closing
-      // the create form — closing right on receipt confirmation (the old
-      // behavior) could beat this refetch, so the form (and its "CREATING
-      // ..." button state) would vanish a beat before the lobby the player
-      // just created was visible anywhere, making it look like nothing
-      // happened.
-      await loadLobbies();
-      setShowCreateForm(false);
-      setCreateForm({
-        threatScale: "skirmish",
-        turnPace: "immediate",
-        selectedMapId:
-          pvpEligibleMapIds.length > 0 ? String(pvpEligibleMapIds[0]) : "1",
-        scoreLength: "medium",
-        creatorGoesFirst: false,
-        reservedJoiner: "",
-      });
-    })();
-  }, [isCreateLobbyConfirmed, pendingCreateLobbyHash, loadLobbies, pvpEligibleMapIds]);
-
   useEffect(() => {
     if ((needsShipsForLobbyUi || needsConstructForLobbyUi) && showCreateForm) {
       setShowCreateForm(false);
     }
   }, [needsShipsForLobbyUi, needsConstructForLobbyUi, showCreateForm]);
   const [selectedLobby, setSelectedLobby] = useState<bigint | null>(null);
+  const [openingGameLobbyId, setOpeningGameLobbyId] = useState<string | null>(
+    null,
+  );
+  const openingGameRef = useRef(false);
   const selectedLobbyRef = useRef<bigint | null>(null);
   useEffect(() => {
     selectedLobbyRef.current = selectedLobby;
@@ -349,6 +354,7 @@ const Lobbies: React.FC = () => {
   }, [selectedLobby, address, lobbyList.lobbies, chainId]);
 
   const [isCreatingFleet, setIsCreatingFleet] = useState(false);
+  const [fleetTxLobbyId, setFleetTxLobbyId] = useState<string | null>(null);
   const [showFleetView, setShowFleetView] = useState(false);
   const [showLoadFleetMenu, setShowLoadFleetMenu] = useState(false);
   const [viewingFleetId, setViewingFleetId] = useState<bigint | null>(null);
@@ -465,6 +471,47 @@ const Lobbies: React.FC = () => {
     variantLocked,
   } = fleet;
 
+  const waitingForOpponentLobbyIdRef = React.useRef<string | null>(null);
+  const advancingToGameRef = React.useRef(false);
+
+  const isMyLobbyWaitingOnOpponentFleet = React.useCallback(
+    (lobby: Lobby) => {
+      if (!address) return false;
+      const me = address.toLowerCase();
+      const isCreator = lobby.basic.creator.toLowerCase() === me;
+      const isJoiner = lobby.players.joiner.toLowerCase() === me;
+      if (!isCreator && !isJoiner) return false;
+      const myFleet = isCreator
+        ? lobby.players.creatorFleetId
+        : lobby.players.joinerFleetId;
+      const opponentFleet = isCreator
+        ? lobby.players.joinerFleetId
+        : lobby.players.creatorFleetId;
+      return myFleet > 0n && opponentFleet === 0n;
+    },
+    [address],
+  );
+
+  const hasLobbyWaitingOnOpponentFleet = lobbyList.lobbies.some(
+    isMyLobbyWaitingOnOpponentFleet,
+  );
+
+  const hasLobbyWaitingForGame = lobbyList.lobbies.some((lobby) => {
+    if (!address) return false;
+    const me = address.toLowerCase();
+    const isMine =
+      lobby.basic.creator.toLowerCase() === me ||
+      lobby.players.joiner.toLowerCase() === me;
+    if (!isMine) return false;
+    if (
+      lobby.players.creatorFleetId === 0n ||
+      lobby.players.joinerFleetId === 0n
+    ) {
+      return false;
+    }
+    return !hasGameForLobby(playerGames, lobby.basic.id);
+  });
+
   // When viewing a lobby that is waiting for the other player's fleet, poll so both players see updates
   const currentLobbyForPolling = resolvedLobbyForSelected;
   const isWaitingForOtherFleet =
@@ -473,18 +520,39 @@ const Lobbies: React.FC = () => {
       currentLobbyForPolling.players.joinerFleetId === 0n);
 
   React.useEffect(() => {
-    if (!selectedLobby || !isWaitingForOtherFleet) return;
+    if (
+      !isWaitingForOtherFleet &&
+      !hasLobbyWaitingOnOpponentFleet &&
+      !hasLobbyWaitingForGame &&
+      !isCreatingFleet
+    ) {
+      return;
+    }
     const interval = setInterval(() => {
-      loadLobbies();
-      refetchSelectedLobby();
+      void loadLobbies();
+      void refetchSelectedLobby();
+      void refetchGames();
     }, 2000);
     return () => clearInterval(interval);
   }, [
-    selectedLobby,
     isWaitingForOtherFleet,
+    hasLobbyWaitingOnOpponentFleet,
+    hasLobbyWaitingForGame,
+    isCreatingFleet,
     loadLobbies,
     refetchSelectedLobby,
+    refetchGames,
   ]);
+
+  const isLobbyGoToGamesBusy = useCallback(
+    (lobbyId: bigint) => {
+      const id = lobbyId.toString();
+      if (openingGameLobbyId === id) return true;
+      if (isCreatingFleet && fleetTxLobbyId === id) return true;
+      return !hasGameForLobby(playerGames, lobbyId);
+    },
+    [openingGameLobbyId, isCreatingFleet, fleetTxLobbyId, playerGames],
+  );
 
   // Determine the player's existing fleet ID when fleet selection modal is open
   const playerFleetId = React.useMemo(() => {
@@ -904,13 +972,68 @@ const Lobbies: React.FC = () => {
     });
   }, [address, chainId, setSelectedShips, setShipPositions, setSelectedShipId, setFleetFilters]);
 
+  const goToGameForLobby = useCallback(
+    async (lobbyId: bigint) => {
+      if (openingGameRef.current) return;
+      openingGameRef.current = true;
+      setOpeningGameLobbyId(lobbyId.toString());
+      try {
+        let found: GameDataView | undefined;
+        await waitUntil(async () => {
+          const result = await refetchGames();
+          found = findGameForLobby(result.data, lobbyId);
+          return found != null;
+        });
+        resetFleetSelectionModalState();
+        if (found?.metadata?.gameId != null && address) {
+          navigateToGame(address, found.metadata.gameId);
+        } else {
+          navigateToGamesTab();
+        }
+      } finally {
+        openingGameRef.current = false;
+        setOpeningGameLobbyId(null);
+      }
+    },
+    [address, refetchGames, resetFleetSelectionModalState, navigateToGamesTab],
+  );
+
+  const goToGameForLobbyRef = useRef(goToGameForLobby);
+  goToGameForLobbyRef.current = goToGameForLobby;
+  const waitForLobbyRef = useRef(waitForLobby);
+  waitForLobbyRef.current = waitForLobby;
+  const loadLobbiesRef = useRef(loadLobbies);
+  loadLobbiesRef.current = loadLobbies;
+  const refetchSelectedLobbyRef = useRef(refetchSelectedLobby);
+  refetchSelectedLobbyRef.current = refetchSelectedLobby;
+  const addressRef = useRef(address);
+  addressRef.current = address;
+
+  React.useEffect(() => {
+    const waitingId = waitingForOpponentLobbyIdRef.current;
+    if (!waitingId || advancingToGameRef.current) return;
+    const lobby = lobbyList.lobbies.find(
+      (item) => item.basic.id.toString() === waitingId,
+    );
+    if (!lobby || isMyLobbyWaitingOnOpponentFleet(lobby)) return;
+
+    advancingToGameRef.current = true;
+    waitingForOpponentLobbyIdRef.current = null;
+    const lobbyId = lobby.basic.id;
+    void (async () => {
+      await goToGameForLobby(lobbyId);
+      toast.success("Both fleets selected. Game is ready.");
+      advancingToGameRef.current = false;
+    })();
+  }, [lobbyList.lobbies, isMyLobbyWaitingOnOpponentFleet, goToGameForLobby]);
+
   useEffect(() => {
     const onChainChanged = () => {
       setShowCreateForm(false);
-      setPendingCreateLobbyHash(undefined);
       resetFleetSelectionModalState();
       setShowFleetView(false);
       setIsCreatingFleet(false);
+      setFleetTxLobbyId(null);
       setViewingFleetId(null);
       setViewingFleetOwner(null);
       setDraggedShipId(null);
@@ -1048,12 +1171,6 @@ const Lobbies: React.FC = () => {
     [ships],
   );
 
-  // Close fleet selection modal (if open) and switch to Games tab
-  const closeFleetModalAndGoToGames = useCallback(() => {
-    resetFleetSelectionModalState();
-    navigateToGamesTab();
-  }, [resetFleetSelectionModalState, navigateToGamesTab]);
-
   // attributesMap/fleetSelectionAttributesLoading now come from
   // useFleetShipAttributes above.
 
@@ -1165,46 +1282,58 @@ const Lobbies: React.FC = () => {
   // Track the last fleet creation lobby ID to show toast when receipt is received
   const lastFleetCreationLobbyRef = React.useRef<bigint | null>(null);
 
-  // Show toast and refresh lobby state when fleet creation receipt is received
+  // Show toast and refresh lobby state when fleet creation receipt is received.
+  // Do not depend on waitForLobby/loadLobbies here: those change identity
+  // every render, and a cancelled cleanup would drop lastFleetCreationLobbyRef
+  // so the second admiral never auto-opens the new game.
   React.useEffect(() => {
     if (!isFleetCreated || !lastFleetCreationLobbyRef.current) return;
+    const lobbyId = lastFleetCreationLobbyRef.current;
     lastFleetCreationLobbyRef.current = null;
 
     toast.success("Fleet created successfully!");
     setShowFleetView(false);
     setShowFleetConfirmation(false);
 
-    // Refetch selected lobby and lobby list so UI shows updated fleet state immediately
-    refetchGames();
+    void (async () => {
+      const me = addressRef.current?.toLowerCase();
+      await waitForLobbyRef.current(lobbyId, (found) => {
+        if (!found || !me) return false;
+        const isCreator = found.basic.creator.toLowerCase() === me;
+        const myFleet = isCreator
+          ? found.players.creatorFleetId
+          : found.players.joinerFleetId;
+        return myFleet > 0n;
+      });
+      await refetchSelectedLobbyRef.current();
 
-    (async () => {
-      // Only now — once fresh lobby data reflects the new fleet — is it
-      // safe to say we're no longer "creating". Clearing isCreatingFleet
-      // synchronously (right on receipt confirmation, before this refetch
-      // resolves) left `participantHasFleet` momentarily stale-false, so
-      // FleetSelectionModal would flash back to the pre-creation "CONFIRM
-      // FLEET" UI for a beat before this same refetch caught up.
-      await refetchSelectedLobby();
+      const list = await loadLobbiesRef.current();
+      const found = list.find(
+        (lobby) => lobby.basic.id.toString() === lobbyId.toString(),
+      );
+      const isCreator =
+        Boolean(found && me) && found!.basic.creator.toLowerCase() === me;
+      const opponentFleet = found
+        ? isCreator
+          ? found.players.joinerFleetId
+          : found.players.creatorFleetId
+        : 0n;
+
       setIsCreatingFleet(false);
 
-      // Brief delay so chain state is updated before we refetch (helps joiner who selected second)
-      await new Promise((r) => setTimeout(r, 1200));
-      await loadLobbies();
-      await refetchSelectedLobby();
+      // First fleet in: stay on this lobby so polling can see the second
+      // fleet. Navigating to Games here left the first admiral on an empty
+      // games list until a hard refresh.
+      if (opponentFleet === 0n) {
+        waitingForOpponentLobbyIdRef.current = lobbyId.toString();
+        setFleetTxLobbyId(null);
+        return;
+      }
 
-      // Always leave fleet UI after this wallet's fleet tx confirms. List vs getLobby can disagree
-      // for one block; the joiner already submitted a valid fleet, so switching to Games is correct.
-      resetFleetSelectionModalState();
-      navigateToGamesTab();
+      await goToGameForLobbyRef.current(lobbyId);
+      setFleetTxLobbyId(null);
     })();
-  }, [
-    isFleetCreated,
-    loadLobbies,
-    navigateToGamesTab,
-    resetFleetSelectionModalState,
-    refetchSelectedLobby,
-    refetchGames,
-  ]);
+  }, [isFleetCreated]);
 
   // Handle fleet creation errors
   React.useEffect(() => {
@@ -1217,6 +1346,7 @@ const Lobbies: React.FC = () => {
       );
       lastFleetCreationLobbyRef.current = null;
       setIsCreatingFleet(false);
+      setFleetTxLobbyId(null);
     }
   }, [fleetCreationError]);
 
@@ -1252,6 +1382,7 @@ const Lobbies: React.FC = () => {
     }
 
     setIsCreatingFleet(true);
+    setFleetTxLobbyId(lobbyId.toString());
     try {
       // Convert shipPositions to the format expected by the contract
       const startingPositions = shipPositions.map((pos) => ({
@@ -1275,6 +1406,7 @@ const Lobbies: React.FC = () => {
       console.error("Failed to create fleet:", error);
       lastFleetCreationLobbyRef.current = null;
       setIsCreatingFleet(false);
+      setFleetTxLobbyId(null);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       if (
@@ -1804,17 +1936,33 @@ const Lobbies: React.FC = () => {
                     )
                   }
                   className="w-full flex-1 px-6 py-3 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent sm:w-auto"
-                  onTransactionSent={(hash) => {
-                    setPendingCreateLobbyHash(hash);
-                    // Form stays open (button shows "[CREATING...]" via
-                    // TransactionButton's own pending state) until the
-                    // isCreateLobbyConfirmed effect above closes it — once
-                    // the new lobby is actually in the list, not just
-                    // once the tx is sent.
+                  onTransactionSent={() => {
+                    lobbyIdsAtCreateRef.current = new Set(
+                      lobbyList.lobbies.map((lobby) => lobby.basic.id.toString()),
+                    );
                   }}
-                  onSuccess={() => {}}
+                  onSuccess={async () => {
+                    const idsBefore = lobbyIdsAtCreateRef.current;
+                    await waitUntil(async () => {
+                      const list = await loadLobbies();
+                      return list.some(
+                        (lobby) => !idsBefore.has(lobby.basic.id.toString()),
+                      );
+                    });
+                    setShowCreateForm(false);
+                    setCreateForm({
+                      threatScale: "skirmish",
+                      turnPace: "immediate",
+                      selectedMapId:
+                        pvpEligibleMapIds.length > 0
+                          ? String(pvpEligibleMapIds[0])
+                          : "1",
+                      scoreLength: "medium",
+                      creatorGoesFirst: false,
+                      reservedJoiner: "",
+                    });
+                  }}
                   onError={(error) => {
-                    setPendingCreateLobbyHash(undefined);
                     console.error("Failed to create lobby:", error);
                     const errorMessage = error.message || "";
                     if (errorMessage.includes("InsufficientUTC")) {
@@ -2000,16 +2148,26 @@ const Lobbies: React.FC = () => {
                   opponentFleetId={Number(
                     isCreatorMe ? lobby.players.joinerFleetId : lobby.players.creatorFleetId,
                   )}
-                  onGoToGames={closeFleetModalAndGoToGames}
+                  onGoToGames={() => {
+                    void goToGameForLobby(lobby.basic.id);
+                  }}
+                  goToGamesBusy={isLobbyGoToGamesBusy(lobby.basic.id)}
                   onSelectFleet={() => setSelectedLobby(lobby.basic.id)}
                   joinButton={
                     <LobbyJoinButton
                       lobbyId={lobby.basic.id}
                       disabled={hasActiveLobby}
                       className="w-full px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onSuccess={() => {
+                      onSuccess={async () => {
+                        await waitForLobby(lobby.basic.id, (found) =>
+                          Boolean(
+                            address &&
+                              found &&
+                              found.players.joiner.toLowerCase() ===
+                                address.toLowerCase(),
+                          ),
+                        );
                         toast.success("Joined lobby successfully!");
-                        loadLobbies();
                       }}
                       onError={(error) => {
                         console.error("Failed to join lobby:", error);
@@ -2029,9 +2187,16 @@ const Lobbies: React.FC = () => {
                       lobbyId={lobby.basic.id}
                       disabled={hasActiveLobby}
                       className="flex-1 px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onSuccess={() => {
+                      onSuccess={async () => {
+                        await waitForLobby(lobby.basic.id, (found) =>
+                          Boolean(
+                            address &&
+                              found &&
+                              found.players.joiner.toLowerCase() ===
+                                address.toLowerCase(),
+                          ),
+                        );
                         toast.success("Game accepted!");
-                        loadLobbies();
                       }}
                       onError={(error) => {
                         console.error("Failed to accept game:", error);
@@ -2054,9 +2219,17 @@ const Lobbies: React.FC = () => {
                       lobbyId={lobby.basic.id}
                       disabled={hasActiveLobby}
                       className="flex-1 px-6 py-3 rounded-none border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onSuccess={() => {
+                      onSuccess={async () => {
+                        await waitForLobby(lobby.basic.id, (found) => {
+                          const reserved = found?.players.reservedJoiner;
+                          return (
+                            !found ||
+                            !reserved ||
+                            reserved ===
+                              "0x0000000000000000000000000000000000000000"
+                          );
+                        });
                         toast.success("Game rejected. Lobby is now open.");
-                        loadLobbies();
                       }}
                       onError={(error) => {
                         console.error("Failed to reject game:", error);
@@ -2071,11 +2244,17 @@ const Lobbies: React.FC = () => {
                       lobbyId={lobby.basic.id}
                       allowWhenOtherPending
                       className="w-full px-4 py-2.5 border border-warning-red/60 text-warning-red/70 hover:border-warning-red hover:text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         if (selectedLobby === lobby.basic.id) {
                           resetFleetSelectionModalState();
                         }
-                        loadLobbies();
+                        await waitForLobby(lobby.basic.id, (found) => {
+                          if (!found || !address) return !found;
+                          return (
+                            found.players.joiner.toLowerCase() !==
+                            address.toLowerCase()
+                          );
+                        });
                       }}
                       onError={(error) => {
                         console.error("Failed to leave lobby:", error);
@@ -2089,9 +2268,12 @@ const Lobbies: React.FC = () => {
                       <LobbyPruneButton
                         lobbyId={lobby.basic.id}
                         className="w-full px-4 py-2.5 border-2 border-warning-red text-warning-red hover:bg-warning-red/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
-                        onSuccess={() => {
+                        onSuccess={async () => {
+                          await waitForLobby(
+                            lobby.basic.id,
+                            (found) => !found,
+                          );
                           toast.success("Stale lobby pruned.");
-                          loadLobbies();
                         }}
                         onError={(error) => {
                           console.error("Failed to prune lobby:", error);
@@ -2208,7 +2390,13 @@ const Lobbies: React.FC = () => {
             <FleetSelectionModal
               participantHasFleet={participantHasFleet}
               opponentHasFleet={opponentHasFleet}
-              onGoToGames={closeFleetModalAndGoToGames}
+              onGoToGames={() => {
+                if (selectedLobby == null) return;
+                void goToGameForLobby(selectedLobby);
+              }}
+              goToGamesBusy={
+                selectedLobby != null && isLobbyGoToGamesBusy(selectedLobby)
+              }
               createButtonState={{
                 isBusy: isCreatingFleet,
                 busyLabel: "CREATING FLEET...",
@@ -2245,9 +2433,15 @@ const Lobbies: React.FC = () => {
                   lobbyId={selectedLobby}
                   allowWhenOtherPending
                   className="px-3 py-1 text-sm font-bold text-warning-red border border-warning-red rounded-none hover:text-warning-red/80 hover:border-warning-red/80 transition-colors"
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     resetFleetSelectionModalState();
-                    loadLobbies();
+                    await waitForLobby(selectedLobby, (found) => {
+                      if (!found || !address) return !found;
+                      return (
+                        found.players.joiner.toLowerCase() !==
+                        address.toLowerCase()
+                      );
+                    });
                   }}
                   onError={(error) => {
                     console.error("Failed to leave lobby:", error);

@@ -520,6 +520,7 @@ const Header: React.FC = () => {
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [matchViewOpen, setMatchViewOpen] = useState(false);
   const menuButtonRef = useRef<HTMLElement | null>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
@@ -545,10 +546,15 @@ const Header: React.FC = () => {
 
   const nativeTokenSymbol = getNativeTokenSymbol(selectedChainId);
   const selectedChainVariant = getVariantForChainId(selectedChainId);
+  const headerReadsEnabled = isHydrated && !matchViewOpen;
   const { data: balance } = useBalance({
     address: account.address,
     chainId: selectedChainId,
-    query: { enabled: isHydrated && !!account.address },
+    query: {
+      enabled: headerReadsEnabled && !!account.address,
+      refetchOnWindowFocus: false,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   const maxVariantConfig = useMemo(
@@ -558,10 +564,11 @@ const Header: React.FC = () => {
       functionName: "maxVariant" as const,
       chainId: selectedChainId,
       query: {
-        enabled: isHydrated && isSupportedChainId(selectedChainId),
+        enabled: headerReadsEnabled && isSupportedChainId(selectedChainId),
+        refetchOnWindowFocus: false,
       },
     }),
-    [isHydrated, selectedChainId],
+    [headerReadsEnabled, selectedChainId],
   );
 
   const { data: maxVariant } = useReadContract(maxVariantConfig);
@@ -573,7 +580,11 @@ const Header: React.FC = () => {
     functionName: "balanceOf",
     args: account.address ? [account.address] : undefined,
     chainId: selectedChainId,
-    query: { enabled: isHydrated && !!account.address },
+    query: {
+      enabled: headerReadsEnabled && !!account.address,
+      refetchOnWindowFocus: false,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   // Read Drone Cores balance — DroneEnergyCores is only deployed on Base
@@ -593,12 +604,26 @@ const Header: React.FC = () => {
     functionName: "balanceOf",
     args: account.address ? [account.address] : undefined,
     chainId: selectedChainId,
-    query: { enabled: isHydrated && !!account.address && isDroneEnergyCoresDeployed },
+    query: {
+      enabled: headerReadsEnabled && !!account.address && isDroneEnergyCoresDeployed,
+      refetchOnWindowFocus: false,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   // Hydration safety
   useEffect(() => {
     setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const onDetail = (event: Event) => {
+      const custom = event as CustomEvent<{ active?: boolean }>;
+      setMatchViewOpen(Boolean(custom.detail?.active));
+    };
+    window.addEventListener("void-tactics-games-detail-active", onDetail);
+    return () =>
+      window.removeEventListener("void-tactics-games-detail-active", onDetail);
   }, []);
 
   // Support links like `/?chain=ronin-saigon` to preselect network (once per page load).

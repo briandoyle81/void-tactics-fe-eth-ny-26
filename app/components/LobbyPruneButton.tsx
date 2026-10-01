@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 import { useAccount } from "wagmi";
 import posthog from "posthog-js";
@@ -11,7 +11,7 @@ interface LobbyPruneButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 
@@ -56,9 +56,9 @@ export function LobbyPruneButton({
       disabled={disabled}
       loadingText="[PRUNING...]"
       errorText="[ERROR PRUNING]"
-      onSuccess={() => {
+      onSuccess={async () => {
         posthog.capture("lobby_pruned", { lobby_id: lobbyId.toString() });
-        onSuccess?.();
+        await onSuccess?.();
       }}
       onError={onError}
       validateBeforeTransaction={validateBeforeTransaction}

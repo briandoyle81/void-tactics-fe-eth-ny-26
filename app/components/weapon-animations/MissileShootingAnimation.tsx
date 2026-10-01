@@ -11,7 +11,7 @@ import {
   TORPEDO_IMPACT_DURATION_MS,
 } from "../../constants/animationTiming";
 import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
-import { createOverlaySizeSync, setCircle, setHidden } from "./overlayPaint";
+import { createOverlaySizeSync, setCircle, setHidden, startCancelledRaf } from "./overlayPaint";
 
 interface MissileShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -158,6 +158,42 @@ function stepMissile(
   return { x: currentX, y: currentY, angle };
 }
 
+type MissileDom = {
+  glow: SVGCircleElement | null;
+  triangle: SVGPolygonElement | null;
+  oval: SVGEllipseElement | null;
+  trailDots: SVGCircleElement[];
+};
+
+type MissileImpactDom = {
+  inner: SVGCircleElement | null;
+  flash: SVGCircleElement | null;
+  ring: SVGCircleElement | null;
+  shockA: SVGCircleElement | null;
+  shockB: SVGCircleElement | null;
+  debris: SVGCircleElement[];
+};
+
+function bindMissileDom(group: SVGGElement): MissileDom {
+  return {
+    glow: group.querySelector("[data-ms-glow]"),
+    triangle: group.querySelector("[data-ms-body]"),
+    oval: group.querySelector("[data-ms-oval]"),
+    trailDots: Array.from(group.querySelectorAll("[data-ms-trail]")),
+  };
+}
+
+function bindMissileImpactDom(group: SVGGElement): MissileImpactDom {
+  return {
+    inner: group.querySelector("[data-ms-inner]"),
+    flash: group.querySelector("[data-ms-flash]"),
+    ring: group.querySelector("[data-ms-ring]"),
+    shockA: group.querySelector("[data-ms-shock-a]"),
+    shockB: group.querySelector("[data-ms-shock-b]"),
+    debris: Array.from(group.querySelectorAll("[data-ms-debris]")),
+  };
+}
+
 export const MissileShootingAnimation = React.memo(function MissileShootingAnimation({
   gridContainerRef,
   attackerRow,
@@ -180,9 +216,24 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   const impactsRef = useRef<(MissileImpact | null)[]>(
     Array.from({ length: MISSILE_IMPACT_SLOTS }, () => null),
   );
+  const missileDomRefs = useRef<(MissileDom | null)[]>(
+    Array.from({ length: MISSILE_SLOTS }, () => null),
+  );
+  const impactDomRefs = useRef<(MissileImpactDom | null)[]>(
+    Array.from({ length: MISSILE_IMPACT_SLOTS }, () => null),
+  );
+  const layoutCacheRef = useRef<{
+    posKey: string;
+    cellWidth: number;
+    cellHeight: number;
+    avgCellSize: number;
+    originX: number;
+    originY: number;
+    targetCX: number;
+    targetCY: number;
+  } | null>(null);
   const secondAtRef = useRef(0);
   const respawnAtRef = useRef(0);
-  const animationFrameRef = useRef<number | null>(null);
   const attackerRowRef = useRef(attackerRow);
   const attackerColRef = useRef(attackerCol);
   const targetRowRef = useRef(targetRow);
@@ -212,21 +263,41 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
   );
 
   useEffect(() => {
-    const spawnOne = (slot: number) => {
+    const refreshLayout = () => {
       const grid = gridContainerRef.current;
-      if (!grid) return;
+      if (!grid) return null;
       const { cellWidth, cellHeight } = gridLayoutSize(grid);
-      const avgCellSize = (cellWidth + cellHeight) / 2;
-      const speedScale = isTorpedoRef.current ? TORPEDO_SPEED_SCALE : 1;
-      const startSpeed = (avgCellSize * 4 * speedScale) / 8;
       const center = cellCenterOnGrid(grid, attackerRowRef.current, attackerColRef.current);
-      const origin = {
-        x: center.x + (facingRightRef.current ? cellWidth * 0.11 : -cellWidth * 0.11),
-        y: center.y - cellHeight * 0.16,
-      };
       const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
-      const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
-      const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
+      const layout = {
+        posKey: `${attackerRowRef.current}|${attackerColRef.current}|${targetRowRef.current}|${targetColRef.current}|${facingRightRef.current ? 1 : 0}`,
+        cellWidth,
+        cellHeight,
+        avgCellSize: (cellWidth + cellHeight) / 2,
+        originX: center.x + (facingRightRef.current ? cellWidth * 0.11 : -cellWidth * 0.11),
+        originY: center.y - cellHeight * 0.16,
+        targetCX: targetCenter.x,
+        targetCY: targetCenter.y,
+      };
+      layoutCacheRef.current = layout;
+      return layout;
+    };
+    const ensureLayout = () => {
+      const posKey = `${attackerRowRef.current}|${attackerColRef.current}|${targetRowRef.current}|${targetColRef.current}|${facingRightRef.current ? 1 : 0}`;
+      if (!layoutCacheRef.current || layoutCacheRef.current.posKey !== posKey) {
+        return refreshLayout();
+      }
+      return layoutCacheRef.current;
+    };
+
+    const spawnOne = (slot: number) => {
+      const layout = ensureLayout();
+      if (!layout) return;
+      const speedScale = isTorpedoRef.current ? TORPEDO_SPEED_SCALE : 1;
+      const startSpeed = (layout.avgCellSize * 4 * speedScale) / 8;
+      const origin = { x: layout.originX, y: layout.originY };
+      const targetX = layout.targetCX + (Math.random() - 0.5) * layout.cellWidth * 0.5;
+      const targetY = layout.targetCY + (Math.random() - 0.5) * layout.cellHeight * 0.5;
       missilesRef.current[slot] = makeMissile(origin, targetX, targetY, startSpeed, 0.5);
     };
 
@@ -240,24 +311,27 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
       syncOverlaySize();
     };
 
-    const paintMissile = (group: SVGGElement, missile: Missile) => {
+    const paintMissile = (slot: number, missile: Missile) => {
+      const group = missileGroupRefs.current[slot];
+      if (!group) return;
+      let els = missileDomRefs.current[slot];
+      if (!els) {
+        els = bindMissileDom(group);
+        missileDomRefs.current[slot] = els;
+      }
       setHidden(group, false);
       const torpedo = isTorpedoRef.current;
       const aRad = (missile.angle * Math.PI) / 180;
       const tailLen = torpedo ? OVAL_RX : TRIANGLE_HEIGHT;
       const exX = missile.x - tailLen * Math.sin(aRad);
       const exY = missile.y + tailLen * Math.cos(aRad);
-      const glow = group.querySelector("[data-ms-glow]") as SVGCircleElement | null;
-      const triangle = group.querySelector("[data-ms-body]") as SVGPolygonElement | null;
-      const oval = group.querySelector("[data-ms-oval]") as SVGEllipseElement | null;
-      const trailDots = group.querySelectorAll("[data-ms-trail]");
-      setCircle(glow, exX, exY, torpedo ? 9 : 7);
-      setHidden(triangle, torpedo);
-      setHidden(oval, !torpedo);
+      setCircle(els.glow, exX, exY, torpedo ? 9 : 7);
+      setHidden(els.triangle, torpedo);
+      setHidden(els.oval, !torpedo);
       const tr = `translate(${missile.x}, ${missile.y}) rotate(${missile.angle})`;
-      triangle?.setAttribute("transform", tr);
-      oval?.setAttribute("transform", tr);
-      trailDots.forEach((node, i) => {
+      els.triangle?.setAttribute("transform", tr);
+      els.oval?.setAttribute("transform", tr);
+      els.trailDots.forEach((node, i) => {
         const pos = missile.trail[i];
         if (!pos) {
           setHidden(node, true);
@@ -265,23 +339,25 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
         }
         const t = i / Math.max(missile.trail.length - 1, 1);
         setHidden(node, false);
-        setCircle(node as SVGCircleElement, pos.x, pos.y, Math.max(0.5, (1 - t * 0.65) * (torpedo ? 5 : 4)));
-        (node as SVGCircleElement).setAttribute("opacity", String((1 - t) * 0.55));
+        setCircle(node, pos.x, pos.y, Math.max(0.5, (1 - t * 0.65) * (torpedo ? 5 : 4)));
+        node.setAttribute("opacity", String((1 - t) * 0.55));
       });
     };
 
-    const paintImpact = (group: SVGGElement, impact: MissileImpact, now: number) => {
+    const paintImpact = (slot: number, impact: MissileImpact, now: number) => {
+      const group = impactGroupRefs.current[slot];
+      if (!group) return;
+      let els = impactDomRefs.current[slot];
+      if (!els) {
+        els = bindMissileImpactDom(group);
+        impactDomRefs.current[slot] = els;
+      }
       const duration = impact.shockwave ? TORPEDO_IMPACT_DURATION_MS : MISSILE_IMPACT_DURATION_MS;
       const elapsed = now - impact.startTime;
       const t = Math.min(elapsed / duration, 1);
       const easeOut = 1 - Math.pow(1 - t, 2);
       setHidden(group, false);
-      const inner = group.querySelector("[data-ms-inner]") as SVGCircleElement | null;
-      const flash = group.querySelector("[data-ms-flash]") as SVGCircleElement | null;
-      const ring = group.querySelector("[data-ms-ring]") as SVGCircleElement | null;
-      const shockA = group.querySelector("[data-ms-shock-a]") as SVGCircleElement | null;
-      const shockB = group.querySelector("[data-ms-shock-b]") as SVGCircleElement | null;
-      const debris = group.querySelectorAll("[data-ms-debris]");
+      const { inner, flash, ring, shockA, shockB, debris } = els;
 
       if (impact.shockwave) {
         const flashOpacity = Math.max(0, 1 - t * 2.2);
@@ -367,18 +443,20 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
     spawnVolley();
 
     const ro = gridContainerRef.current
-      ? new ResizeObserver(() => syncOverlaySize())
+      ? new ResizeObserver(() => {
+          layoutCacheRef.current = null;
+          refreshLayout();
+          syncOverlaySize();
+        })
       : null;
     if (gridContainerRef.current && ro) ro.observe(gridContainerRef.current);
 
     const animate = () => {
       const now = Date.now();
-      const grid = gridContainerRef.current;
-      if (grid) {
-        const { cellWidth, cellHeight } = gridLayoutSize(grid);
-        const avgCellSize = (cellWidth + cellHeight) / 2;
+      const layout = ensureLayout();
+      if (layout) {
         const speedScale = isTorpedoRef.current ? TORPEDO_SPEED_SCALE : 1;
-        const topSpeed = avgCellSize * 4 * speedScale;
+        const topSpeed = layout.avgCellSize * 4 * speedScale;
         const startSpeed = topSpeed / 8;
 
         if (
@@ -418,7 +496,7 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
             ...missile.trail.slice(0, MAX_TRAIL - 1),
           ];
           flying += 1;
-          if (group) paintMissile(group, missile);
+          paintMissile(i, missile);
         }
 
         if (flying === 0 && secondAtRef.current === 0 && respawnAtRef.current === 0) {
@@ -440,16 +518,14 @@ export const MissileShootingAnimation = React.memo(function MissileShootingAnima
           setHidden(group, true);
           continue;
         }
-        paintImpact(group, impact, now);
+        paintImpact(i, impact, now);
       }
-
-      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    const stopRaf = startCancelledRaf(animate);
     return () => {
+      stopRaf();
       ro?.disconnect();
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [gridContainerRef, syncOverlaySize]);
 

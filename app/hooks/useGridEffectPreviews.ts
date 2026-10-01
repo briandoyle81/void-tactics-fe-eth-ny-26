@@ -3,8 +3,13 @@ import { GridShipPosition } from "../types/gridDisplay";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 import { isRepairDronesSpecial } from "../utils/specialConfigWeb2";
 import { readShipValue } from "../utils/requireShipValue";
+import { wouldEnterSos } from "../utils/calculateDamage";
 
 type Target = { shipId: number; position: { row: number; col: number } };
+
+const EMPTY_RANGE_CELLS: { row: number; col: number }[] = [];
+const EMPTY_DAMAGE_MAP: Map<number, number> = new Map();
+const EMPTY_ID_SET: Set<number> = new Set();
 
 /**
  * Bundles the grid's "what visual effects should show right now" derived
@@ -55,7 +60,10 @@ export function useGridEffectPreviews(params: {
     willKill: boolean;
     reactorCritical: boolean;
   };
-  getShipAttributes: (shipId: number) => { reactorCriticalTimer: number } | null;
+  getShipAttributes: (shipId: number) => {
+    hullPoints: number;
+    reactorCriticalTimer: number;
+  } | null;
 }) {
   const {
     grid,
@@ -111,7 +119,7 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const flakEffectCells = React.useMemo(() => {
-    if (selectedWeaponType !== "special" || specialType !== 3) return [];
+    if (selectedWeaponType !== "special" || specialType !== 3) return EMPTY_RANGE_CELLS;
 
     const range = readShipValue("specialRange", specialRange);
     const origin = effectiveDragCell ?? previewPosition;
@@ -136,7 +144,7 @@ export function useGridEffectPreviews(params: {
         }
       }
     }
-    if (!start || range === undefined) return [];
+    if (!start || range === undefined) return EMPTY_RANGE_CELLS;
     const cells: { row: number; col: number }[] = [];
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < grid[r].length; c++) {
@@ -160,8 +168,6 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const projectedDamageByShipId = React.useMemo(() => {
-    const map = new Map<number, number>();
-
     const shouldShowDamagePreview =
       selectedShipId != null &&
       isCurrentPlayerTurn &&
@@ -169,8 +175,9 @@ export function useGridEffectPreviews(params: {
       (selectedWeaponType === "weapon" ||
         (selectedWeaponType === "special" && specialType === 3));
 
-    if (!shouldShowDamagePreview) return map;
+    if (!shouldShowDamagePreview) return EMPTY_DAMAGE_MAP;
 
+    const map = new Map<number, number>();
     const ids = new Set<number>();
 
     // Selected target (locked shot)
@@ -217,8 +224,6 @@ export function useGridEffectPreviews(params: {
   ]);
 
   const projectedRepairByShipId = React.useMemo(() => {
-    const map = new Map<number, number>();
-
     const isFactionHeal =
       selectedWeaponType === "ram" && factionAbilityIsHeal;
     const shouldShowRepairPreview =
@@ -229,8 +234,9 @@ export function useGridEffectPreviews(params: {
         isRepairDronesSpecial(shipVariant ?? 1, specialType)) ||
         isFactionHeal);
 
-    if (!shouldShowRepairPreview) return map;
+    if (!shouldShowRepairPreview) return EMPTY_DAMAGE_MAP;
 
+    const map = new Map<number, number>();
     const ids = new Set<number>();
 
     if (targetShipId != null && targetShipId !== 0) {
@@ -292,7 +298,7 @@ export function useGridEffectPreviews(params: {
     });
 
     if (selectedWeaponType === "ram" && factionAbilityIsHeal) {
-      return ids;
+      return EMPTY_ID_SET;
     }
 
     for (const target of targetsToShow) {
@@ -314,7 +320,7 @@ export function useGridEffectPreviews(params: {
       }
     }
 
-    return ids;
+    return ids.size === 0 ? EMPTY_ID_SET : ids;
   }, [
     grid,
     allShipPositions,
@@ -331,6 +337,49 @@ export function useGridEffectPreviews(params: {
     previewPosition,
     specialRange,
     factionAbilityIsHeal,
+    calculateDamage,
+    getShipAttributes,
+  ]);
+
+  // Predicted SOS hologram: locked weapon target only. Other in-range ships
+  // keep live art + damage labels. DESTROY (reactor) uses destroy art.
+  const sosPreviewShipIds = React.useMemo(() => {
+    const ids = new Set<number>();
+    if (
+      selectedShipId == null ||
+      !isCurrentPlayerTurn ||
+      !isShipOwnedByCurrentPlayer(selectedShipId) ||
+      targetShipId == null ||
+      targetShipId === 0 ||
+      targetShipId === selectedShipId
+    ) {
+      return EMPTY_ID_SET;
+    }
+    if (selectedWeaponType === "ram") return EMPTY_ID_SET;
+    if (
+      selectedWeaponType === "special" &&
+      isRepairDronesSpecial(shipVariant ?? 1, specialType)
+    ) {
+      return EMPTY_ID_SET;
+    }
+
+    const damage = calculateDamage(
+      targetShipId,
+      selectedWeaponType,
+      selectedWeaponType === "special" && specialType === 3 ? true : undefined,
+    );
+    if (wouldEnterSos(damage, getShipAttributes(targetShipId))) {
+      ids.add(targetShipId);
+    }
+    return ids.size === 0 ? EMPTY_ID_SET : ids;
+  }, [
+    selectedShipId,
+    isCurrentPlayerTurn,
+    isShipOwnedByCurrentPlayer,
+    targetShipId,
+    selectedWeaponType,
+    specialType,
+    shipVariant,
     calculateDamage,
     getShipAttributes,
   ]);
@@ -387,6 +436,7 @@ export function useGridEffectPreviews(params: {
     projectedDamageByShipId,
     projectedRepairByShipId,
     destroyPreviewShipIds,
+    sosPreviewShipIds,
     findShipPositionById,
   };
 }

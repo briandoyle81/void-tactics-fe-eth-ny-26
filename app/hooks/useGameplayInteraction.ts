@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionType, Attributes, canonicalSpecialSlot } from "../types/types";
 import { GridShipPosition } from "../types/gridDisplay";
 import type { Web2LastMove } from "../types/web2Game";
@@ -14,6 +14,9 @@ import { resolveActionRange } from "../utils/requireShipValue";
 import { isRepairDronesSpecial, shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { useResetSelectionOnTurnChange } from "./useResetSelectionOnTurnChange";
 import { useRetreatModeCancellationWeb2 } from "./useRetreatModeCancellationWeb2";
+
+const EMPTY_RANGE_CELLS: { row: number; col: number }[] = [];
+const EMPTY_TARGET_REFS: { shipId: number; position: { row: number; col: number } }[] = [];
 
 // Shared `<GameGrid>` interaction state machine — extracted from
 // `GameDisplay.tsx` (the original, most-current implementation) so both it
@@ -208,6 +211,21 @@ export function useGameplayInteraction({
     setPreviewPosition(null);
   }, [selectedShipId]);
 
+  // Last-move replay parks previewPosition on the previous ship's To so its
+  // weapon chrome can render while nothing is selected. A hold leaves To on
+  // that ship's own tile. Selecting a different ship (grid or fleet card)
+  // must drop that leftover dest before paint, or the yellow arrow treats it
+  // as the new ship's proposed move.
+  const prevSelectedShipIdRef = useRef(selectedShipId);
+  useLayoutEffect(() => {
+    if (prevSelectedShipIdRef.current === selectedShipId) return;
+    prevSelectedShipIdRef.current = selectedShipId;
+    setPreviewPosition(null);
+    setTargetShipId(null);
+    setHoverPreviewPosition(null);
+    setDragOverCell(null);
+  }, [selectedShipId]);
+
   // Records the caller's chosen weapon/special per ship (not for "ram" —
   // that's a targeting mode, not a persisted preference) — restored below
   // whenever selection changes to that ship.
@@ -223,6 +241,9 @@ export function useGameplayInteraction({
   );
 
   // Apply per-ship weapon mode before paint so range highlights match the selected ship.
+  // Only restore when the selected ship changes. Re-running on shipMap /
+  // getShipAttributes identity would overwrite a ram/special switch as soon
+  // as the player locked a target (those updates re-render the parent).
   React.useLayoutEffect(() => {
     if (selectedShipId === null) {
       setSelectedWeaponType("weapon");
@@ -245,20 +266,21 @@ export function useGameplayInteraction({
     }
     setSelectedWeaponType(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipId, shipMap, getShipAttributes]);
+  }, [selectedShipId]);
 
   // Disabled ships: always Retreat. Healthy ships: Retreat only if the player chose it for that ship.
+  const selectedHull =
+    selectedShipId === null ? undefined : getShipAttributes(selectedShipId)?.hullPoints;
   React.useEffect(() => {
     if (selectedShipId === null) return;
-    const attrs = getShipAttributes(selectedShipId);
-    if (attrs && attrs.hullPoints === 0) {
+    if (selectedHull === 0) {
       setActionOverride(ActionType.Retreat);
       setTargetShipId(null);
       setPreviewPosition(null);
       return;
     }
     setActionOverride(retreatExplicitByShipId[selectedShipId.toString()] ? ActionType.Retreat : null);
-  }, [selectedShipId, getShipAttributes, retreatExplicitByShipId]);
+  }, [selectedShipId, selectedHull, retreatExplicitByShipId]);
 
   useRetreatModeCancellationWeb2({
     actionOverride,
@@ -276,6 +298,9 @@ export function useGameplayInteraction({
   const specialRange = selectedShipSpecialRange;
   const specialData = selectedShipSpecialData;
 
+  const hullKey = aliveShipPositions
+    .map((p) => `${p.shipId}:${getShipAttributes(p.shipId)?.hullPoints ?? "x"}`)
+    .join(",");
   const enemyOccupiedForShip = useCallback(
     (shipId: number | null) => {
       if (shipId == null) return undefined;
@@ -290,7 +315,7 @@ export function useGameplayInteraction({
         (id) => getShipAttributes(Number(id))?.hullPoints === 0,
       );
     },
-    [aliveShipPositions, getShipAttributes, gridWidth, gridHeight],
+    [aliveShipPositions, hullKey, getShipAttributes, gridWidth, gridHeight],
   );
   const selectedEnemyOccupiedGrid = useMemo(
     () => enemyOccupiedForShip(selectedShipId),
@@ -358,10 +383,10 @@ export function useGameplayInteraction({
   );
 
   const validTargets = useMemo(() => {
-    if (!selectedShipId || shipMap.size === 0) return [];
-    if (isRammingMovePreview) return [];
+    if (!selectedShipId || shipMap.size === 0) return EMPTY_TARGET_REFS;
+    if (isRammingMovePreview) return EMPTY_TARGET_REFS;
     const attributes = getShipAttributes(selectedShipId);
-    if (!attributes || attributes.hullPoints === 0) return [];
+    if (!attributes || attributes.hullPoints === 0) return EMPTY_TARGET_REFS;
 
     const shootRange = resolveActionRange({
       selectedWeaponType,
@@ -369,9 +394,9 @@ export function useGameplayInteraction({
       factionAbilityRange: selectedShipFactionAbilityRange,
       gunRange: attributes.range,
     });
-    if (shootRange === undefined) return [];
+    if (shootRange === undefined) return EMPTY_TARGET_REFS;
     const currentPosition = aliveShipPositions.find((pos) => pos.shipId === selectedShipId);
-    if (!currentPosition) return [];
+    if (!currentPosition) return EMPTY_TARGET_REFS;
 
     const startRow = previewPosition ? previewPosition.row : currentPosition.position.row;
     const startCol = previewPosition ? previewPosition.col : currentPosition.position.col;
@@ -450,21 +475,22 @@ export function useGameplayInteraction({
         factionAbilityRange: selectedShipFactionAbilityRange,
         factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
         blockedGrid,
+        impassableGrid,
         gridWidth,
         gridHeight,
       }),
-    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedShip],
+    [selectedShipId, previewPosition, isRammingMovePreview, shipMap, playerAddress, getShipAttributes, blockedGrid, impassableGrid, aliveShipPositions, selectedWeaponType, specialRange, specialType, gridWidth, gridHeight, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedShip],
   );
 
   // Assist isn't exposed in the UI (removed from web3's contract; kept as
   // empty arrays for GameGrid's prop shape, same as GameDisplay.tsx).
-  const assistableTargets = useMemo(() => [] as { shipId: number; position: { row: number; col: number } }[], []);
-  const assistableTargetsFromStart = useMemo(() => [] as { shipId: number; position: { row: number; col: number } }[], []);
+  const assistableTargets = useMemo(() => EMPTY_TARGET_REFS, []);
+  const assistableTargetsFromStart = useMemo(() => EMPTY_TARGET_REFS, []);
 
   const shootingRange = useMemo(
     () =>
       isRammingMovePreview
-        ? []
+        ? EMPTY_RANGE_CELLS
         : computeShootingRange({
             gridWidth,
             gridHeight,
@@ -507,16 +533,16 @@ export function useGameplayInteraction({
   }, [draggedShipId, shipMap, getShipAttributes, weaponPreferenceByShipId, draggedSpecialEquipmentType, draggedSpecialRange]);
 
   const dragValidTargets = useMemo(() => {
-    if (!draggedShipId || !dragOverCell || shipMap.size === 0) return [];
+    if (!draggedShipId || !dragOverCell || shipMap.size === 0) return EMPTY_TARGET_REFS;
     const attributes = getShipAttributes(draggedShipId);
-    if (!attributes) return [];
+    if (!attributes) return EMPTY_TARGET_REFS;
 
     const dragShootRange = resolveActionRange({
       selectedWeaponType: dragWeaponPlan.mode,
       specialRange: dragWeaponPlan.specialRange,
       gunRange: attributes.range,
     });
-    if (dragShootRange === undefined) return [];
+    if (dragShootRange === undefined) return EMPTY_TARGET_REFS;
     const startRow = dragOverCell.row;
     const startCol = dragOverCell.col;
     const targets: { shipId: number; position: { row: number; col: number } }[] = [];
@@ -555,18 +581,18 @@ export function useGameplayInteraction({
   }, [draggedShipId, dragOverCell, shipMap, playerAddress, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid, draggedEnemyOccupiedGrid]);
 
   const dragShootingRange = useMemo(() => {
-    if (!draggedShipId || !dragOverCell || shipMap.size === 0) return [];
+    if (!draggedShipId || !dragOverCell || shipMap.size === 0) return EMPTY_RANGE_CELLS;
     const ship = shipMap.get(draggedShipId);
-    if (!ship) return [];
+    if (!ship) return EMPTY_RANGE_CELLS;
     const attributes = getShipAttributes(draggedShipId);
-    if (!attributes) return [];
+    if (!attributes) return EMPTY_RANGE_CELLS;
 
     const dragShootRange = resolveActionRange({
       selectedWeaponType: dragWeaponPlan.mode,
       specialRange: dragWeaponPlan.specialRange,
       gunRange: attributes.range,
     });
-    if (dragShootRange === undefined) return [];
+    if (dragShootRange === undefined) return EMPTY_RANGE_CELLS;
     const startRow = dragOverCell.row;
     const startCol = dragOverCell.col;
     const spec = dragWeaponPlan.specialEquipmentType;
@@ -730,6 +756,37 @@ export function useGameplayInteraction({
     setOptimisticLastMove(move);
   }, []);
 
+  const [optimisticSosShipIds, setOptimisticSosShipIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const recordOptimisticSos = useCallback((ids: number[]) => {
+    if (ids.length === 0) return;
+    setOptimisticSosShipIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (id > 0) next.add(id);
+      }
+      return next;
+    });
+  }, []);
+  const clearOptimisticSos = useCallback(() => {
+    setOptimisticSosShipIds(new Set());
+  }, []);
+
+  const optimisticSosHullKey = [...optimisticSosShipIds]
+    .map((id) => `${id}:${getShipAttributes(id)?.hullPoints ?? "x"}`)
+    .join(",");
+  React.useEffect(() => {
+    setOptimisticSosShipIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<number>();
+      for (const id of prev) {
+        if ((getShipAttributes(id)?.hullPoints ?? 1) > 0) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [optimisticSosHullKey, getShipAttributes]);
+
   // Clear the optimistic overlay once fresh data's lastMove matches it.
   React.useEffect(() => {
     if (!optimisticLastMove || !lastMove) return;
@@ -876,5 +933,8 @@ export function useGameplayInteraction({
     resetSelection,
     buildActionPayload,
     recordOptimisticMove,
+    recordOptimisticSos,
+    clearOptimisticSos,
+    optimisticSosShipIds,
   };
 }

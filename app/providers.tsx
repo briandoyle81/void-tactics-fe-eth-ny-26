@@ -9,6 +9,7 @@ import { baseSepolia, flowTestnet, saigon } from "viem/chains";
 import { SessionProvider } from "next-auth/react";
 import { TransactionProvider } from "./providers/TransactionContext";
 import { type ReactNode, useEffect, memo } from "react";
+import { ContractEventsHost } from "./hooks/useContractEvents";
 import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
@@ -60,7 +61,14 @@ function InvalidateQueriesOnChainChange() {
   return null;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  },
+});
 
 const DYNAMIC_SETTINGS: DynamicContextProps["settings"] = {
   environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
@@ -93,6 +101,7 @@ const AppContent = memo(function AppContent({ children }: { children: ReactNode 
     <>
       <InvalidateQueriesOnChainChange />
       <RankConfigSync />
+      <ContractEventsHost />
       <PosthogAppChainSync />
       <TransactionProvider>
         {children}

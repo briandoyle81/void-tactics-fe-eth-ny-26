@@ -37,6 +37,8 @@ export function useGameViewChromeLayout(
     let attached = false;
     let rafOut = 0;
     let ro: ResizeObserver | null = null;
+    let lastFitKey = "";
+    let lastAppliedWidth = -1;
 
     const scheduleTick = () => {
       cancelAnimationFrame(rafOut);
@@ -71,6 +73,10 @@ export function useGameViewChromeLayout(
         root.parentElement?.clientWidth ?? document.documentElement.clientWidth;
       if (parentWidth <= 0) return;
 
+      const fitKey = `${parentWidth}|${vh}|${layoutViewportW}|${isMobileViewport ? 1 : 0}`;
+      if (fitKey === lastFitKey && lastAppliedWidth > 0) return;
+      lastFitKey = fitKey;
+
       const rootLeft = root.getBoundingClientRect().left;
       const maxWFromViewport = Math.max(
         MIN_GAME_ROOT_WIDTH_PX,
@@ -90,7 +96,8 @@ export function useGameViewChromeLayout(
       let best = low;
 
       if (low > high) {
-        root.style.width = `${maxW}px`;
+        let w = maxW;
+        root.style.width = `${w}px`;
         if (!gridFitsViewport()) {
           let lo = MIN_GAME_ROOT_WIDTH_PX;
           let hi = maxW;
@@ -105,8 +112,10 @@ export function useGameViewChromeLayout(
               hi = mid - 1;
             }
           }
-          root.style.width = `${bestFit}px`;
+          w = bestFit;
+          root.style.width = `${w}px`;
         }
+        lastAppliedWidth = w;
         return;
       }
 
@@ -139,8 +148,10 @@ export function useGameViewChromeLayout(
             hi = mid - 1;
           }
         }
-        root.style.width = `${bestFit}px`;
+        w = bestFit;
+        root.style.width = `${w}px`;
       }
+      lastAppliedWidth = w;
     };
 
     const tryAttach = () => {
@@ -159,7 +170,8 @@ export function useGameViewChromeLayout(
         ro = new ResizeObserver(() => {
           scheduleTick();
         });
-        ro.observe(root);
+        // Observe parent + grid only. Watching `root` while tick() writes
+        // `root.style.width` re-enters the observer and can loop.
         ro.observe(gridContainer);
         if (root.parentElement) ro.observe(root.parentElement);
       }

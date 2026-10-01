@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import {
   useAccount,
@@ -35,7 +35,7 @@ interface LobbyCreateButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
   onTransactionSent?: (hash: `0x${string}`) => void;
 }
@@ -162,13 +162,20 @@ export function LobbyCreateButton({
     }
   }, [totalUtcRequired, utcAllowance]);
 
-  // Handle approval success
+  // Handle approval success: keep the button busy until allowance is
+  // actually readable so CREATE does not flash in between.
   React.useEffect(() => {
-    if (approveSuccess) {
+    if (!approveSuccess) return;
+    let cancelled = false;
+    void (async () => {
+      await refetchAllowance();
+      if (cancelled) return;
       setIsApprovingUTC(false);
-      refetchAllowance();
       toast.success("UTC approved successfully!");
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [approveSuccess, refetchAllowance]);
 
   const handleApproveUTC = useCallback(async () => {
@@ -320,7 +327,7 @@ export function LobbyCreateButton({
         isApprovingUTC || isApproving ? "[APPROVING UTC...]" : "[CREATING...]"
       }
       errorText="[ERROR CREATING]"
-      onSuccess={() => {
+      onSuccess={async () => {
         posthog.capture("lobby_created", {
           cost_limit_eth: formatEther(costLimit),
           turn_time_seconds: turnTime.toString(),
@@ -329,7 +336,7 @@ export function LobbyCreateButton({
           is_reserved: Boolean(isReserved),
           reservation_fee_waived: skipReservationFee,
         });
-        onSuccess?.();
+        await onSuccess?.();
       }}
       onError={onError}
       onTransactionSent={onTransactionSent}

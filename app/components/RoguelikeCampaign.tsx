@@ -21,9 +21,8 @@ export function RoguelikeCampaign() {
   const { data: isEditor = false } = useIsRoguelikeNodeEditor(address);
   const [browsingMap, setBrowsingMap] = React.useState(false);
 
-  const refetchAll = React.useCallback(() => {
-    void refetchHasActiveRun();
-    void refetchRun();
+  const refetchAll = React.useCallback(async () => {
+    await Promise.all([refetchHasActiveRun(), refetchRun()]);
   }, [refetchHasActiveRun, refetchRun]);
 
   if (!isConnected) {

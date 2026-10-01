@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGamesWeb2 } from "../hooks/usePlayerGamesWeb2";
 import { useMapNameWeb2 } from "../hooks/useMapNameWeb2";
@@ -18,15 +18,20 @@ import { GamesListShell } from "./GamesListShell";
 // logic belongs in its own file.
 const GamesWeb2: React.FC = () => {
   const { userId, isLoggedIn } = useCurrentUser();
-  const { games, isLoading, error, refetch } = usePlayerGamesWeb2();
   const [selectedGame, setSelectedGame] = useState<Web2GameDataView | null>(null);
+  const { games, isLoading, error, refetch } = usePlayerGamesWeb2({
+    pausePolling: Boolean(selectedGame),
+  });
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
   const [isMounted, setIsMounted] = useState(false);
   const [, setTick] = useState(0);
 
   useEffect(() => {
+    if (selectedGame) return;
     const interval = setInterval(() => setTick((prev) => prev + 1), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedGame]);
 
   const calculateTimeRemaining = (game: Web2GameDataView): number => {
     const turnTimeSec = game.turnState.turnTime || 0;
@@ -94,6 +99,7 @@ const GamesWeb2: React.FC = () => {
       } else if (prevSelectedGameRef.current) {
         localStorage.removeItem(storageKey);
         localStorage.setItem(viewModeKey, "list");
+        void refetchRef.current();
       }
       prevSelectedGameRef.current = selectedGame;
     }
@@ -112,18 +118,24 @@ const GamesWeb2: React.FC = () => {
     };
   }, []);
 
+  const handleBackToList = useCallback(() => {
+    setSelectedGame(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(storageKey);
+      localStorage.setItem(viewModeKey, "list");
+    }
+  }, [storageKey, viewModeKey]);
+
+  const stableListRefetch = useCallback(() => {
+    void refetchRef.current();
+  }, []);
+
   if (selectedGame) {
     return (
       <GameDisplayWeb2
         game={selectedGame}
-        onBack={() => {
-          setSelectedGame(null);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(storageKey);
-            localStorage.setItem(viewModeKey, "list");
-          }
-        }}
-        refetch={refetch}
+        onBack={handleBackToList}
+        refetch={stableListRefetch}
       />
     );
   }

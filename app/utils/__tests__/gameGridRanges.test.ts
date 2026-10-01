@@ -282,10 +282,10 @@ describe("hasMovementPath", () => {
     expect(hasMovementPath(5, 5, 5, 6, impassable)).toBe(true);
   });
 
-  it("staying in place on an impassable tile is still impassable", () => {
+  it("staying in place is always a legal no-op, even on an impassable tile", () => {
     const impassable = emptyGrid();
     impassable[5][5] = true;
-    expect(hasMovementPath(5, 5, 5, 5, impassable)).toBe(false);
+    expect(hasMovementPath(5, 5, 5, 5, impassable)).toBe(true);
   });
 
   it("a diagonal step succeeds if at least one of the two corner tiles is passable (permissive-corner rule)", () => {
@@ -306,6 +306,26 @@ describe("hasMovementPath", () => {
     extra[5][7] = true;
     expect(hasMovementPath(5, 5, 5, 9, emptyGrid(), extra)).toBe(false);
     expect(hasMovementPath(5, 5, 5, 6, emptyGrid(), extra)).toBe(true);
+  });
+
+  it("blocks dest extra occupancy the same way Maps.hasMovementPathAvoidingShips dest-checks the OR'd bitmap", () => {
+    const extra = emptyGrid();
+    extra[5][8] = true;
+    expect(hasMovementPath(5, 5, 5, 8, emptyGrid(), extra)).toBe(false);
+  });
+
+  it("does not treat scoring-point values as impassable terrain", () => {
+    const scoringAsTerrain = Array.from({ length: GRID_H }, () =>
+      Array.from({ length: GRID_W }, () => 0),
+    ) as unknown as boolean[][];
+    (scoringAsTerrain[5][8] as unknown as number) = 10;
+    expect(hasMovementPath(5, 5, 5, 8, scoringAsTerrain)).toBe(true);
+  });
+
+  it("does not skip Bresenham because the dest is a scoring tile", () => {
+    const impassable = emptyGrid();
+    impassable[5][7] = true;
+    expect(hasMovementPath(5, 5, 5, 9, impassable)).toBe(false);
   });
 });
 
@@ -597,5 +617,74 @@ describe("computeConfirmWidgetAnchor — self-effect label clearance", () => {
 
     expect(clear?.transform).toBe(`translate(-50%, ${3 + SELF_EFFECT_LABEL_CLEARANCE_PX}px)`);
     expect(covered?.transform).toBe("translate(-50%, 3px)");
+  });
+});
+
+describe("computeConfirmWidgetAnchor — preferred vertical side", () => {
+  function emptyGridWithShip(row: number, col: number) {
+    const ship: GridShipPosition = {
+      shipId: 1,
+      position: { row, col },
+      isCreator: true,
+    };
+    const grid = Array.from({ length: GRID_H }, () =>
+      Array.from({ length: GRID_W }, () => null as GridShipPosition | null),
+    );
+    grid[row][col] = ship;
+    return grid;
+  }
+
+  it("pins above when requested and the dest is not on the top row", () => {
+    const grid = emptyGridWithShip(5, 8);
+    const above = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 5, col: 8 },
+      selectedShipId: 1,
+      targetShipId: null,
+      grid,
+      preferredVertical: "above",
+    });
+    expect(above?.side).toBe("above");
+    expect(above?.transform).toBe("translate(-50%, calc(-100% - 3px))");
+  });
+
+  it("pins below when requested", () => {
+    const grid = emptyGridWithShip(5, 8);
+    const below = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 5, col: 8 },
+      selectedShipId: 1,
+      targetShipId: null,
+      grid,
+      preferredVertical: "below",
+    });
+    expect(below?.side).toBe("below");
+    expect(below?.transform).toBe("translate(-50%, 3px)");
+  });
+
+  it("ignores above on the top row so the widget stays on the board", () => {
+    const grid = emptyGridWithShip(0, 8);
+    const pinned = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 0, col: 8 },
+      selectedShipId: 1,
+      targetShipId: null,
+      grid,
+      preferredVertical: "above",
+    });
+    expect(pinned?.side).toBe("below");
+  });
+
+  it("ignores below on the bottom row so the widget stays on the board", () => {
+    const grid = emptyGridWithShip(10, 8);
+    const pinned = computeConfirmWidgetAnchor({
+      showConfirmWidget: true,
+      previewPosition: { row: 10, col: 8 },
+      selectedShipId: 1,
+      targetShipId: null,
+      grid,
+      preferredVertical: "below",
+    });
+    expect(pinned?.side).toBe("above");
   });
 });

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { Abi, Address } from "viem";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { WIN_EFFECT_CATALOG, useWinEffectAddresses } from "../hooks/useWinEffects";
 
 interface WinEffectsPickerProps {
@@ -10,7 +10,7 @@ interface WinEffectsPickerProps {
   contractAddress: Address;
   abi: Abi;
   currentEffects: Address[] | undefined;
-  onSaved: () => void;
+  onSaved: TransactionFollowUp;
 }
 
 // Shared checkbox-list + save control for assigning a subset of

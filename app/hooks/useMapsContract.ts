@@ -7,7 +7,13 @@ import { useSelectedChainId } from "./useSelectedChainId";
 import { MapMode } from "../types/types";
 
 export type UseMapsReadOptions = {
-  query?: { enabled?: boolean };
+  query?: {
+    enabled?: boolean;
+    refetchOnWindowFocus?: boolean;
+    refetchOnReconnect?: boolean;
+    staleTime?: number;
+    notifyOnChangeProps?: ("data" | "error")[];
+  };
   /**
    * "picker" follows the header network dropdown immediately (via `useSelectedChainId`).
    * "wallet" follows the connected wallet chain when set, else the picker (for in-game / lobby reads).
@@ -315,7 +321,13 @@ export function useGetGameMapState(
   readOptions?: { chainSource?: "wallet" | "picker" },
 ) {
   return useMapsRead("getGameMapState", [BigInt(gameId)], {
-    query: { enabled: gameId > 0 },
+    query: {
+      enabled: gameId > 0,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
     chainSource: readOptions?.chainSource ?? "wallet",
   });
 }

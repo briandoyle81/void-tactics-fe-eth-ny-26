@@ -90,11 +90,13 @@ export function useDroneStorefront() {
     query: { enabled: isDeployed && !!address },
   });
 
-  const refetchAll = () => {
-    void refetchTier();
-    void refetchNextTierCost();
-    void refetchDecBalance();
-    void refetchDecAllowance();
+  const refetchAll = async () => {
+    await Promise.all([
+      refetchTier(),
+      refetchNextTierCost(),
+      refetchDecBalance(),
+      refetchDecAllowance(),
+    ]);
   };
 
   return {

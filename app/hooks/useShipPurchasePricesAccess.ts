@@ -31,6 +31,12 @@ export function useShipPurchasePricesAccess() {
     abi: CONTRACT_ABIS.SHIPS,
     chainId,
     functionName: "owner",
+    query: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   const { data: purchaserOwner } = useReadContract({
@@ -38,7 +44,13 @@ export function useShipPurchasePricesAccess() {
     abi: CONTRACT_ABIS.SHIP_PURCHASER,
     chainId,
     functionName: "owner",
-    query: { enabled: purchaserDeployed },
+    query: {
+      enabled: purchaserDeployed,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   const isShipsOwner = addrEq(address, shipsOwner as string);

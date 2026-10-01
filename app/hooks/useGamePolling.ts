@@ -54,10 +54,16 @@ export function useGamePolling({
   const lastPollTimeRef = React.useRef<number>(Date.now());
   const currentPollIntervalRef = React.useRef<number>(POLL_INTERVAL_FOCUSED_MS);
 
-  // Register this game's refetch function for the global event registry
+  const onRefetchRef = React.useRef(onRefetch);
+  onRefetchRef.current = onRefetch;
+
+  // Register this game's refetch function for the global event registry.
+  // Do not depend on onRefetch identity or clear the polling interval here:
+  // GameDisplay re-renders every second (turn clock) and an inline onRefetch
+  // was killing the poller without restarting it.
   React.useEffect(() => {
     const refetchWithClear = () => {
-      onRefetch();
+      onRefetchRef.current();
       expectingStateChangeRef.current = true;
       refetchGame();
     };
@@ -67,9 +73,8 @@ export function useGamePolling({
     return () => {
       unregisterGameRefetch(gameId);
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
-  }, [refetchGame, gameId, onRefetch]);
+  }, [refetchGame, gameId]);
 
   // Track page visibility and window focus; refetch immediately on return from inactive
   React.useEffect(() => {
@@ -93,11 +98,17 @@ export function useGamePolling({
     const syncActivityState = () => {
       const nowHidden = !!document.hidden;
       const nowFocused = document.hasFocus();
+      const hiddenChanged = nowHidden !== wasHiddenRef.current;
+      const focusedChanged = nowFocused !== isWindowFocusedRef.current;
       const wasInactive = wasInactiveRef.current;
       wasHiddenRef.current = nowHidden;
       isWindowFocusedRef.current = nowFocused;
       wasInactiveRef.current = nowHidden || !nowFocused;
-      setActivityRevision((r) => r + 1);
+      // focusin/focusout fire on almost every click inside the match view.
+      // Only rebuild the poller when window hidden/focused actually changed.
+      if (hiddenChanged || focusedChanged) {
+        setActivityRevision((r) => r + 1);
+      }
       maybeRefetchOnActive(wasInactive);
     };
 
@@ -217,11 +228,9 @@ export function useGamePolling({
 
   // Reset move time when it's no longer the player's turn
   React.useEffect(() => {
-    if (gameData) {
-      // currentTurn is compared externally; here we just clear after any turn change
-      playerMoveTimeRef.current = null;
-      setPlayerMoveTimestamp(null);
-    }
+    if (!gameData) return;
+    playerMoveTimeRef.current = null;
+    setPlayerMoveTimestamp((prev) => (prev === null ? prev : null));
   }, [gameData?.turnState.currentTurn]);
 
   // Exponential backoff retry when state hasn't changed after expected event
@@ -239,9 +248,15 @@ export function useGamePolling({
         prev.currentRound !== currentState.currentRound;
 
       if (!stateChanged) {
+        // Do not reset an in-flight backoff timer. gameData identity changes
+        // on every refetch; clearing here collapsed backoff into a 1s storm.
+        if (retryTimeoutRef.current) {
+          prevGameStateRef.current = currentState;
+          return;
+        }
         const retryDelay = Math.pow(2, retryAttemptRef.current) * 1000;
-        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
           retryAttemptRef.current++;
           expectingStateChangeRef.current = true;
           refetchGame();

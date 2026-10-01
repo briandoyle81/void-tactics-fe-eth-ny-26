@@ -227,7 +227,10 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
           previewShips={d.previewShips}
           colors={d.colors}
           variant={selectedVariant}
-          onSuccess={() => { refetch(); onClose(); }}
+          onSuccess={async () => {
+            await refetch();
+            onClose();
+          }}
         />
       );
     }
@@ -293,9 +296,8 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
               variant={selectedVariant}
               className="border-2 border-phosphor-green px-6 py-2 font-mono font-bold tracking-wider text-phosphor-green transition-all duration-200 hover:bg-phosphor-green/10"
               refetch={refetch}
-              onSuccess={() => {
+              onSuccess={async () => {
                 setConfirmIndex(null);
-                refetch();
               }}
             >
               CONFIRM PURCHASE

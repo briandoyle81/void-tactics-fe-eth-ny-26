@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 import { useAccount } from "wagmi";
 import posthog from "posthog-js";
@@ -11,7 +11,7 @@ interface LobbyAcceptButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 
@@ -53,9 +53,9 @@ export function LobbyAcceptButton({
       disabled={disabled}
       loadingText="[ACCEPTING...]"
       errorText="[ERROR ACCEPTING]"
-      onSuccess={() => {
+      onSuccess={async () => {
         posthog.capture("game_accepted", { lobby_id: lobbyId.toString() });
-        onSuccess?.();
+        await onSuccess?.();
       }}
       onError={onError}
       validateBeforeTransaction={validateBeforeTransaction}

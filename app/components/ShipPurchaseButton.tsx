@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import {
   CONTRACT_ABIS,
   getContractAddresses,
@@ -20,9 +20,9 @@ interface ShipPurchaseButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
-  refetch?: () => void;
+  refetch?: () => void | Promise<unknown>;
   /** Faction/variant to mint. Defaults to the chain's configured variant when
    * omitted. Variant 2 is gated on the Shattered Hive medal — the caller
    * (VariantPicker) prevents selecting it without the NFT, and the contract
@@ -208,16 +208,14 @@ export function ShipPurchaseButton({
     paymentMethod,
   ]);
 
-  const handleSuccess = React.useCallback(() => {
+  const handleSuccess = React.useCallback(async () => {
     posthog.capture("ship_purchased", {
       tier,
       payment_method: paymentMethod,
       price_eth: formatEther(price),
     });
-    // Call the provided onSuccess callback
-    onSuccess?.();
-    // Trigger refetch to update the UI state
-    refetch?.();
+    await refetch?.();
+    await onSuccess?.();
   }, [onSuccess, refetch, tier, paymentMethod, price]);
 
   // If UTC payment and not approved, show approve button
@@ -240,8 +238,8 @@ export function ShipPurchaseButton({
         }
         loadingText={`[APPROVING ${utcAmount} UTC...]`}
         errorText="[ERROR APPROVING]"
-        onSuccess={() => {
-          refetchAllowance();
+        onSuccess={async () => {
+          await refetchAllowance();
           toast.success("UTC approved successfully!");
         }}
         onError={(error) => {

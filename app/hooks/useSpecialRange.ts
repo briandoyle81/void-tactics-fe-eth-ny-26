@@ -28,6 +28,10 @@ export function useSpecialRange(special: number, variant: number = 0) {
     args,
     query: {
       enabled: special > 0,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
     },
   });
 

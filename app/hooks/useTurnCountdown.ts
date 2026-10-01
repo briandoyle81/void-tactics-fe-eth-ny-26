@@ -19,9 +19,18 @@ export function useTurnCountdown(turnTimeSec: number, turnStartTimeMs: number) {
       return Math.max(0, turnTimeSec - elapsed);
     };
 
-    setTurnSecondsLeft(computeRemaining());
+    const applyRemaining = (next: number) => {
+      setTurnSecondsLeft((prev) => (prev === next ? prev : next));
+    };
+
+    const initial = computeRemaining();
+    applyRemaining(initial);
+    if (!turnTimeSec || !turnStartTimeMs || initial <= 0) return;
+
     const interval = setInterval(() => {
-      setTurnSecondsLeft(computeRemaining());
+      const next = computeRemaining();
+      applyRemaining(next);
+      if (next <= 0) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
   }, [turnTimeSec, turnStartTimeMs]);

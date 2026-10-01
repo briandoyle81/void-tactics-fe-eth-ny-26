@@ -58,6 +58,7 @@ export interface FleetSelectionModalProps {
   participantHasFleet: boolean;
   opponentHasFleet: boolean;
   onGoToGames: () => void;
+  goToGamesBusy?: boolean;
 
   /** True when the opponent is the on-chain AI orchestrator rather than a
    * human — lets us offer an active "deploy AI fleet" action instead of a
@@ -112,6 +113,7 @@ export function FleetSelectionModal({
   participantHasFleet,
   opponentHasFleet,
   onGoToGames,
+  goToGamesBusy = false,
   isAiOpponent = false,
   onDeployAiFleet,
   isDeployingAiFleet = false,
@@ -225,9 +227,10 @@ export function FleetSelectionModal({
               <button
                 type="button"
                 onClick={onGoToGames}
-                className="w-full px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 md:w-auto md:whitespace-nowrap"
+                disabled={goToGamesBusy}
+                className="w-full px-4 py-2 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto md:whitespace-nowrap"
               >
-                GO TO GAMES
+                {goToGamesBusy ? "[LOADING...]" : "GO TO GAMES"}
               </button>
             ) : isAiOpponent ? (
               <button

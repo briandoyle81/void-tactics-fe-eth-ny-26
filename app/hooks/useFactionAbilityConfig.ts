@@ -26,7 +26,13 @@ export function useRamResolverConfig() {
     abi: CONTRACT_ABIS.RAM_RESOLVER as Abi,
     chainId,
     functionName: "range",
-    query: { enabled: isSupported },
+    query: {
+      enabled: isSupported,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
   return { range: data as number | undefined, isSupported };
 }
@@ -41,14 +47,26 @@ export function useRepairResolverConfig() {
     abi: CONTRACT_ABIS.REPAIR_RESOLVER as Abi,
     chainId,
     functionName: "range",
-    query: { enabled: isSupported },
+    query: {
+      enabled: isSupported,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
   const { data: strength } = useReadContract({
     address,
     abi: CONTRACT_ABIS.REPAIR_RESOLVER as Abi,
     chainId,
     functionName: "strength",
-    query: { enabled: isSupported },
+    query: {
+      enabled: isSupported,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
   return { range: range as number | undefined, strength: strength as number | undefined, isSupported };
 }

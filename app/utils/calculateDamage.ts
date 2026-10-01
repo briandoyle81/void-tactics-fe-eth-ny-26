@@ -86,3 +86,14 @@ export function calculateDamage({
 
   return { baseDamage, reducedDamage, willKill, reactorCritical: false };
 }
+
+/** Hull going to 0 is SOS (disabled). Reactor stack to 3 is DESTROY, not SOS. */
+export function wouldEnterSos(
+  damage: Pick<DamageResult, "willKill" | "reactorCritical">,
+  attrs: { hullPoints: number; reactorCriticalTimer: number } | null,
+): boolean {
+  if (!attrs || attrs.hullPoints <= 0) return false;
+  const willDestroy =
+    damage.reactorCritical && attrs.reactorCriticalTimer + 1 >= 3;
+  return damage.willKill && !willDestroy;
+}

@@ -64,7 +64,7 @@ function TournamentDetail({
         if (actions.publicClient) {
           await actions.publicClient.waitForTransactionReceipt({ hash });
         }
-        void refetch();
+        await refetch();
       } catch (err) {
         setActionError(err instanceof Error ? err.message : "Transaction failed");
       } finally {
@@ -107,7 +107,9 @@ function TournamentDetail({
           config={config}
           summary={summary}
           isRegistered={isRegistered}
-          onSuccess={() => void refetch()}
+          onSuccess={async () => {
+            await refetch();
+          }}
         />
       </div>
 
@@ -116,7 +118,9 @@ function TournamentDetail({
       <TournamentStartControls
         tournamentId={tournamentId}
         state={summary.state}
-        onAction={() => void refetch()}
+        onAction={async () => {
+          await refetch();
+        }}
       />
 
       {/* Bracket */}
@@ -136,7 +140,9 @@ function TournamentDetail({
           config={config}
           summary={summary}
           bracket={bracket}
-          onAction={() => void refetch()}
+          onAction={async () => {
+            await refetch();
+          }}
         />
       </div>
 

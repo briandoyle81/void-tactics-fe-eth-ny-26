@@ -11,8 +11,8 @@ interface FleeSafetySwitchProps {
    * `apiMutate`. Must call `onSuccess` once the flee action has actually
    * completed, so the lever/modal reset and the caller's `onFlee` fires.
    */
-  renderConfirmButton: (onSuccess: () => void) => React.ReactNode;
-  onFlee?: () => void;
+  renderConfirmButton: (onSuccess: () => void | Promise<void>) => React.ReactNode;
+  onFlee?: () => void | Promise<void>;
 }
 
 export function FleeSafetySwitch({
@@ -35,10 +35,10 @@ export function FleeSafetySwitch({
     setShowConfirmModal(true);
   };
 
-  const handleConfirmFleeSuccess = () => {
+  const handleConfirmFleeSuccess = async () => {
+    await onFlee?.();
     setShowConfirmModal(false);
     setIsLeverOpen(false);
-    onFlee?.();
   };
 
   const handleCancelFlee = () => {

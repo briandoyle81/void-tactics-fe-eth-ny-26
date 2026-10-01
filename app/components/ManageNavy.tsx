@@ -791,8 +791,8 @@ const ManageNavy: React.FC = () => {
             analyticsSurface="manage_navy"
             className={manageNavyActionButtonClassName("amber")}
             onPress={markFreeShipClaimClickedForTutorial}
-            onSuccess={() => {
-              refetch();
+            onSuccess={async () => {
+              await refetch();
             }}
           >
             [TRY CLAIM FREE SHIPS]
@@ -807,8 +807,8 @@ const ManageNavy: React.FC = () => {
             analyticsSurface="manage_navy"
             className={manageNavyActionButtonClassName("green")}
             onPress={markFreeShipClaimClickedForTutorial}
-            onSuccess={() => {
-              refetch();
+            onSuccess={async () => {
+              await refetch();
             }}
           >
             [CLAIM FREE SHIPS]
@@ -833,14 +833,14 @@ const ManageNavy: React.FC = () => {
         disabled={transactionState.isPending}
         className="w-full justify-center px-6 py-3 rounded-none border-2 border-amber text-amber hover:bg-amber/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
         style={{ borderRadius: 0 }}
-        onSuccess={() => {
+        onSuccess={async () => {
           toast.success(
             staleCostSyncShipIds.length > STALE_COST_SYNC_BATCH_CAP
               ? "60 ships cost version update started!"
               : "Ship cost versions updated!",
           );
           afterShipCostSyncPersistCaches();
-          setTimeout(() => refetch(), 1000);
+          await refetch();
         }}
         onError={() => {
           toast.error("Failed to update ship cost versions");
@@ -958,7 +958,7 @@ const ManageNavy: React.FC = () => {
                       ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                       className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                       disabled={fleetStats.unconstructedShips === 0}
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         if (address) {
                           persistConstructDeliveryTutorialCompleted(
                             address,
@@ -967,7 +967,7 @@ const ManageNavy: React.FC = () => {
                           setShowConstructDeliveryTutorial(false);
                         }
                         toast.success("60 ships construction started!");
-                        refetch();
+                        await refetch();
                       }}
                     >
                       [CONSTRUCT 60 SHIPS]
@@ -978,7 +978,7 @@ const ManageNavy: React.FC = () => {
                       ships={shipsByStatus.unconstructed}
                       className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                       disabled={fleetStats.unconstructedShips === 0}
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         if (address) {
                           persistConstructDeliveryTutorialCompleted(
                             address,
@@ -987,7 +987,7 @@ const ManageNavy: React.FC = () => {
                           setShowConstructDeliveryTutorial(false);
                         }
                         toast.success("Ships constructed successfully!");
-                        refetch();
+                        await refetch();
                       }}
                     >
                       [CONSTRUCT ALL SHIPS]
@@ -1034,9 +1034,9 @@ const ManageNavy: React.FC = () => {
                   ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                   className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   disabled={fleetStats.unconstructedShips === 0}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     toast.success("60 ships construction started!");
-                    refetch();
+                    await refetch();
                   }}
                 >
                   [CONSTRUCT 60 SHIPS]
@@ -1047,9 +1047,9 @@ const ManageNavy: React.FC = () => {
                   ships={shipsByStatus.unconstructed}
                   className="w-full justify-center px-6 py-3 rounded-none border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed md:w-auto"
                   disabled={fleetStats.unconstructedShips === 0}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     toast.success("Ships constructed successfully!");
-                    refetch();
+                    await refetch();
                   }}
                 >
                   [CONSTRUCT ALL SHIPS]
@@ -1106,9 +1106,9 @@ const ManageNavy: React.FC = () => {
                   ships={shipsByStatus.unconstructed.slice(0, STALE_COST_SYNC_BATCH_CAP)}
                   className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     toast.success("60 ships construction started!");
-                    refetch();
+                    await refetch();
                   }}
                 >
                   [CONSTRUCT 60 SHIPS]
@@ -1119,9 +1119,9 @@ const ManageNavy: React.FC = () => {
                   ships={shipsByStatus.unconstructed}
                   className={manageNavyActionButtonClassName("green")}
                   disabled={fleetStats.unconstructedShips === 0}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     toast.success("Ships constructed successfully!");
-                    refetch();
+                    await refetch();
                   }}
                 >
                   [CONSTRUCT ALL SHIPS]
@@ -1233,12 +1233,10 @@ const ManageNavy: React.FC = () => {
                 action="recycle"
                 shipIds={recyclableShips.map((id) => BigInt(id))}
                 className={manageNavyActionButtonClassName("red")}
-                onSuccess={() => {
-                  // Show success toast
+                onSuccess={async () => {
                   toast.success("Ships recycled successfully!");
-                  // Clear selection and refetch ships data after successful recycling
                   setSelectedShips(new Set());
-                  refetch();
+                  await refetch();
                 }}
               >
                 {`[RECYCLE ${recyclableShips.length} SHIPS]`}
@@ -1478,10 +1476,10 @@ const ManageNavy: React.FC = () => {
                           backgroundColor: "var(--color-near-black)",
                           borderRadius: 0,
                         }}
-                        onSuccess={() => {
+                        onSuccess={async () => {
                           toast.success("Ship cost version updated");
                           afterShipCostSyncPersistCaches();
-                          setTimeout(() => refetch(), 1000);
+                          await refetch();
                         }}
                         onError={() => {
                           toast.error("Failed to update ship cost version");
@@ -1543,13 +1541,11 @@ const ManageNavy: React.FC = () => {
               functionName="shipBreaker"
               args={[[shipToRecycle.id]]}
               className="px-6 py-2 border border-warning-red text-warning-red hover:bg-warning-red/10 rounded-none font-mono font-bold transition-all duration-200"
-              onSuccess={() => {
+              onSuccess={async () => {
                 toast.success("Ship recycled successfully!");
+                await refetch();
                 setShowRecycleModal(false);
                 setShipToRecycle(null);
-                setTimeout(() => {
-                  refetch();
-                }, 1000);
               }}
               onError={() => {
                 console.error("Failed to recycle ship");

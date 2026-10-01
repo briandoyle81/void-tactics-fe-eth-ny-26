@@ -17,7 +17,7 @@ interface GameLastMovePanelProps {
 
 // Shared bottom-right "Last Move" panel between GameDisplay.tsx (web3) and
 // GameDisplayWeb2.tsx (web2) — minimize/expand chrome around <GameEvents>.
-export const GameLastMovePanel: React.FC<GameLastMovePanelProps> = ({
+export const GameLastMovePanel = React.memo(function GameLastMovePanel({
   isMinimized,
   onMinimize,
   onExpand,
@@ -26,7 +26,8 @@ export const GameLastMovePanel: React.FC<GameLastMovePanelProps> = ({
   address,
   appendDestroyedText,
   debugSuffix,
-}) => (
+}: GameLastMovePanelProps) {
+  return (
   <div className="absolute bottom-0 right-0 z-[220] pointer-events-none">
     <div className="pointer-events-auto">
       {isMinimized ? (
@@ -79,4 +80,5 @@ export const GameLastMovePanel: React.FC<GameLastMovePanelProps> = ({
       )}
     </div>
   </div>
-);
+  );
+});

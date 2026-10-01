@@ -101,15 +101,10 @@ export function GameGridWeaponSelector({
     shipForFactionAbility?.traits.variant,
   );
 
-  const hasRealTarget = targetShipId != null && targetShipId !== 0;
-  // Hide only when the confirm widget is actually showing without a real
-  // target (it embeds its own copy of this selector then) — matches
-  // GameGrid.tsx's `showConfirmWidget && previewPosition && ...` render gate
-  // for <GameGridConfirmWidget> exactly. Checking showConfirmWidget alone
-  // (without previewPosition) previously hid this selector even when the
-  // confirm widget wasn't rendering yet (e.g. selecting a no-target special
-  // like Flak before staging a move), leaving neither selector visible.
-  if (showConfirmWidget && previewPosition && !hasRealTarget) {
+  // Confirm widget embeds this selector (including after a target is locked).
+  // Hide the floating copy whenever that bar is showing so a switched
+  // weapon/special/ram tab does not jump back to the ship.
+  if (showConfirmWidget && (previewPosition || retreatPrepShipId != null)) {
     return null;
   }
   if (!selectedShipId || !isCurrentPlayerTurn) {

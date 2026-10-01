@@ -72,8 +72,8 @@ export function GameAdminPanel() {
           args={valid ? [parsedPercent] : []}
           disabled={!valid}
           validateBeforeTransaction={() => valid || "Enter a whole number 0-100"}
-          onSuccess={() => {
-            void refetch();
+          onSuccess={async () => {
+            await refetch();
           }}
           className="px-4 py-2 border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
         >

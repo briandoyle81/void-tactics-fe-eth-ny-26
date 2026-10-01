@@ -18,6 +18,7 @@ interface LobbyCardActionsProps {
   myFleetId: number;
   opponentFleetId: number;
   onGoToGames: () => void;
+  goToGamesBusy?: boolean;
   onSelectFleet: () => void;
   joinButton: React.ReactNode;
   acceptButton: React.ReactNode;
@@ -49,6 +50,7 @@ export const LobbyCardActions: React.FC<LobbyCardActionsProps> = ({
   myFleetId,
   opponentFleetId,
   onGoToGames,
+  goToGamesBusy = false,
   onSelectFleet,
   joinButton,
   acceptButton,
@@ -113,10 +115,11 @@ export const LobbyCardActions: React.FC<LobbyCardActionsProps> = ({
             <button
               type="button"
               onClick={onGoToGames}
-              className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200"
+              disabled={goToGamesBusy}
+              className="w-full px-4 py-2.5 border-2 border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 font-mono font-bold text-sm tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ borderRadius: 0 }}
             >
-              GO TO GAMES
+              {goToGamesBusy ? "[LOADING...]" : "GO TO GAMES"}
             </button>
           )}
           {myFleetId === 0 && hasJoiner && (

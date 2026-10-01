@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { createOverlaySizeSync, setCircle, setLine } from "./overlayPaint";
+import { createOverlaySizeSync, setCircle, setLine, startCancelledRaf } from "./overlayPaint";
 import { gridLayoutSize } from "./gridLayout";
 
 interface AttackDroneAnimationProps {
@@ -104,9 +104,28 @@ export const AttackDroneAnimation = React.memo(function AttackDroneAnimation({
   const tipGlowRefs = useRef<Array<SVGCircleElement | null>>([]);
   const tipCoreRefs = useRef<Array<SVGCircleElement | null>>([]);
   const sparkRefs = useRef<Array<Array<SVGCircleElement | null>>>([]);
-  const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const tipPathsRef = useRef<Array<TipPath | undefined>>([]);
+  const layoutCacheRef = useRef<{
+    posKey: string;
+    layout: {
+      width: number;
+      height: number;
+      ax: number;
+      ay: number;
+      tx: number;
+      ty: number;
+      dx: number;
+      dy: number;
+      bendBase: number;
+      px: number;
+      py: number;
+      standoff: number;
+      slash: number;
+      xBand: number;
+      yBand: number;
+    };
+  } | null>(null);
 
   const attackerRowRef = useRef(attackerRow);
   const attackerColRef = useRef(attackerCol);
@@ -200,18 +219,30 @@ export const AttackDroneAnimation = React.memo(function AttackDroneAnimation({
 
   useEffect(() => {
     const grid = gridContainerRef.current;
-    const ro = grid ? new ResizeObserver(() => syncOverlaySize()) : null;
+    const refreshLayout = () => {
+      const layout = compute();
+      if (!layout) {
+        layoutCacheRef.current = null;
+        return;
+      }
+      layoutCacheRef.current = {
+        posKey: `${attackerRowRef.current}|${attackerColRef.current}|${targetRowRef.current}|${targetColRef.current}`,
+        layout,
+      };
+      syncOverlaySize();
+    };
+    const ro = grid ? new ResizeObserver(refreshLayout) : null;
     if (grid && ro) ro.observe(grid);
-    syncOverlaySize();
+    refreshLayout();
     startedAtRef.current = performance.now();
 
     const paint = (now: number) => {
-      const layout = compute();
-      if (!layout) {
-        rafRef.current = requestAnimationFrame(paint);
-        return;
+      const posKey = `${attackerRowRef.current}|${attackerColRef.current}|${targetRowRef.current}|${targetColRef.current}`;
+      if (!layoutCacheRef.current || layoutCacheRef.current.posKey !== posKey) {
+        refreshLayout();
       }
-      syncOverlaySize();
+      const layout = layoutCacheRef.current?.layout;
+      if (!layout) return;
 
       const {
         ax,
@@ -340,14 +371,12 @@ export const AttackDroneAnimation = React.memo(function AttackDroneAnimation({
           spark.setAttribute("opacity", String(Math.max(0, fade) * strength));
         });
       });
-
-      rafRef.current = requestAnimationFrame(paint);
     };
 
-    rafRef.current = requestAnimationFrame(paint);
+    const stopRaf = startCancelledRaf(paint);
     return () => {
+      stopRaf();
       ro?.disconnect();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [compute, drones, gridContainerRef, syncOverlaySize]);
 

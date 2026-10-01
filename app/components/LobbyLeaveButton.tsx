@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 
 interface LobbyLeaveButtonProps {
@@ -11,7 +11,7 @@ interface LobbyLeaveButtonProps {
   disabled?: boolean;
   /** When true, button stays enabled when another transaction is pending (e.g. Create Fleet). */
   allowWhenOtherPending?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 

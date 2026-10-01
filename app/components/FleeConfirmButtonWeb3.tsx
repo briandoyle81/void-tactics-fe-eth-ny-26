@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { usePvPMatchContract } from "../hooks/useGameContract";
 import { toast } from "react-hot-toast";
 
@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 // `flee` lives on PvPMatch (not Game) — see usePvPMatchContract.
 interface FleeConfirmButtonWeb3Props {
   gameId: bigint;
-  onSuccess: () => void;
+  onSuccess: TransactionFollowUp;
 }
 
 export function FleeConfirmButtonWeb3({ gameId, onSuccess }: FleeConfirmButtonWeb3Props) {
@@ -23,9 +23,9 @@ export function FleeConfirmButtonWeb3({ gameId, onSuccess }: FleeConfirmButtonWe
       abi={pvpMatchContract.abi}
       functionName="flee"
       args={[gameId]}
-      onSuccess={() => {
+      onSuccess={async () => {
         toast.success("Disengaged from battle.");
-        onSuccess();
+        await onSuccess();
       }}
       onError={(error) => {
         console.error("Error disengaging:", error);

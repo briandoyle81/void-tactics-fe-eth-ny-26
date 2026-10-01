@@ -252,8 +252,8 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
                       disabled={!amountInWei || insufficientBalance}
                       loadingText="[APPROVING...]"
                       errorText="[ERROR APPROVING]"
-                      onSuccess={() => {
-                        refetchSellSwapState();
+                      onSuccess={async () => {
+                        await refetchSellSwapState();
                         toast.success("UTC approved for Permit2");
                       }}
                       onError={(error) => {
@@ -283,8 +283,8 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
                       className="w-full px-4 py-3 rounded-none border-2 border-amber text-amber hover:bg-amber/10 font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       loadingText="[APPROVING...]"
                       errorText="[ERROR APPROVING]"
-                      onSuccess={() => {
-                        refetchSellSwapState();
+                      onSuccess={async () => {
+                        await refetchSellSwapState();
                         toast.success("Router approved");
                       }}
                       onError={(error) => {
@@ -309,10 +309,10 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
                       disabled={!readyToSwap || insufficientBalance}
                       loadingText="[SELLING...]"
                       errorText="[ERROR SELLING]"
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         setSellAmount("");
-                        refetchSellSwapState();
-                        refetchDrawState();
+                        await refetchSellSwapState();
+                        await refetchDrawState();
                         toast.success("UTC sold — check recent sells below for your entry.");
                       }}
                       onError={(error) => {
@@ -342,8 +342,8 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
                 className="w-full px-4 py-3 rounded-none border-2 border-amber text-amber hover:bg-amber/10 font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 loadingText="[RESOLVING...]"
                 errorText="[ERROR RESOLVING]"
-                onSuccess={() => {
-                  refetchDrawState();
+                onSuccess={async () => {
+                  await refetchDrawState();
                   toast.success("Draw resolved!");
                 }}
                 onError={(error) => {

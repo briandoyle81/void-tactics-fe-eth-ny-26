@@ -30,8 +30,8 @@ import { AdminSettingsExport } from "./AdminSettingsExport";
 
 export default function Maps() {
   const { address } = useAccount();
-  const { data: allMapsData } = useGetAllPresetMaps();
-  const { data: mapCount } = useMapCount();
+  const { data: allMapsData, refetch: refetchMaps } = useGetAllPresetMaps();
+  const { data: mapCount, refetch: refetchMapCount } = useMapCount();
   const mapsContract = useMapsContract();
   const mapsWrite = useWriteContract();
   const [showEditor, setShowEditor] = useState(false);
@@ -201,7 +201,10 @@ export default function Maps() {
                   ? [BigInt(editingMapId), blockedPositions, scoringPositions]
                   : [blockedPositions, impassablePositions, scoringPositions, createMode]
               }
-              onSuccess={onSuccess}
+              onSuccess={async () => {
+                await Promise.all([refetchMaps(), refetchMapCount()]);
+                onSuccess();
+              }}
               validateBeforeTransaction={() => validationError ?? true}
               className="px-4 py-2 rounded-none font-mono border border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
             >

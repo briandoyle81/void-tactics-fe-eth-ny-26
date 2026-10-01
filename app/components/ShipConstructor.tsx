@@ -25,7 +25,7 @@ const ShipConstructor: React.FC<ShipConstructorProps> = ({
 }) => {
   const { address } = useAccount();
   const selectedChainId = useSelectedChainId();
-  const { ships, isLoading: isLoadingShips } = useOwnedShips();
+  const { ships, isLoading: isLoadingShips, refetch: refetchShips } = useOwnedShips();
   const [mode, setMode] = useState<"create" | "customize">("customize");
   const [selectedShipId, setSelectedShipId] = useState<bigint | null>(
     initialShipId,
@@ -1054,9 +1054,9 @@ const ShipConstructor: React.FC<ShipConstructorProps> = ({
                       className="w-full px-6 py-3 mb-3 rounded-none border-2 border-amber text-amber hover:border-amber hover:text-amber hover:bg-amber/10 font-mono font-bold tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       loadingText="[APPROVING UTC...]"
                       errorText="[ERROR APPROVING]"
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         toast.success("UTC approved for DroneYard");
-                        refetchAllowance?.();
+                        await refetchAllowance?.();
                       }}
                       validateBeforeTransaction={() => {
                         if (!address) return "Please connect your wallet";
@@ -1095,22 +1095,17 @@ const ShipConstructor: React.FC<ShipConstructorProps> = ({
                       (utcAllowance !== undefined &&
                         (utcAllowance as bigint) < (modificationCost as bigint))
                     }
-                    onSuccess={() => {
+                    onSuccess={async () => {
                       toast.success("Ship customized successfully!");
-                      // After customization, refresh cost and allowance so
-                      // the approve button and amount stay in sync with contracts.
-                      refetchModificationCost?.();
-                      refetchAllowance?.();
-                      // DroneYard.modifyShip changes this ship's on-chain
-                      // attributes (movement/range/etc.) with no other
-                      // signal the attributes cache would ever pick up on —
-                      // drop its cached entry so fleet selection stops
-                      // showing the pre-modification numbers (see
-                      // shipAttributesLocalCache.ts's cache-TTL doc).
                       invalidateShipAttributesByIdsCache(
                         selectedChainId,
                         selectedShipId ?? undefined,
                       );
+                      await Promise.all([
+                        refetchModificationCost?.(),
+                        refetchAllowance?.(),
+                        refetchShips(),
+                      ]);
                     }}
                     onError={(error) => {
                       const msg = error.message ?? "";

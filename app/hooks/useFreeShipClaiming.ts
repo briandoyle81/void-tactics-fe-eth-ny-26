@@ -142,6 +142,7 @@ export function useFreeShipClaiming() {
 
   // Track if we should show the error (clear it after some time or on new attempts)
   const [showError, setShowError] = useState(false);
+  const [followUpPending, setFollowUpPending] = useState(false);
 
   // Handle write contract errors (including user rejection)
   useEffect(() => {
@@ -312,7 +313,6 @@ export function useFreeShipClaiming() {
     // Transaction receipt received - show success toast
     toast.success("Free ships claimed successfully!");
 
-    // Transaction was successful, update cache and refetch data
     setEligibilityCache((prev) => {
       const newCache = {
         ...prev,
@@ -326,22 +326,19 @@ export function useFreeShipClaiming() {
       return newCache;
     });
 
-    void refetch();
-    void refetchClaimStatus();
-
-    const timer = setTimeout(() => {
-      void refetch();
-      void refetchClaimStatus();
-    }, 800);
-
-    const timer2 = setTimeout(() => {
-      void refetch();
-      void refetchClaimStatus();
-    }, 3000);
+    setFollowUpPending(true);
+    let cancelled = false;
+    void (async () => {
+      try {
+        await refetch();
+        await refetchClaimStatus();
+      } finally {
+        if (!cancelled) setFollowUpPending(false);
+      }
+    })();
 
     return () => {
-      clearTimeout(timer);
-      clearTimeout(timer2);
+      cancelled = true;
     };
   }, [isConfirmed, hash, address, refetch, refetchClaimStatus, saveCacheToStorage]);
 
@@ -449,7 +446,7 @@ export function useFreeShipClaiming() {
     claimFreeShips,
 
     // Contract state
-    isPending: isPending || isConfirming,
+    isPending: isPending || isConfirming || followUpPending,
     isConfirmed,
     error: showError ? (error || receiptError) : null,
     claimStatusError,

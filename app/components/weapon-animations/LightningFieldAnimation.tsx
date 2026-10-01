@@ -6,6 +6,7 @@ import {
   LIGHTNING_FIELD_STRING_COUNT,
 } from "../../constants/animationTiming";
 import { GRID_DIMENSIONS } from "../../types/types";
+import { startCancelledRaf } from "./overlayPaint";
 
 type GridCell = { row: number; col: number };
 
@@ -89,30 +90,30 @@ export const LightningFieldAnimation = React.memo(function LightningFieldAnimati
   const fieldCellsRef = useRef(fieldCells);
   fieldCellsRef.current = fieldCells;
 
+  const sparkPathsRef = useRef<SVGPathElement[][]>([]);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [strings, setStrings] = useState<SparkString[]>(() => makePool(fieldCells));
 
   useEffect(() => {
+    sparkPathsRef.current = [];
     if (fieldCells.length === 0) {
       setStrings([]);
       return;
     }
-
     setStrings(makePool(fieldCells));
+  }, [fieldCells]);
 
+  useEffect(() => {
     const staggerMs = LIGHTNING_FIELD_LOOP_MS / LIGHTNING_FIELD_STRING_COUNT;
     const cycleGen = Array.from({ length: LIGHTNING_FIELD_STRING_COUNT }, () => -1);
     const startedAt = performance.now();
-    let raf = 0;
 
-    const tick = (now: number) => {
+    const stopRaf = startCancelledRaf((now) => {
       const cells = fieldCellsRef.current;
-      if (cells.length === 0) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
+      if (cells.length === 0) return;
 
       const elapsed = now - startedAt;
-      let changed: SparkString[] | null = null;
+      const svg = svgRef.current;
       for (let i = 0; i < LIGHTNING_FIELD_STRING_COUNT; i++) {
         const local = elapsed - i * staggerMs;
         if (local < 0) continue;
@@ -120,25 +121,21 @@ export const LightningFieldAnimation = React.memo(function LightningFieldAnimati
         if (gen === cycleGen[i]) continue;
         cycleGen[i] = gen;
         if (gen === 0) continue;
-        if (!changed) changed = [];
-        changed.push({ id: i, d: randomSparkPath(cells) });
-      }
-
-      if (changed) {
-        setStrings((prev) => {
-          if (prev.length !== LIGHTNING_FIELD_STRING_COUNT) return prev;
-          const next = prev.slice();
-          for (const spark of changed) next[spark.id] = spark;
-          return next;
+        const d = randomSparkPath(cells);
+        if (!svg) continue;
+        let paths = sparkPathsRef.current[i];
+        if (!paths || paths.length === 0) {
+          paths = Array.from(svg.querySelectorAll(`[data-spark="${i}"] path`));
+          sparkPathsRef.current[i] = paths;
+        }
+        paths.forEach((el) => {
+          el.setAttribute("d", d);
         });
       }
+    });
 
-      raf = requestAnimationFrame(tick);
-    };
-
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [fieldCells]);
+    return stopRaf;
+  }, []);
 
   if (fieldCells.length === 0 || strings.length === 0) return null;
 
@@ -146,6 +143,7 @@ export const LightningFieldAnimation = React.memo(function LightningFieldAnimati
 
   return (
     <svg
+      ref={svgRef}
       className="absolute inset-0 pointer-events-none z-[90]"
       viewBox={`0 0 ${GRID_DIMENSIONS.WIDTH} ${GRID_DIMENSIONS.HEIGHT}`}
       preserveAspectRatio="none"
@@ -156,7 +154,7 @@ export const LightningFieldAnimation = React.memo(function LightningFieldAnimati
           animationDelay: `${spark.id * staggerMs}ms`,
         };
         return (
-          <g key={spark.id}>
+          <g key={spark.id} data-spark={spark.id}>
             <path
               d={spark.d}
               pathLength={1}

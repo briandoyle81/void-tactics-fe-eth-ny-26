@@ -84,6 +84,8 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
   useLayoutEffect(() => {
     let cancelled = false;
     let ro: ResizeObserver | null = null;
+    let rafAttach = 0;
+    let rafGeom = 0;
     let rafAttachAttempts = 0;
     const maxAttachAttempts = 64;
     let geomRetryCount = 0;
@@ -104,12 +106,29 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
         targetCol,
       );
       if (next) {
-        setGeom(next);
+        setGeom((prev) => {
+          if (
+            prev &&
+            prev.width === next.width &&
+            prev.height === next.height &&
+            prev.avgCell === next.avgCell &&
+            prev.a.x === next.a.x &&
+            prev.a.y === next.a.y &&
+            prev.t.x === next.t.x &&
+            prev.t.y === next.t.y &&
+            prev.endX === next.endX &&
+            prev.endY === next.endY
+          ) {
+            return prev;
+          }
+          return next;
+        });
         return;
       }
       geomRetryCount += 1;
       if (geomRetryCount < maxGeomRetries) {
-        requestAnimationFrame(() => applyGeom(el));
+        cancelAnimationFrame(rafGeom);
+        rafGeom = requestAnimationFrame(() => applyGeom(el));
       }
     };
 
@@ -137,7 +156,8 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
       }
       rafAttachAttempts += 1;
       if (rafAttachAttempts < maxAttachAttempts) {
-        requestAnimationFrame(waitForRef);
+        cancelAnimationFrame(rafAttach);
+        rafAttach = requestAnimationFrame(waitForRef);
       } else {
         setGeom(null);
       }
@@ -147,6 +167,8 @@ export const EmpWaveAnimation = React.memo(function EmpWaveAnimation({
 
     return () => {
       cancelled = true;
+      cancelAnimationFrame(rafAttach);
+      cancelAnimationFrame(rafGeom);
       disconnectRo();
     };
   }, [gridContainerRef, attackerRow, attackerCol, targetRow, targetCol]);

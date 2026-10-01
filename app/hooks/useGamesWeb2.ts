@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { keepUnchangedGamesList, shareUnchangedGameData } from "../utils/normalizeGameDataView";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "../lib/apiFetch";
@@ -38,24 +39,30 @@ export function useGetGame(gameId: number) {
     // poller on the exact same query was pure redundant DB load, not extra
     // coverage.
     staleTime: 2000,
+    refetchOnWindowFocus: false,
+    notifyOnChangeProps: ["data", "error"],
+    structuralSharing: shareUnchangedGameData,
   });
   return { data, isLoading, error, refetch };
 }
 
-export function useGetGamesForPlayer() {
+export function useGetGamesForPlayer(options?: {
+  refetchInterval?: number | false;
+  refetchOnWindowFocus?: boolean;
+}) {
   const { status } = useSession();
   const appMode = useAppMode();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["gamesWeb2", "player"],
     queryFn: () => apiFetch<Web2GameDataView[]>("/api/games"),
     enabled: status === "authenticated" && appMode === "web2",
-    // SSE (useGameStreamWeb2) also invalidates this query whenever a game
-    // the player has open updates, but only while a specific game's detail
-    // view is mounted — this interval is what keeps the list itself fresh
-    // (e.g. an opponent's move in a game you're not currently viewing).
-    // 20s (was 5s) is still prompt for a list that only changes on
-    // discrete events (a move, a game starting/ending).
-    refetchInterval: 20000,
+    refetchInterval: options?.refetchInterval ?? 20000,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus ?? true,
+    notifyOnChangeProps: ["data", "error"],
+    structuralSharing: (oldData, newData) => {
+      if (!Array.isArray(oldData) || !Array.isArray(newData)) return newData;
+      return keepUnchangedGamesList(oldData, newData);
+    },
   });
   return { data, isLoading, error, refetch };
 }

@@ -4,7 +4,7 @@ import React from "react";
 import { useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { toast } from "react-hot-toast";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES, getContractAddresses } from "../config/contracts";
 import { useRevealRandomness } from "../hooks/useRandomManager";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
@@ -29,7 +29,7 @@ interface ShipActionButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
 }
 
@@ -185,12 +185,12 @@ export function ShipActionButton({
     }
   }, [action, shipId, shipIds]);
 
-  const handleConstructSuccess = React.useCallback(() => {
+  const handleConstructSuccess = React.useCallback(async () => {
     posthog.capture("ships_constructed", {
       action,
       ship_count: action === "construct" ? 1 : (shipIds?.length ?? 0),
     });
-    onSuccess?.();
+    await onSuccess?.();
   }, [action, shipIds, onSuccess]);
 
   if (isConstructAction) {
@@ -223,9 +223,9 @@ export function ShipActionButton({
       disabled={disabled}
       loadingText={`[${action.toUpperCase()}...]`}
       errorText={`[ERROR ${action.toUpperCase()}]`}
-      onSuccess={() => {
+      onSuccess={async () => {
         posthog.capture("ships_recycled", { ship_count: shipIds?.length ?? 0 });
-        onSuccess?.();
+        await onSuccess?.();
       }}
       onError={onError}
       validateBeforeTransaction={validateBeforeTransaction}
@@ -263,7 +263,7 @@ function RevealThenConstructButton({
   className: string;
   disabled: boolean;
   validateBeforeTransaction: () => boolean | string;
-  onSuccess: () => void;
+  onSuccess: TransactionFollowUp;
   onError?: (error: Error) => void;
 }) {
   const activeChainId = useSelectedChainId();
@@ -329,8 +329,8 @@ function RevealThenConstructButton({
 
       if (functionName !== "constructAllMyShips" && stillUnconstructedIds.length === 0) {
         invalidateShipAttributesByIdsCache(activeChainId);
+        await onSuccess();
         completeTransaction(transactionId, true);
-        onSuccess();
         return;
       }
 
@@ -375,8 +375,8 @@ function RevealThenConstructButton({
       // the pre-construction zeros (e.g. 0% armor/shield damage reduction).
       invalidateShipAttributesByIdsCache(activeChainId);
 
+      await onSuccess();
       completeTransaction(transactionId, true);
-      onSuccess();
     } catch (err: unknown) {
       const message = messageFromUnknownError(err);
       const isUserRejection =

@@ -8,6 +8,9 @@ import {
 import { requireShipValue, resolveActionRange } from "./requireShipValue";
 import { isRepairDronesSpecial } from "./specialConfigWeb2";
 
+const EMPTY_RANGE_CELLS: { row: number; col: number }[] = [];
+const EMPTY_TARGET_REFS: { shipId: number; position: { row: number; col: number } }[] = [];
+
 function enemyOccupiedFor(
   gridWidth: number,
   gridHeight: number,
@@ -125,7 +128,7 @@ export function computeMovementRange({
   canEnterOccupiedCell,
   impassableGrid,
 }: MovementRangeParams): { row: number; col: number }[] {
-  if (!selectedShipId || !hasShips) return [];
+  if (!selectedShipId || !hasShips) return EMPTY_RANGE_CELLS;
 
   const ship = shipMap.get(selectedShipId);
   if (!ship) return [];
@@ -150,8 +153,9 @@ export function computeMovementRange({
   }
 
   const validMoves: { row: number; col: number }[] = [];
-  const startRow = currentPosition.position.row;
-  const startCol = currentPosition.position.col;
+  const startRow = Number(currentPosition.position.row);
+  const startCol = Number(currentPosition.position.col);
+  if (!Number.isFinite(startRow) || !Number.isFinite(startCol)) return [];
   const enemyOccupiedGrid = enemyOccupiedFor(
     gridWidth,
     gridHeight,
@@ -159,6 +163,12 @@ export function computeMovementRange({
     selectedShipId,
     getShipAttributes,
   );
+
+  const occupies = (row: number, col: number) =>
+    shipPositions.find(
+      (pos) =>
+        Number(pos.position.row) === row && Number(pos.position.col) === col,
+    );
 
   // Check all positions within movement range
   for (
@@ -174,7 +184,8 @@ export function computeMovementRange({
       const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
       if (distance <= movementRange && distance > 0) {
         // Impassable tiles and enemy ships both block movement-through
-        // (see 2026-09-26 combat-blocking doc §1). Allies only block landing.
+        // (Maps.hasMovementPath / hasMovementPathAvoidingShips). Scoring is
+        // a separate mapping and does not skip the Bresenham walk.
         if (
           !hasMovementPath(
             startRow,
@@ -187,18 +198,12 @@ export function computeMovementRange({
         ) {
           continue;
         }
-        // Check if position is not occupied by another ship
-        const isOccupied = shipPositions.some(
-          (pos) => pos.position.row === row && pos.position.col === col,
-        );
-        const occupyingShip = shipPositions.find(
-          (pos) => pos.position.row === row && pos.position.col === col,
-        );
+        const occupyingShip = occupies(row, col);
         const canEnterOccupied =
           occupyingShip != null &&
           canEnterOccupiedCell?.(row, col, occupyingShip.shipId) === true;
 
-        if (!isOccupied || canEnterOccupied) {
+        if (!occupyingShip || canEnterOccupied) {
           validMoves.push({ row, col });
         }
       }
@@ -224,7 +229,7 @@ export function computeShootingRange({
   blockedGrid,
   impassableGrid,
 }: ShootingRangeParams): { row: number; col: number }[] {
-  if (!selectedShipId || !hasShips) return [];
+  if (!selectedShipId || !hasShips) return EMPTY_RANGE_CELLS;
 
   const ship = shipMap.get(selectedShipId);
   if (!ship) return [];
@@ -559,6 +564,8 @@ interface LabelTargetsParams {
   factionAbilityRange?: number | undefined;
   factionAbilityIsHeal?: boolean;
   blockedGrid: boolean[][];
+  /** Same movement-blocking terrain used by computeMovementRange. */
+  impassableGrid?: boolean[][];
   gridWidth: number;
   gridHeight: number;
 }
@@ -578,11 +585,12 @@ export function computeLabelTargets({
   factionAbilityRange,
   factionAbilityIsHeal = false,
   blockedGrid,
+  impassableGrid,
   gridWidth,
   gridHeight,
 }: LabelTargetsParams): { shipId: number; position: { row: number; col: number } }[] {
-  if (!selectedShipId) return [];
-  if (isRammingMovePreview) return [];
+  if (!selectedShipId) return EMPTY_TARGET_REFS;
+  if (isRammingMovePreview) return EMPTY_TARGET_REFS;
 
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
@@ -642,7 +650,7 @@ export function computeLabelTargets({
               currentPosition.position.col,
               row,
               col,
-              undefined,
+              impassableGrid,
               enemyOccupiedGrid,
             )
           ) {
@@ -758,7 +766,7 @@ export function computeHoverValidTargets({
   factionAbilityIsHeal = false,
   blockedGrid,
 }: HoverValidTargetsParams): { shipId: number; position: { row: number; col: number } }[] {
-  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
+  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return EMPTY_TARGET_REFS;
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
   const range = resolveActionRange({
@@ -867,7 +875,7 @@ export function computeHoverShootingRange({
   gridWidth,
   gridHeight,
 }: HoverShootingRangeParams): { row: number; col: number }[] {
-  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return [];
+  if (!selectedShipId || !hoverPreviewPosition || !hasShips) return EMPTY_RANGE_CELLS;
   const attributes = getShipAttributes(selectedShipId);
   if (!attributes) return [];
   const range = resolveActionRange({

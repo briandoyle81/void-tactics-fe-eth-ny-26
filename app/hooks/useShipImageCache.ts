@@ -61,6 +61,36 @@ const RETRY_DELAY = 2000; // 2 seconds between retries
 const requestQueue: Array<() => Promise<void>> = [];
 let activeRequests = 0;
 let isProcessingQueue = false;
+let queueCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+function startQueueCheck() {
+  if (queueCheckInterval) return;
+
+  queueCheckInterval = setInterval(() => {
+    if (requestQueue.length > 0 && !isProcessingQueue && activeRequests === 0) {
+      debugLog(
+        `🔄 Periodic queue check: restarting stuck queue with ${requestQueue.length} requests`
+      );
+      processQueue();
+    } else if (requestQueue.length === 0 && activeRequests === 0) {
+      stopQueueCheck();
+    }
+  }, 5000);
+}
+
+function stopQueueCheck() {
+  if (queueCheckInterval) {
+    clearInterval(queueCheckInterval);
+    queueCheckInterval = null;
+    debugLog("🛑 Stopped periodic queue check");
+  }
+}
+
+function enqueueImageRequest(request: () => Promise<void>) {
+  requestQueue.push(request);
+  startQueueCheck();
+  processQueue();
+}
 
 interface CachedImage {
   dataUrl: string;
@@ -84,7 +114,7 @@ function isUserLoggedIn(): boolean {
 }
 
 // Process the request queue with rate limiting
-const processQueue = async () => {
+async function processQueue() {
   debugLog(
     `🔄 Processing queue: ${requestQueue.length} requests, ${activeRequests} active, processing: ${isProcessingQueue}`
   );
@@ -95,6 +125,7 @@ const processQueue = async () => {
     requestQueue.length = 0;
     isProcessingQueue = false;
     activeRequests = 0;
+    stopQueueCheck();
     return;
   }
 
@@ -109,6 +140,7 @@ const processQueue = async () => {
   // If no requests, reset processing flag and return
   if (requestQueue.length === 0) {
     isProcessingQueue = false;
+    stopQueueCheck();
     debugLog(`🏁 Queue processing finished (no more requests)`);
     return;
   }
@@ -135,6 +167,7 @@ const processQueue = async () => {
         if (requestQueue.length > 0) {
           processQueue();
         } else {
+          stopQueueCheck();
           debugLog(`🏁 Queue processing finished`);
         }
       }, REQUEST_DELAY);
@@ -142,9 +175,10 @@ const processQueue = async () => {
   } else {
     // No request to process, reset flag
     isProcessingQueue = false;
+    stopQueueCheck();
     debugLog(`🏁 Queue processing finished (no request found)`);
   }
-};
+}
 
 export function useShipImageCache(ship: Ship) {
   const [imageState, setImageState] = useState<ShipImageState>({
@@ -473,8 +507,7 @@ export function useShipImageCache(ship: Ship) {
         if (!shipRequestStates.get(shipRequestKey)) {
           shipRequestStates.set(shipRequestKey, true);
           debugLog(`🔄 Adding ship ${shipId} to request queue for refetch`);
-          requestQueue.push(fetchImageFromContract);
-          processQueue();
+          enqueueImageRequest(fetchImageFromContract);
         } else {
           debugLog(`⚠️ Ship ${shipId} already requested, skipping refetch`);
         }
@@ -496,8 +529,7 @@ export function useShipImageCache(ship: Ship) {
         // Add to queue if not cached and not already requested
         debugLog(`📤 No cache for ship ${shipId}, adding to request queue`);
         shipRequestStates.set(shipRequestKey, true);
-        requestQueue.push(fetchImageFromContract);
-        processQueue();
+        enqueueImageRequest(fetchImageFromContract);
       }
     } else {
       debugLog(
@@ -759,34 +791,9 @@ const initializeCacheSystem = () => {
   }
 };
 
-// Periodic queue check to prevent getting stuck
-let queueCheckInterval: NodeJS.Timeout | null = null;
-
-function startQueueCheck() {
-  if (queueCheckInterval) return; // Already running
-
-  queueCheckInterval = setInterval(() => {
-    if (requestQueue.length > 0 && !isProcessingQueue && activeRequests === 0) {
-      debugLog(
-        `🔄 Periodic queue check: restarting stuck queue with ${requestQueue.length} requests`
-      );
-      processQueue();
-    }
-  }, 5000); // Check every 5 seconds
-}
-
-function stopQueueCheck() {
-  if (queueCheckInterval) {
-    clearInterval(queueCheckInterval);
-    queueCheckInterval = null;
-    debugLog("🛑 Stopped periodic queue check");
-  }
-}
-
 // All module-level side effects gated on client environment to prevent SSR issues.
 if (typeof window !== "undefined") {
   initializeCacheSystem();
-  startQueueCheck();
   window.addEventListener("beforeunload", () => {
     stopQueueCheck();
     isProcessingQueue = false;

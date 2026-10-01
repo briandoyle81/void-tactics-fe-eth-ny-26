@@ -16,16 +16,22 @@ import {
   Ship,
 } from "../types/types";
 import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
+import { wouldEnterSos } from "../utils/calculateDamage";
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
-import { toOnChainActionType } from "../utils/normalizeGameDataView";
+import { toOnChainActionType, gameStateSyncKey } from "../utils/normalizeGameDataView";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
 import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
 import { GameTooltipShipCard } from "./GameTooltipShipCard";
 import { gameFleetPanelLabel } from "../utils/gameFleetPanelLabel";
 import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
+import {
+  TurnCountdownProvider,
+  TurnCountdownText,
+  TurnCountdownBar,
+} from "./TurnCountdown";
 import { useGetGameMapState } from "../hooks/useMapsContract";
 import {
   useGameContract,
@@ -33,7 +39,6 @@ import {
   usePvPMatchContract,
 } from "../hooks/useGameContract";
 import {
-  useContractEvents,
   globalGameRefetchFunctions,
 } from "../hooks/useContractEvents";
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
@@ -84,7 +89,6 @@ import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
 import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
-import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { type GameRecord, type TurnRecord } from "../types/types";
@@ -96,7 +100,7 @@ const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
 
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
-import { buildMapGridsFromContractMap } from "../utils/mapGridUtils";
+import { buildMapGridsFromContractMap, readGameMapState } from "../utils/mapGridUtils";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
 
 // AI moves (takeAITurn) never set optimisticLastMove — only the human's own
@@ -190,8 +194,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const pvpMatchContract = usePvPMatchContract();
 
   // ── Game record (persisted to localStorage) ────────────────────────────────
+  // Keep this off React state: the growing turn list was never read in JSX
+  // and forced a full GameDisplay re-render after every confirmed move.
   const gameRecordRef = React.useRef<GameRecord | null>(null);
-  const [gameRecord, setGameRecord] = React.useState<GameRecord | null>(null);
   const lastMoveTimestampRef = React.useRef<bigint | undefined>(undefined);
   const archivedRef = React.useRef(false);
 
@@ -212,6 +217,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] =
     useState(true);
+  const expandLastMovePanel = React.useCallback(
+    () => setIsLastMovePanelMinimized(false),
+    [],
+  );
+  const minimizeLastMovePanel = React.useCallback(
+    () => setIsLastMovePanelMinimized(true),
+    [],
+  );
   const [isDebugPanelMinimized, setIsDebugPanelMinimized] = useState(true);
   const gameViewRootRef = React.useRef<HTMLDivElement | null>(null);
   const gridContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -251,8 +264,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // brief `gameData` gap reused the stale list row (often still round 1)
   // and made the round-start modal think the round had changed.
   const latestGameDataRef = React.useRef(initialGame);
-  if (gameData) latestGameDataRef.current = gameData;
-  const game = gameData ?? latestGameDataRef.current;
+  const gameSyncKeyRef = React.useRef(gameStateSyncKey(initialGame));
+  const incomingGame = gameData ?? latestGameDataRef.current;
+  const incomingSyncKey = gameStateSyncKey(incomingGame);
+  if (incomingSyncKey !== gameSyncKeyRef.current) {
+    gameSyncKeyRef.current = incomingSyncKey;
+    latestGameDataRef.current = incomingGame;
+  }
+  const game = latestGameDataRef.current;
 
   // ── Replay overlay: replaySnapshotGame → displayGame ───────────────────────
   const replaySnapshotGame: GameDataView | null = React.useMemo(() => {
@@ -437,9 +456,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     ? (replaySnapshotGame?.lastMove ?? undefined)
     : (optimisticLastMove ?? game.lastMove);
 
-  // Enable real-time event listening for game updates
-  useContractEvents();
-
   // Initialize game record once on mount
   React.useEffect(() => {
     if (!gameRecordRef.current && game.metadata.gameId) {
@@ -450,7 +466,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         game,
       );
       gameRecordRef.current = initial;
-      setGameRecord(initial);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount only
@@ -483,7 +498,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     );
     const updated = appendTurn(base, game, whoJustMoved, game.lastMove);
     gameRecordRef.current = updated;
-    setGameRecord(updated);
     saveGameRecord(String(game.metadata.gameId), updated);
   }, [game, address]);
 
@@ -496,8 +510,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     archivedRef.current = true;
     const final = finalizeRecord(record, winner);
     gameRecordRef.current = final;
-    setGameRecord(final);
-    saveGameRecord(String(game.metadata.gameId), final);
+    saveGameRecord(String(game.metadata.gameId), final, { immediate: true });
   }, [game.metadata.winner, game.metadata.gameId]);
 
   // ── Replay callbacks ────────────────────────────────────────────────────────
@@ -553,20 +566,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     () => Number(game.turnState.turnStartTime || 0n) * 1000,
     [game.turnState.turnStartTime],
   );
-  const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
-    turnTimeSec,
-    turnStartTimeMs,
-  );
-
-  const formatSeconds = (total: number): string => {
-    const m = Math.floor(total / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = Math.floor(total % 60)
-      .toString()
-      .padStart(2, "0");
-    return `${m}:${s}`;
-  };
 
   // Get game map state directly from the Maps contract. `chainSource:
   // "picker"` avoids following a wallet connected to a stray chain (see
@@ -583,24 +582,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // blocking — see
   // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1.
   const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid } = React.useMemo(() => {
-    const gameMapData = gameMapState as
-      | [
-          Array<{ row: number; col: number }>,
-          Array<{
-            row: number;
-            col: number;
-            points: number;
-            onlyOnce: boolean;
-          }>,
-          Array<{ row: number; col: number }>,
-        ]
-      | undefined;
+    const { blockedPositions, scoringPositions, impassablePositions } =
+      readGameMapState(gameMapState);
     return buildMapGridsFromContractMap(
-      gameMapData?.[0],
-      gameMapData?.[1],
+      blockedPositions,
+      scoringPositions,
       GRID_WIDTH,
       GRID_HEIGHT,
-      gameMapData?.[2],
+      impassablePositions,
     );
   }, [gameMapState]);
 
@@ -658,26 +647,33 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         : undefined,
     [],
   );
+  const gameEventsLastMove = React.useMemo(
+    () =>
+      toGameEventsLastMove(
+        selectedShipId !== null ? undefined : displayedLastMove,
+      ),
+    [selectedShipId, displayedLastMove, toGameEventsLastMove],
+  );
 
   // Get ship attributes by ship ID from game data
+  const shipIdsRef = React.useRef(game.shipIds);
+  const shipAttributesRef = React.useRef(game.shipAttributes);
+  shipIdsRef.current = game.shipIds;
+  shipAttributesRef.current = game.shipAttributes;
   const getShipAttributes = React.useCallback(
     (shipId: bigint): Attributes | null => {
-      // Find the ship ID in the shipIds array to get the correct index
-      const shipIndex = game.shipIds?.findIndex((id) => id === shipId);
-
+      const shipIndex = shipIdsRef.current?.findIndex((id) => id === shipId);
       if (
         shipIndex === -1 ||
-        !game.shipAttributes ||
-        !game.shipAttributes[shipIndex]
+        shipIndex == null ||
+        !shipAttributesRef.current ||
+        !shipAttributesRef.current[shipIndex]
       ) {
         return null;
       }
-
-      const attributes = game.shipAttributes[shipIndex];
-
-      return attributes;
+      return shipAttributesRef.current[shipIndex];
     },
-    [game.shipAttributes, game.shipIds],
+    [],
   );
 
   // Get special range/strength for the selected ship. In-flight games pin
@@ -719,8 +715,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   } = useFactionAbilityConfig(selectedShipVariant);
   // Downstream consumers (useDamageCalculation, useGameplayInteraction) want
   // `{ strength }`, matching the old `getSpecialData` struct's shape.
-  const specialData =
-    specialStrength != null ? { strength: Number(specialStrength) } : null;
+  const specialData = React.useMemo(
+    () => (specialStrength != null ? { strength: Number(specialStrength) } : null),
+    [specialStrength],
+  );
   // wagmi returns bigint; a `as number` cast does not convert it, and the
   // lightning field then rejects the value and falls back to range 2.
   const selectedSpecialRange =
@@ -807,7 +805,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const { recordPlayerMove } = useGamePolling({
     gameId: Number(game.metadata.gameId),
     turnTime: game.turnState.turnTime,
-    gameData,
+    gameData: game,
     refetchGame,
     onRefetch: () => interaction.setTargetShipId(null),
     isSinglePlayerGame: isVsAIGame,
@@ -968,6 +966,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     retreatPrepIsCreator,
     setSelectedWeaponType: setWeaponTypeFromGrid,
     onMoveTileHover,
+    recordOptimisticSos,
+    clearOptimisticSos,
+    optimisticSosShipIds,
   } = interaction;
 
   const toBigTargets = React.useCallback(
@@ -991,17 +992,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [interaction.setTargetShipId],
   );
 
-  // Clear targeting state when game data changes (after successful moves)
+  // Clear targeting after a real last-move, not whenever getGame returns a
+  // new object for an unchanged board (idle polls were wiping the selection
+  // and recrawling the grid).
   React.useEffect(() => {
-    if (gameData && gameData !== initialGame) {
-      // Game data has been updated, clear targeting state
-      setTargetShipId(null);
-    }
-  }, [gameData, initialGame, setTargetShipId]);
+    if (!lastMoveSignal) return;
+    setTargetShipId(null);
+  }, [lastMoveSignal, setTargetShipId]);
 
-  const hoveredCell = interaction.hoveredCell
-    ? { ...interaction.hoveredCell, shipId: BigInt(interaction.hoveredCell.shipId) }
-    : null;
+  const hoveredCell = React.useMemo(() => {
+    const cell = interaction.hoveredCell;
+    if (!cell) return null;
+    return { ...cell, shipId: BigInt(cell.shipId) };
+  }, [interaction.hoveredCell]);
   const setHoveredCell = React.useCallback(
     (
       cell:
@@ -1070,6 +1073,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       // submit" appearance before disappearing, which read as a flash back
       // to the pre-submit state instead of a clean vanish.
       handleCancelMove();
+      clearOptimisticSos();
       setAwaitingTurnSyncAfterSubmit(false);
 
       const errorMessage =
@@ -1109,7 +1113,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         toast.error(`Transaction failed: ${errorMessage}`);
       }
     },
-    [handleCancelMove],
+    [handleCancelMove, clearOptimisticSos],
   );
 
   /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
@@ -1235,10 +1239,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           newCol: displayedLastMove.newCol,
         };
 
-        interaction.setPreviewPosition({
-          row: displayedLastMove.newRow,
-          col: displayedLastMove.newCol,
-        });
+        // A hold's To is the ship's current tile. Parking preview there is
+        // leftover dest for whichever ship is selected next (yellow arrow
+        // from the new ship to this tile). Last-move hold has no path, so
+        // there is nothing for previewPosition to show here.
+        const isHold =
+          displayedLastMove.oldRow === displayedLastMove.newRow &&
+          displayedLastMove.oldCol === displayedLastMove.newCol;
+        if (!isHold) {
+          interaction.setPreviewPosition({
+            row: displayedLastMove.newRow,
+            col: displayedLastMove.newCol,
+          });
+        } else {
+          interaction.setPreviewPosition(null);
+        }
         if (displayedLastMove.targetShipId !== 0n) {
           setTargetShipId(displayedLastMove.targetShipId);
         } else {
@@ -1348,49 +1363,63 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   }, [awaitingTurnSyncAfterSubmit, isMyTurn, interaction.handleCancelMove]);
 
   // For Retreat, newRow/newCol are -1 (fled); don't highlight a cell
-  const highlightedMovePosition =
-    shouldShowLastMove &&
-    displayedLastMove &&
-    !isShowingProposedMove &&
-    (displayedLastMove.actionType as ActionType) !== ActionType.Retreat &&
-    displayedLastMove.newRow >= 0 &&
-    displayedLastMove.newCol >= 0
-      ? { row: displayedLastMove.newRow, col: displayedLastMove.newCol }
-      : null;
+  const highlightedMovePosition = React.useMemo(() => {
+    if (
+      !shouldShowLastMove ||
+      !displayedLastMove ||
+      isShowingProposedMove ||
+      (displayedLastMove.actionType as ActionType) === ActionType.Retreat ||
+      displayedLastMove.newRow < 0 ||
+      displayedLastMove.newCol < 0
+    ) {
+      return null;
+    }
+    return { row: displayedLastMove.newRow, col: displayedLastMove.newCol };
+  }, [shouldShowLastMove, displayedLastMove, isShowingProposedMove]);
 
   // Last move props for GameGrid
   const lastMoveShipId =
     shouldShowLastMoveOnGrid && displayedLastMove && !isShowingProposedMove
       ? displayedLastMove.shipId
       : null;
-  const lastMoveOldPosition =
-    shouldShowLastMoveOnGrid && displayedLastMove && !isShowingProposedMove
-      ? { row: displayedLastMove.oldRow, col: displayedLastMove.oldCol }
-      : null;
+  const lastMoveOldPosition = React.useMemo(() => {
+    if (!shouldShowLastMoveOnGrid || !displayedLastMove || isShowingProposedMove) {
+      return null;
+    }
+    return { row: displayedLastMove.oldRow, col: displayedLastMove.oldCol };
+  }, [shouldShowLastMoveOnGrid, displayedLastMove, isShowingProposedMove]);
 
-  const lastMoveNewPosition =
-    shouldShowLastMoveOnGrid &&
-    displayedLastMove &&
-    !isShowingProposedMove &&
-    displayedLastMove.newRow >= 0 &&
-    displayedLastMove.newCol >= 0
-      ? { row: displayedLastMove.newRow, col: displayedLastMove.newCol }
-      : null;
+  const lastMoveNewPosition = React.useMemo(() => {
+    if (
+      !shouldShowLastMoveOnGrid ||
+      !displayedLastMove ||
+      isShowingProposedMove ||
+      displayedLastMove.newRow < 0 ||
+      displayedLastMove.newCol < 0
+    ) {
+      return null;
+    }
+    return { row: displayedLastMove.newRow, col: displayedLastMove.newCol };
+  }, [shouldShowLastMoveOnGrid, displayedLastMove, isShowingProposedMove]);
 
   // Keep the last mover's to-tile for weapon aiming after last-move chrome
   // is hidden (player selected a ship). Otherwise beams lock onto the
   // from-tile ghost when that enemy was the last to move.
-  const lastMoveResolvedTo =
-    displayedLastMove &&
-    displayedLastMove.shipId !== 0n &&
-    displayedLastMove.newRow >= 0 &&
-    displayedLastMove.newCol >= 0
-      ? {
-          shipId: Number(displayedLastMove.shipId),
-          row: displayedLastMove.newRow,
-          col: displayedLastMove.newCol,
-        }
-      : null;
+  const lastMoveResolvedTo = React.useMemo(() => {
+    if (
+      !displayedLastMove ||
+      displayedLastMove.shipId === 0n ||
+      displayedLastMove.newRow < 0 ||
+      displayedLastMove.newCol < 0
+    ) {
+      return null;
+    }
+    return {
+      shipId: Number(displayedLastMove.shipId),
+      row: displayedLastMove.newRow,
+      col: displayedLastMove.newCol,
+    };
+  }, [displayedLastMove]);
 
   const lastMoveActionType =
     shouldShowLastMoveOnGrid && displayedLastMove && !isShowingProposedMove
@@ -1448,17 +1477,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
     return `[target shipPositions row,col: ${targetPos.position.row},${targetPos.position.col}]`;
   }, [displayedLastMove, game.shipPositions]);
-
-  React.useEffect(() => {
-    if (!displayedLastMove) return;
-    if (displayedLastMove.targetShipId === 0n) return;
-
-    const targetExists = game.shipPositions.some(
-      (sp) => sp.shipId === displayedLastMove.targetShipId,
-    );
-    if (targetExists) return;
-
-  }, [displayedLastMove, game.metadata.gameId, game.shipPositions]);
 
   // Round-start announcement — fires on the very first render (game start)
   // and again every time currentRound changes (new round). Gated on
@@ -1572,6 +1590,32 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [calculateDamageForShip],
   );
 
+  const snapshotOptimisticSosIfNeeded = React.useCallback(() => {
+    const t = Number(targetShipId ?? 0n);
+    if (t <= 0) return;
+    if (
+      computedActionType !== ActionType.Shoot &&
+      computedActionType !== ActionType.Special
+    ) {
+      return;
+    }
+    const dmg = calculateDamageForDisplay(
+      t,
+      computedActionType === ActionType.Special ? "special" : "weapon",
+      specialType === 3 ? true : undefined,
+    );
+    if (wouldEnterSos(dmg, getShipAttributesForDisplay(t))) {
+      recordOptimisticSos([t]);
+    }
+  }, [
+    targetShipId,
+    computedActionType,
+    specialType,
+    calculateDamageForDisplay,
+    getShipAttributesForDisplay,
+    recordOptimisticSos,
+  ]);
+
   const setSelectedShipIdForDisplay = interaction.setSelectedShipId;
   const setTargetShipIdForDisplay = interaction.setTargetShipId;
   const setHoveredCellForDisplay = interaction.setHoveredCell;
@@ -1657,6 +1701,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   loadingText="[SUBMITTING...]"
                   errorText="[ERR]"
                   onTransactionSent={(hash) => {
+                    snapshotOptimisticSosIfNeeded();
                     setAwaitingTurnSyncAfterSubmit(true);
                     if (selectedShipId == null) return;
                     const moveTypeLabel =
@@ -1680,7 +1725,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       chain_id: appChainId,
                     });
                   }}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     const currentPosition = game.shipPositions.find(
                       (pos) => pos.shipId === selectedShipId,
                     );
@@ -1731,11 +1776,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       targetShipId: Number(submittedTargetShipId),
                       timestamp: Date.now(),
                     });
+                    snapshotOptimisticSosIfNeeded();
 
                     toast.success("Move submitted successfully!");
                     recordPlayerMove();
-                    refetchGame();
-                    refetch?.();
+                    handleCancelMove();
+                    await Promise.resolve(refetchGame());
+                    await Promise.resolve(refetch?.());
                     // Retire the proposed-move UI (confirm/submit button)
                     // now that the move is confirmed successful, instead of
                     // waiting for the later chain-sync effect to notice
@@ -1748,7 +1795,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     // visual gap. awaitingTurnSyncAfterSubmit is left alone
                     // — it still guards against acting again before the
                     // chain genuinely reflects the new turn state.
-                    handleCancelMove();
                   }}
                   onError={handleMoveSubmitError}
                   validateBeforeTransaction={() => {
@@ -2284,7 +2330,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     </>
   );
 
-  const gameScoreData = toGameScoreData(game, address);
+  const gameScoreData = React.useMemo(
+    () => toGameScoreData(game, address),
+    [
+      game.creatorScore,
+      game.joinerScore,
+      game.maxScore,
+      game.metadata.creator,
+      address,
+    ],
+  );
   const { myScore, opponentScore, maxScore } = gameScoreData;
 
   // Best-effort loss explanation for GameResultModal's mission copy — only
@@ -2309,8 +2364,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       : isMyTurnEffective
         ? "Your turn"
         : "Opponent turn";
-  const mobileTurnTime = formatSeconds(Math.max(0, turnSecondsLeft));
-  const mobileTurnPct = Math.max(0, Math.min(100, turnPercentRemaining));
   const mobileSelectedShipAttributes =
     selectedShipId != null ? getShipAttributes(selectedShipId) : null;
   const mobileSelectedShipPosition =
@@ -2420,6 +2473,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   if (isLandscapeMobile) {
     return (
+      <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
       <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
         <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
           <div
@@ -2464,7 +2518,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         : "var(--color-warning-red)",
                     }}
                   >
-                    {mobileTurnLabel} | {mobileTurnTime}
+                    {mobileTurnLabel} | <TurnCountdownText />
                   </p>
                 </div>
                 <button
@@ -2485,7 +2539,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </button>
               </div>
               <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-                <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${mobileTurnPct}%`, backgroundColor: "var(--color-warning-red)" }} />
+                <TurnCountdownBar />
               </div>
             </div>
 
@@ -2563,7 +2617,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               ) : null}
               {mobileLeftPanelTab === "events" ? (
                 <GameEvents
-                  lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+                  lastMove={gameEventsLastMove}
                   shipMap={gameEventsShipMap}
                   address={address}
                   appendDestroyedText={appendDestroyedTextToLastMove}
@@ -2770,6 +2824,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       onlyOnceGrid={onlyOnceGrid}
                       calculateDamage={calculateDamageForDisplay}
                       getShipAttributes={getShipAttributesForDisplay}
+                      optimisticSosShipIds={optimisticSosShipIds}
+                      isSubmitting={isSubmittingMove}
                       disableTooltips={true}
                       address={address}
                       currentTurn={game.turnState.currentTurn}
@@ -2840,10 +2896,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           }}
                         >
                           <FleeSafetySwitch
-                            onFlee={() => {
+                            onFlee={async () => {
                               toast.success("You have fled the battle!");
                               setIsMobileFleeOpen(false);
-                              refetch?.();
+                              await Promise.resolve(refetchGame());
+                              await Promise.resolve(refetch?.());
                             }}
                             renderConfirmButton={(onSuccess) => (
                               <FleeConfirmButtonWeb3
@@ -2972,10 +3029,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           />
         )}
       </div>
+      </TurnCountdownProvider>
     );
   }
 
   return (
+    <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
     <div
       ref={gameViewRootRef}
       className={`flex flex-col ${
@@ -3066,11 +3125,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
               </div>
               <div className="ml-auto text-[11px] font-mono" style={{ color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
-                {mobileTurnTime}
+                <TurnCountdownText />
               </div>
             </div>
             <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-              <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${mobileTurnPct}%`, backgroundColor: "var(--color-warning-red)" }} />
+              <TurnCountdownBar />
             </div>
           </div>
         </>
@@ -3132,9 +3191,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
                 {gameWinnerResult === null && !isVsAIGame && (
                   <FleeSafetySwitch
-                    onFlee={() => {
+                    onFlee={async () => {
                       toast.success("You have fled the battle!");
-                      refetch?.();
+                      await Promise.resolve(refetchGame());
+                      await Promise.resolve(refetch?.());
                     }}
                     renderConfirmButton={(onSuccess) => (
                       <FleeConfirmButtonWeb3
@@ -3191,31 +3251,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 // equivalent — never offer to seize the turn on timeout
                 // there (see useAITurnLoop's own error/cap handling for
                 // the single-player "AI is stuck" case instead).
-                const canSeizeTurn =
-                  !readOnly &&
-                  !isMyTurnEffective &&
-                  !isVsAIGame &&
-                  isParticipant &&
-                  turnSecondsLeft <= 0;
                 // Game.sol never self-enforces turnTime and
                 // SinglePlayerMatch has no timeout function, so vs-AI turns
                 // are already unlimited on-chain — don't show the "opponent
                 // can claim victory" warning for a timer that can't actually
                 // cost the player anything.
-                const hasExceededTime =
-                  !readOnly &&
-                  isMyTurnEffective &&
-                  isParticipant &&
-                  !isVsAIGame &&
-                  turnSecondsLeft <= 0;
+                const timeoutEnabled =
+                  !readOnly && !isVsAIGame && isParticipant;
 
                 return (
                   <GameTurnTimerPanel
-                    hasExceededTime={hasExceededTime}
-                    canSeizeTurn={canSeizeTurn}
+                    timeoutEnabled={timeoutEnabled}
                     isMyTurn={isMyTurnEffective}
-                    secondsLeft={turnSecondsLeft}
-                    turnPercentRemaining={turnPercentRemaining}
                     onResync={() => refetchGame()}
                     claimTimeoutButton={
                       <TransactionButton
@@ -3227,12 +3274,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         className="px-3 py-1 uppercase font-semibold tracking-wider transition-colors duration-150 w-full h-full animate-timeout-soft"
                         loadingText="Claiming..."
                         errorText="Failed"
-                        onSuccess={() => {
+                        onSuccess={async () => {
                           toast.success(
                             "Game ended. Opponent forfeited by timeout.",
                           );
-                          refetchGame();
-                          refetch?.();
+                          await Promise.resolve(refetchGame());
+                          await Promise.resolve(refetch?.());
                         }}
                       >
                         Claim win (timeout)
@@ -3293,6 +3340,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   flip={flip}
                   isSelected={selectedShipId === shipId}
                   isHovered={hoveredCell?.shipId === shipId}
+                  optimisticSos={optimisticSosShipIds.has(Number(shipId))}
                   shipImage={ship && <ShipImage ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
                   onClick={() => setSelectedShipId(shipId)}
                   onMouseEnter={() =>
@@ -3384,6 +3432,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           onlyOnceGrid={onlyOnceGrid}
           calculateDamage={calculateDamageForDisplay}
           getShipAttributes={getShipAttributesForDisplay}
+          optimisticSosShipIds={optimisticSosShipIds}
+          isSubmitting={isSubmittingMove}
           disableTooltips={disableTooltips}
           address={address}
           currentTurn={game.turnState.currentTurn}
@@ -3475,8 +3525,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   }
                   return true;
                 }}
-                onTransactionSent={() => setAwaitingTurnSyncAfterSubmit(true)}
-                onSuccess={() => {
+                onTransactionSent={() => {
+                  snapshotOptimisticSosIfNeeded();
+                  setAwaitingTurnSyncAfterSubmit(true);
+                }}
+                onSuccess={async () => {
                   const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
                   const submittedTargetShipId = targetShipId ?? 0n;
                   const oldRow = currentPosition?.position.row ?? computedRow;
@@ -3512,14 +3565,15 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     targetShipId: Number(submittedTargetShipId),
                     timestamp: Date.now(),
                   });
+                  snapshotOptimisticSosIfNeeded();
                   toast.success("Move submitted successfully!");
                   recordPlayerMove();
-                  refetchGame();
-                  refetch?.();
+                  handleCancelMove();
+                  await Promise.resolve(refetchGame());
+                  await Promise.resolve(refetch?.());
                   // See the toolbar submit button's onSuccess for why this
                   // is called here rather than waiting on the chain-sync
                   // effect.
-                  handleCancelMove();
                 }}
                 onError={handleMoveSubmitError}
               >
@@ -3746,9 +3800,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </div>
             <GameLastMovePanel
               isMinimized={isLastMovePanelMinimized}
-              onExpand={() => setIsLastMovePanelMinimized(false)}
-              onMinimize={() => setIsLastMovePanelMinimized(true)}
-              lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+              onExpand={expandLastMovePanel}
+              onMinimize={minimizeLastMovePanel}
+              lastMove={gameEventsLastMove}
               shipMap={gameEventsShipMap}
               address={address}
               appendDestroyedText={appendDestroyedTextToLastMove}
@@ -3799,15 +3853,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   : isVsAIGame
                     ? "AI's turn"
                     : "Opponent turn"}{" "}
-                | {formatSeconds(Math.max(0, turnSecondsLeft))}
+                | <TurnCountdownText />
               </div>
               {!isVsAIGame &&
               game.metadata.winner ===
                 "0x0000000000000000000000000000000000000000" ? (
                 <FleeSafetySwitch
-                  onFlee={() => {
+                  onFlee={async () => {
                     toast.success("You have fled the battle!");
-                    refetch?.();
+                    await Promise.resolve(refetchGame());
+                    await Promise.resolve(refetch?.());
                   }}
                   renderConfirmButton={(onSuccess) => (
                     <FleeConfirmButtonWeb3
@@ -3825,7 +3880,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           ) : null}
           {mobileActivePanel === "events" ? (
             <GameEvents
-              lastMove={toGameEventsLastMove(selectedShipId !== null ? undefined : displayedLastMove)}
+              lastMove={gameEventsLastMove}
               shipMap={gameEventsShipMap}
               address={address}
               appendDestroyedText={appendDestroyedTextToLastMove}
@@ -4001,7 +4056,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         />
       )}
     </div>
+    </TurnCountdownProvider>
   );
 };
 
-export default GameDisplay;
+export default React.memo(GameDisplay);

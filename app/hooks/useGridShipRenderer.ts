@@ -118,7 +118,11 @@ export function useGridShipRenderer(ship: GridShip): ShipImageState {
 
     const cachedImage = getCachedRenderedImage(currentShip);
     if (cachedImage) {
-      setImageState({ dataUrl: cachedImage, isLoading: false, error: null });
+      setImageState((prev) =>
+        prev.dataUrl === cachedImage && !prev.isLoading && prev.error == null
+          ? prev
+          : { dataUrl: cachedImage, isLoading: false, error: null },
+      );
       return;
     }
 

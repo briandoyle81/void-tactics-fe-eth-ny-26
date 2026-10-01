@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 
+const EMPTY_TILE_SET: Set<string> = new Set();
+const EMPTY_ID_SET: Set<number> = new Set();
+
 interface UseGridCellSetsParams {
   movementRange: readonly { row: number; col: number }[];
   shootingRange: readonly { row: number; col: number }[];
@@ -22,31 +25,52 @@ export function useGridCellSets({
   tutorialHighlightCells,
 }: UseGridCellSetsParams) {
   const movementTileSet = useMemo(
-    () => new Set(movementRange.map((p) => `${p.row},${p.col}`)),
+    () =>
+      movementRange.length === 0
+        ? EMPTY_TILE_SET
+        : new Set(movementRange.map((p) => `${p.row},${p.col}`)),
     [movementRange],
   );
   const shootingTileSet = useMemo(
-    () => new Set(shootingRange.map((p) => `${p.row},${p.col}`)),
+    () =>
+      shootingRange.length === 0
+        ? EMPTY_TILE_SET
+        : new Set(shootingRange.map((p) => `${p.row},${p.col}`)),
     [shootingRange],
   );
   const effectiveShootingTileSet = useMemo(
-    () => new Set(effectiveShootingRange.map((p) => `${p.row},${p.col}`)),
+    () =>
+      effectiveShootingRange.length === 0
+        ? EMPTY_TILE_SET
+        : new Set(effectiveShootingRange.map((p) => `${p.row},${p.col}`)),
     [effectiveShootingRange],
   );
   const validTargetIdSet = useMemo(
-    () => new Set(validTargets.map((t) => t.shipId)),
+    () =>
+      validTargets.length === 0
+        ? EMPTY_ID_SET
+        : new Set(validTargets.map((t) => t.shipId)),
     [validTargets],
   );
   const effectiveValidTargetIdSet = useMemo(
-    () => new Set(effectiveValidTargets.map((t) => t.shipId)),
+    () =>
+      effectiveValidTargets.length === 0
+        ? EMPTY_ID_SET
+        : new Set(effectiveValidTargets.map((t) => t.shipId)),
     [effectiveValidTargets],
   );
   const assistableTargetIdSet = useMemo(
-    () => new Set(assistableTargets.map((t) => t.shipId)),
+    () =>
+      assistableTargets.length === 0
+        ? EMPTY_ID_SET
+        : new Set(assistableTargets.map((t) => t.shipId)),
     [assistableTargets],
   );
   const assistableTargetsFromStartIdSet = useMemo(
-    () => new Set(assistableTargetsFromStart.map((t) => t.shipId)),
+    () =>
+      assistableTargetsFromStart.length === 0
+        ? EMPTY_ID_SET
+        : new Set(assistableTargetsFromStart.map((t) => t.shipId)),
     [assistableTargetsFromStart],
   );
   const tutorialHighlightKeySet = useMemo(() => {

@@ -335,7 +335,7 @@ const ShipPurchasePrices: React.FC = () => {
     txArgs: [number[], bigint[]];
     isLoading: boolean;
     emptyMessage: string;
-    onAfterSuccess: () => void;
+    onAfterSuccess: () => void | Promise<unknown>;
     belowSubtitle?: React.ReactNode;
   }) => (
     <ShipPurchaseTierSectionCard
@@ -361,9 +361,9 @@ const ShipPurchasePrices: React.FC = () => {
               validateBeforeTransaction={() =>
                 config.built.ok ? true : config.built.error
               }
-              onSuccess={() => {
+              onSuccess={async () => {
                 toast.success("Purchase info updated");
-                config.onAfterSuccess();
+                await config.onAfterSuccess();
               }}
               onError={(error) =>
                 toast.error(
@@ -491,10 +491,10 @@ const ShipPurchasePrices: React.FC = () => {
         txArgs: nativeTxArgs,
         isLoading: shipsInfo.isLoading,
         emptyMessage: "No native purchase tiers from Ships.getPurchaseInfo.",
-        onAfterSuccess: () => {
+        onAfterSuccess: async () => {
           setNativeDirty(false);
           setHasNativeDraft(false);
-          shipsInfo.refetch();
+          await shipsInfo.refetch();
         },
       })}
 
@@ -527,10 +527,10 @@ const ShipPurchasePrices: React.FC = () => {
           isLoading: utcInfo.isLoading,
           emptyMessage:
             "No UTC purchase tiers from ShipPurchaser.getPurchaseInfo.",
-          onAfterSuccess: () => {
+          onAfterSuccess: async () => {
             setUtcDirty(false);
             setHasUtcDraft(false);
-            utcInfo.refetch();
+            await utcInfo.refetch();
           },
           belowSubtitle: (
             <div className="space-y-2">

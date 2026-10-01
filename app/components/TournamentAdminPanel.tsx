@@ -18,7 +18,7 @@ interface Props {
   config: TournamentConfig;
   summary: TournamentSummary;
   bracket: TournamentMatch[];
-  onAction: () => void;
+  onAction: () => void | Promise<unknown>;
 }
 
 export function TournamentAdminPanel({ tournamentId, config, summary, bracket, onAction }: Props) {
@@ -37,7 +37,7 @@ export function TournamentAdminPanel({ tournamentId, config, summary, bracket, o
     setError(null);
     try {
       await admin.finalize(tournamentId);
-      onAction();
+      await onAction();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Finalize failed");
     } finally {

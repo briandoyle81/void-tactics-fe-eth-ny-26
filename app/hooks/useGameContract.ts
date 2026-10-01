@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import {
@@ -10,7 +10,11 @@ import {
 import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
 import { GameDataView } from "../types/types";
-import { normalizeGameDataView } from "../utils/normalizeGameDataView";
+import {
+  keepUnchangedGameSnapshot,
+  keepUnchangedGamesList,
+  normalizeGameDataView,
+} from "../utils/normalizeGameDataView";
 
 function getGameEngineRegistryAddress(chainId: number): `0x${string}` {
   const addresses = getContractAddresses(chainId) as Record<
@@ -52,7 +56,12 @@ export function useEngineOfGame(
     chainId: activeChainId,
     functionName: "engineOfGame",
     args,
-    query: { enabled },
+    query: {
+      enabled,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   const recorded = data as `0x${string}` | undefined;
@@ -118,7 +127,14 @@ export function useHealCapPercent() {
 export function useGameRead(
   functionName: string,
   args?: readonly unknown[],
-  options?: { query?: { enabled?: boolean } },
+  options?: {
+    query?: {
+      enabled?: boolean;
+      refetchOnWindowFocus?: boolean;
+      staleTime?: number;
+      notifyOnChangeProps?: ("data" | "error")[];
+    };
+  },
   chainIdOverride?: number,
 ) {
   const { chainId: walletChainId } = useAccount();
@@ -156,14 +172,54 @@ export function useGameCount() {
   return useGameRead("gameCount");
 }
 
-export function useGetGamesForPlayer(playerAddress: string, chainIdOverride?: number) {
-  const args = useMemo(() => [playerAddress] as const, [playerAddress]);
-  return useGameRead(
-    "getGamesForPlayer",
-    args,
-    { query: { enabled: !!playerAddress } },
-    chainIdOverride,
+export function useGetGamesForPlayer(
+  playerAddress: string,
+  chainIdOverride?: number,
+  options?: { enabled?: boolean },
+) {
+  const { chainId: walletChainId } = useAccount();
+  const activeChainId = chainIdOverride ?? walletChainId ?? getSelectedChainId();
+  const address = useMemo(
+    () => getContractAddresses(activeChainId).GAME as `0x${string}`,
+    [activeChainId],
   );
+  const args = useMemo(() => [playerAddress] as const, [playerAddress]);
+  const snapshotRef = useRef<GameDataView[] | undefined>(undefined);
+  const selectedAddressRef = useRef(playerAddress);
+  if (selectedAddressRef.current !== playerAddress) {
+    selectedAddressRef.current = playerAddress;
+    snapshotRef.current = undefined;
+  }
+  const selectGames = useCallback((raw: unknown) => {
+    if (!Array.isArray(raw)) {
+      snapshotRef.current = undefined;
+      return [] as GameDataView[];
+    }
+    const next = (raw as GameDataView[])
+      .filter((g): g is GameDataView => g != null && typeof g === "object")
+      .map(normalizeGameDataView);
+    const kept = keepUnchangedGamesList(snapshotRef.current, next);
+    snapshotRef.current = kept;
+    return kept;
+  }, []);
+  const enabled =
+    Boolean(playerAddress) &&
+    playerAddress !== ZERO_ADDRESS &&
+    playerAddress !== "0x0" &&
+    (options?.enabled ?? true);
+  return useReadContract({
+    address,
+    abi: CONTRACT_ABIS.GAME as Abi,
+    chainId: activeChainId,
+    functionName: "getGamesForPlayer",
+    args,
+    query: {
+      enabled,
+      refetchOnWindowFocus: false,
+      notifyOnChangeProps: ["data", "error"],
+      select: selectGames,
+    },
+  });
 }
 
 export function useGetGame(gameId: number, chainIdOverride?: number) {
@@ -171,22 +227,32 @@ export function useGetGame(gameId: number, chainIdOverride?: number) {
   const activeChainId = chainIdOverride ?? walletChainId ?? getSelectedChainId();
   const address = useEngineOfGame(gameId, chainIdOverride);
   const args = useMemo(() => [BigInt(gameId)] as const, [gameId]);
-  const result = useReadContract({
+  const snapshotRef = useRef<GameDataView | undefined>(undefined);
+  const selectedGameIdRef = useRef(gameId);
+  if (selectedGameIdRef.current !== gameId) {
+    selectedGameIdRef.current = gameId;
+    snapshotRef.current = undefined;
+  }
+  const selectGame = useCallback((raw: unknown) => {
+    const next = normalizeGameDataView(raw as GameDataView);
+    const kept = keepUnchangedGameSnapshot(snapshotRef.current, next);
+    snapshotRef.current = kept;
+    return kept;
+  }, []);
+  return useReadContract({
     address,
     abi: CONTRACT_ABIS.GAME as Abi,
     chainId: activeChainId,
     functionName: "getGame",
     args,
-    query: { enabled: gameId > 0 },
+    query: {
+      enabled: gameId > 0,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      notifyOnChangeProps: ["data", "error"],
+      select: selectGame,
+    },
   });
-  const data = useMemo(
-    () =>
-      result.data
-        ? normalizeGameDataView(result.data as GameDataView)
-        : undefined,
-    [result.data],
-  );
-  return { ...result, data };
 }
 
 /** How many real special slots a faction has (0 = None). Owner-set, currently 3 for both variants. */

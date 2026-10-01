@@ -39,6 +39,34 @@ export function setPolyline(
   el.setAttribute("points", points);
 }
 
+export function restartCssAnimation(el: Element | null, className: string) {
+  if (!el) return;
+  const html = el as HTMLElement;
+  html.style.display = "";
+  el.classList.remove(className);
+  void html.getBoundingClientRect();
+  el.classList.add(className);
+}
+
+/** One rAF loop that cannot reschedule after cleanup, even if a frame is in flight. */
+export function startCancelledRaf(frame: FrameRequestCallback): () => void {
+  let cancelled = false;
+  let id = 0;
+  const tick: FrameRequestCallback = (now) => {
+    if (cancelled) return;
+    if (typeof document === "undefined" || !document.hidden) {
+      frame(now);
+    }
+    if (cancelled) return;
+    id = requestAnimationFrame(tick);
+  };
+  id = requestAnimationFrame(tick);
+  return () => {
+    cancelled = true;
+    cancelAnimationFrame(id);
+  };
+}
+
 export function createOverlaySizeSync(
   getGrid: () => HTMLElement | null,
   apply: (width: number, height: number) => void,

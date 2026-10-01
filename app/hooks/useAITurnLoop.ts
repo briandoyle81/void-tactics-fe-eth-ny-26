@@ -58,9 +58,9 @@ export function useAITurnLoop({
   useEffect(() => {
     if (!isAITurn || isGameOver) {
       iterationRef.current = 0;
-      setMoveCount(0);
-      setError(null);
-      setIsWaitingToAct(false);
+      setMoveCount((c) => (c === 0 ? c : 0));
+      setError((e) => (e == null ? e : null));
+      setIsWaitingToAct((w) => (w ? false : w));
       return;
     }
     if (inFlightRef.current || error) return;

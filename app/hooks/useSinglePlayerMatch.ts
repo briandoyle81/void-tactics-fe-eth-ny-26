@@ -94,7 +94,12 @@ export function useGameIdToNodeId(gameId: bigint | undefined) {
     chainId: CHAIN_ID,
     functionName: "gameIdToNodeId",
     args: gameId != null ? [gameId] : undefined,
-    query: { enabled: gameId != null },
+    query: {
+      enabled: gameId != null,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
   return { ...result, data: result.data as bigint | undefined };
 }

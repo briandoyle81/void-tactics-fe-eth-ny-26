@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TransactionButton } from "./TransactionButton";
+import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { CONTRACT_ADDRESSES } from "../config/contracts";
 import { useAccount, useBalance } from "wagmi";
 import { getSelectedChainId } from "../config/networks";
@@ -14,9 +14,9 @@ interface UTCPurchaseButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
-  refetch?: () => void;
+  refetch?: () => void | Promise<unknown>;
 }
 
 const UTC_PURCHASE_ABI = [
@@ -62,12 +62,10 @@ export function UTCPurchaseButton({
     return true;
   }, [address, flowBalance, flowCost]);
 
-  const handleSuccess = React.useCallback(() => {
+  const handleSuccess = React.useCallback(async () => {
     posthog.capture("utc_purchased", { tier, utc_amount: utcAmount });
-    // Call the provided onSuccess callback
-    onSuccess?.();
-    // Trigger refetch to update the UI state
-    refetch?.();
+    await refetch?.();
+    await onSuccess?.();
   }, [onSuccess, refetch, tier, utcAmount]);
 
   return (

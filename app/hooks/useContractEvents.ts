@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import { useOwnedShips } from "./useOwnedShips";
 import { usePlayerGames } from "./usePlayerGames";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSelectedChainId } from "../config/networks";
 import { baseSepolia } from "viem/chains";
 import { SINGLE_PLAYER_MATCH_ADDRESS } from "./useSinglePlayerMatch";
@@ -66,15 +66,63 @@ export function unregisterGameRefetch(gameId: number) {
   globalGameRefetchFunctions.delete(gameId);
 }
 
-export function useContractEvents() {
+let pendingGameUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+const pendingGameUpdateIds = new Set<number>();
+let pendingGamesListRefetch: (() => void) | null = null;
+
+function scheduleGameUpdateRefetch(gameIds: Set<number>, refetchGames: () => void) {
+  for (const id of gameIds) pendingGameUpdateIds.add(id);
+  pendingGamesListRefetch = refetchGames;
+  if (pendingGameUpdateTimeout) return;
+  pendingGameUpdateTimeout = setTimeout(() => {
+    pendingGameUpdateTimeout = null;
+    const ids = new Set(pendingGameUpdateIds);
+    pendingGameUpdateIds.clear();
+    const refetchList = pendingGamesListRefetch;
+    pendingGamesListRefetch = null;
+    let needsListRefetch = false;
+    for (const gameId of ids) {
+      const liveRefetch = globalGameRefetchFunctions.get(gameId);
+      if (liveRefetch) {
+        liveRefetch();
+      } else {
+        needsListRefetch = true;
+      }
+    }
+    // The open match already refetches itself. Pulling getGamesForPlayer on
+    // every move re-rendered Home + Games for a list the player cannot see.
+    if (needsListRefetch) refetchList?.();
+  }, 1000);
+}
+
+// Single app-wide watcher. Games + GameDisplay + ManageNavy used to each
+// call this hook, which doubled useOwnedShips/usePlayerGames while a match
+// was open even after event polling was locked to one instance.
+export function ContractEventsHost() {
   const { address, chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
   const contractAddresses = getContractAddresses(activeChainId);
-  const { refetch: refetchShips } = useOwnedShips();
-  const { refetch: refetchGames } = usePlayerGames();
-
-  // Only set up watchers if address is available
   const shouldWatch = !!address;
+  // Transfer / GameReserved are list-tab concerns. Keep GameUpdate + AITurnTaken
+  // while a match is open so the board still live-refetches, but drop the extra
+  // 5s getLogs pollers that cannot affect the open game view.
+  const [matchViewOpen, setMatchViewOpen] = useState(false);
+  useEffect(() => {
+    const onDetail = (event: Event) => {
+      const custom = event as CustomEvent<{ active?: boolean }>;
+      setMatchViewOpen(Boolean(custom.detail?.active));
+    };
+    window.addEventListener("void-tactics-games-detail-active", onDetail);
+    return () =>
+      window.removeEventListener("void-tactics-games-detail-active", onDetail);
+  }, []);
+  const watchListEvents = shouldWatch && !matchViewOpen;
+  const { refetch: refetchShips } = useOwnedShips(undefined, {
+    enabled: watchListEvents,
+  });
+  const { refetch: refetchGames } = usePlayerGames({
+    enabled: watchListEvents,
+  });
 
   const handleShipTransferLogs = useCallback(
     (logs: unknown[]) => {
@@ -115,19 +163,9 @@ export function useContractEvents() {
 
         if (gameIds.size === 0) return;
 
-        // Add 1 second delay to allow RPC to index the state change
-        setTimeout(() => {
-          refetchGames();
-
-          // Also refetch individual game data for all registered games
-          // Pass gameIds so each game can check if the event was for them
-          globalGameRefetchFunctions.forEach((refetchFn, gameId) => {
-            if (gameIds.has(gameId)) {
-              // This event was for this game - call the refetch function
-              refetchFn();
-            }
-          });
-        }, 1000);
+        // Coalesce overlapping GameUpdate batches (Games + GameDisplay both
+        // mount this hook) so we do not stack 1s refetch timeouts.
+        scheduleGameUpdateRefetch(gameIds, refetchGames);
       } catch (error) {
         console.error("Error processing game update logs:", error);
       }
@@ -166,8 +204,7 @@ export function useContractEvents() {
     [],
   );
 
-  // Reservation notification: fired wherever useContractEvents() is
-  // mounted (ManageNavy/Games/GameDisplay), so a player finds out a lobby
+  // Reservation toast: mounted once from Providers so a player finds out a
   // was reserved for them even while they aren't looking at the Lobbies
   // tab — Lobbies.tsx's own polling handles the list-view refresh once
   // they get there, this is purely the ambient toast.
@@ -200,10 +237,10 @@ export function useContractEvents() {
       eventName: "Transfer" as const,
       poll: true as const,
       pollingInterval: 5000,
-      enabled: shouldWatch,
+      enabled: watchListEvents,
       onLogs: handleShipTransferLogs,
     }),
-    [activeChainId, contractAddresses.SHIPS, handleShipTransferLogs, shouldWatch]
+    [activeChainId, contractAddresses.SHIPS, handleShipTransferLogs, watchListEvents]
   );
 
   const gameEventConfig = useMemo(
@@ -228,10 +265,10 @@ export function useContractEvents() {
       eventName: "AITurnTaken" as const,
       poll: true as const,
       pollingInterval: 5000,
-      enabled: shouldWatch && activeChainId === baseSepolia.id,
+      enabled: shouldWatch && matchViewOpen && activeChainId === baseSepolia.id,
       onLogs: handleAITurnTakenLogs,
     }),
-    [activeChainId, handleAITurnTakenLogs, shouldWatch]
+    [activeChainId, handleAITurnTakenLogs, shouldWatch, matchViewOpen]
   );
 
   const gameReservedEventConfig = useMemo(
@@ -242,10 +279,10 @@ export function useContractEvents() {
       eventName: "GameReserved" as const,
       poll: true as const,
       pollingInterval: 5000,
-      enabled: shouldWatch,
+      enabled: watchListEvents,
       onLogs: handleGameReservedLogs,
     }),
-    [activeChainId, contractAddresses.LOBBIES, handleGameReservedLogs, shouldWatch]
+    [activeChainId, contractAddresses.LOBBIES, handleGameReservedLogs, watchListEvents]
   );
 
   // Watch ship transfer events (only when address is available)
@@ -260,6 +297,11 @@ export function useContractEvents() {
   // Watch lobby reservation events (notify the reserved player)
   useWatchContractEvent(gameReservedEventConfig);
 
+  return null;
+}
+
+export function useContractEvents() {
+  const { address } = useAccount();
   return {
     isListening: !!address,
   };

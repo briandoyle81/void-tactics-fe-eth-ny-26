@@ -41,21 +41,36 @@ export function useShipsByIds(shipIds: bigint[]) {
   const address = useRouter ? SHIPS_ROUTER_ADDRESS : shipsAddress;
   const abi = useRouter ? SHIPS_ROUTER_ABI : SHIPS_ABI;
 
+  // Callers often pass a freshly allocated id array from game poll data even
+  // when the ids did not change. Key off contents so we do not rebuild the
+  // multicall (or trip a stale-time-0 refetch) every getGame tick.
+  const idsKey = shipIds.map((id) => id.toString()).join(",");
+  const stableShipIds = useMemo(
+    () => idsKey.split(",").filter(Boolean).map((id) => BigInt(id)),
+    [idsKey],
+  );
+
   const contracts = useMemo(
     () =>
-      shipIds.map((id) => ({
+      stableShipIds.map((id) => ({
         address,
         abi,
         chainId: activeChainId,
         functionName: "getShip" as const,
         args: [id] as const,
       })),
-    [shipIds, address, abi, activeChainId],
+    [stableShipIds, address, abi, activeChainId],
   );
 
   const { data, isLoading, error, refetch } = useReadContracts({
     contracts,
-    query: { enabled: shipIds.length > 0 },
+    query: {
+      enabled: stableShipIds.length > 0,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 
   const ships = useMemo(

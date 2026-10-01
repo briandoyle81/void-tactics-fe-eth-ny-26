@@ -10,7 +10,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 // The web2-specific CLAIM FREE SHIPS button for ClaimFreeShipsControls.tsx
 // — calls `POST /api/ships/claim-free`.
 interface ClaimFreeButtonWeb2Props {
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<unknown>;
   /** Fired on click, before the request resolves — mirrors web3's FreeShipClaimButton onPress (used there to dismiss the drone-factory tutorial step). */
   onPress?: () => void;
   /** Where the button was shown (for PostHog funnels) — mirrors FreeShipClaimButton's analyticsSurface. */
@@ -36,7 +36,7 @@ export function ClaimFreeButtonWeb2({
       );
       posthog.capture("free_ship_claimed", { user_id: userId, surface: analyticsSurface });
       toast.success(`Claimed ${result.ships.length} free ship(s)`);
-      onSuccess();
+      await onSuccess();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to claim free ships");
     } finally {

@@ -68,11 +68,18 @@ export default function Home() {
   const { status, address, isConnected } = useAccount();
   const { isOwner } = useShipAttributesOwner();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
-  const { games: playerGames, refetch: refetchPlayerGames } = usePlayerGames();
+  const [isGamesDetailActive, setIsGamesDetailActive] = useState(false);
+  const { games: playerGames, refetch: refetchPlayerGames } = usePlayerGames({
+    enabled: !isGamesDetailActive,
+  });
   const {
     games: playerGamesWeb2,
     refetch: refetchPlayerGamesWeb2,
-  } = usePlayerGamesWeb2();
+  } = usePlayerGamesWeb2({ pausePolling: isGamesDetailActive });
+  const refetchPlayerGamesRef = useRef(refetchPlayerGames);
+  refetchPlayerGamesRef.current = refetchPlayerGames;
+  const refetchPlayerGamesWeb2Ref = useRef(refetchPlayerGamesWeb2);
+  refetchPlayerGamesWeb2Ref.current = refetchPlayerGamesWeb2;
   const { userId: currentUserId, isLoggedIn, isLoading: isUserLoading } =
     useCurrentUser();
   const appMode = useAppMode();
@@ -82,7 +89,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Info");
   const [isHydrated, setIsHydrated] = useState(false);
   const [isInfoTutorialActive, setIsInfoTutorialActive] = useState(false);
-  const [isGamesDetailActive, setIsGamesDetailActive] = useState(false);
   const [isManageNavyPurchaseActive, setIsManageNavyPurchaseActive] =
     useState(false);
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
@@ -173,8 +179,8 @@ export default function Home() {
       // showGames and renders the Games tab here. Without this, the tab
       // (and its contents) stayed on stale pre-game data until a full page
       // reload remounted everything from scratch.
-      void refetchPlayerGames();
-      void refetchPlayerGamesWeb2();
+      void refetchPlayerGamesRef.current();
+      void refetchPlayerGamesWeb2Ref.current();
     };
 
     window.addEventListener(
@@ -195,7 +201,7 @@ export default function Home() {
         handleNavigateToGames,
       );
     };
-  }, [refetchPlayerGames, refetchPlayerGamesWeb2]);
+  }, []);
 
   // Listen for "return to campaign" navigation from GameResultModal
   // (mission complete/failed screen) — mirrors handleNavigateToGames above.

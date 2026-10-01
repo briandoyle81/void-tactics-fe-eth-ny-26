@@ -26,8 +26,10 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
 
   useEffect(() => {
     startTimeRef.current = performance.now();
+    let cancelled = false;
 
     const tick = () => {
+      if (cancelled) return;
       const elapsed = performance.now() - (startTimeRef.current ?? 0);
       const t = Math.min(1, elapsed / RETREAT_GLOW_BUILD_MS);
       setGlowOpacity(t * 0.95);
@@ -37,6 +39,7 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
     };
     frameRef.current = requestAnimationFrame(tick);
     return () => {
+      cancelled = true;
       if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
     };
   }, []);

@@ -160,8 +160,8 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                     disabled={insufficientBalance}
                     loadingText={`[APPROVING ${nextTierCostFormatted} DC...]`}
                     errorText="[ERROR APPROVING]"
-                    onSuccess={() => {
-                      refetchAll();
+                    onSuccess={async () => {
+                      await refetchAll();
                       toast.success("DEC approved successfully!");
                     }}
                     onError={(error) => {
@@ -187,8 +187,8 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                     disabled={insufficientBalance}
                     loadingText="[TURNING IN...]"
                     errorText="[ERROR TURNING IN]"
-                    onSuccess={() => {
-                      refetchAll();
+                    onSuccess={async () => {
+                      await refetchAll();
                       toast.success(`Tier ${nextTier} unlocked!`);
                     }}
                     onError={(error) => {

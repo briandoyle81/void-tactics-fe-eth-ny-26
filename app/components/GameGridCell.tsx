@@ -62,7 +62,8 @@ interface GameGridCellProps {
   previewPosition: Position | null;
   targetShipId: number | null;
   selectedWeaponType: "weapon" | "special" | "ram";
-  hoveredCell: HoveredCell;
+  isHoveringThisCellAsValidTarget: boolean;
+  isFleetHoveredShip: boolean;
   draggedShipId: number | null;
   assistableTargets: TargetRef[];
   assistableTargetsFromStart: TargetRef[];
@@ -105,11 +106,13 @@ interface GameGridCellProps {
   validTargetIdSet: Set<number>;
   assistableTargetIdSet: Set<number>;
   assistableTargetsFromStartIdSet: Set<number>;
-  isHoveringValidTarget: boolean;
   lastMoveActionNum: number;
   projectedDamageByShipId: Map<number, number>;
   projectedRepairByShipId: Map<number, number>;
   destroyPreviewShipIds: Set<number>;
+  sosPreviewShipIds: Set<number>;
+  optimisticSosShipIds: Set<number>;
+  isSubmitting: boolean;
   lastDragOverCellRef: React.RefObject<Position | null>;
   setSelectedShipId: (shipId: number | null) => void;
   setPreviewPosition: (position: Position | null) => void;
@@ -130,7 +133,7 @@ interface GameGridCellProps {
  * branches, just relocated and parameterized per cell instead of closed
  * over loop variables.
  */
-export function GameGridCell({
+export const GameGridCell = React.memo(function GameGridCell({
   cell,
   rowIndex,
   colIndex,
@@ -140,7 +143,8 @@ export function GameGridCell({
   previewPosition,
   targetShipId,
   selectedWeaponType,
-  hoveredCell,
+  isHoveringThisCellAsValidTarget,
+  isFleetHoveredShip,
   draggedShipId,
   assistableTargets,
   assistableTargetsFromStart,
@@ -176,11 +180,13 @@ export function GameGridCell({
   validTargetIdSet,
   assistableTargetIdSet,
   assistableTargetsFromStartIdSet,
-  isHoveringValidTarget,
   lastMoveActionNum,
   projectedDamageByShipId,
   projectedRepairByShipId,
   destroyPreviewShipIds,
+  sosPreviewShipIds,
+  optimisticSosShipIds,
+  isSubmitting,
   lastDragOverCellRef,
   setSelectedShipId,
   setPreviewPosition,
@@ -278,10 +284,22 @@ export function GameGridCell({
                   rowIndex === lastMoveNewPosition.row &&
                   colIndex === lastMoveNewPosition.col;
                 const isHoldHologramPulse = isHoldPreview || isLastMoveHold;
+                const isOptimisticSos =
+                  !!cell &&
+                  !destroyPreviewShipIds.has(cell.shipId) &&
+                  (optimisticSosShipIds.has(cell.shipId) ||
+                    (isSubmitting && sosPreviewShipIds.has(cell.shipId)));
+                const isSosPreviewHologram =
+                  !!cell &&
+                  sosPreviewShipIds.has(cell.shipId) &&
+                  !isOptimisticSos &&
+                  !destroyPreviewShipIds.has(cell.shipId);
                 const isMoveHologramShip =
                   !!cell &&
                   !isHoldHologramPulse &&
-                  (isLastMoveFromHologram || isProposedMoveToHologram);
+                  (isLastMoveFromHologram ||
+                    isProposedMoveToHologram ||
+                    isSosPreviewHologram);
                 // Last-move To keeps ship art/star color so the destination
                 // still reads as that ship. Last-move From is the hologram.
                 const showMovedGrayscale = !!(
@@ -497,10 +515,13 @@ export function GameGridCell({
                         if (isInShootingRange) {
                           // If the player hasn't proposed a move yet, convert this into a
                           // "stay in place + fire" intent by setting previewPosition to the
-                          // selected ship's current position. This enables shooting without moving.
+                          // selected ship's current position. Gun and EMP both need this so
+                          // hologram fire / confirm treat the shot as a hold, not a pending move.
                           if (
-                            selectedWeaponType === "weapon" &&
-                            previewPosition === null
+                            previewPosition === null &&
+                            (selectedWeaponType === "weapon" ||
+                              (selectedWeaponType === "special" &&
+                                specialType === 1))
                           ) {
                             let found = false;
                             for (let r = 0; r < grid.length && !found; r++) {
@@ -630,6 +651,8 @@ export function GameGridCell({
 
                 const scoringPoints =
                   scoringGrid[rowIndex]?.[colIndex] ?? 0;
+                const isImpassableTile =
+                  impassableGrid?.[rowIndex]?.[colIndex] === true;
                 // Real ship, move-preview ghost, or last-move ghost on a scoring zone
                 const hasShipLayerOnScoringTile =
                   cell != null && scoringPoints > 0;
@@ -671,7 +694,7 @@ export function GameGridCell({
                   const healedPct =
                     maxHp > 0 ? (healedHp / maxHp) * 100 : 0;
                   const healPct = Math.max(0, healedPct - healthPercentage);
-                  if (currentHp <= 0 && !showRepairPreview) return false;
+                  if ((currentHp <= 0 || isOptimisticSos) && !showRepairPreview) return false;
                   if (
                     currentHp >= maxHp &&
                     !showDamagePreview &&
@@ -682,18 +705,9 @@ export function GameGridCell({
                   return true;
                 })();
 
-                // isHoveringValidTarget is computed once for the whole grid
-                // (GameGrid.tsx) — it only says *some* valid target is
-                // hovered, not that it's this cell. Without also checking
-                // hoveredCell's own row/col here, hovering a valid target
-                // anywhere on the board (e.g. an enemy ship in weapons
-                // range) blanked the "to" position's destination preview
-                // even when that hover had nothing to do with this cell.
-                const isHoveringThisCellAsValidTarget =
-                  isHoveringValidTarget &&
-                  hoveredCell !== null &&
-                  hoveredCell.row === rowIndex &&
-                  hoveredCell.col === colIndex;
+                // isHoveringThisCellAsValidTarget is computed once per cell
+                // in GameGrid so hovering a valid target elsewhere does not
+                // blank this cell's destination preview.
                 const isHidingDestinationPreview =
                   !isHoldHologramPulse &&
                   isHoveringThisCellAsValidTarget && (
@@ -807,7 +821,7 @@ export function GameGridCell({
                               : isMovementTile
                                 ? "bg-phosphor-green/10"
                                 : "bg-near-black";
-                    })()} ${hoveredCell?.fromFleet && hoveredCell.shipId === cell?.shipId ? isShipOwnedByCurrentPlayer(hoveredCell.shipId) ? "ring-2 ring-inset ring-cyan" : "ring-2 ring-inset ring-warning-red" : ""}`}
+                    })()} ${isFleetHoveredShip && cell ? isShipOwnedByCurrentPlayer(cell.shipId) ? "ring-2 ring-inset ring-cyan" : "ring-2 ring-inset ring-warning-red" : ""}`}
                     style={
                       isHoldHologramPulse && !isSelectedTarget && !isHidingDestinationPreview
                         ? { animationDuration: `${HOLD_HOLOGRAM_CYCLE_MS}ms` }
@@ -891,60 +905,44 @@ export function GameGridCell({
                       }
                     }}
                     {...(!cell && {
-                      title: onlyOnceGrid[rowIndex][colIndex]
-                        ? `Crystal Deposit: ${scoringGrid[rowIndex][colIndex]} points (only once) (${rowIndex}, ${colIndex})`
-                        : scoringGrid[rowIndex][colIndex] > 0
-                          ? `Gold Deposit: ${scoringGrid[rowIndex][colIndex]} points (${rowIndex}, ${colIndex})`
-                          : impassableGrid?.[rowIndex]?.[colIndex]
-                            ? `Impassable Terrain (${rowIndex}, ${colIndex})`
-                            : blockedGrid[rowIndex][colIndex]
+                      title: isMovementTile
+                        ? scoringPoints > 0
+                          ? onlyOnceGrid[rowIndex][colIndex]
+                            ? `Move here, Crystal Deposit: ${scoringPoints} points (only once) (${rowIndex}, ${colIndex})`
+                            : `Move here, Gold Deposit: ${scoringPoints} points (${rowIndex}, ${colIndex})`
+                          : blockedGrid[rowIndex][colIndex]
+                            ? `Move here, Blocked Line of Sight (${rowIndex}, ${colIndex})`
+                            : `Move here (${rowIndex}, ${colIndex})`
+                        : isImpassableTile
+                        ? scoringPoints > 0
+                          ? onlyOnceGrid[rowIndex][colIndex]
+                            ? `Impassable Terrain, Crystal Deposit: ${scoringPoints} points (only once) (${rowIndex}, ${colIndex})`
+                            : `Impassable Terrain, Gold Deposit: ${scoringPoints} points (${rowIndex}, ${colIndex})`
+                          : `Impassable Terrain (${rowIndex}, ${colIndex})`
+                        : onlyOnceGrid[rowIndex][colIndex]
+                        ? `Crystal Deposit: ${scoringPoints} points (only once) (${rowIndex}, ${colIndex})`
+                        : scoringPoints > 0
+                          ? `Gold Deposit: ${scoringPoints} points (${rowIndex}, ${colIndex})`
+                          : blockedGrid[rowIndex][colIndex]
                             ? `Blocked Line of Sight (${rowIndex}, ${colIndex})`
-                            : isMovementTile
-                              ? `Move here (${rowIndex}, ${colIndex})`
-                              : isShootingTile
-                                ? `Shooting range (${rowIndex}, ${colIndex})`
-                                : isAssistableTarget
-                                  ? `Click to assist this ship (${rowIndex}, ${colIndex})`
-                                  : isValidTarget
-                                    ? `Click to target this ship (${rowIndex}, ${colIndex})`
-                                    : `Empty (${rowIndex}, ${colIndex})`,
+                            : isShootingTile
+                              ? `Shooting range (${rowIndex}, ${colIndex})`
+                              : isAssistableTarget
+                                ? `Click to assist this ship (${rowIndex}, ${colIndex})`
+                                : isValidTarget
+                                  ? `Click to target this ship (${rowIndex}, ${colIndex})`
+                                  : `Empty (${rowIndex}, ${colIndex})`,
                     })}
                   >
-                    {/* Blocked line of sight tile - lowest layer */}
-                    {blockedGrid[rowIndex][colIndex] && (
-                      <div className="absolute inset-0 z-0">
-                        <Image
-                          src="/img/nebula-tile.png"
-                          alt="Blocked line of sight"
-                          fill
-                          className="object-cover opacity-30"
-                        />
-                      </div>
-                    )}
-
-                    {/* Impassable terrain — independent bit from blockedGrid (see
-                        docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
-                        §1). One layer above the nebula (blocked/LOS) tile —
-                        both render, stacked, when a tile is both. */}
-                    {impassableGrid?.[rowIndex]?.[colIndex] && (
-                      <div className="absolute inset-0 z-[1]">
-                        <Image
-                          src="/img/hazard-tile.png"
-                          alt="Impassable terrain"
-                          fill
-                          className="object-cover opacity-30"
-                        />
-                      </div>
-                    )}
-
-                    {/* Crystal / gold art and occupied tint stay behind ships (z-0). */}
+                    {/* Crystal / gold under terrain so a scoring tile that is
+                        also impassable still reads as a hazard. */}
                     {onlyOnceGrid[rowIndex][colIndex] && (
                       <div className="pointer-events-none absolute inset-0 z-0">
                         <Image
                           src="/img/crystal.png"
                           alt="Crystal deposit"
                           fill
-                          className="object-cover opacity-80"
+                          className={`object-cover ${isImpassableTile ? "opacity-25" : "opacity-80"}`}
                         />
                       </div>
                     )}
@@ -956,7 +954,7 @@ export function GameGridCell({
                             src="/img/gold-deposit.png"
                             alt="Gold deposit"
                             fill
-                            className="object-cover opacity-80"
+                            className={`object-cover ${isImpassableTile ? "opacity-25" : "opacity-80"}`}
                           />
                         </div>
                       )}
@@ -972,6 +970,33 @@ export function GameGridCell({
                         className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-amber-300/62 via-amber-500/75 to-amber-800/84 shadow-[inset_0_0_32px_rgba(252,211,77,0.35)]"
                         aria-hidden
                       />
+                    )}
+
+                    {/* Blocked line of sight tile */}
+                    {blockedGrid[rowIndex][colIndex] && (
+                      <div className="pointer-events-none absolute inset-0 z-[1]">
+                        <Image
+                          src="/img/nebula-tile.png"
+                          alt="Blocked line of sight"
+                          fill
+                          className="object-cover opacity-30"
+                        />
+                      </div>
+                    )}
+
+                    {/* Impassable terrain — independent bit from blockedGrid (see
+                        docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
+                        §1). Above scoring art and above the nebula (blocked/LOS)
+                        tile so a dual-tagged cell still reads as impassable. */}
+                    {isImpassableTile && (
+                      <div className="pointer-events-none absolute inset-0 z-[2]">
+                        <Image
+                          src="/img/hazard-tile.png"
+                          alt="Impassable terrain"
+                          fill
+                          className="object-cover opacity-65"
+                        />
+                      </div>
                     )}
 
                     {/* Movement range highlight */}
@@ -1054,7 +1079,9 @@ export function GameGridCell({
                     {cell &&
                       (() => {
                         const attributes = getShipAttributes(cell.shipId);
-                        return attributes && attributes.hullPoints === 0;
+                        const isLiveSos =
+                          !!attributes && attributes.hullPoints === 0;
+                        return isLiveSos || isOptimisticSos || isSosPreviewHologram;
                       })() &&
                       !isLastMoveAttackTargetCell && (
                         <div className="absolute inset-0 z-[5] border-2 border-warning-red bg-warning-red/10 pointer-events-none animate-pulse" />
@@ -1186,12 +1213,11 @@ export function GameGridCell({
                         {/* SOS on cell for 0 HP disabled ships (not permanent destroy) */}
                         {(() => {
                           const attributes = getShipAttributes(cell.shipId);
-                          if (
-                            !attributes ||
-                            typeof attributes.hullPoints !== "number" ||
-                            attributes.hullPoints > 0
-                          )
-                            return null;
+                          const isLiveSos =
+                            !!attributes &&
+                            typeof attributes.hullPoints === "number" &&
+                            attributes.hullPoints <= 0;
+                          if (!isLiveSos && !isOptimisticSos && !isSosPreviewHologram) return null;
                           // Destroyed ships (status 1) use destroyed art only, not the SOS label
                           if ((cell.status ?? 0) === 1) return null;
                           return (
@@ -1225,9 +1251,11 @@ export function GameGridCell({
                           const isForceRetreating = false;
                           const sosAttrs = getShipAttributes(cell.shipId);
                           const isSosArt =
-                            !!sosAttrs &&
-                            sosAttrs.hullPoints === 0 &&
-                            (cell.status ?? 0) !== 1;
+                            ((!!sosAttrs &&
+                              sosAttrs.hullPoints === 0 &&
+                              (cell.status ?? 0) !== 1) ||
+                              isOptimisticSos ||
+                              isSosPreviewHologram);
                           const imageClassName = `w-full h-full relative z-10 ${
                             retreatPrepShipId === cell.shipId || isForceRetreating
                               ? "opacity-0 pointer-events-none"
@@ -1367,7 +1395,7 @@ export function GameGridCell({
                             healedPct - healthPercentage,
                           );
 
-                          if (currentHp <= 0 && !showRepairPreview) return null;
+                          if ((currentHp <= 0 || isOptimisticSos) && !showRepairPreview) return null;
                           if (
                             currentHp >= maxHp &&
                             !showDamagePreview &&
@@ -1755,4 +1783,4 @@ export function GameGridCell({
                     ) : null}
                   </div>
                 );
-}
+});

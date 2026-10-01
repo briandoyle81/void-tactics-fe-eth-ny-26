@@ -21,7 +21,7 @@ interface FlowPaymentButtonProps {
     hoverText: string;
     hoverBg: string;
   };
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<unknown>;
   /** Faction/variant to mint. Defaults to the chain's configured variant when
    * omitted (handled server-side). Variant 2 is gated on the Shattered Hive
    * medal; the backend mint reverts GateRequirementNotMet if the buyer

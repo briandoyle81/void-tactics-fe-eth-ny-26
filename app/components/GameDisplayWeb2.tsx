@@ -16,12 +16,12 @@ import { useGameShipsWeb2 } from "../hooks/useGameShipsWeb2";
 import { useGameStreamWeb2 } from "../hooks/useGameStreamWeb2";
 import { useGamePollingWeb2 } from "../hooks/useGamePollingWeb2";
 import { useMapWeb2 } from "../hooks/useMapWeb2";
+import { gameStateSyncKey } from "../utils/normalizeGameDataView";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
 import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
-import { useTurnCountdown } from "../hooks/useTurnCountdown";
 import {
   useGameViewChromeLayout,
   GAME_VIEW_SIDE_ROOT_CLASS,
@@ -34,6 +34,7 @@ import {
 import { apiMutate } from "../lib/apiMutate";
 import { apiFetch } from "../lib/apiFetch";
 import { getSpecialConfigWeb2 } from "../utils/specialConfigWeb2";
+import { wouldEnterSos } from "../utils/calculateDamage";
 import { requireShipValue } from "../utils/requireShipValue";
 import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 import { AI_USER_ID } from "../config/aiUser";
@@ -45,6 +46,11 @@ import { ShipImageWeb2 } from "./ShipImageWeb2";
 import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { GameScoreBox } from "./GameScoreBox";
 import { GameTurnTimerPanel } from "./GameTurnTimerPanel";
+import {
+  TurnCountdownProvider,
+  TurnCountdownText,
+  TurnCountdownBar,
+} from "./TurnCountdown";
 import { GameFleetStatusCard } from "./GameFleetStatusCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
@@ -85,7 +91,7 @@ interface GameDisplayWeb2Props {
   readOnly?: boolean;
 }
 
-export default function GameDisplayWeb2({
+function GameDisplayWeb2({
   game: initialGame,
   onBack,
   refetch,
@@ -118,8 +124,14 @@ export default function GameDisplayWeb2({
 
   const { data: gameData, refetch: refetchGame } = useGetGame(gameId);
   const latestGameDataRef = React.useRef(initialGame);
-  if (gameData) latestGameDataRef.current = gameData;
-  const game = gameData ?? latestGameDataRef.current;
+  const gameSyncKeyRef = React.useRef(gameStateSyncKey(initialGame));
+  const incomingGame = gameData ?? latestGameDataRef.current;
+  const incomingSyncKey = gameStateSyncKey(incomingGame);
+  if (incomingSyncKey !== gameSyncKeyRef.current) {
+    gameSyncKeyRef.current = incomingSyncKey;
+    latestGameDataRef.current = incomingGame;
+  }
+  const game = latestGameDataRef.current;
 
   // ── Replay ──────────────────────────────────────────────────────────────
   // Server-authoritative Prisma GameTurn history (vs. GameDisplay.tsx's
@@ -159,8 +171,9 @@ export default function GameDisplayWeb2({
     replayAutoPlayRef.current = replayAutoPlay;
   }, [replayAutoPlay]);
   React.useEffect(() => {
-    if (!replayAutoPlay || !replayData || replayStep === null) return;
+    if (!replayAutoPlay || !replayData) return;
     const total = replayData.turns.length;
+    if (total === 0) return;
     const timer = setInterval(() => {
       if (!replayAutoPlayRef.current) {
         clearInterval(timer);
@@ -177,7 +190,7 @@ export default function GameDisplayWeb2({
       });
     }, 1200);
     return () => clearInterval(timer);
-  }, [replayAutoPlay, replayData, replayStep]);
+  }, [replayAutoPlay, replayData]);
 
   const isReplaying = replayStep !== null && !!replayData && replayData.turns.length > 0;
   const replaySnapshotGame: Web2GameDataView | null = isReplaying
@@ -232,13 +245,17 @@ export default function GameDisplayWeb2({
     game.gridDimensions.gridHeight,
   );
 
+  const shipIdsRef = React.useRef(game.shipIds);
+  const shipAttributesRef = React.useRef(game.shipAttributes);
+  shipIdsRef.current = game.shipIds;
+  shipAttributesRef.current = game.shipAttributes;
   const getShipAttributes = useCallback(
     (shipId: number): Attributes | null => {
-      const idx = game.shipIds.findIndex((id) => id === shipId);
-      if (idx === -1 || !game.shipAttributes[idx]) return null;
-      return game.shipAttributes[idx];
+      const idx = shipIdsRef.current.findIndex((id) => id === shipId);
+      if (idx === -1 || !shipAttributesRef.current[idx]) return null;
+      return shipAttributesRef.current[idx];
     },
-    [game.shipIds, game.shipAttributes],
+    [],
   );
 
   const movedShipIdsSet = useMemo(() => {
@@ -459,6 +476,9 @@ export default function GameDisplayWeb2({
     handleRetreatClick,
     buildActionPayload,
     recordOptimisticMove,
+    recordOptimisticSos,
+    clearOptimisticSos,
+    optimisticSosShipIds,
     setPreviewPosition,
     setTargetShipId,
     setSelectedWeaponType,
@@ -504,6 +524,20 @@ export default function GameDisplayWeb2({
   const handleSubmitMove = useCallback(async () => {
     const payload = buildActionPayload();
     if (!payload) return;
+    if (
+      payload.targetShipId > 0 &&
+      (payload.actionType === ActionType.Shoot ||
+        payload.actionType === ActionType.Special)
+    ) {
+      const dmg = calculateDamageForShip(
+        payload.targetShipId,
+        payload.actionType === ActionType.Special ? "special" : "weapon",
+        payload.specialType === 3 ? true : undefined,
+      );
+      if (wouldEnterSos(dmg, getShipAttributes(payload.targetShipId))) {
+        recordOptimisticSos([payload.targetShipId]);
+      }
+    }
     setIsSubmitting(true);
     try {
       // buildActionPayload already returns ActionType.FactionAbility (with
@@ -561,6 +595,7 @@ export default function GameDisplayWeb2({
       // instead of briefly re-rendering in its normal "ready to submit"
       // state before disappearing — matches GameDisplay.tsx's ordering.
       handleCancelMove();
+      clearOptimisticSos();
       toast.error(e instanceof Error ? e.message : "Move failed");
     } finally {
       setIsSubmitting(false);
@@ -571,6 +606,10 @@ export default function GameDisplayWeb2({
     selectedShipFactionAbility,
     gameId,
     recordOptimisticMove,
+    recordOptimisticSos,
+    clearOptimisticSos,
+    calculateDamageForShip,
+    getShipAttributes,
     handleCancelMove,
     refetchGame,
     refetch,
@@ -611,27 +650,40 @@ export default function GameDisplayWeb2({
 
   const lastMove = isReplaying ? (replaySnapshotGame?.lastMove ?? undefined) : (optimisticLastMoveWeb2 ?? game.lastMove);
   const lastMoveShipId = lastMove?.shipId ?? null;
-  const lastMoveOldPosition = lastMove ? { row: lastMove.oldRow, col: lastMove.oldCol } : null;
-  const lastMoveNewPosition = lastMove ? { row: lastMove.newRow, col: lastMove.newCol } : null;
-  const lastMoveResolvedTo =
-    lastMove && lastMove.newRow >= 0 && lastMove.newCol >= 0
-      ? { shipId: lastMove.shipId, row: lastMove.newRow, col: lastMove.newCol }
-      : null;
+  const lastMoveOldPosition = useMemo(
+    () => (lastMove ? { row: lastMove.oldRow, col: lastMove.oldCol } : null),
+    [lastMove],
+  );
+  const lastMoveNewPosition = useMemo(
+    () => (lastMove ? { row: lastMove.newRow, col: lastMove.newCol } : null),
+    [lastMove],
+  );
+  const lastMoveResolvedTo = useMemo(
+    () =>
+      lastMove && lastMove.newRow >= 0 && lastMove.newCol >= 0
+        ? { shipId: lastMove.shipId, row: lastMove.newRow, col: lastMove.newCol }
+        : null,
+    [lastMove],
+  );
   const lastMoveActionType = lastMove?.actionType ?? null;
   const lastMoveTargetShipId = lastMove?.targetShipId ?? null;
   const lastMoveIsCurrentPlayer = lastMove ? shipMap.get(lastMove.shipId)?.owner === userId : undefined;
 
-  const gameEventsLastMove: GameEventsLastMove | undefined = lastMove
-    ? {
-        shipId: String(lastMove.shipId),
-        targetShipId: String(lastMove.targetShipId),
-        oldRow: lastMove.oldRow,
-        oldCol: lastMove.oldCol,
-        newRow: lastMove.newRow,
-        newCol: lastMove.newCol,
-        actionType: lastMove.actionType,
-      }
-    : undefined;
+  const gameEventsLastMove = useMemo<GameEventsLastMove | undefined>(
+    () =>
+      lastMove
+        ? {
+            shipId: String(lastMove.shipId),
+            targetShipId: String(lastMove.targetShipId),
+            oldRow: lastMove.oldRow,
+            oldCol: lastMove.oldCol,
+            newRow: lastMove.newRow,
+            newCol: lastMove.newCol,
+            actionType: lastMove.actionType,
+          }
+        : undefined,
+    [lastMove],
+  );
 
   const appendDestroyedTextToLastMove = useMemo(() => {
     if (!lastMove) return false;
@@ -643,8 +695,25 @@ export default function GameDisplayWeb2({
   }, [lastMove, game.shipPositions]);
 
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] = useState(false);
+  const expandLastMovePanel = useCallback(
+    () => setIsLastMovePanelMinimized(false),
+    [],
+  );
+  const minimizeLastMovePanel = useCallback(
+    () => setIsLastMovePanelMinimized(true),
+    [],
+  );
 
-  const gameScoreData = toGameScoreDataWeb2(game, userId);
+  const gameScoreData = useMemo(
+    () => toGameScoreDataWeb2(game, userId),
+    [
+      game.creatorScore,
+      game.joinerScore,
+      game.maxScore,
+      game.metadata.creator,
+      userId,
+    ],
+  );
   const { myScore, opponentScore, maxScore } = gameScoreData;
 
   // End-of-game result screen (GameResultModal) — mirrors GameDisplay.tsx's
@@ -703,10 +772,8 @@ export default function GameDisplayWeb2({
     />
   );
 
-  const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdown(
-    game.turnState.turnTime,
-    game.turnState.turnStartTime,
-  );
+  const turnTimeSec = game.turnState.turnTime;
+  const turnStartTimeMs = game.turnState.turnStartTime;
 
   const [isClaimingTimeout, setIsClaimingTimeout] = useState(false);
   const handleClaimTimeout = useCallback(async () => {
@@ -758,6 +825,7 @@ export default function GameDisplayWeb2({
         flip={flip}
         isSelected={selectedShipId === shipId}
         isHovered={hoveredCell?.shipId === shipId}
+        optimisticSos={optimisticSosShipIds.has(shipId)}
         shipImage={ship && <ShipImageWeb2 ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
         onClick={() => setSelectedShipId(shipId)}
         onMouseEnter={() =>
@@ -806,6 +874,8 @@ export default function GameDisplayWeb2({
       onlyOnceGrid={onlyOnceGrid}
       calculateDamage={calculateDamageForShip}
       getShipAttributes={getShipAttributes}
+      optimisticSosShipIds={optimisticSosShipIds}
+      isSubmitting={isSubmitting}
       disableTooltips={false}
       address={userId ?? undefined}
       currentTurn={game.turnState.currentTurn}
@@ -871,10 +941,10 @@ export default function GameDisplayWeb2({
             }}
           >
             <FleeSafetySwitch
-              onFlee={() => {
+              onFlee={async () => {
                 setIsMobileFleeOpen(false);
-                refetchGame();
-                refetch?.();
+                await Promise.resolve(refetchGame());
+                await Promise.resolve(refetch?.());
               }}
               renderConfirmButton={(onSuccess) => (
                 <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
@@ -1001,13 +1071,6 @@ export default function GameDisplayWeb2({
     : isCurrentPlayerTurn
       ? "Your turn"
       : "Opponent turn";
-  const formatSeconds = (total: number): string => {
-    const m = Math.floor(total / 60).toString().padStart(2, "0");
-    const s = Math.floor(total % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-  const mobileTurnTime = formatSeconds(Math.max(0, turnSecondsLeft));
-  const mobileTurnPct = Math.max(0, Math.min(100, turnPercentRemaining));
 
   // Mirrors GameDisplay.tsx's own isLandscapeMobile early return: a narrow
   // scrollable left column (compact header + status/events tabs + Fleets
@@ -1016,6 +1079,7 @@ export default function GameDisplayWeb2({
   // don't have room for both a tall header rail and the grid at once.
   if (isLandscapeMobile) {
     return (
+      <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
       <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
         <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
           <div className="flex h-full min-h-0 min-w-0 flex-1 items-center justify-center">
@@ -1045,7 +1109,7 @@ export default function GameDisplayWeb2({
                       className="truncate text-[10px] uppercase tracking-wider"
                       style={{ color: isCurrentPlayerTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}
                     >
-                      {mobileTurnLabel} | {mobileTurnTime}
+                      {mobileTurnLabel} | <TurnCountdownText />
                     </p>
                   </div>
                   <button
@@ -1058,7 +1122,7 @@ export default function GameDisplayWeb2({
                   </button>
                 </div>
                 <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-                  <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${mobileTurnPct}%`, backgroundColor: "var(--color-warning-red)" }} />
+                  <TurnCountdownBar />
                 </div>
               </div>
 
@@ -1169,10 +1233,12 @@ export default function GameDisplayWeb2({
         {roundStartModalNode}
         {gameResultModalNode}
       </div>
+      </TurnCountdownProvider>
     );
   }
 
   return (
+    <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
     <div
       ref={gameViewRootRef}
       className={`flex flex-col gap-6 ${useSideLayout ? GAME_VIEW_SIDE_ROOT_CLASS : "mx-auto w-full"}`}
@@ -1213,19 +1279,13 @@ export default function GameDisplayWeb2({
               // forfeit-claim against an in-flight ai-turn call isn't worth
               // the complexity (mirrors GameDisplay.tsx's isVsAIGame
               // exclusion).
-              const canSeizeTurn =
-                !isCurrentPlayerTurn && !isVsAIGame && isParticipant && turnSecondsLeft <= 0;
               // Mirrors GameDisplay.tsx: vs-AI turns are unlimited, so don't
               // show the "opponent can claim victory" warning for them.
-              const hasExceededTime =
-                isCurrentPlayerTurn && isParticipant && !isVsAIGame && turnSecondsLeft <= 0;
+              const timeoutEnabled = isParticipant && !isVsAIGame;
               return (
                 <GameTurnTimerPanel
-                  hasExceededTime={hasExceededTime}
-                  canSeizeTurn={canSeizeTurn}
+                  timeoutEnabled={timeoutEnabled}
                   isMyTurn={isCurrentPlayerTurn}
-                  secondsLeft={turnSecondsLeft}
-                  turnPercentRemaining={turnPercentRemaining}
                   onResync={() => refetchGame()}
                   claimTimeoutButton={
                     <button
@@ -1256,7 +1316,10 @@ export default function GameDisplayWeb2({
             ) : (
               !readOnly && (
                 <FleeSafetySwitch
-                  onFlee={() => { refetchGame(); refetch?.(); }}
+                  onFlee={async () => {
+                    await Promise.resolve(refetchGame());
+                    await Promise.resolve(refetch?.());
+                  }}
                   renderConfirmButton={(onSuccess) => (
                     <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
                   )}
@@ -1335,8 +1398,8 @@ export default function GameDisplayWeb2({
           </GameBoardLayout>
           <GameLastMovePanel
             isMinimized={isLastMovePanelMinimized}
-            onExpand={() => setIsLastMovePanelMinimized(false)}
-            onMinimize={() => setIsLastMovePanelMinimized(true)}
+            onExpand={expandLastMovePanel}
+            onMinimize={minimizeLastMovePanel}
             lastMove={selectedShipId !== null ? undefined : gameEventsLastMove}
             shipMap={gameEventsShipMap}
             address={userId ?? undefined}
@@ -1435,5 +1498,8 @@ export default function GameDisplayWeb2({
       {roundStartModalNode}
       {gameResultModalNode}
     </div>
+    </TurnCountdownProvider>
   );
 }
+
+export default React.memo(GameDisplayWeb2);

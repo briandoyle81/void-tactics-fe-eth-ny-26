@@ -4,7 +4,19 @@ import { isLightningFieldSpecial, isRepairDronesSpecial } from "./specialConfigW
 import { requireShipValue, resolveActionRange } from "./requireShipValue";
 
 function isGridSet(grid: boolean[][] | undefined, row: number, col: number): boolean {
-  return Boolean(grid?.[row]?.[col]);
+  // Strict `=== true` so a scoring-points number[][] (or any other truthy
+  // non-boolean cell) never counts as a blocked/impassable bit. Scoring is
+  // a separate mapping in Maps.sol and is not part of either bitmap.
+  const r = Number(row);
+  const c = Number(col);
+  return grid?.[r]?.[c] === true;
+}
+
+function isOutOfGrid(grid: boolean[][] | undefined, row: number, col: number): boolean {
+  if (!grid || grid.length === 0) return false;
+  const height = grid.length;
+  const width = grid[0]?.length ?? 0;
+  return row < 0 || col < 0 || row >= height || col >= width;
 }
 
 function isPathTileBlocked(
@@ -13,6 +25,10 @@ function isPathTileBlocked(
   row: number,
   col: number,
 ): boolean {
+  // Maps._isTileBlockedSafe treats out-of-bounds as blocked.
+  if (isOutOfGrid(terrainGrid, row, col) || isOutOfGrid(extraGrid, row, col)) {
+    return true;
+  }
   return isGridSet(terrainGrid, row, col) || isGridSet(extraGrid, row, col);
 }
 
@@ -46,8 +62,16 @@ export function buildEnemyOccupiedGrid(
     if (String(pos.shipId) === actingKey) continue;
     if (pos.isCreator === actingIsCreator) continue;
     if (isDisabled?.(pos.shipId)) continue;
-    const { row, col } = pos.position;
-    if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+    const row = Number(pos.position.row);
+    const col = Number(pos.position.col);
+    if (
+      Number.isFinite(row) &&
+      Number.isFinite(col) &&
+      row >= 0 &&
+      row < gridHeight &&
+      col >= 0 &&
+      col < gridWidth
+    ) {
       grid[row][col] = true;
     }
   }
@@ -147,8 +171,10 @@ export function hasMovementPath(
   impassableGrid?: boolean[][],
   extraBlockingGrid?: boolean[][],
 ): boolean {
+  // Maps.hasMovementPath / hasMovementPathAvoidingShips: same-cell is
+  // "already there; not a move" and returns true even on impassable terrain.
   if (row0 === row1 && col0 === col1) {
-    return !isPathTileBlocked(impassableGrid, extraBlockingGrid, row1, col1);
+    return true;
   }
 
   const dRow = Math.abs(row1 - row0);
@@ -162,6 +188,9 @@ export function hasMovementPath(
 
   while (true) {
     if (row === row1 && col === col1) {
+      // Maps._bresenhamMaps dest: return !_isTileBlockedSafe(_bitmap, dest)
+      // where _bitmap is impassable, or impassable | enemyOccupied for
+      // hasMovementPathAvoidingShips. Scoring tiles are not in that bitmap.
       return !isPathTileBlocked(impassableGrid, extraBlockingGrid, row1, col1);
     }
 
@@ -894,10 +923,15 @@ export function computeHoverShootingRange({
   return positions;
 }
 
+export type ConfirmWidgetSide = "below" | "above" | "right" | "left";
+
 export type ConfirmWidgetAnchor = {
   left: string;
   top: string;
   transform: string;
+  side: ConfirmWidgetSide;
+  destRow: number;
+  destCol: number;
 } | null;
 
 /**
@@ -953,6 +987,8 @@ export function computeConfirmWidgetAnchor(params: {
   grid: (GridShipPosition | null)[][];
   allShipPositions?: readonly GridShipPosition[];
   selfHasEffectLabel?: boolean;
+  /** Player override: pin the widget above or below the dest cell when that side fits. */
+  preferredVertical?: "above" | "below" | null;
 }): ConfirmWidgetAnchor {
   const {
     showConfirmWidget,
@@ -962,6 +998,7 @@ export function computeConfirmWidgetAnchor(params: {
     grid,
     allShipPositions,
     selfHasEffectLabel = false,
+    preferredVertical = null,
   } = params;
 
   if (!showConfirmWidget) return null;
@@ -1102,7 +1139,10 @@ export function computeConfirmWidgetAnchor(params: {
     .sort((a, b) => score(a) - score(b));
 
   // Pick the best side that doesn't conflict; fall back to any valid side
-  const best = sorted.find((s) => !conflictsTarget(s)) ?? sorted[0] ?? "below";
+  let best = sorted.find((s) => !conflictsTarget(s)) ?? sorted[0] ?? "below";
+  if (preferredVertical && inBounds(preferredVertical)) {
+    best = preferredVertical;
+  }
 
   const L = `${((destCol + 0.5) / 17) * 100}%`;
   const Lright = `${((destCol + 1) / 17) * 100}%`;
@@ -1123,10 +1163,10 @@ export function computeConfirmWidgetAnchor(params: {
     labelSide != null && best === labelSide ? SELF_EFFECT_LABEL_CLEARANCE_PX : 0;
 
   switch (best) {
-    case "below": return { left: L,      top: `${((destRow + 1) / 11) * 100}%`, transform: `translate(-50%, ${3 + extra}px)` };
-    case "above": return { left: L,      top: `${(destRow / 11) * 100}%`,        transform: `translate(-50%, calc(-100% - ${3 + extra}px))` };
-    case "right": return { left: Lright, top: Tmid,                               transform: "translate(4px, -50%)" };
-    case "left":  return { left: Lleft,  top: Tmid,                               transform: "translate(calc(-100% - 4px), -50%)" };
+    case "below": return { left: L,      top: `${((destRow + 1) / 11) * 100}%`, transform: `translate(-50%, ${3 + extra}px)`, side: "below", destRow, destCol };
+    case "above": return { left: L,      top: `${(destRow / 11) * 100}%`,        transform: `translate(-50%, calc(-100% - ${3 + extra}px))`, side: "above", destRow, destCol };
+    case "right": return { left: Lright, top: Tmid,                               transform: "translate(4px, -50%)", side: "right", destRow, destCol };
+    case "left":  return { left: Lleft,  top: Tmid,                               transform: "translate(calc(-100% - 4px), -50%)", side: "left", destRow, destCol };
   }
 }
 

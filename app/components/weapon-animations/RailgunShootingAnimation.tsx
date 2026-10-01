@@ -10,7 +10,7 @@ import {
   RAILGUN_IMPACT_SLOTS,
 } from "../../constants/animationTiming";
 import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
-import { createOverlaySizeSync, setCircle, setHidden, setLine } from "./overlayPaint";
+import { createOverlaySizeSync, setCircle, setHidden, setLine, startCancelledRaf } from "./overlayPaint";
 
 interface RailgunShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -98,6 +98,34 @@ function buildRailgunImpact(
   };
 }
 
+type RailgunImpactDom = {
+  surface: SVGGElement | null;
+  penetrate: SVGGElement | null;
+  crush: SVGLineElement | null;
+  bloom: SVGCircleElement | null;
+  bloomCore: SVGCircleElement | null;
+  ring: SVGCircleElement | null;
+  penLine: SVGLineElement | null;
+  entryGlow: SVGCircleElement | null;
+  entryCore: SVGCircleElement | null;
+  spallLines: SVGLineElement[];
+};
+
+function bindRailgunImpactDom(group: SVGGElement): RailgunImpactDom {
+  return {
+    surface: group.querySelector("[data-rg-surface]"),
+    penetrate: group.querySelector("[data-rg-penetrate]"),
+    crush: group.querySelector("[data-rg-crush]"),
+    bloom: group.querySelector("[data-rg-bloom]"),
+    bloomCore: group.querySelector("[data-rg-bloom-core]"),
+    ring: group.querySelector("[data-rg-ring]"),
+    penLine: group.querySelector("[data-rg-pen]"),
+    entryGlow: group.querySelector("[data-rg-entry-glow]"),
+    entryCore: group.querySelector("[data-rg-entry-core]"),
+    spallLines: Array.from(group.querySelectorAll("[data-rg-spall]")),
+  };
+}
+
 export const RailgunShootingAnimation = React.memo(function RailgunShootingAnimation({
   gridContainerRef,
   attackerRow,
@@ -121,6 +149,18 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
   const impactGroupRefs = useRef<Array<SVGGElement | null>>(
     Array.from({ length: RAILGUN_IMPACT_SLOTS }, () => null),
   );
+  const impactDomRefs = useRef<(RailgunImpactDom | null)[]>(
+    Array.from({ length: RAILGUN_IMPACT_SLOTS }, () => null),
+  );
+  const layoutCacheRef = useRef<{
+    posKey: string;
+    cellWidth: number;
+    cellHeight: number;
+    originX: number;
+    originY: number;
+    targetCX: number;
+    targetCY: number;
+  } | null>(null);
 
   const projectileRef = useRef<RailgunProjectile | null>(null);
   const impactsRef = useRef<(RailgunImpact | null)[]>(
@@ -128,7 +168,6 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
   );
   const respawnAtRef = useRef(0);
   const muzzleUntilRef = useRef(0);
-  const animationFrameRef = useRef<number | null>(null);
   const hasFiredRef = useRef("");
   const instanceId = useRef(Math.random().toString(36).slice(2));
   const spawnRef = useRef<() => void>(() => {});
@@ -196,7 +235,14 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
     setCircle(tipCoreRef.current, p.x, p.y, 2.5 * scale);
   }, []);
 
-  const paintImpact = useCallback((group: SVGGElement, impact: RailgunImpact, now: number) => {
+  const paintImpact = useCallback((slot: number, impact: RailgunImpact, now: number) => {
+    const group = impactGroupRefs.current[slot];
+    if (!group) return;
+    let els = impactDomRefs.current[slot];
+    if (!els) {
+      els = bindRailgunImpactDom(group);
+      impactDomRefs.current[slot] = els;
+    }
     const scale = projectileScaleRef.current;
     const elapsed = now - impact.startTime;
     const elapsedSec = elapsed / 1000;
@@ -210,16 +256,18 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
     const cos = Math.cos(impact.boltAngle);
     const sin = Math.sin(impact.boltAngle);
 
-    const surface = group.querySelector("[data-rg-surface]") as SVGGElement | null;
-    const penetrate = group.querySelector("[data-rg-penetrate]") as SVGGElement | null;
-    const crush = group.querySelector("[data-rg-crush]") as SVGLineElement | null;
-    const bloom = group.querySelector("[data-rg-bloom]") as SVGCircleElement | null;
-    const bloomCore = group.querySelector("[data-rg-bloom-core]") as SVGCircleElement | null;
-    const ring = group.querySelector("[data-rg-ring]") as SVGCircleElement | null;
-    const penLine = group.querySelector("[data-rg-pen]") as SVGLineElement | null;
-    const entryGlow = group.querySelector("[data-rg-entry-glow]") as SVGCircleElement | null;
-    const entryCore = group.querySelector("[data-rg-entry-core]") as SVGCircleElement | null;
-    const spallLines = group.querySelectorAll("[data-rg-spall]");
+    const {
+      surface,
+      penetrate,
+      crush,
+      bloom,
+      bloomCore,
+      ring,
+      penLine,
+      entryGlow,
+      entryCore,
+      spallLines,
+    } = els;
 
     setHidden(group, false);
     setHidden(surface, !impact.surfaceHit);
@@ -258,8 +306,7 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
       entryCore?.setAttribute("opacity", String(flashOpacity * 0.9));
     }
 
-    spallLines.forEach((node, i) => {
-      const line = node as SVGLineElement;
+    spallLines.forEach((line, i) => {
       const piece = impact.spall[i];
       if (!piece) {
         setHidden(line, true);
@@ -302,24 +349,32 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
     const grid = gridContainerRef.current;
     if (!grid || projectileRef.current) return;
 
-    const attackerCenter = (() => {
+    const posKey = `${attackerRowRef.current}|${attackerColRef.current}|${targetRowRef.current}|${targetColRef.current}|${facingRightRef.current ? 1 : 0}`;
+    let layout = layoutCacheRef.current;
+    if (!layout || layout.posKey !== posKey) {
       const center = cellCenterOnGrid(grid, attackerRowRef.current, attackerColRef.current);
-      const { cellWidth: cw, cellHeight: ch } = gridLayoutSize(grid);
-      const forward = cw * (0.30 + (isLinearAcceleratorRef.current ? 0.14 : 0));
-      return {
-        x: center.x + (facingRightRef.current ? forward : -forward),
-        y: center.y - ch * 0.15,
+      const { cellWidth, cellHeight } = gridLayoutSize(grid);
+      const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
+      const forward = cellWidth * (0.30 + (isLinearAcceleratorRef.current ? 0.14 : 0));
+      layout = {
+        posKey,
+        cellWidth,
+        cellHeight,
+        originX: center.x + (facingRightRef.current ? forward : -forward),
+        originY: center.y - cellHeight * 0.15,
+        targetCX: targetCenter.x,
+        targetCY: targetCenter.y,
       };
-    })();
-    const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
-    const { cellWidth, cellHeight } = gridLayoutSize(grid);
-    const targetX = targetCenter.x + (Math.random() - 0.5) * cellWidth * 0.5;
-    const targetY = targetCenter.y + (Math.random() - 0.5) * cellHeight * 0.5;
+      layoutCacheRef.current = layout;
+    }
+    const attackerCenter = { x: layout.originX, y: layout.originY };
+    const targetX = layout.targetCX + (Math.random() - 0.5) * layout.cellWidth * 0.5;
+    const targetY = layout.targetCY + (Math.random() - 0.5) * layout.cellHeight * 0.5;
     const dx = targetX - attackerCenter.x;
     const dy = targetY - attackerCenter.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    const avgCellSize = (cellWidth + cellHeight) / 2;
+    const avgCellSize = (layout.cellWidth + layout.cellHeight) / 2;
     const SPEED = avgCellSize * speedCellsPerSecRef.current;
     const travelTime = Math.max(distance, avgCellSize * 0.12) / Math.max(SPEED, 1);
     const now = Date.now();
@@ -346,7 +401,10 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
 
   useEffect(() => {
     const grid = gridContainerRef.current;
-    const ro = grid ? new ResizeObserver(() => syncOverlaySize()) : null;
+    const ro = grid ? new ResizeObserver(() => {
+      layoutCacheRef.current = null;
+      syncOverlaySize();
+    }) : null;
     if (grid && ro) ro.observe(grid);
     syncOverlaySize();
 
@@ -400,23 +458,19 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
           setHidden(group, true);
           continue;
         }
-        paintImpact(group, impact, now);
+        paintImpact(i, impact, now);
       }
 
       if (muzzleUntilRef.current > 0 && now >= muzzleUntilRef.current) {
         setHidden(muzzleRef.current, true);
         muzzleUntilRef.current = 0;
       }
-
-      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    const stopRaf = startCancelledRaf(animate);
     return () => {
+      stopRaf();
       ro?.disconnect();
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
   }, [gridContainerRef, paintImpact, paintProjectile, syncOverlaySize]);
 

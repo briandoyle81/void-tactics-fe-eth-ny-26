@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useReadContract, useWriteContract } from "wagmi";
+import { usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
@@ -38,17 +38,23 @@ export function useRepairCostPerHP() {
 // useRoguelikeMatch's functions.
 export function useRoguelikeResupply() {
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient({ chainId: CHAIN_ID });
 
   const resupplyModifyRoster = useCallback(
-    (shipIdsToAdd: bigint[], shipIdsToRemove: bigint[]) =>
-      writeContractAsync({
+    async (shipIdsToAdd: bigint[], shipIdsToRemove: bigint[]) => {
+      const hash = await writeContractAsync({
         address: ROGUELIKE_RESUPPLY_ADDRESS,
         abi: ROGUELIKE_RESUPPLY_ABI,
         functionName: "resupplyModifyRoster",
         args: [shipIdsToAdd, shipIdsToRemove],
         chainId: CHAIN_ID,
-      }),
-    [writeContractAsync],
+      });
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash });
+      }
+      return hash;
+    },
+    [publicClient, writeContractAsync],
   );
 
   return { resupplyModifyRoster };

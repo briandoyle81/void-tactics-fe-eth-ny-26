@@ -340,8 +340,17 @@ export function MapDisplayView({
                       }
                     }}
                   >
+                    {scoringGrid[row][col] > 0 && (
+                      <div
+                        className={`relative z-0 flex items-center justify-center text-lg font-bold w-full h-full ${
+                          shipId ? (onlyOnceGrid[row][col] ? "text-white" : "text-amber/80") : "text-black"
+                        }`}
+                      >
+                        {scoringGrid[row][col]}
+                      </div>
+                    )}
                     {blockedGrid[row][col] && (
-                      <div className="pointer-events-none absolute inset-0 z-0">
+                      <div className="pointer-events-none absolute inset-0 z-[1]">
                         <Image
                           src="/img/nebula-tile.png"
                           alt=""
@@ -353,26 +362,17 @@ export function MapDisplayView({
                     )}
                     {/* Impassable terrain — independent bit from blockedGrid (see
                         docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
-                        §1). One layer above the nebula (blocked/LOS) tile —
-                        both render, stacked, when a tile is both. */}
+                        §1). Above scoring and above the nebula (blocked/LOS)
+                        tile so a dual-tagged cell still reads as impassable. */}
                     {impassableGrid?.[row]?.[col] && (
-                      <div className="pointer-events-none absolute inset-0 z-0">
+                      <div className="pointer-events-none absolute inset-0 z-[2]">
                         <Image
                           src="/img/hazard-tile.png"
                           alt="Impassable terrain"
                           fill
-                          className="object-cover opacity-30"
+                          className="object-cover opacity-65"
                           sizes="(max-width: 768px) 5vw, 3vw"
                         />
-                      </div>
-                    )}
-                    {scoringGrid[row][col] > 0 && (
-                      <div
-                        className={`relative z-0 flex items-center justify-center text-lg font-bold w-full h-full ${
-                          shipId ? (onlyOnceGrid[row][col] ? "text-white" : "text-amber/80") : "text-black"
-                        }`}
-                      >
-                        {scoringGrid[row][col]}
                       </div>
                     )}
 
@@ -383,7 +383,7 @@ export function MapDisplayView({
                       const hasCardData = shipCardDataMap.has(shipId);
 
                       return (
-                        <div className="absolute inset-0 z-[1] pointer-events-none">
+                        <div className="absolute inset-0 z-[3] pointer-events-none">
                           {hasCardData ? (
                             <div className={`h-full w-full min-h-0 ${flipThis ? "[&_img]:scale-x-[-1]" : ""}`}>
                               {getShipArt(shipId)}
@@ -654,7 +654,7 @@ export function MapDisplayView({
           </div>
           <div className="flex items-center gap-2">
             <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-gunmetal bg-near-black">
-              <Image src="/img/hazard-tile.png" alt="" fill className="object-cover opacity-30" sizes="20px" />
+              <Image src="/img/hazard-tile.png" alt="" fill className="object-cover opacity-65" sizes="20px" />
             </div>
             <span>Impassable (movement) - Hazard</span>
           </div>

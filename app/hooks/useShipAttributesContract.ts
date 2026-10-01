@@ -106,7 +106,12 @@ export function useShipAttributesRead(
     abi: CONTRACT_ABIS.SHIP_ATTRIBUTES,
     chainId,
     functionName,
-    query: { enabled },
+    query: {
+      enabled,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      notifyOnChangeProps: ["data", "error"],
+    },
     args,
   });
 }

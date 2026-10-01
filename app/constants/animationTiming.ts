@@ -2,6 +2,8 @@
 export const LASER_LINE_FADEOUT_MS = 300;
 export const LASER_FLARE_FADEOUT_MS = 200;
 export const LASER_FIRE_INTERVAL_MS = 150;
+export const LASER_LINE_SLOTS = 6;
+export const LASER_FLARE_SLOTS = 6;
 // Mining Laser (variant 2 wander beam)
 export const LASER_TRACE_PERIOD_MS = 2800;
 

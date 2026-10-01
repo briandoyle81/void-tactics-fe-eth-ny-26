@@ -42,8 +42,8 @@ export function TournamentWinEffectsAdminPanel() {
         contractAddress={BASE_SEPOLIA_TOURNAMENT_ADDRESS}
         abi={TOURNAMENT_ABI}
         currentEffects={currentEffects}
-        onSaved={() => {
-          void refetch();
+        onSaved={async () => {
+          await refetch();
         }}
       />
     </div>

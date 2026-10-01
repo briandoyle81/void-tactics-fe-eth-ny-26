@@ -93,8 +93,8 @@ export function LobbyAdminPanel() {
           args={valid ? [BigInt(Math.floor(parsedDays * SECONDS_PER_DAY))] : []}
           disabled={!valid}
           validateBeforeTransaction={() => valid || "Enter a threshold in days"}
-          onSuccess={() => {
-            void refetchStaleLobbyThreshold();
+          onSuccess={async () => {
+            await refetchStaleLobbyThreshold();
           }}
           className="px-4 py-2 border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
         >

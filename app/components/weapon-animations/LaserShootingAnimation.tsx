@@ -1,14 +1,29 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   LASER_FIRE_INTERVAL_MS,
   LASER_FLARE_FADEOUT_MS,
+  LASER_FLARE_SLOTS,
   LASER_LINE_FADEOUT_MS,
+  LASER_LINE_SLOTS,
   LASER_TRACE_PERIOD_MS,
 } from "../../constants/animationTiming";
 import { cellLayoutBox, gridLayoutSize, scaleCellPx } from "./gridLayout";
-import { createOverlaySizeSync, setCircle, setLine } from "./overlayPaint";
+import {
+  createOverlaySizeSync,
+  setCircle,
+  setLine,
+  startCancelledRaf,
+} from "./overlayPaint";
+
+function restartCssAnimation(el: SVGElement | null, className: string) {
+  if (!el) return;
+  el.style.display = "";
+  el.classList.remove(className);
+  void el.getBoundingClientRect();
+  el.classList.add(className);
+}
 
 const BEAM_GREEN = "#6bff8f";
 const BEAM_CORE = "#eafff0";
@@ -32,9 +47,6 @@ interface LaserShootingAnimationProps {
   /** Variant 2 is the Mining Laser: one green wander beam. Variant 1 is the red pulse volley. */
   variant?: number;
 }
-
-type LaserLine = { id: number; endX: number; endY: number };
-type LaserFlare = { id: number; x: number; y: number; size: number };
 
 function faction1LaserOrigin(
   grid: HTMLElement,
@@ -76,115 +88,229 @@ const Faction1LaserAnimation = React.memo(function Faction1LaserAnimation({
   targetCol,
   facingRight,
 }: Omit<LaserShootingAnimationProps, "variant">) {
-  const [lines, setLines] = useState<LaserLine[]>([]);
-  const [flares, setFlares] = useState<LaserFlare[]>([]);
-  const lineIdRef = useRef(0);
-  const flareIdRef = useRef(0);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const lineGroupRefs = useRef<Array<SVGGElement | null>>([]);
+  const flareGroupRefs = useRef<Array<SVGGElement | null>>([]);
+  const lineRectRefs = useRef<Array<SVGRectElement[] | null>>([]);
+  const flareCircleRefs = useRef<Array<SVGCircleElement[] | null>>([]);
+  const lineSlotRef = useRef(0);
+  const flareSlotRef = useRef(0);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  const timersRef = useRef<Set<number>>(new Set());
+  const attackerRowRef = useRef(attackerRow);
+  const attackerColRef = useRef(attackerCol);
+  const targetRowRef = useRef(targetRow);
+  const targetColRef = useRef(targetCol);
+  const facingRightRef = useRef(facingRight);
+  attackerRowRef.current = attackerRow;
+  attackerColRef.current = attackerCol;
+  targetRowRef.current = targetRow;
+  targetColRef.current = targetCol;
+  facingRightRef.current = facingRight;
+  const layoutCacheRef = useRef<{
+    w: number;
+    h: number;
+    ar: number;
+    ac: number;
+    tr: number;
+    tc: number;
+    face: boolean;
+    origin: { x: number; y: number };
+    box: { x: number; y: number; width: number; height: number };
+  } | null>(null);
 
-  const getAttackerOrigin = useCallback(() => {
-    const grid = gridContainerRef.current;
-    if (!grid) return { x: 0, y: 0 };
-    return faction1LaserOrigin(grid, attackerRow, attackerCol, facingRight);
-  }, [gridContainerRef, attackerRow, attackerCol, facingRight]);
-
-  const createLine = useCallback(() => {
-    const grid = gridContainerRef.current;
-    if (!grid) return;
-
-    const box = cellLayoutBox(grid, targetRow, targetCol);
-    const targetCenter = {
-      x: box.x + box.width / 2,
-      y: box.y + box.height / 2,
-    };
-
-    const endX = targetCenter.x + (Math.random() - 0.5) * box.width * 0.5;
-    const endY = targetCenter.y + (Math.random() - 0.5) * box.height * 0.5;
-    const lineId = lineIdRef.current++;
-
-    setLines((prev) => [...prev, { id: lineId, endX, endY }]);
-
-    const flareId = flareIdRef.current++;
-    const flareSize = 18 + Math.random() * 10;
-    setFlares((prev) => [...prev, { id: flareId, x: endX, y: endY, size: flareSize }]);
-
-    setTimeout(() => {
-      if (mountedRef.current) {
-        setLines((prev) => prev.filter((l) => l.id !== lineId));
-      }
-    }, LASER_LINE_FADEOUT_MS);
-    setTimeout(() => {
-      if (mountedRef.current) {
-        setFlares((prev) => prev.filter((f) => f.id !== flareId));
-      }
-    }, LASER_FLARE_FADEOUT_MS);
-  }, [targetRow, targetCol, gridContainerRef]);
+  const syncOverlaySize = useMemo(
+    () =>
+      createOverlaySizeSync(
+        () => gridContainerRef.current,
+        (width, height) => {
+          const svg = svgRef.current;
+          if (!svg) return;
+          svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+          svg.style.width = `${width}px`;
+          svg.style.height = `${height}px`;
+        },
+      ),
+    [gridContainerRef],
+  );
 
   useEffect(() => {
+    mountedRef.current = true;
+    const grid = gridContainerRef.current;
+    const ro = grid ? new ResizeObserver(() => {
+      layoutCacheRef.current = null;
+      syncOverlaySize();
+    }) : null;
+    if (grid && ro) ro.observe(grid);
+    syncOverlaySize();
+
+    const layout = () => {
+      const container = gridContainerRef.current;
+      if (!container) return null;
+      const ar = attackerRowRef.current;
+      const ac = attackerColRef.current;
+      const tr = targetRowRef.current;
+      const tc = targetColRef.current;
+      const face = facingRightRef.current;
+      let cached = layoutCacheRef.current;
+      if (
+        !cached ||
+        cached.ar !== ar ||
+        cached.ac !== ac ||
+        cached.tr !== tr ||
+        cached.tc !== tc ||
+        cached.face !== face
+      ) {
+        const { width, height } = gridLayoutSize(container);
+        cached = {
+          w: width,
+          h: height,
+          ar,
+          ac,
+          tr,
+          tc,
+          face,
+          origin: faction1LaserOrigin(container, ar, ac, face),
+          box: cellLayoutBox(container, tr, tc),
+        };
+        layoutCacheRef.current = cached;
+        syncOverlaySize();
+      }
+      return cached;
+    };
+
+    const lineHideTimers = Array<number>(LASER_LINE_SLOTS).fill(0);
+    const flareHideTimers = Array<number>(LASER_FLARE_SLOTS).fill(0);
+
+    const hideLater = (
+      slotTimers: number[],
+      slot: number,
+      el: SVGElement | null,
+      ms: number,
+    ) => {
+      const prev = slotTimers[slot];
+      if (prev) {
+        window.clearTimeout(prev);
+        timersRef.current.delete(prev);
+      }
+      const timer = window.setTimeout(() => {
+        timersRef.current.delete(timer);
+        slotTimers[slot] = 0;
+        if (el) el.style.display = "none";
+      }, ms);
+      slotTimers[slot] = timer;
+      timersRef.current.add(timer);
+    };
+
+    const createLine = () => {
+      if (!mountedRef.current) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      const cached = layout();
+      if (!cached) return;
+      const { origin, box } = cached;
+      const endX = box.x + box.width / 2 + (Math.random() - 0.5) * box.width * 0.5;
+      const endY = box.y + box.height / 2 + (Math.random() - 0.5) * box.height * 0.5;
+      const dx = endX - origin.x;
+      const dy = endY - origin.y;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      const tr = `rotate(${angle} ${origin.x} ${origin.y})`;
+
+      const lineSlot = lineSlotRef.current % LASER_LINE_SLOTS;
+      lineSlotRef.current += 1;
+      const lineGroup = lineGroupRefs.current[lineSlot];
+      if (lineGroup) {
+        let rects = lineRectRefs.current[lineSlot];
+        if (!rects) {
+          rects = Array.from(lineGroup.querySelectorAll("rect"));
+          lineRectRefs.current[lineSlot] = rects;
+        }
+        const specs = [
+          { yOff: 5, height: 10 },
+          { yOff: 1.5, height: 3 },
+          { yOff: 0.5, height: 1 },
+        ];
+        rects.forEach((rect, i) => {
+          const spec = specs[i];
+          if (!spec) return;
+          rect.setAttribute("x", String(origin.x));
+          rect.setAttribute("y", String(origin.y - spec.yOff));
+          rect.setAttribute("width", String(length));
+          rect.setAttribute("height", String(spec.height));
+          rect.setAttribute("transform", tr);
+        });
+        restartCssAnimation(lineGroup, "animate-laser-fade");
+        hideLater(lineHideTimers, lineSlot, lineGroup, LASER_LINE_FADEOUT_MS);
+      }
+
+      const flareSize = 18 + Math.random() * 10;
+      const flareSlot = flareSlotRef.current % LASER_FLARE_SLOTS;
+      flareSlotRef.current += 1;
+      const flareGroup = flareGroupRefs.current[flareSlot];
+      if (flareGroup) {
+        let circles = flareCircleRefs.current[flareSlot];
+        if (!circles) {
+          circles = Array.from(flareGroup.querySelectorAll("circle"));
+          flareCircleRefs.current[flareSlot] = circles;
+        }
+        if (circles[0]) {
+          circles[0].setAttribute("cx", String(endX));
+          circles[0].setAttribute("cy", String(endY));
+          circles[0].setAttribute("r", String(flareSize * 0.28));
+        }
+        if (circles[1]) {
+          circles[1].setAttribute("cx", String(endX));
+          circles[1].setAttribute("cy", String(endY));
+          circles[1].setAttribute("r", String(flareSize * 0.14));
+        }
+        restartCssAnimation(flareGroup, "laser-impact-flare-svg");
+        hideLater(flareHideTimers, flareSlot, flareGroup, LASER_FLARE_FADEOUT_MS);
+      }
+    };
+
     createLine();
-    const interval = setInterval(createLine, LASER_FIRE_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [createLine]);
-
-  const grid = gridContainerRef.current;
-  if (!grid) return null;
-
-  const { width, height } = gridLayoutSize(grid);
-  const attackerCenter = getAttackerOrigin();
+    const interval = window.setInterval(createLine, LASER_FIRE_INTERVAL_MS);
+    return () => {
+      mountedRef.current = false;
+      window.clearInterval(interval);
+      ro?.disconnect();
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current.clear();
+    };
+  }, [gridContainerRef, syncOverlaySize]);
 
   return (
     <svg
+      ref={svgRef}
       className="absolute pointer-events-none z-20 overflow-visible"
-      style={{ left: 0, top: 0, width, height }}
-      viewBox={`0 0 ${width} ${height}`}
+      style={{ left: 0, top: 0, width: 0, height: 0 }}
       preserveAspectRatio="none"
     >
-      {lines.map((line) => {
-        const dx = line.endX - attackerCenter.x;
-        const dy = line.endY - attackerCenter.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        const tr = `rotate(${angle} ${attackerCenter.x} ${attackerCenter.y})`;
-        return (
-          <g key={line.id} className="animate-laser-fade">
-            <rect
-              x={attackerCenter.x} y={attackerCenter.y - 5}
-              width={length} height={10}
-              fill="red" opacity={0.15}
-              transform={tr}
-            />
-            <rect
-              x={attackerCenter.x} y={attackerCenter.y - 1.5}
-              width={length} height={3}
-              fill="red"
-              transform={tr}
-            />
-            <rect
-              x={attackerCenter.x} y={attackerCenter.y - 0.5}
-              width={length} height={1}
-              fill="#ffaaaa"
-              transform={tr}
-            />
-          </g>
-        );
-      })}
-      {flares.map((f) => (
-        <g key={f.id} className="laser-impact-flare-svg">
-          <circle
-            cx={f.x}
-            cy={f.y}
-            r={f.size * 0.28}
-            fill="#ff3333"
-            opacity={0.85}
-          />
-          <circle
-            cx={f.x}
-            cy={f.y}
-            r={f.size * 0.14}
-            fill="#ffffff"
-            opacity={0.95}
-          />
+      {Array.from({ length: LASER_LINE_SLOTS }, (_, i) => (
+        <g
+          key={`line-${i}`}
+          ref={(el) => {
+            lineGroupRefs.current[i] = el;
+          }}
+          className="animate-laser-fade"
+          style={{ display: "none" }}
+        >
+          <rect fill="red" opacity={0.15} />
+          <rect fill="red" />
+          <rect fill="#ffaaaa" />
+        </g>
+      ))}
+      {Array.from({ length: LASER_FLARE_SLOTS }, (_, i) => (
+        <g
+          key={`flare-${i}`}
+          ref={(el) => {
+            flareGroupRefs.current[i] = el;
+          }}
+          className="laser-impact-flare-svg"
+          style={{ display: "none" }}
+        >
+          <circle fill="#ff3333" opacity={0.85} />
+          <circle fill="#ffffff" opacity={0.95} />
         </g>
       ))}
     </svg>
@@ -336,10 +462,20 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
   const sparkRefs = useRef<Array<SVGCircleElement | null>>([]);
   const sparkAnglesRef = useRef<number[]>([]);
   const sparkAgeRef = useRef<number[]>([]);
-  const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const lastTraceTRef = useRef(0);
   const trailLocalsRef = useRef<TracePoint[]>([]);
+  const layoutCacheRef = useRef<{
+    w: number;
+    h: number;
+    ar: number;
+    ac: number;
+    tr: number;
+    tc: number;
+    face: boolean;
+    origin: { x: number; y: number };
+    box: { x: number; y: number; width: number; height: number };
+  } | null>(null);
   const trailFilterId = `mining-trail-${React.useId().replace(/:/g, "")}`;
 
   const attackerRowRef = useRef(attackerRow);
@@ -370,7 +506,10 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
 
   useEffect(() => {
     const grid = gridContainerRef.current;
-    const ro = grid ? new ResizeObserver(() => syncOverlaySize()) : null;
+    const ro = grid ? new ResizeObserver(() => {
+      layoutCacheRef.current = null;
+      syncOverlaySize();
+    }) : null;
     if (grid && ro) ro.observe(grid);
     syncOverlaySize();
     startedAtRef.current = performance.now();
@@ -381,23 +520,39 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
     const paint = (now: number) => {
       const container = gridContainerRef.current;
       const group = groupRef.current;
-      if (!container || !group) {
-        rafRef.current = requestAnimationFrame(paint);
-        return;
-      }
+      if (!container || !group) return;
 
-      syncOverlaySize();
-      const origin = miningLaserOrigin(
-        container,
-        attackerRowRef.current,
-        attackerColRef.current,
-        facingRightRef.current,
-      );
-      const box = cellLayoutBox(
-        container,
-        targetRowRef.current,
-        targetColRef.current,
-      );
+      const ar = attackerRowRef.current;
+      const ac = attackerColRef.current;
+      const tr = targetRowRef.current;
+      const tc = targetColRef.current;
+      const face = facingRightRef.current;
+      let layout = layoutCacheRef.current;
+      if (
+        !layout ||
+        layout.ar !== ar ||
+        layout.ac !== ac ||
+        layout.tr !== tr ||
+        layout.tc !== tc ||
+        layout.face !== face
+      ) {
+        const { width, height } = gridLayoutSize(container);
+        layout = {
+          w: width,
+          h: height,
+          ar,
+          ac,
+          tr,
+          tc,
+          face,
+          origin: miningLaserOrigin(container, ar, ac, face),
+          box: cellLayoutBox(container, tr, tc),
+        };
+        layoutCacheRef.current = layout;
+        syncOverlaySize();
+      }
+      const origin = layout.origin;
+      const box = layout.box;
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
       const t = ((now - startedAtRef.current) / LASER_TRACE_PERIOD_MS) % 1;
@@ -409,7 +564,12 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
       const local = sampleTracePath(tracePath, t);
       const prev = trailLocalsRef.current[trailLocalsRef.current.length - 1];
       if (!prev || Math.hypot(local.x - prev.x, local.y - prev.y) > 0.006) {
-        trailLocalsRef.current.push(local);
+        const trail = trailLocalsRef.current;
+        trail.push(local);
+        const maxPts = TRAIL_SEG_COUNT + 1;
+        if (trail.length > maxPts) {
+          trail.splice(0, trail.length - maxPts);
+        }
       }
       const endX = cx + local.x * box.width;
       const endY = cy + local.y * box.height;
@@ -467,14 +627,12 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
         setCircle(spark, sx, sy, 0.55 + (si % 3) * 0.25);
         spark.setAttribute("opacity", String(Math.min(1, Math.max(0, fade) * 4)));
       });
-
-      rafRef.current = requestAnimationFrame(paint);
     };
 
-    rafRef.current = requestAnimationFrame(paint);
+    const stopRaf = startCancelledRaf(paint);
     return () => {
+      stopRaf();
       ro?.disconnect();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [gridContainerRef, syncOverlaySize]);
 

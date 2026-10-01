@@ -92,8 +92,8 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
     }
   };
 
-  const handlePurchaseSuccess = () => {
-    refetchUTCBalance();
+  const handlePurchaseSuccess = async () => {
+    await refetchUTCBalance();
     onClose();
   };
 

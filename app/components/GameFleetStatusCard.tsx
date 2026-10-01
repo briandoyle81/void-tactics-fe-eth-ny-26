@@ -13,6 +13,7 @@ interface GameFleetStatusCardProps {
   flip: boolean;
   isSelected: boolean;
   isHovered: boolean;
+  optimisticSos?: boolean;
   shipImage: React.ReactNode;
   onClick: () => void;
   onMouseEnter: () => void;
@@ -31,16 +32,20 @@ export const GameFleetStatusCard: React.FC<GameFleetStatusCardProps> = ({
   flip,
   isSelected,
   isHovered,
+  optimisticSos = false,
   shipImage,
   onClick,
   onMouseEnter,
   onMouseLeave,
 }) => {
-  const isSOS = !!attributes && attributes.hullPoints === 0;
+  const isSOS =
+    optimisticSos || (!!attributes && attributes.hullPoints === 0);
   const hpPct =
-    attributes && attributes.maxHullPoints > 0
-      ? Math.max(0, (attributes.hullPoints / attributes.maxHullPoints) * 100)
-      : 0;
+    optimisticSos
+      ? 0
+      : attributes && attributes.maxHullPoints > 0
+        ? Math.max(0, (attributes.hullPoints / attributes.maxHullPoints) * 100)
+        : 0;
 
   return (
     <GameFleetCard

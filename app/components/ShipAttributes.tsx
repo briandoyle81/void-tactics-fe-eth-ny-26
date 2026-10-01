@@ -455,19 +455,19 @@ const ShipAttributes: React.FC = () => {
   const otherVariant = variant === 1 ? 2 : 1;
 
   // --- Costs (per-variant version; model unchanged, only validation added) ---
-  const { data: currentCostsVersion } = useCurrentCostsVersion(undefined, variant);
-  const { data: costsData, error: costsError } = useCosts(variant);
+  const { data: currentCostsVersion, refetch: refetchCostsVersion } = useCurrentCostsVersion(undefined, variant);
+  const { data: costsData, error: costsError, refetch: refetchCosts } = useCosts(variant);
   const costs =
     Array.isArray(costsData) && costsData.length > 1
       ? (costsData[1] as Costs)
       : undefined;
 
   // --- Attributes (versioned per variant; no global version any more) ---
-  const { data: currentAttributesVersion, error: currentVersionError } =
+  const { data: currentAttributesVersion, error: currentVersionError, refetch: refetchCurrentVersion } =
     useCurrentAttributesVersion(variant);
-  const { data: latestAttributesVersion } = useLatestAttributesVersion(variant);
+  const { data: latestAttributesVersion, refetch: refetchLatestVersion } = useLatestAttributesVersion(variant);
   const isConfigured = Number(currentAttributesVersion ?? 0) > 0;
-  const { data: liveAttributes, error: liveAttributesError } =
+  const { data: liveAttributes, error: liveAttributesError, refetch: refetchLiveAttributes } =
     useVariantAttributes(variant, 0);
   // Only fetched to offer "seed from the other variant" when unconfigured.
   const { data: otherVariantAttributes } = useVariantAttributes(otherVariant, 0);
@@ -775,8 +775,9 @@ const ShipAttributes: React.FC = () => {
                           },
                         ]}
                         className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors disabled:opacity-50"
-                        onSuccess={() => {
+                        onSuccess={async () => {
                           toast.success("Costs updated successfully!");
+                          await Promise.all([refetchCosts(), refetchCostsVersion()]);
                           setEditingCosts(false);
                           setNewCosts({});
                         }}
@@ -898,8 +899,13 @@ const ShipAttributes: React.FC = () => {
                     functionName="setCurrentAttributesVersion"
                     args={[variant, historyVersion]}
                     className="px-3 py-1.5 border border-amber text-amber rounded-none font-mono hover:bg-amber/10 transition-colors text-sm"
-                    onSuccess={() => {
+                    onSuccess={async () => {
                       toast.success(`Variant ${variant} rolled back to v${historyVersion}`);
+                      await Promise.all([
+                        refetchCurrentVersion(),
+                        refetchLatestVersion(),
+                        refetchLiveAttributes(),
+                      ]);
                     }}
                     onError={(error) => {
                       console.error("Failed to roll back attributes version:", error);
@@ -1136,8 +1142,13 @@ const ShipAttributes: React.FC = () => {
                 disabled={validationErrors.length > 0}
                 args={[{ variant, ...draft }]}
                 className="px-4 py-2 border border-phosphor-green text-phosphor-green rounded-none font-mono hover:bg-phosphor-green/10 transition-colors disabled:opacity-50"
-                onSuccess={() => {
+                onSuccess={async () => {
                   toast.success(`Variant ${variant} attributes published!`);
+                  await Promise.all([
+                    refetchCurrentVersion(),
+                    refetchLatestVersion(),
+                    refetchLiveAttributes(),
+                  ]);
                   setEditingAttributes(false);
                   setDraft(null);
                 }}

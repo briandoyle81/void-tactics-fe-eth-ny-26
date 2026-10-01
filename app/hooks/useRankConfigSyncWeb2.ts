@@ -13,6 +13,8 @@ export function useRankConfigSyncWeb2(): void {
     queryKey: ["ship-rank-config"],
     queryFn: () => apiFetch<RankConfigResponse>("/api/ship-rank-config"),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    notifyOnChangeProps: ["data", "error"],
   });
 
   useEffect(() => {

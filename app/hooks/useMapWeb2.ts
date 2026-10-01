@@ -19,6 +19,9 @@ export function useMapWeb2(mapId: number, gridWidth: number, gridHeight: number)
     queryFn: () => apiFetch<MapTilesResponse>(`/api/maps/${mapId}`),
     enabled: mapId > 0,
     staleTime: Infinity, // maps never change
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    notifyOnChangeProps: ["data", "error"],
   });
 
   const grids = useMemo((): MapGrids => {

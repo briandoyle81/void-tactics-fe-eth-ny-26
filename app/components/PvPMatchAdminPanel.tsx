@@ -37,8 +37,8 @@ export function PvPMatchAdminPanel() {
         contractAddress={pvpAddress}
         abi={abi}
         currentEffects={currentEffects}
-        onSaved={() => {
-          void refetch();
+        onSaved={async () => {
+          await refetch();
         }}
       />
     </div>

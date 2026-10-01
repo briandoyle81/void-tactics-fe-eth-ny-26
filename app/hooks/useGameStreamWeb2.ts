@@ -28,7 +28,6 @@ export function useGameStreamWeb2(gameId: number, enabled = true) {
           const payload = JSON.parse(e.data) as { type: string };
           if (payload.type === "update" || payload.type === "done") {
             queryClient.invalidateQueries({ queryKey: ["gamesWeb2", gameId] });
-            queryClient.invalidateQueries({ queryKey: ["gamesWeb2", "player"] });
           }
           if (payload.type === "done") {
             es.close();
@@ -41,8 +40,8 @@ export function useGameStreamWeb2(gameId: number, enabled = true) {
       es.onerror = () => {
         es.close();
         esRef.current = null;
-        // Reconnect with capped exponential backoff
         retryDelay = Math.min(retryDelay * 2, 30000);
+        if (retryTimeout) clearTimeout(retryTimeout);
         retryTimeout = setTimeout(connect, retryDelay);
       };
 

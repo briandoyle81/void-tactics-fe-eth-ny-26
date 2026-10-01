@@ -90,7 +90,7 @@ export function TransactionProvider({
     []
   );
 
-  const { isSuccess, isError, error: receiptError } = useWaitForTransactionReceipt(
+  const { isError, error: receiptError } = useWaitForTransactionReceipt(
     {
       hash: transactionState.hash ?? undefined,
       query: {
@@ -99,25 +99,18 @@ export function TransactionProvider({
     }
   );
 
-  // Clear global pending when receipt arrives (even if original button unmounted).
+  // Receipt success is NOT enough to clear pending. The originating button
+  // still has follow-up work (refetch, wait for a new lobby to appear, etc.)
+  // and calls completeTransaction when that work is done. Auto-clearing here
+  // re-enabled Create/Join/etc. a beat before the list updated. Receipt
+  // *failure* still clears, and the 90s fallback still covers an unmounted
+  // button.
   useEffect(() => {
     if (!transactionState.isPending) return;
     if (!transactionState.activeTransactionId) return;
     if (!transactionState.hash) return;
 
-    if (isSuccess) {
-      if (fallbackTimeoutRef.current) {
-        clearTimeout(fallbackTimeoutRef.current);
-        fallbackTimeoutRef.current = null;
-      }
-      setTransactionState({
-        isPending: false,
-        error: null,
-        activeTransactionId: null,
-        hash: null,
-        startedAt: null,
-      });
-    } else if (isError && receiptError) {
+    if (isError && receiptError) {
       if (fallbackTimeoutRef.current) {
         clearTimeout(fallbackTimeoutRef.current);
         fallbackTimeoutRef.current = null;
@@ -131,7 +124,6 @@ export function TransactionProvider({
       });
     }
   }, [
-    isSuccess,
     isError,
     receiptError,
     transactionState.isPending,
@@ -213,17 +205,27 @@ export function TransactionProvider({
     });
   }, []);
 
+  const value = React.useMemo(
+    () => ({
+      transactionState,
+      startTransaction,
+      setTransactionHash,
+      completeTransaction,
+      clearError,
+      clearAllTransactions,
+    }),
+    [
+      transactionState,
+      startTransaction,
+      setTransactionHash,
+      completeTransaction,
+      clearError,
+      clearAllTransactions,
+    ],
+  );
+
   return (
-    <TransactionContext.Provider
-      value={{
-        transactionState,
-        startTransaction,
-        setTransactionHash,
-        completeTransaction,
-        clearError,
-        clearAllTransactions,
-      }}
-    >
+    <TransactionContext.Provider value={value}>
       {children}
     </TransactionContext.Provider>
   );

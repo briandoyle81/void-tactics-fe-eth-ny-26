@@ -279,7 +279,7 @@ function reducer(s: State, a: Action): State {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void }) {
+export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void | Promise<unknown> }) {
   const { address: buyerAddress } = useAccount();
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const ref = useRef(state);
@@ -456,7 +456,7 @@ export function useFlowPaymentModal({ onSuccess }: { onSuccess: () => void }) {
       if (!res.ok) throw new Error(await res.text());
 
       dispatch({ type: "STEP", step: "success" });
-      onSuccess();
+      await onSuccess();
     } catch (err) {
       dispatch({
         type: "ERROR",

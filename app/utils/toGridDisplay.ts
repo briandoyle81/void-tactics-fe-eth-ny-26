@@ -27,7 +27,10 @@ export function toGridShipMap(shipMap: Map<bigint, Ship>): Map<number, GridShip>
 export function toGridShipPosition(pos: ShipPosition): GridShipPosition {
   return {
     shipId: Number(pos.shipId),
-    position: pos.position,
+    position: {
+      row: Number(pos.position.row),
+      col: Number(pos.position.col),
+    },
     isCreator: pos.isCreator,
     status: pos.status,
     isPreview: pos.isPreview,

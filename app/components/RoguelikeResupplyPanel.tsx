@@ -143,7 +143,8 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
     try {
       await resupplyModifyRoster([shipId], []);
       toast.success("Ship added to roster");
-      void refetchOwnedShips();
+      await refetchOwnedShips();
+      await Promise.resolve(onDone());
     } catch (error) {
       console.error("Failed to add ship to roster:", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -157,7 +158,7 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
         toast.error(DUPLICATE_SHIP_ID_TOAST);
       } else if (message.includes("ActiveGameInProgress")) {
         toast.error(
-          "A match is still in progress — return to it or let it finish before changing your roster.",
+          "A match is still in progress. Return to it or let it finish before changing your roster.",
         );
       } else {
         toast.error(`Failed to add ship: ${message}`);
@@ -172,7 +173,8 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
     try {
       await resupplyModifyRoster([], [shipId]);
       toast.success("Ship removed from roster");
-      void refetchOwnedShips();
+      await refetchOwnedShips();
+      await Promise.resolve(onDone());
     } catch (error) {
       console.error("Failed to remove ship from roster:", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -180,7 +182,7 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
         toast.error("That ship isn't in your current roster.");
       } else if (message.includes("ActiveGameInProgress")) {
         toast.error(
-          "A match is still in progress — return to it or let it finish before changing your roster.",
+          "A match is still in progress. Return to it or let it finish before changing your roster.",
         );
       } else {
         toast.error(`Failed to remove ship: ${message}`);
@@ -259,8 +261,8 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
                 }
                 loadingText="[APPROVING...]"
                 errorText="[ERROR APPROVING]"
-                onSuccess={() => {
-                  refetchAllowance();
+                onSuccess={async () => {
+                  await refetchAllowance();
                   toast.success("UTC approved!");
                 }}
                 onError={(error) => {
@@ -287,9 +289,9 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
                 className="border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10 disabled:cursor-not-allowed disabled:opacity-50"
                 loadingText="[REPAIRING...]"
                 errorText="[ERROR REPAIRING]"
-                onSuccess={() => {
+                onSuccess={async () => {
+                  await refetchHP();
                   setSelectedForRepair(new Set());
-                  void refetchHP();
                   toast.success("Repair complete!");
                 }}
                 onError={(error) => {
@@ -297,7 +299,7 @@ export function RoguelikeResupplyPanel({ run, node, onDone }: RoguelikeResupplyP
                   const message = error instanceof Error ? error.message : String(error);
                   if (message.includes("ActiveGameInProgress")) {
                     toast.error(
-                      "A match is still in progress — return to it or let it finish before repairing.",
+                      "A match is still in progress. Return to it or let it finish before repairing.",
                     );
                   } else {
                     toast.error("Failed to repair roster");

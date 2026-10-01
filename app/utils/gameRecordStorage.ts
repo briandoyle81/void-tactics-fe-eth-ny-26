@@ -20,13 +20,61 @@ export function deserializeBlob<T>(json: string): T {
   return JSON.parse(json, jsonReviver) as T;
 }
 
-/** Persists a game record to localStorage, keyed by gameId. */
-export function saveGameRecord(gameId: string, record: unknown): void {
+type PendingRecordSave = { gameId: string; record: unknown };
+let pendingRecordSave: PendingRecordSave | null = null;
+let pendingRecordSaveHandle: number | null = null;
+
+function writeGameRecord(gameId: string, record: unknown): void {
   try {
-    window.localStorage.setItem(`${STORAGE_KEY_PREFIX}${gameId}`, serializeBlob(record));
+    window.localStorage.setItem(
+      `${STORAGE_KEY_PREFIX}${gameId}`,
+      serializeBlob(record),
+    );
   } catch {
     // Storage full or unavailable — recording is best-effort, not critical path.
   }
+}
+
+function flushPendingGameRecord(): void {
+  pendingRecordSaveHandle = null;
+  const job = pendingRecordSave;
+  pendingRecordSave = null;
+  if (!job) return;
+  writeGameRecord(job.gameId, job.record);
+}
+
+/** Persists a game record to localStorage, keyed by gameId. */
+export function saveGameRecord(
+  gameId: string,
+  record: unknown,
+  options?: { immediate?: boolean },
+): void {
+  if (typeof window === "undefined") return;
+  if (options?.immediate) {
+    pendingRecordSave = null;
+    if (pendingRecordSaveHandle != null) {
+      if (typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(pendingRecordSaveHandle);
+      } else {
+        window.clearTimeout(pendingRecordSaveHandle);
+      }
+      pendingRecordSaveHandle = null;
+    }
+    writeGameRecord(gameId, record);
+    return;
+  }
+
+  pendingRecordSave = { gameId, record };
+  if (pendingRecordSaveHandle != null) return;
+  const schedule =
+    typeof requestIdleCallback === "function"
+      ? (cb: () => void) => requestIdleCallback(cb)
+      : (cb: () => void) => window.setTimeout(cb, 0);
+  pendingRecordSaveHandle = schedule(flushPendingGameRecord);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushPendingGameRecord);
 }
 
 /** Reads a game record back from localStorage. Returns null if not found on this device. */

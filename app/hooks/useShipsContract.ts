@@ -23,6 +23,7 @@ export function useShipsRead(
   functionName: string,
   args?: readonly unknown[],
   chainIdOverride?: number,
+  enabled: boolean = true,
 ) {
   const pickerChainId = useSelectedChainId();
   const activeChainId = chainIdOverride ?? pickerChainId;
@@ -34,6 +35,12 @@ export function useShipsRead(
     chainId: activeChainId,
     functionName,
     args,
+    query: {
+      enabled,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      notifyOnChangeProps: ["data", "error"],
+    },
   });
 }
 

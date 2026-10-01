@@ -55,7 +55,7 @@ interface Props {
   config: TournamentConfig;
   summary: TournamentSummary;
   isRegistered: boolean;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<unknown>;
 }
 
 export function TournamentRegister({
@@ -106,7 +106,7 @@ export function TournamentRegister({
         if (actions.publicClient) {
           await actions.publicClient.waitForTransactionReceipt({ hash });
         }
-        onSuccess();
+        await onSuccess();
       } catch (err) {
         setError(parseRevertMessage(err));
       } finally {

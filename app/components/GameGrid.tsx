@@ -13,6 +13,13 @@ import { GameGridTooltip, GameGridTooltipHoveredCell } from "./GameGridTooltip";
 import { GameGridWeaponSelector } from "./GameGridWeaponSelector";
 import { GameGridConfirmWidget } from "./GameGridConfirmWidget";
 
+const EMPTY_SHIP_ID_SET: Set<number> = new Set();
+const EMPTY_RANGE_CELLS: Array<{ row: number; col: number }> = [];
+const EMPTY_TARGET_REFS: Array<{
+  shipId: number;
+  position: { row: number; col: number };
+}> = [];
+
 /** Viewport bounds for a grid cell (fixed tooltip placement vs the moused tile). */
 export function measureGridCellViewportBounds(
   layoutRoot: HTMLElement | null,
@@ -188,6 +195,13 @@ interface GameGridProps {
   onCancelMove?: () => void;
   confirmButton?: React.ReactNode;
   /**
+   * Ships that a submitted shot will put into SOS. Show live SOS art (not
+   * hologram) until chain/server attributes confirm 0 HP.
+   */
+  optimisticSosShipIds?: Set<number>;
+  /** True while the current move tx/request is in flight. */
+  isSubmitting?: boolean;
+  /**
    * Builds the tooltip's ship-card content for the hovered cell. Delegated
    * to the caller because building `ShipCard`'s `ShipCardData`/`shipImage`
    * props from a raw `Ship`/`Web2Ship` is mode-specific. See
@@ -196,7 +210,7 @@ interface GameGridProps {
   renderShipCard: (hoveredCell: GameGridTooltipHoveredCell) => React.ReactNode | null;
 }
 
-export function GameGrid({
+export const GameGrid = React.memo(function GameGrid({
   grid,
   allShipPositions,
   shipMap,
@@ -256,14 +270,16 @@ export function GameGrid({
   setHoveredCell,
   setDraggedShipId,
   setDragOverCell,
-  hoverShootingRange = [],
-  hoverValidTargets = [],
+  hoverShootingRange = EMPTY_RANGE_CELLS,
+  hoverValidTargets = EMPTY_TARGET_REFS,
   onMoveTileHover,
   showConfirmWidget = false,
   confirmWidgetLabel = "SUBMIT",
   onConfirmMove,
   onCancelMove,
   confirmButton,
+  optimisticSosShipIds = EMPTY_SHIP_ID_SET,
+  isSubmitting = false,
   renderShipCard,
 }: GameGridProps) {
   const { outerWrapperRef, gridContainerRef, zoom } = useGridPanZoom();
@@ -281,18 +297,28 @@ export function GameGrid({
   const effectiveDragShipId = draggedShipId ?? (effectiveDragCell ? selectedShipId : null);
   const effectiveShootingRange = effectiveDragCell
     ? (draggedShipId ? dragShootingRange : hoverShootingRange)
-    : [];
+    : EMPTY_RANGE_CELLS;
   const effectiveValidTargets: Array<{ shipId: number; position: { row: number; col: number } }> =
     effectiveDragCell
       ? (draggedShipId ? dragValidTargets : hoverValidTargets)
-      : [];
+      : EMPTY_TARGET_REFS;
 
   /** Re-render on grid container resize so ship tooltips stay aligned with cells. */
   const [, setGridLayoutVersion] = React.useState(0);
   React.useLayoutEffect(() => {
     const el = gridContainerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => setGridLayoutVersion((v) => v + 1));
+    let lastW = el.clientWidth;
+    let lastH = el.clientHeight;
+    const ro = new ResizeObserver((entries) => {
+      const next = entries[0]?.contentRect;
+      const w = next?.width ?? el.clientWidth;
+      const h = next?.height ?? el.clientHeight;
+      if (Math.abs(w - lastW) < 0.5 && Math.abs(h - lastH) < 0.5) return;
+      lastW = w;
+      lastH = h;
+      setGridLayoutVersion((v) => v + 1);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -338,6 +364,7 @@ export function GameGrid({
     projectedDamageByShipId,
     projectedRepairByShipId,
     destroyPreviewShipIds,
+    sosPreviewShipIds,
     findShipPositionById,
   } = useGridEffectPreviews({
     grid,
@@ -402,6 +429,12 @@ export function GameGrid({
     shipVariant: selectedShipId != null ? shipMap.get(selectedShipId)?.traits.variant : undefined,
     factionAbilityIsHeal,
   });
+  const [confirmWidgetVertical, setConfirmWidgetVertical] = React.useState<
+    "above" | "below" | null
+  >(null);
+  React.useEffect(() => {
+    setConfirmWidgetVertical(null);
+  }, [selectedShipId, previewPosition?.row, previewPosition?.col, targetShipId]);
   const confirmWidgetAnchor = React.useMemo(
     () => computeConfirmWidgetAnchor({
       showConfirmWidget,
@@ -411,8 +444,9 @@ export function GameGrid({
       grid,
       allShipPositions,
       selfHasEffectLabel,
+      preferredVertical: confirmWidgetVertical,
     }),
-    [showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions, selfHasEffectLabel],
+    [showConfirmWidget, previewPosition, selectedShipId, targetShipId, grid, allShipPositions, selfHasEffectLabel, confirmWidgetVertical],
   );
 
   const handleGridContextMenu = React.useCallback(
@@ -463,6 +497,13 @@ export function GameGrid({
     hoveredCell !== null &&
     !hoveredCell.fromFleet &&
     validTargetIdSet.has(hoveredCell.shipId);
+  const overlayDestination = effectiveDragCell ?? previewPosition;
+  const isHoveringDestinationAsValidTarget =
+    isHoveringValidTarget &&
+    hoveredCell !== null &&
+    overlayDestination !== null &&
+    hoveredCell.row === overlayDestination.row &&
+    hoveredCell.col === overlayDestination.col;
 
   return (
     <>
@@ -499,7 +540,17 @@ export function GameGrid({
                   previewPosition={previewPosition}
                   targetShipId={targetShipId}
                   selectedWeaponType={selectedWeaponType}
-                  hoveredCell={hoveredCell}
+                  isHoveringThisCellAsValidTarget={
+                    isHoveringValidTarget &&
+                    hoveredCell !== null &&
+                    hoveredCell.row === rowIndex &&
+                    hoveredCell.col === colIndex
+                  }
+                  isFleetHoveredShip={Boolean(
+                    hoveredCell?.fromFleet &&
+                      cell != null &&
+                      hoveredCell.shipId === cell.shipId,
+                  )}
                   draggedShipId={draggedShipId}
                   assistableTargets={assistableTargets}
                   assistableTargetsFromStart={assistableTargetsFromStart}
@@ -535,11 +586,13 @@ export function GameGrid({
                   validTargetIdSet={validTargetIdSet}
                   assistableTargetIdSet={assistableTargetIdSet}
                   assistableTargetsFromStartIdSet={assistableTargetsFromStartIdSet}
-                  isHoveringValidTarget={isHoveringValidTarget}
                   lastMoveActionNum={lastMoveActionNum}
                   projectedDamageByShipId={projectedDamageByShipId}
                   projectedRepairByShipId={projectedRepairByShipId}
                   destroyPreviewShipIds={destroyPreviewShipIds}
+                  sosPreviewShipIds={sosPreviewShipIds}
+                  optimisticSosShipIds={optimisticSosShipIds}
+                  isSubmitting={isSubmitting}
                   lastDragOverCellRef={lastDragOverCellRef}
                   setSelectedShipId={setSelectedShipId}
                   setPreviewPosition={setPreviewPosition}
@@ -592,8 +645,7 @@ export function GameGrid({
             tutorialHighlightCells={tutorialHighlightCells}
             tutorialDefaultLabel={tutorialDefaultLabel}
             movementTileSet={movementTileSet}
-            isHoveringValidTarget={isHoveringValidTarget}
-            hoveredCell={hoveredCell}
+            isHoveringDestinationAsValidTarget={isHoveringDestinationAsValidTarget}
             selectedShipCreatorSide={selectedShipCreatorSide}
             directedWeaponBeamTargetId={directedWeaponBeamTargetId}
             flakEffectCells={flakEffectCells}
@@ -660,10 +712,13 @@ export function GameGrid({
                 getShipAttributes={getShipAttributes}
                 setSelectedWeaponType={setSelectedWeaponType}
                 setTargetShipId={setTargetShipId}
+                clipRootRef={outerWrapperRef}
+                zoomScale={zoom.scale}
+                onMoveVertical={setConfirmWidgetVertical}
               />
             )}
         </div>
       </div>
     </>
   );
-}
+});

@@ -95,13 +95,7 @@ function cellsInManhattanRange(
   return cells;
 }
 
-type HoveredCell = {
-  shipId: number;
-  row: number;
-  col: number;
-  isCreator: boolean;
-  fromFleet?: boolean;
-} | null;
+const EMPTY_OVERLAY_CELLS: Position[] = [];
 
 interface GameGridOverlaysProps {
   grid: (GridShipPosition | null)[][];
@@ -153,8 +147,7 @@ interface GameGridOverlaysProps {
   }[];
   tutorialDefaultLabel?: string;
   movementTileSet: Set<string>;
-  isHoveringValidTarget: boolean;
-  hoveredCell: HoveredCell;
+  isHoveringDestinationAsValidTarget: boolean;
   selectedShipCreatorSide: boolean | null;
   directedWeaponBeamTargetId: number | null;
   flakEffectCells: Position[];
@@ -168,7 +161,7 @@ interface GameGridOverlaysProps {
  * floating damage labels, and the tutorial "Click here" badges. Extracted
  * verbatim from `GameGrid.tsx` — same JSX, same behavior, just relocated.
  */
-export function GameGridOverlays({
+export const GameGridOverlays = React.memo(function GameGridOverlays({
   grid,
   allShipPositions,
   shipMap,
@@ -204,8 +197,7 @@ export function GameGridOverlays({
   tutorialHighlightCells,
   tutorialDefaultLabel = "Click here",
   movementTileSet,
-  isHoveringValidTarget,
-  hoveredCell,
+  isHoveringDestinationAsValidTarget,
   selectedShipCreatorSide,
   directedWeaponBeamTargetId,
   flakEffectCells,
@@ -218,6 +210,24 @@ export function GameGridOverlays({
     !selectedShipId || showLastMoveEmpReplayWhenSelected;
   // Preview weapon fire is a hologram at To. Last-move fire is live color at To.
   const hologramFire = !!(previewPosition && selectedShipId);
+  const lastMoveFlakTargetCells = React.useMemo(() => {
+    if (!showLastMoveEmpReplay) return EMPTY_OVERLAY_CELLS;
+    if (lastMoveActionNum !== ActionType.Special) return EMPTY_OVERLAY_CELLS;
+    if (lastMoveShipId == null) return EMPTY_OVERLAY_CELLS;
+    const ship = shipMap.get(lastMoveShipId);
+    if (!isFlakArrayShip(ship)) return EMPTY_OVERLAY_CELLS;
+    const origin = lastMoveNewPosition ?? findShipPositionById(lastMoveShipId);
+    if (!origin) return EMPTY_OVERLAY_CELLS;
+    return cellsInManhattanRange(origin, flakArrayRange(ship), grid);
+  }, [
+    showLastMoveEmpReplay,
+    lastMoveActionNum,
+    lastMoveShipId,
+    shipMap,
+    lastMoveNewPosition,
+    findShipPositionById,
+    grid,
+  ]);
 
   return (
           <div className="absolute inset-0 z-50 pointer-events-none">
@@ -234,18 +244,6 @@ export function GameGridOverlays({
             {/* Move path arrow: proposed move or last completed move with a spatial path, same geometry. */}
             {(() => {
                 const proposedDestination = effectiveDragCell ?? previewPosition;
-                // isHoveringValidTarget is a single grid-wide flag ("some
-                // valid target is hovered somewhere"), not scoped to this
-                // cell — checking it alone hid the move arrow whenever any
-                // enemy ship in weapons range was hovered, anywhere on the
-                // board. Only suppress the arrow when the hovered valid
-                // target is actually the proposed destination itself.
-                const isHoveringDestinationAsValidTarget =
-                  isHoveringValidTarget &&
-                  hoveredCell !== null &&
-                  proposedDestination !== null &&
-                  hoveredCell.row === proposedDestination.row &&
-                  hoveredCell.col === proposedDestination.col;
                 const useProposedMoveArrow =
                   selectedShipId !== null && proposedDestination !== null && !isHoveringDestinationAsValidTarget && retreatPrepShipId == null;
 
@@ -790,18 +788,12 @@ export function GameGridOverlays({
               lastMoveShipId != null &&
               !selectedShipId &&
               isFlakArrayShip(shipMap.get(lastMoveShipId)) &&
-              (() => {
-                const origin =
-                  lastMoveNewPosition ?? findShipPositionById(lastMoveShipId);
-                if (!origin) return null;
-                const range = flakArrayRange(shipMap.get(lastMoveShipId));
-                return (
-                  <FlakExplosionAnimation
-                    gridContainerRef={gridContainerRef}
-                    targetCells={cellsInManhattanRange(origin, range, grid)}
-                  />
-                );
-              })()}
+              lastMoveFlakTargetCells.length > 0 && (
+                <FlakExplosionAnimation
+                  gridContainerRef={gridContainerRef}
+                  targetCells={lastMoveFlakTargetCells}
+                />
+              )}
 
             {/* Lightening Field: blue jagged sparks across every tile in range */}
             {selectedShipId &&
@@ -1291,19 +1283,27 @@ export function GameGridOverlays({
                         damage.reactorCritical &&
                         !!targetAttributes &&
                         targetAttributes.reactorCriticalTimer + 1 >= 3;
+                      const isSelectedSosTarget =
+                        target.shipId === targetShipId &&
+                        showAsKill &&
+                        !willDestroyByReactor;
                       let labelText: string;
                       if (isFactionHealPreview) {
                         labelText = useCompactMobileDamageLabels
                           ? String(factionHealAmount)
                           : `REPAIR ${factionHealAmount} HP`;
                       } else if (useCompactMobileDamageLabels) {
-                        labelText = String(damage.reducedDamage);
+                        labelText = isSelectedSosTarget
+                          ? "[SOS]"
+                          : String(damage.reducedDamage);
                       } else if (selectedWeaponType === "special") {
                         if (specialType === 3 || isAttackDronesPreview) {
                           if (willDestroyByReactor) {
                             labelText = "[DESTROY]";
                           } else if (damage.reactorCritical) {
                             labelText = "REACTOR +1";
+                          } else if (isSelectedSosTarget) {
+                            labelText = "[SOS]";
                           } else if (showAsKill) {
                             labelText = `[✕] ${damage.reducedDamage} DMG`;
                           } else {
@@ -1322,6 +1322,8 @@ export function GameGridOverlays({
                         labelText = "[DESTROY]";
                       } else if (damage.reactorCritical) {
                         labelText = "REACTOR +1";
+                      } else if (isSelectedSosTarget) {
+                        labelText = "[SOS]";
                       } else if (showAsKill) {
                         labelText = `[✕] ${damage.reducedDamage} DMG`;
                       } else {
@@ -1559,4 +1561,4 @@ export function GameGridOverlays({
             })()}
           </div>
   );
-}
+});

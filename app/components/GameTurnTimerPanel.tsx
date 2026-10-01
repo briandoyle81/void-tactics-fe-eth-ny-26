@@ -3,6 +3,7 @@
 import React from "react";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { GameTurnLabel } from "./GameTurnLabel";
+import { useTurnCountdownContext } from "./TurnCountdown";
 
 function ResyncIcon() {
   return (
@@ -32,24 +33,22 @@ function ResyncIcon() {
 // `/api/games/[id]/timeout`) since the claim action is a real data
 // difference.
 interface GameTurnTimerPanelProps {
-  hasExceededTime: boolean;
-  canSeizeTurn: boolean;
+  timeoutEnabled: boolean;
   isMyTurn: boolean;
-  secondsLeft: number;
-  turnPercentRemaining: number;
   onResync: () => void;
   claimTimeoutButton: React.ReactNode;
 }
 
 export function GameTurnTimerPanel({
-  hasExceededTime,
-  canSeizeTurn,
+  timeoutEnabled,
   isMyTurn,
-  secondsLeft,
-  turnPercentRemaining,
   onResync,
   claimTimeoutButton,
 }: GameTurnTimerPanelProps) {
+  const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdownContext();
+  const expired = turnSecondsLeft <= 0;
+  const hasExceededTime = timeoutEnabled && isMyTurn && expired;
+  const canSeizeTurn = timeoutEnabled && !isMyTurn && expired;
   if (hasExceededTime) {
     return (
       <div className="flex flex-col gap-1.5">
@@ -141,7 +140,7 @@ export function GameTurnTimerPanel({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <GameTurnLabel isMyTurn={isMyTurn} secondsLeft={secondsLeft} />
+      <GameTurnLabel isMyTurn={isMyTurn} secondsLeft={turnSecondsLeft} />
       <div className="flex items-center gap-2">
         <div
           className="flex-1 h-1.5 overflow-hidden"

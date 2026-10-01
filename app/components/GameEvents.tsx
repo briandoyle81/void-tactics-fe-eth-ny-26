@@ -114,7 +114,7 @@ function formatLastMoveDescription(
   return debugSuffix ? `${withDestroyedText} ${debugSuffix}` : withDestroyedText;
 }
 
-export function GameEvents({
+export const GameEvents = React.memo(function GameEvents({
   lastMove,
   shipMap,
   address,
@@ -158,4 +158,4 @@ export function GameEvents({
       </div>
     </div>
   );
-}
+});

@@ -52,16 +52,45 @@ function layoutForShip(shipId: string | number) {
 }
 
 type ArtBox = { left: number; top: number; width: number; height: number };
+type OpaqueBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  nw: number;
+  nh: number;
+};
 
-const opaqueBoundsCache = new Map<
-  string,
-  { minX: number; minY: number; maxX: number; maxY: number; nw: number; nh: number }
->();
+const MAX_OPAQUE_BOUNDS = 64;
+const opaqueBoundsCache = new Map<string, OpaqueBounds>();
+
+function rememberOpaqueBounds(key: string, bounds: OpaqueBounds) {
+  if (opaqueBoundsCache.has(key)) opaqueBoundsCache.delete(key);
+  opaqueBoundsCache.set(key, bounds);
+  while (opaqueBoundsCache.size > MAX_OPAQUE_BOUNDS) {
+    const oldest = opaqueBoundsCache.keys().next().value;
+    if (oldest == null) break;
+    opaqueBoundsCache.delete(oldest);
+  }
+}
+
+function artBoxUnchanged(prev: ArtBox | null, next: ArtBox) {
+  if (!prev) return false;
+  return (
+    Math.abs(prev.left - next.left) < 0.5 &&
+    Math.abs(prev.top - next.top) < 0.5 &&
+    Math.abs(prev.width - next.width) < 0.5 &&
+    Math.abs(prev.height - next.height) < 0.5
+  );
+}
 
 function readOpaqueBounds(img: HTMLImageElement) {
   const key = img.currentSrc || img.src;
   const cached = opaqueBoundsCache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    rememberOpaqueBounds(key, cached);
+    return cached;
+  }
   if (!img.naturalWidth || !img.naturalHeight) return null;
 
   const canvas = document.createElement("canvas");
@@ -95,7 +124,7 @@ function readOpaqueBounds(img: HTMLImageElement) {
   }
   if (maxX < minX) return null;
   const bounds = { minX, minY, maxX, maxY, nw: width, nh: height };
-  if (key) opaqueBoundsCache.set(key, bounds);
+  if (key) rememberOpaqueBounds(key, bounds);
   return bounds;
 }
 
@@ -127,6 +156,10 @@ export function SosHullFires({ shipId }: { shipId: string | number }) {
     if (!host) return;
 
     let img: HTMLImageElement | null = null;
+    let raf = 0;
+    let lastHostW = -1;
+    let lastHostH = -1;
+    let artBoxReady = false;
 
     const sync = () => {
       const next = host.querySelector("img");
@@ -134,18 +167,34 @@ export function SosHullFires({ shipId }: { shipId: string | number }) {
         img?.removeEventListener("load", sync);
         img = next;
         img?.addEventListener("load", sync);
+        artBoxReady = false;
       }
       if (!img || !img.complete || !img.naturalWidth) return;
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (Math.abs(w - lastHostW) < 0.5 && Math.abs(h - lastHostH) < 0.5 && artBoxReady) {
+        return;
+      }
+      lastHostW = w;
+      lastHostH = h;
       const box = measureShipArtBox(host, img);
-      if (box && box.width > 1 && box.height > 1) setArtBox(box);
+      if (!box || box.width <= 1 || box.height <= 1) return;
+      artBoxReady = true;
+      setArtBox((prev) => (artBoxUnchanged(prev, box) ? prev : box));
+    };
+
+    const scheduleSync = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(sync);
     };
 
     sync();
-    const ro = new ResizeObserver(sync);
+    const ro = new ResizeObserver(scheduleSync);
     ro.observe(host);
-    const mo = new MutationObserver(sync);
+    const mo = new MutationObserver(scheduleSync);
     mo.observe(host, { childList: true, subtree: true });
     return () => {
+      cancelAnimationFrame(raf);
       img?.removeEventListener("load", sync);
       ro.disconnect();
       mo.disconnect();

@@ -12,6 +12,8 @@ import {
   getLegacyGasPriceOverridesForWrite,
 } from "../utils/legacyGasPriceForWrite";
 
+export type TransactionFollowUp = () => void | Promise<void>;
+
 interface TransactionButtonProps {
   // Transaction identification
   transactionId: string;
@@ -32,8 +34,9 @@ interface TransactionButtonProps {
   loadingText?: string;
   errorText?: string;
 
-  // Callbacks
-  onSuccess?: () => void;
+  // Callbacks. onSuccess may return a Promise; the button stays loading and
+  // disabled until that Promise settles (receipt plus any refetch/UI wait).
+  onSuccess?: TransactionFollowUp;
   onError?: (error: Error) => void;
   onTransactionSent?: (hash: `0x${string}`) => void; // Called when transaction is sent (hash available)
   onReceipt?: (receipt: { gasUsed: bigint }) => void; // Called when transaction receipt is received
@@ -114,48 +117,6 @@ export function TransactionButton({
     },
   });
 
-  // Fallback timeout for transaction completion
-  const [fallbackTimeout, setFallbackTimeout] =
-    React.useState<NodeJS.Timeout | null>(null);
-
-  React.useEffect(() => {
-    if (
-      isActiveTransaction &&
-      hash &&
-      !isConfirmed &&
-      !isConfirming &&
-      !error &&
-      !receiptError
-    ) {
-      // Set a fallback timeout if transaction seems stuck
-      const timeout = setTimeout(() => {
-        completeTransaction(transactionId, true);
-        onSuccess?.();
-      }, 30000); // 30 second fallback
-
-      setFallbackTimeout(timeout);
-
-      return () => {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-      };
-    } else if (fallbackTimeout) {
-      clearTimeout(fallbackTimeout);
-      setFallbackTimeout(null);
-    }
-  }, [
-    isActiveTransaction,
-    hash,
-    isConfirmed,
-    isConfirming,
-    error,
-    receiptError,
-    transactionId,
-    completeTransaction,
-    onSuccess,
-    fallbackTimeout,
-  ]);
   const isTransactionPending =
     (transactionState.isPending && isActiveTransaction) ||
     (isHydrated && isConfirming && isActiveTransaction) ||
@@ -270,7 +231,6 @@ export function TransactionButton({
       // Prevent duplicate handling for the same tx hash.
       if (completedHashRef.current === hash) return;
       completedHashRef.current = hash;
-      setIsLocallyPending(false); // Reset local pending state
 
       // `isConfirmed` (useWaitForTransactionReceipt's isSuccess) only means
       // a receipt was fetched — it stays true even when the transaction
@@ -282,6 +242,7 @@ export function TransactionButton({
       // confirm widget) were left showing a move that never happened until
       // something unrelated eventually reconciled the UI.
       if (receipt.status === "reverted") {
+        setIsLocallyPending(false);
         const revertError = new Error(
           "Transaction reverted on-chain",
         );
@@ -294,8 +255,20 @@ export function TransactionButton({
       if (onReceipt && receipt.gasUsed) {
         onReceipt({ gasUsed: receipt.gasUsed });
       }
-      completeTransaction(transactionId, true);
-      onSuccess?.();
+
+      // Stay loading/disabled until follow-up UI work (refetch, wait for
+      // the new lobby to appear, etc.) finishes. completeTransaction is
+      // what re-enables the rest of the crypto buttons.
+      void (async () => {
+        try {
+          await onSuccess?.();
+        } catch (followUpError) {
+          console.error("Transaction follow-up failed:", followUpError);
+        } finally {
+          setIsLocallyPending(false);
+          completeTransaction(transactionId, true);
+        }
+      })();
     } else if (isActiveTransaction && isHydrated && receiptError) {
       // Transaction failed during confirmation
       setIsLocallyPending(false); // Reset local pending state

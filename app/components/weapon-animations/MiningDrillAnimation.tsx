@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
-import { cellLayoutBox, scaleCellPx } from "./gridLayout";
-import { createOverlaySizeSync, setCircle, setLine } from "./overlayPaint";
+import { cellLayoutBox, gridLayoutSize, scaleCellPx } from "./gridLayout";
+import { createOverlaySizeSync, setCircle, setLine, startCancelledRaf } from "./overlayPaint";
 
 interface MiningDrillAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -82,8 +82,18 @@ export const MiningDrillAnimation = React.memo(function MiningDrillAnimation({
   const strandRefs = useRef<Array<SVGPathElement | null>>([]);
   const tipGlowRef = useRef<SVGCircleElement | null>(null);
   const tipCoreRef = useRef<SVGCircleElement | null>(null);
-  const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
+  const layoutCacheRef = useRef<{
+    w: number;
+    h: number;
+    ar: number;
+    ac: number;
+    tr: number;
+    tc: number;
+    face: boolean;
+    origin: { x: number; y: number };
+    box: { x: number; y: number; width: number; height: number };
+  } | null>(null);
 
   const attackerRowRef = useRef(attackerRow);
   const attackerColRef = useRef(attackerCol);
@@ -113,7 +123,10 @@ export const MiningDrillAnimation = React.memo(function MiningDrillAnimation({
 
   useEffect(() => {
     const grid = gridContainerRef.current;
-    const ro = grid ? new ResizeObserver(() => syncOverlaySize()) : null;
+    const ro = grid ? new ResizeObserver(() => {
+      layoutCacheRef.current = null;
+      syncOverlaySize();
+    }) : null;
     if (grid && ro) ro.observe(grid);
     syncOverlaySize();
     startedAtRef.current = performance.now();
@@ -121,23 +134,32 @@ export const MiningDrillAnimation = React.memo(function MiningDrillAnimation({
     const paint = (now: number) => {
       const container = gridContainerRef.current;
       const group = groupRef.current;
-      if (!container || !group) {
-        rafRef.current = requestAnimationFrame(paint);
-        return;
-      }
+      if (!container || !group) return;
 
-      syncOverlaySize();
-      const origin = drillOrigin(
-        container,
-        attackerRowRef.current,
-        attackerColRef.current,
-        facingRightRef.current,
-      );
-      const box = cellLayoutBox(
-        container,
-        targetRowRef.current,
-        targetColRef.current,
-      );
+      const ar = attackerRowRef.current;
+      const ac = attackerColRef.current;
+      const tr = targetRowRef.current;
+      const tc = targetColRef.current;
+      const face = facingRightRef.current;
+      let layout = layoutCacheRef.current;
+      if (!layout || layout.ar !== ar || layout.ac !== ac || layout.tr !== tr || layout.tc !== tc || layout.face !== face) {
+        const { width, height } = gridLayoutSize(container);
+        layout = {
+          w: width,
+          h: height,
+          ar,
+          ac,
+          tr,
+          tc,
+          face,
+          origin: drillOrigin(container, ar, ac, face),
+          box: cellLayoutBox(container, tr, tc),
+        };
+        layoutCacheRef.current = layout;
+        syncOverlaySize();
+      }
+      const origin = layout.origin;
+      const box = layout.box;
       const endX = box.x + box.width / 2;
       const endY = box.y + box.height / 2;
       const cell = Math.min(box.width, box.height);
@@ -157,14 +179,12 @@ export const MiningDrillAnimation = React.memo(function MiningDrillAnimation({
       });
       setCircle(tipGlowRef.current, endX, endY, radius * 1.15);
       setCircle(tipCoreRef.current, endX, endY, radius * 0.32);
-
-      rafRef.current = requestAnimationFrame(paint);
     };
 
-    rafRef.current = requestAnimationFrame(paint);
+    const stopRaf = startCancelledRaf(paint);
     return () => {
+      stopRaf();
       ro?.disconnect();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [gridContainerRef, syncOverlaySize]);
 

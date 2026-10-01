@@ -7,7 +7,7 @@ import { TournamentState } from "../types/types";
 interface Props {
   tournamentId: bigint;
   state: TournamentState;
-  onAction: () => void;
+  onAction: () => void | Promise<unknown>;
 }
 
 // Shared Registration -> Starting (-> reroll) controls, used by both the
@@ -33,7 +33,7 @@ export function TournamentStartControls({ tournamentId, state, onAction }: Props
     setError(null);
     try {
       await actions.startAndBuildBracket(tournamentId);
-      onAction();
+      await onAction();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Transaction failed");
     } finally {
@@ -49,7 +49,7 @@ export function TournamentStartControls({ tournamentId, state, onAction }: Props
       if (actions.publicClient) {
         await actions.publicClient.waitForTransactionReceipt({ hash });
       }
-      onAction();
+      await onAction();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction failed";
       if (message.includes("ShuffleWindowExpired")) {
@@ -72,7 +72,7 @@ export function TournamentStartControls({ tournamentId, state, onAction }: Props
         await actions.publicClient.waitForTransactionReceipt({ hash });
       }
       setNeedsReroll(false);
-      onAction();
+      await onAction();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reroll failed");
     } finally {
