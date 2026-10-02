@@ -46,6 +46,7 @@ export const GameGridDestHoverRange = React.memo(function GameGridDestHoverRange
   selectedWeaponType,
   specialType,
   shipMap,
+  movementTileSet,
 }: {
   gridLayoutRef: React.RefObject<HTMLDivElement | null>;
   getHoverPreview?: (cell: Position | null) => {
@@ -59,13 +60,17 @@ export const GameGridDestHoverRange = React.memo(function GameGridDestHoverRange
   selectedWeaponType: "weapon" | "special" | "ram";
   specialType: number;
   shipMap: Map<number, GridShip>;
+  /** Hover only counts on the selected ship's movement tiles (guards a stale hover). */
+  movementTileSet: Set<string>;
 }) {
   const dest = useGridDestHoveredTile();
   const enabled =
     selectedShipId != null &&
     !previewPosition &&
     retreatPrepShipId == null &&
-    !draggedShipId;
+    !draggedShipId &&
+    dest != null &&
+    movementTileSet.has(`${dest.row},${dest.col}`);
   const activeDest = enabled ? dest : null;
 
   // Keyed on presence only: moving between dest tiles must not touch the

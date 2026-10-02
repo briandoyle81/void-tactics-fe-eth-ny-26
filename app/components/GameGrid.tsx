@@ -670,6 +670,7 @@ const GameGridHoverSurface = React.memo(function GameGridHoverSurface({
         selectedWeaponType={selectedWeaponType}
         specialType={specialType}
         shipMap={shipMap}
+        movementTileSet={movementTileSet}
       />
       <GameGridMoveArrow
         selectedShipId={selectedShipId}
@@ -683,6 +684,7 @@ const GameGridHoverSurface = React.memo(function GameGridHoverSurface({
         lastMoveActionType={lastMoveActionType}
         allShipPositions={allShipPositions}
         isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
+        movementTileSet={movementTileSet}
       />
       <GameGridOverlays
         grid={grid}
@@ -860,6 +862,13 @@ const GameGridBoard = React.memo(function GameGridBoard({
     setHoveredCell(null);
     setHoveredMoveTile(null);
   }, [currentTurn, setHoveredCell, setHoveredMoveTile]);
+  // A clicked destination stops being a movement tile once the ship moves, so
+  // its mouseleave never fires to clear the hover. Without this, selecting the
+  // next ship (e.g. a second move in the same turn) reused the first ship's
+  // destination as a hovered tile and drew the move arrow to it.
+  React.useEffect(() => {
+    setHoveredMoveTile(null);
+  }, [selectedShipId, setHoveredMoveTile]);
   const selectedShipCreatorSide = React.useMemo(() => {
     if (selectedShipId == null) return null as boolean | null;
     for (let r = 0; r < grid.length; r++) {

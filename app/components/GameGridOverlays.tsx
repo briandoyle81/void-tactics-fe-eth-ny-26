@@ -213,6 +213,7 @@ export const GameGridMoveArrow = React.memo(function GameGridMoveArrow({
   lastMoveActionType,
   allShipPositions,
   isShipOwnedByCurrentPlayer,
+  movementTileSet,
 }: {
   selectedShipId: number | null;
   previewPosition: Position | null;
@@ -225,8 +226,14 @@ export const GameGridMoveArrow = React.memo(function GameGridMoveArrow({
   lastMoveActionType?: ActionType | null;
   allShipPositions?: readonly GridShipPosition[];
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+  /** Hover only counts on the selected ship's movement tiles (guards a stale hover). */
+  movementTileSet: Set<string>;
 }) {
-  const destHover = useGridDestHoveredTile();
+  const rawDestHover = useGridDestHoveredTile();
+  const destHover =
+    rawDestHover && movementTileSet.has(`${rawDestHover.row},${rawDestHover.col}`)
+      ? rawDestHover
+      : null;
   const hoveredCell = useGridHoveredCell();
   const destFromPointer =
     effectiveDragCell ??

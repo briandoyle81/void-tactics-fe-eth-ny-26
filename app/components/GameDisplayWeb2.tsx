@@ -22,6 +22,7 @@ import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnCha
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { inferVictoryReason } from "../utils/victoryReason";
 import {
   useGameViewChromeLayout,
   GAME_VIEW_SIDE_ROOT_CLASS,
@@ -733,6 +734,20 @@ function GameDisplayWeb2({
         ? "enemyScore"
         : "fleetDestroyed"
       : undefined;
+  const iAmCreatorForResult = game.metadata.creator === userId;
+  const victoryReason =
+    gameWinnerResult === "me"
+      ? inferVictoryReason({
+          myScore,
+          maxScore,
+          enemyShips: game.shipPositions
+            .filter((p) => p.isCreator !== iAmCreatorForResult)
+            .map((p) => ({
+              status: p.status,
+              hullPoints: getShipAttributes(p.shipId)?.hullPoints ?? null,
+            })),
+        })
+      : undefined;
   const nodeIdForGame = game.metadata.campaignNodeId;
   const gameResultModalNode = isGameOver && !isGameResultDismissed && (
     <GameResultModal
@@ -742,6 +757,7 @@ function GameDisplayWeb2({
       opponentScore={opponentScore}
       maxScore={maxScore}
       missionLossReason={missionLossReason}
+      victoryReason={victoryReason}
       nodeId={
         isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0
           ? BigInt(nodeIdForGame)

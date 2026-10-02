@@ -19,6 +19,15 @@ const LOSS_REASON_COPY: Record<MissionLossReason, string> = {
   enemyScore: "The enemy secured enough resources to claim the site under space law.",
 };
 
+/** Why the player won — see app/utils/victoryReason.ts for how it's inferred. */
+export type VictoryReason = "fleetDestroyed" | "enemyFled" | "siteControl";
+
+const VICTORY_REASON_COPY: Record<VictoryReason, string> = {
+  fleetDestroyed: "You destroyed the enemy fleet.",
+  enemyFled: "The enemy fleet fled.",
+  siteControl: "Central has declared we control the site.",
+};
+
 interface GameResultModalProps {
   isVictory: boolean;
   myScore: number;
@@ -31,6 +40,8 @@ interface GameResultModalProps {
   /** Single-player only — swaps VICTORY/DEFEAT for mission-appropriate copy and shows the node title. */
   nodeId?: bigint;
   missionLossReason?: MissionLossReason;
+  /** Shown on any win (PvP or mission). */
+  victoryReason?: VictoryReason;
   /** Web2-only: web3's Game.sol has no draw outcome (there's always a
    * single winner address), but web2's server-authoritative engine can end
    * a match tied — see WEB2_TIE_SENTINEL. When true, overrides `isVictory`'s
@@ -56,6 +67,7 @@ export function GameResultModal({
   onPrimaryAction,
   nodeId,
   missionLossReason,
+  victoryReason,
   isTie = false,
 }: GameResultModalProps) {
   const accentColor = isTie
@@ -119,6 +131,12 @@ export function GameResultModal({
           </div>
           <span className="text-text-muted">/ {maxScore}</span>
         </div>
+
+        {isVictory && !isTie && victoryReason && (
+          <p className="mt-4 text-center text-xs text-text-secondary">
+            {VICTORY_REASON_COPY[victoryReason]}
+          </p>
+        )}
 
         {isMission && !isVictory && missionLossReason && (
           <p className="mt-4 text-center text-xs text-text-secondary">

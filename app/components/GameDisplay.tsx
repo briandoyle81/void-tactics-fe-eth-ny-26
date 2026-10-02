@@ -45,6 +45,7 @@ import {
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
 import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { inferVictoryReason } from "../utils/victoryReason";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
@@ -2465,6 +2466,20 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         ? "enemyScore"
         : "fleetDestroyed"
       : undefined;
+  const iAmCreator = game.metadata.creator === address;
+  const victoryReason =
+    gameWinnerResult === "me"
+      ? inferVictoryReason({
+          myScore,
+          maxScore,
+          enemyShips: game.shipPositions
+            .filter((p) => p.isCreator !== iAmCreator)
+            .map((p) => ({
+              status: p.status,
+              hullPoints: getShipAttributes(p.shipId)?.hullPoints ?? null,
+            })),
+        })
+      : undefined;
   const mobileTurnLabel =
     game.metadata.winner !== "0x0000000000000000000000000000000000000000"
       ? game.metadata.winner === address
@@ -3097,6 +3112,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
             opponentScore={opponentScore}
             maxScore={maxScore}
             missionLossReason={missionLossReason}
+            victoryReason={victoryReason}
             nodeId={
               isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
                 ? nodeIdForGame
@@ -4018,6 +4034,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           opponentScore={opponentScore}
           maxScore={maxScore}
           missionLossReason={missionLossReason}
+          victoryReason={victoryReason}
           nodeId={
             isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n
               ? nodeIdForGame
