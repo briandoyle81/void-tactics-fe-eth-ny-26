@@ -9,7 +9,7 @@ import {
   PLASMA_IMPACT_SLOTS,
 } from "../../constants/animationTiming";
 import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
-import { createOverlaySizeSync, setCircle, setHidden } from "./overlayPaint";
+import { createOverlaySizeSync, setCircle, setHidden, startVisibilityAwareInterval } from "./overlayPaint";
 
 interface PlasmaShootingAnimationProps {
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -237,7 +237,10 @@ export const PlasmaShootingAnimation = React.memo(function PlasmaShootingAnimati
     };
 
     spawnParticle();
-    const interval = window.setInterval(spawnParticle, PLASMA_PARTICLE_INTERVAL_MS);
+    const stopSpawn = startVisibilityAwareInterval(
+      spawnParticle,
+      PLASMA_PARTICLE_INTERVAL_MS,
+    );
     syncOverlaySize();
     refreshSpawnLayout();
     const grid = gridContainerRef.current;
@@ -252,10 +255,8 @@ export const PlasmaShootingAnimation = React.memo(function PlasmaShootingAnimati
 
     const animate = () => {
       if (cancelled) return;
-      if (typeof document !== "undefined" && document.hidden) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-        return;
-      }
+      animationFrameRef.current = null;
+      if (typeof document !== "undefined" && document.hidden) return;
       const now = Date.now();
       let impactThisTick: { x: number; y: number } | null = null;
 
@@ -310,11 +311,22 @@ export const PlasmaShootingAnimation = React.memo(function PlasmaShootingAnimati
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
+    const resume = () => {
+      if (cancelled || animationFrameRef.current != null) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", resume);
+    }
     animationFrameRef.current = requestAnimationFrame(animate);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      stopSpawn();
       ro?.disconnect();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", resume);
+      }
       if (animationFrameRef.current != null) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;

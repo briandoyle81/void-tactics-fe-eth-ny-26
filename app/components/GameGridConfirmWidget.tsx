@@ -39,7 +39,7 @@ interface GameGridConfirmWidgetProps {
   onMoveVertical: (side: "above" | "below") => void;
 }
 
-export function GameGridConfirmWidget({
+export const GameGridConfirmWidget = React.memo(function GameGridConfirmWidget({
   confirmWidgetAnchor,
   confirmWidgetLabel,
   onConfirmMove,
@@ -338,4 +338,4 @@ export function GameGridConfirmWidget({
       </div>
     </div>
   );
-}
+});

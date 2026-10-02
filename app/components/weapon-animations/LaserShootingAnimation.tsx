@@ -12,18 +12,12 @@ import {
 import { cellLayoutBox, gridLayoutSize, scaleCellPx } from "./gridLayout";
 import {
   createOverlaySizeSync,
+  restartCssAnimation,
   setCircle,
   setLine,
   startCancelledRaf,
+  startVisibilityAwareInterval,
 } from "./overlayPaint";
-
-function restartCssAnimation(el: SVGElement | null, className: string) {
-  if (!el) return;
-  el.style.display = "";
-  el.classList.remove(className);
-  void el.getBoundingClientRect();
-  el.classList.add(className);
-}
 
 const BEAM_GREEN = "#6bff8f";
 const BEAM_CORE = "#eafff0";
@@ -269,10 +263,10 @@ const Faction1LaserAnimation = React.memo(function Faction1LaserAnimation({
     };
 
     createLine();
-    const interval = window.setInterval(createLine, LASER_FIRE_INTERVAL_MS);
+    const stopInterval = startVisibilityAwareInterval(createLine, LASER_FIRE_INTERVAL_MS);
     return () => {
       mountedRef.current = false;
-      window.clearInterval(interval);
+      stopInterval();
       ro?.disconnect();
       timersRef.current.forEach((id) => window.clearTimeout(id));
       timersRef.current.clear();

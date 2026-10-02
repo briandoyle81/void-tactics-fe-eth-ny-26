@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface Zoom {
   scale: number;
@@ -13,17 +13,39 @@ interface Zoom {
  * both apply pan/zoom to it and pass the same ref down to children that
  * need to measure grid cells (tooltips, weapon animations, etc).
  */
+const WHEEL_COMMIT_DELAY_MS = 120;
+
+function applyGridTransform(
+  el: HTMLDivElement | null,
+  zoom: Zoom,
+) {
+  if (!el) return;
+  el.style.transform = `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`;
+  el.style.transformOrigin = "0 0";
+}
+
 export function useGridPanZoom() {
   const outerWrapperRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const [zoom, setZoom] = useState<Zoom>({ scale: 1, tx: 0, ty: 0 });
   const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
 
   // Right-click pan state
   const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const panDidMoveRef = useRef(false);
+  const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // React state only feeds zoom-dependent UI (weapon selector scale). Commit
+  // it once the gesture settles instead of re-rendering the board per tick.
+  const commitZoomState = useCallback(() => {
+    const next = zoomRef.current;
+    setZoom((prev) =>
+      prev.tx === next.tx && prev.ty === next.ty && prev.scale === next.scale
+        ? prev
+        : next,
+    );
+  }, []);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -71,8 +93,15 @@ export function useGridPanZoom() {
     // Reset translate when returning to scale 1
     if (newScale === MIN_SCALE) { newTx = 0; newTy = 0; }
 
-    setZoom({ scale: newScale, tx: newTx, ty: newTy });
-  }, []);
+    const next = { scale: newScale, tx: newTx, ty: newTy };
+    zoomRef.current = next;
+    applyGridTransform(el, next);
+    if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
+    wheelCommitTimerRef.current = setTimeout(() => {
+      wheelCommitTimerRef.current = null;
+      commitZoomState();
+    }, WHEEL_COMMIT_DELAY_MS);
+  }, [commitZoomState]);
 
   useEffect(() => {
     const el = outerWrapperRef.current;
@@ -104,7 +133,9 @@ export function useGridPanZoom() {
         const tdy = e.clientY - panStartRef.current.y;
         const newTx = Math.min(0, Math.max(w * (1 - scale), panStartRef.current.tx + tdx));
         const newTy = Math.min(0, Math.max(h * (1 - scale), panStartRef.current.ty + tdy));
-        setZoom((prev) => ({ ...prev, tx: newTx, ty: newTy }));
+        const next = { scale, tx: newTx, ty: newTy };
+        zoomRef.current = next;
+        applyGridTransform(gridEl ?? el, next);
       });
     };
 
@@ -112,6 +143,7 @@ export function useGridPanZoom() {
       if (e.button !== 2) return;
       panStartRef.current = null;
       if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      commitZoomState();
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -130,8 +162,16 @@ export function useGridPanZoom() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       el.removeEventListener("contextmenu", onContextMenu, { capture: true });
+      if (wheelCommitTimerRef.current) {
+        clearTimeout(wheelCommitTimerRef.current);
+        wheelCommitTimerRef.current = null;
+      }
     };
-  }, [handleWheel]);
+  }, [handleWheel, commitZoomState]);
+
+  useLayoutEffect(() => {
+    applyGridTransform(gridContainerRef.current, zoomRef.current);
+  }, [zoom]);
 
   return { outerWrapperRef, gridContainerRef, zoom };
 }

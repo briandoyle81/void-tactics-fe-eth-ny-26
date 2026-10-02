@@ -21,6 +21,7 @@ import { EmpWaveAnimation } from "./weapon-animations/EmpWaveAnimation";
 import { LightningFieldAnimation } from "./weapon-animations/LightningFieldAnimation";
 import { WarpFieldCollapseAnimation } from "./weapon-animations/WarpFieldCollapseAnimation";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
+import { useGridDestHoveredTile, useGridHoveredCell } from "./GridHover";
 
 type Position = { row: number; col: number };
 type TargetRef = { shipId: number; position: Position };
@@ -97,6 +98,46 @@ function cellsInManhattanRange(
 
 const EMPTY_OVERLAY_CELLS: Position[] = [];
 
+function resolveDirectedAttackerPos(params: {
+  previewPosition: Position | null;
+  draggedShipId: number | null;
+  dragOverCell: Position | null;
+  lastMoveShipId?: number | null;
+  lastMoveNewPosition?: Position | null;
+  shipId: number;
+  findShipPositionById: (shipId: number | null | undefined) => Position | null;
+}): Position | null {
+  if (params.previewPosition) return params.previewPosition;
+  if (params.draggedShipId && params.dragOverCell) return params.dragOverCell;
+  if (params.lastMoveShipId && params.shipId === params.lastMoveShipId) {
+    return params.lastMoveNewPosition ?? params.findShipPositionById(params.shipId);
+  }
+  return null;
+}
+
+function resolveSelectedAttackerPos(params: {
+  previewPosition: Position | null;
+  draggedShipId: number | null;
+  dragOverCell: Position | null;
+  selectedShipId: number | null;
+  findShipPositionById: (shipId: number | null | undefined) => Position | null;
+}): Position | null {
+  if (params.previewPosition) return params.previewPosition;
+  if (params.draggedShipId && params.dragOverCell) return params.dragOverCell;
+  if (params.selectedShipId == null) return null;
+  return params.findShipPositionById(params.selectedShipId);
+}
+
+function resolveLastMoveAttackerPos(params: {
+  lastMoveNewPosition?: Position | null;
+  lastMoveShipId?: number | null;
+  findShipPositionById: (shipId: number | null | undefined) => Position | null;
+}): Position | null {
+  if (params.lastMoveNewPosition) return params.lastMoveNewPosition;
+  if (params.lastMoveShipId == null) return null;
+  return params.findShipPositionById(params.lastMoveShipId);
+}
+
 interface GameGridOverlaysProps {
   grid: (GridShipPosition | null)[][];
   allShipPositions?: readonly GridShipPosition[];
@@ -147,13 +188,226 @@ interface GameGridOverlaysProps {
   }[];
   tutorialDefaultLabel?: string;
   movementTileSet: Set<string>;
-  isHoveringDestinationAsValidTarget: boolean;
   selectedShipCreatorSide: boolean | null;
   directedWeaponBeamTargetId: number | null;
   flakEffectCells: Position[];
   findShipPositionById: (shipId: number | null | undefined) => Position | null;
   useCompactMobileDamageLabels: boolean;
 }
+
+export const GameGridMoveArrow = React.memo(function GameGridMoveArrow({
+  selectedShipId,
+  previewPosition,
+  effectiveDragCell,
+  isHoveringDestinationAsValidTarget,
+  retreatPrepShipId,
+  lastMoveOldPosition,
+  lastMoveNewPosition,
+  lastMoveShipId,
+  lastMoveActionType,
+  allShipPositions,
+  isShipOwnedByCurrentPlayer,
+}: {
+  selectedShipId: number | null;
+  previewPosition: Position | null;
+  effectiveDragCell: Position | null;
+  isHoveringDestinationAsValidTarget: boolean;
+  retreatPrepShipId?: number | null;
+  lastMoveOldPosition?: Position | null;
+  lastMoveNewPosition?: Position | null;
+  lastMoveShipId?: number | null;
+  lastMoveActionType?: ActionType | null;
+  allShipPositions?: readonly GridShipPosition[];
+  isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
+}) {
+  const destHover = useGridDestHoveredTile();
+  const hoveredCell = useGridHoveredCell();
+  const destFromPointer =
+    effectiveDragCell ??
+    (selectedShipId !== null &&
+    !previewPosition &&
+    retreatPrepShipId == null
+      ? destHover
+      : null);
+  const proposedDestination = destFromPointer ?? previewPosition;
+  const hoveringDestAsTarget =
+    hoveredCell != null &&
+    !hoveredCell.fromFleet &&
+    proposedDestination != null &&
+    hoveredCell.row === proposedDestination.row &&
+    hoveredCell.col === proposedDestination.col;
+  const useProposedMoveArrow =
+    selectedShipId !== null &&
+    proposedDestination !== null &&
+    !hoveringDestAsTarget &&
+    retreatPrepShipId == null;
+
+  const lastMoveHasPath =
+    lastMoveOldPosition != null &&
+    lastMoveNewPosition != null &&
+    lastMoveNewPosition.row >= 0 &&
+    lastMoveNewPosition.col >= 0 &&
+    (lastMoveOldPosition.row !== lastMoveNewPosition.row ||
+      lastMoveOldPosition.col !== lastMoveNewPosition.col);
+
+  const useLastMoveArrow =
+    !useProposedMoveArrow &&
+    lastMoveShipId != null &&
+    lastMoveHasPath &&
+    lastMoveActionType !== ActionType.Retreat;
+
+  if (!useProposedMoveArrow && !useLastMoveArrow) return null;
+
+  const destination = useProposedMoveArrow
+    ? proposedDestination!
+    : lastMoveNewPosition!;
+
+  const movingShipId = useProposedMoveArrow
+    ? selectedShipId!
+    : lastMoveShipId!;
+
+  const fromPos = useLastMoveArrow
+    ? lastMoveOldPosition
+    : (allShipPositions?.find((sp) => sp.shipId === movingShipId)?.position ?? null);
+
+  if (!fromPos) return null;
+  if (fromPos.row === destination.row && fromPos.col === destination.col) {
+    return null;
+  }
+
+  const arrowColor =
+    useProposedMoveArrow &&
+    selectedShipId != null &&
+    !isShipOwnedByCurrentPlayer(selectedShipId)
+      ? "#6b7280"
+      : "#facc15";
+
+  const GRID_COLS = 17;
+  const GRID_ROWS = 11;
+  const arrowHeadLength = 0.361;
+  const arrowStrokeWidth = 0.12;
+  const startOutsideOffset = arrowStrokeWidth / 2 + 0.02;
+
+  const cellBounds = (r: number, c: number) => ({
+    left: c, right: c + 1, top: r, bottom: r + 1,
+    cx: c + 0.5, cy: r + 0.5, w: 1, h: 1,
+  });
+
+  const deltaRow = destination.row - fromPos.row;
+  const deltaCol = destination.col - fromPos.col;
+  const isOneStepMove = Math.abs(deltaRow) + Math.abs(deltaCol) === 1;
+
+  if (isOneStepMove) {
+    const leftCol = Math.min(fromPos.col, destination.col);
+    const upperRow = Math.min(fromPos.row, destination.row);
+    const sharedEdge = deltaCol !== 0
+      ? { x: leftCol + 1, y: fromPos.row + 0.5 }
+      : { x: fromPos.col + 0.5, y: upperRow + 1 };
+
+    const hs = arrowHeadLength / 2;
+    const raw = [{ x: 0, y: -hs }, { x: 0, y: hs }, { x: arrowHeadLength, y: 0 }];
+    const cx = arrowHeadLength / 3;
+    const locals = raw.map((v) => ({ x: v.x - cx, y: v.y }));
+
+    const mapLocalToWorld = (lx: number, ly: number) => {
+      const mx = sharedEdge.x, my = sharedEdge.y;
+      if (deltaCol === 1)  return { x: mx + lx, y: my + ly };
+      if (deltaCol === -1) return { x: mx - lx, y: my - ly };
+      if (deltaRow === 1)  return { x: mx + ly, y: my + lx };
+      return { x: mx - ly, y: my - lx };
+    };
+    const [p0, p1, p2] = locals.map((p) => mapLocalToWorld(p.x, p.y));
+    const pathD = `M ${p0.x} ${p0.y} L ${p1.x} ${p1.y} L ${p2.x} ${p2.y} Z`;
+
+    return (
+      <svg
+        className="absolute left-0 top-0 z-50 w-full h-full overflow-visible pointer-events-none"
+        viewBox={`0 0 ${GRID_COLS} ${GRID_ROWS}`}
+        preserveAspectRatio="none"
+      >
+        <path d={pathD} fill={arrowColor} />
+      </svg>
+    );
+  }
+
+  let start: { x: number; y: number };
+  let turnPoint: { x: number; y: number } | null = null;
+  let tip: { x: number; y: number };
+  let lineEnd: { x: number; y: number };
+
+  if (fromPos.row !== destination.row && fromPos.col !== destination.col) {
+    const firstDirCol = Math.sign(destination.col - fromPos.col);
+    const secondDirRow = Math.sign(destination.row - fromPos.row);
+    const fromR = cellBounds(fromPos.row, fromPos.col);
+    const destR = cellBounds(destination.row, destination.col);
+    start = {
+      x: firstDirCol > 0 ? fromR.right + startOutsideOffset : fromR.left - startOutsideOffset,
+      y: fromR.cy,
+    };
+    turnPoint = { x: destR.cx, y: start.y };
+    tip = { x: destR.cx, y: destR.cy - (secondDirRow * destR.h) / 2 };
+    const vertAvail = Math.abs(tip.y - turnPoint.y);
+    const headY = Math.min(arrowHeadLength, vertAvail - 0.05);
+    lineEnd = { x: tip.x, y: tip.y - secondDirRow * headY };
+  } else if (fromPos.row === destination.row) {
+    const dirCol = Math.sign(destination.col - fromPos.col);
+    const fromR = cellBounds(fromPos.row, fromPos.col);
+    const destR = cellBounds(destination.row, destination.col);
+    start = {
+      x: dirCol > 0 ? fromR.right + startOutsideOffset : fromR.left - startOutsideOffset,
+      y: fromR.cy,
+    };
+    tip = { x: dirCol > 0 ? destR.left : destR.right, y: destR.cy };
+    lineEnd = { x: tip.x - dirCol * arrowHeadLength, y: tip.y };
+  } else {
+    const dirRow = Math.sign(destination.row - fromPos.row);
+    const fromR = cellBounds(fromPos.row, fromPos.col);
+    const destR = cellBounds(destination.row, destination.col);
+    start = {
+      x: fromR.cx,
+      y: dirRow > 0 ? fromR.bottom + startOutsideOffset : fromR.top - startOutsideOffset,
+    };
+    tip = { x: destR.cx, y: destR.cy - (dirRow * destR.h) / 2 };
+    lineEnd = { x: tip.x, y: tip.y - dirRow * arrowHeadLength };
+  }
+
+  const pathD =
+    turnPoint
+      ? `M ${start.x} ${start.y} L ${turnPoint.x} ${turnPoint.y} L ${lineEnd.x} ${lineEnd.y}`
+      : `M ${start.x} ${start.y} L ${lineEnd.x} ${lineEnd.y}`;
+
+  return (
+    <svg
+      className="absolute left-0 top-0 z-50 w-full h-full overflow-visible pointer-events-none"
+      viewBox={`0 0 ${GRID_COLS} ${GRID_ROWS}`}
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <marker
+          id="wf-move-arrow-head"
+          viewBox="0 0 10 10"
+          refX="0"
+          refY="5"
+          markerWidth={arrowHeadLength}
+          markerHeight={arrowHeadLength}
+          markerUnits="userSpaceOnUse"
+          orient="auto"
+        >
+          <path d="M 0 0 L 0 10 L 10 5 z" fill={arrowColor} />
+        </marker>
+      </defs>
+      <path
+        d={pathD}
+        stroke={arrowColor}
+        strokeWidth={arrowStrokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        markerEnd="url(#wf-move-arrow-head)"
+      />
+    </svg>
+  );
+});
 
 /**
  * Weapon-effect overlay layer: warp-field collapse (retreat), move-path
@@ -197,7 +451,6 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
   tutorialHighlightCells,
   tutorialDefaultLabel = "Click here",
   movementTileSet,
-  isHoveringDestinationAsValidTarget,
   selectedShipCreatorSide,
   directedWeaponBeamTargetId,
   flakEffectCells,
@@ -210,6 +463,16 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
     !selectedShipId || showLastMoveEmpReplayWhenSelected;
   // Preview weapon fire is a hologram at To. Last-move fire is live color at To.
   const hologramFire = !!(previewPosition && selectedShipId);
+  const stagingDirectedFire =
+    selectedShipId != null &&
+    (previewPosition != null || draggedShipId != null) &&
+    selectedWeaponType === "weapon";
+  const idleLastMoveDirectedFire =
+    selectedShipId == null &&
+    (lastMoveActionType as ActionType) === ActionType.Shoot;
+  const showDirectedWeaponFire =
+    !!directedWeaponBeamTargetId &&
+    (stagingDirectedFire || idleLastMoveDirectedFire);
   const lastMoveFlakTargetCells = React.useMemo(() => {
     if (!showLastMoveEmpReplay) return EMPTY_OVERLAY_CELLS;
     if (lastMoveActionNum !== ActionType.Special) return EMPTY_OVERLAY_CELLS;
@@ -241,193 +504,10 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 />
               )}
 
-            {/* Move path arrow: proposed move or last completed move with a spatial path, same geometry. */}
-            {(() => {
-                const proposedDestination = effectiveDragCell ?? previewPosition;
-                const useProposedMoveArrow =
-                  selectedShipId !== null && proposedDestination !== null && !isHoveringDestinationAsValidTarget && retreatPrepShipId == null;
-
-                const lastMoveHasPath =
-                  lastMoveOldPosition != null &&
-                  lastMoveNewPosition != null &&
-                  lastMoveNewPosition.row >= 0 &&
-                  lastMoveNewPosition.col >= 0 &&
-                  (lastMoveOldPosition.row !== lastMoveNewPosition.row ||
-                    lastMoveOldPosition.col !== lastMoveNewPosition.col);
-
-                const useLastMoveArrow =
-                  !useProposedMoveArrow &&
-                  lastMoveShipId != null &&
-                  lastMoveHasPath &&
-                  lastMoveActionType !== ActionType.Retreat;
-
-                if (!useProposedMoveArrow && !useLastMoveArrow) return null;
-
-                const destination = useProposedMoveArrow
-                  ? proposedDestination!
-                  : lastMoveNewPosition!;
-
-                const movingShipId = useProposedMoveArrow
-                  ? selectedShipId!
-                  : lastMoveShipId!;
-
-                const fromPos = useLastMoveArrow
-                  ? lastMoveOldPosition
-                  : (allShipPositions?.find((sp) => sp.shipId === movingShipId)?.position ?? null);
-
-                if (!fromPos) return null;
-                if (
-                  fromPos.row === destination.row &&
-                  fromPos.col === destination.col
-                ) {
-                  return null;
-                }
-
-                const arrowColor =
-                  useProposedMoveArrow &&
-                  selectedShipId != null &&
-                  !isShipOwnedByCurrentPlayer(selectedShipId)
-                    ? "#6b7280"
-                    : "#facc15";
-
-                // All coordinates in cell units (col, row) — no DOM measurements.
-                // viewBox="0 0 17 11" maps 1 unit = 1 cell, immune to zoom transforms.
-                const GRID_COLS = 17;
-                const GRID_ROWS = 11;
-                const arrowHeadLength = 0.361;  // cell units ≈ half a cell
-                const arrowStrokeWidth = 0.12; // cell units ≈ 6px at 50px/cell
-                const startOutsideOffset = arrowStrokeWidth / 2 + 0.02;
-
-                // Cell bounds in cell units: integer edges, half-integer centers.
-                const cellBounds = (r: number, c: number) => ({
-                  left: c, right: c + 1, top: r, bottom: r + 1,
-                  cx: c + 0.5, cy: r + 0.5, w: 1, h: 1,
-                });
-
-                const deltaRow = destination.row - fromPos.row;
-                const deltaCol = destination.col - fromPos.col;
-                const isOneStepMove =
-                  Math.abs(deltaRow) + Math.abs(deltaCol) === 1;
-
-                if (isOneStepMove) {
-                  const leftCol = Math.min(fromPos.col, destination.col);
-                  const upperRow = Math.min(fromPos.row, destination.row);
-                  const sharedEdge = deltaCol !== 0
-                    ? { x: leftCol + 1, y: fromPos.row + 0.5 }
-                    : { x: fromPos.col + 0.5, y: upperRow + 1 };
-
-                  // Right-pointing triangle (tip +x), centroid at origin, size = arrowHeadLength.
-                  const hs = arrowHeadLength / 2;
-                  const raw = [{ x: 0, y: -hs }, { x: 0, y: hs }, { x: arrowHeadLength, y: 0 }];
-                  const cx = arrowHeadLength / 3;
-                  const locals = raw.map(v => ({ x: v.x - cx, y: v.y }));
-
-                  const mapLocalToWorld = (lx: number, ly: number) => {
-                    const mx = sharedEdge.x, my = sharedEdge.y;
-                    if (deltaCol === 1)  return { x: mx + lx, y: my + ly };
-                    if (deltaCol === -1) return { x: mx - lx, y: my - ly };
-                    if (deltaRow === 1)  return { x: mx + ly, y: my + lx };
-                    return { x: mx - ly, y: my - lx };
-                  };
-                  const [p0, p1, p2] = locals.map(p => mapLocalToWorld(p.x, p.y));
-                  const pathD = `M ${p0.x} ${p0.y} L ${p1.x} ${p1.y} L ${p2.x} ${p2.y} Z`;
-
-                  return (
-                    <svg
-                      className="absolute left-0 top-0 w-full h-full overflow-visible pointer-events-none"
-                      viewBox={`0 0 ${GRID_COLS} ${GRID_ROWS}`}
-                      preserveAspectRatio="none"
-                    >
-                      <path d={pathD} fill={arrowColor} />
-                    </svg>
-                  );
-                }
-
-                let start: { x: number; y: number };
-                let turnPoint: { x: number; y: number } | null = null;
-                let tip: { x: number; y: number };
-                let lineEnd: { x: number; y: number };
-
-                if (fromPos.row !== destination.row && fromPos.col !== destination.col) {
-                  const firstDirCol = Math.sign(destination.col - fromPos.col);
-                  const secondDirRow = Math.sign(destination.row - fromPos.row);
-                  const fromR = cellBounds(fromPos.row, fromPos.col);
-                  const destR = cellBounds(destination.row, destination.col);
-                  start = {
-                    x: firstDirCol > 0 ? fromR.right + startOutsideOffset : fromR.left - startOutsideOffset,
-                    y: fromR.cy,
-                  };
-                  turnPoint = { x: destR.cx, y: start.y };
-                  tip = { x: destR.cx, y: destR.cy - (secondDirRow * destR.h) / 2 };
-                  // When deltaRow=1 the vertical space equals arrowHeadLength exactly, collapsing
-                  // the shaft to zero and breaking marker orientation. Clamp to leave a small shaft.
-                  const vertAvail = Math.abs(tip.y - turnPoint.y);
-                  const headY = Math.min(arrowHeadLength, vertAvail - 0.05);
-                  lineEnd = { x: tip.x, y: tip.y - secondDirRow * headY };
-                } else if (fromPos.row === destination.row) {
-                  const dirCol = Math.sign(destination.col - fromPos.col);
-                  const fromR = cellBounds(fromPos.row, fromPos.col);
-                  const destR = cellBounds(destination.row, destination.col);
-                  start = {
-                    x: dirCol > 0 ? fromR.right + startOutsideOffset : fromR.left - startOutsideOffset,
-                    y: fromR.cy,
-                  };
-                  tip = { x: dirCol > 0 ? destR.left : destR.right, y: destR.cy };
-                  lineEnd = { x: tip.x - dirCol * arrowHeadLength, y: tip.y };
-                } else {
-                  const dirRow = Math.sign(destination.row - fromPos.row);
-                  const fromR = cellBounds(fromPos.row, fromPos.col);
-                  const destR = cellBounds(destination.row, destination.col);
-                  start = {
-                    x: fromR.cx,
-                    y: dirRow > 0 ? fromR.bottom + startOutsideOffset : fromR.top - startOutsideOffset,
-                  };
-                  tip = { x: destR.cx, y: destR.cy - (dirRow * destR.h) / 2 };
-                  lineEnd = { x: tip.x, y: tip.y - dirRow * arrowHeadLength };
-                }
-
-                const pathD =
-                  turnPoint
-                    ? `M ${start.x} ${start.y} L ${turnPoint.x} ${turnPoint.y} L ${lineEnd.x} ${lineEnd.y}`
-                    : `M ${start.x} ${start.y} L ${lineEnd.x} ${lineEnd.y}`;
-
-                return (
-                  <svg
-                    className="absolute left-0 top-0 w-full h-full overflow-visible pointer-events-none"
-                    viewBox={`0 0 ${GRID_COLS} ${GRID_ROWS}`}
-                    preserveAspectRatio="none"
-                  >
-                    <defs>
-                      <marker
-                        id="wf-move-arrow-head"
-                        viewBox="0 0 10 10"
-                        refX="0"
-                        refY="5"
-                        markerWidth={arrowHeadLength}
-                        markerHeight={arrowHeadLength}
-                        markerUnits="userSpaceOnUse"
-                        orient="auto"
-                      >
-                        <path d="M 0 0 L 0 10 L 10 5 z" fill={arrowColor} />
-                      </marker>
-                    </defs>
-                    <path
-                      d={pathD}
-                      stroke={arrowColor}
-                      strokeWidth={arrowStrokeWidth}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                      markerEnd="url(#wf-move-arrow-head)"
-                    />
-                  </svg>
-                );
-              })()}
 
             {/* Laser Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
-              directedWeaponBeamTargetId &&
-              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
+              showDirectedWeaponFire &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -449,44 +529,17 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   return null;
                 }
 
-                // Find positions of attacking and target ships.
-                // - When a move is being previewed or dragged, use that "to" position.
-                // - When replaying the last move, weapon effects should always
-                //   originate from the "to" position of the last move, not the
-                //   old position, so prefer lastMoveNewPosition when available.
-                let attackerRow = -1;
-                let attackerCol = -1;
-
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else if (lastMoveShipId && shipId === lastMoveShipId) {
-                  // For last move display, use the explicit "to" position
-                  // when provided; this ensures the beam originates from
-                  // the correct tile even if the grid or selection state
-                  // has changed since the move.
-                  if (lastMoveNewPosition) {
-                    attackerRow = lastMoveNewPosition.row;
-                    attackerCol = lastMoveNewPosition.col;
-                  } else {
-                    // Fallback: derive from current grid position
-                    grid.forEach((row, r) => {
-                      row.forEach((cell, c) => {
-                        if (cell?.shipId === shipId) {
-                          attackerRow = r;
-                          attackerCol = c;
-                        }
-                      });
-                    });
-                  }
-                  if (attackerRow === -1 || attackerCol === -1) return null;
-                } else {
-                  // No preview or drag position - don't show animation
-                  return null;
-                }
+                const attackerPos = resolveDirectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  lastMoveShipId,
+                  lastMoveNewPosition,
+                  shipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 if (!directedWeaponBeamTargetId) return null;
                 const targetPosition = findShipPositionById(
@@ -516,8 +569,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
 
             {/* Missile Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
-              directedWeaponBeamTargetId &&
-              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
+              showDirectedWeaponFire &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -539,38 +591,17 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   return null;
                 }
 
-                // Find positions of attacking and target ships.
-                // See Laser block above for details - same origin rules.
-                let attackerRow = -1;
-                let attackerCol = -1;
-
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else if (lastMoveShipId && shipId === lastMoveShipId) {
-                  if (lastMoveNewPosition) {
-                    attackerRow = lastMoveNewPosition.row;
-                    attackerCol = lastMoveNewPosition.col;
-                  } else {
-                    grid.forEach((row, r) => {
-                      row.forEach((cell, c) => {
-                        if (cell?.shipId === shipId) {
-                          attackerRow = r;
-                          attackerCol = c;
-                        }
-                      });
-                    });
-                  }
-                  if (attackerRow === -1 || attackerCol === -1) {
-                    return null;
-                  }
-                } else {
-                  // No preview or drag position - don't show animation
-                  return null;
-                }
+                const attackerPos = resolveDirectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  lastMoveShipId,
+                  lastMoveNewPosition,
+                  shipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 if (!directedWeaponBeamTargetId) return null;
                 const targetPosition = findShipPositionById(
@@ -601,8 +632,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
 
             {/* Plasma Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
-              directedWeaponBeamTargetId &&
-              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
+              showDirectedWeaponFire &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -623,36 +653,17 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 }
                 const isMiningDrill = Number(ship.traits.variant) === 2;
 
-                // Find positions of attacking and target ships.
-                // See Laser block above for details - same origin rules.
-                let attackerRow = -1;
-                let attackerCol = -1;
-
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else if (lastMoveShipId && shipId === lastMoveShipId) {
-                  if (lastMoveNewPosition) {
-                    attackerRow = lastMoveNewPosition.row;
-                    attackerCol = lastMoveNewPosition.col;
-                  } else {
-                    grid.forEach((row, r) => {
-                      row.forEach((cell, c) => {
-                        if (cell?.shipId === shipId) {
-                          attackerRow = r;
-                          attackerCol = c;
-                        }
-                      });
-                    });
-                  }
-                  if (attackerRow === -1 || attackerCol === -1) return null;
-                } else {
-                  // No preview or drag position - don't show animation
-                  return null;
-                }
+                const attackerPos = resolveDirectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  lastMoveShipId,
+                  lastMoveNewPosition,
+                  shipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 if (!directedWeaponBeamTargetId) return null;
                 const targetPosition = findShipPositionById(
@@ -691,8 +702,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
 
             {/* Railgun Shooting Animation */}
             {(selectedShipId || lastMoveShipId) &&
-              directedWeaponBeamTargetId &&
-              (selectedWeaponType === "weapon" || (!selectedShipId && (lastMoveActionType as ActionType) === ActionType.Shoot)) &&
+              showDirectedWeaponFire &&
               (() => {
                 // Use selectedShipId if available, otherwise use lastMoveShipId for last move display
                 const shipId = selectedShipId || lastMoveShipId;
@@ -712,36 +722,17 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   return null;
                 }
 
-                // Find positions of attacking and target ships.
-                // See Laser block above for details - same origin rules.
-                let attackerRow = -1;
-                let attackerCol = -1;
-
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else if (lastMoveShipId && shipId === lastMoveShipId) {
-                  if (lastMoveNewPosition) {
-                    attackerRow = lastMoveNewPosition.row;
-                    attackerCol = lastMoveNewPosition.col;
-                  } else {
-                    grid.forEach((row, r) => {
-                      row.forEach((cell, c) => {
-                        if (cell?.shipId === shipId) {
-                          attackerRow = r;
-                          attackerCol = c;
-                        }
-                      });
-                    });
-                  }
-                  if (attackerRow === -1 || attackerCol === -1) return null;
-                } else {
-                  // No preview or drag position - don't show animation
-                  return null;
-                }
+                const attackerPos = resolveDirectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  lastMoveShipId,
+                  lastMoveNewPosition,
+                  shipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 if (!directedWeaponBeamTargetId) return null;
                 const targetPosition = findShipPositionById(
@@ -848,25 +839,15 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
               targetShipId !== 0 &&
               !showLastMoveEmpReplayWhenSelected &&
               (() => {
-                // Determine attacker position: preview > drag > current
-                let attackerRow = -1;
-                let attackerCol = -1;
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else {
-                  grid.forEach((row, r) => {
-                    row.forEach((cell, c) => {
-                      if (cell?.shipId === selectedShipId && !cell.isPreview) {
-                        attackerRow = r;
-                        attackerCol = c;
-                      }
-                    });
-                  });
-                }
+                const attackerPos = resolveSelectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  selectedShipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 const targetPosition = findShipPositionById(targetShipId);
 
@@ -899,58 +880,14 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
               Number(shipMap.get(lastMoveShipId)?.equipment.special) === 1 &&
               !isLightningFieldShip(shipMap.get(lastMoveShipId)) &&
               (() => {
-                // Use the explicit "to" position for the last move when available.
-                // Fallback to current grid position if needed.
-                let attackerRow = -1;
-                let attackerCol = -1;
-                if (lastMoveNewPosition) {
-                  attackerRow = lastMoveNewPosition.row;
-                  attackerCol = lastMoveNewPosition.col;
-                } else {
-                  grid.forEach((row, r) => {
-                    row.forEach((cell, c) => {
-                      if (cell?.shipId === lastMoveShipId && !cell.isPreview) {
-                        attackerRow = r;
-                        attackerCol = c;
-                      }
-                    });
-                  });
-                }
-
-                if (
-                  (attackerRow === -1 || attackerCol === -1) &&
-                  lastMoveShipId != null &&
-                  allShipPositions?.length
-                ) {
-                  const sp = allShipPositions.find(
-                    (p) => p.shipId === lastMoveShipId,
-                  );
-                  if (sp) {
-                    attackerRow = sp.position.row;
-                    attackerCol = sp.position.col;
-                  }
-                }
-
-                let targetPosition = findShipPositionById(lastMoveTargetShipId);
-                if (!targetPosition && lastMoveTargetShipId != null && allShipPositions?.length) {
-                  const sp = allShipPositions.find(
-                    (p) => p.shipId === lastMoveTargetShipId,
-                  );
-                  if (sp) {
-                    targetPosition = {
-                      row: sp.position.row,
-                      col: sp.position.col,
-                    };
-                  }
-                }
-
-                if (
-                  attackerRow === -1 ||
-                  attackerCol === -1 ||
-                  !targetPosition
-                ) {
-                  return null;
-                }
+                const attackerPos = resolveLastMoveAttackerPos({
+                  lastMoveNewPosition,
+                  lastMoveShipId,
+                  findShipPositionById,
+                });
+                const targetPosition = findShipPositionById(lastMoveTargetShipId);
+                if (!attackerPos || !targetPosition) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 return (
                   <EmpWaveAnimation
@@ -978,25 +915,15 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 )) ||
                 (selectedWeaponType === "ram" && factionAbilityIsHeal)) &&
               (() => {
-                // Determine attacker position: preview > drag > current
-                let attackerRow = -1;
-                let attackerCol = -1;
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else {
-                  grid.forEach((row, r) => {
-                    row.forEach((cell, c) => {
-                      if (cell?.shipId === selectedShipId && !cell.isPreview) {
-                        attackerRow = r;
-                        attackerCol = c;
-                      }
-                    });
-                  });
-                }
+                const attackerPos = resolveSelectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  selectedShipId,
+                  findShipPositionById,
+                });
+                if (!attackerPos) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 const targetPosition = findShipPositionById(targetShipId);
 
@@ -1030,33 +957,16 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 specialType,
               ) &&
               (() => {
-                let attackerRow = -1;
-                let attackerCol = -1;
-                if (previewPosition) {
-                  attackerRow = previewPosition.row;
-                  attackerCol = previewPosition.col;
-                } else if (draggedShipId && dragOverCell) {
-                  attackerRow = dragOverCell.row;
-                  attackerCol = dragOverCell.col;
-                } else {
-                  grid.forEach((row, r) => {
-                    row.forEach((cell, c) => {
-                      if (cell?.shipId === selectedShipId && !cell.isPreview) {
-                        attackerRow = r;
-                        attackerCol = c;
-                      }
-                    });
-                  });
-                }
-
+                const attackerPos = resolveSelectedAttackerPos({
+                  previewPosition,
+                  draggedShipId,
+                  dragOverCell,
+                  selectedShipId,
+                  findShipPositionById,
+                });
                 const targetPosition = findShipPositionById(targetShipId);
-                if (
-                  attackerRow === -1 ||
-                  attackerCol === -1 ||
-                  !targetPosition
-                ) {
-                  return null;
-                }
+                if (!attackerPos || !targetPosition) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
 
                 return hologramWeaponFire(
                   hologramFire,
@@ -1083,26 +993,14 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 ((lastMoveActionType as ActionType) === ActionType.FactionAbility &&
                   Number(shipMap.get(lastMoveShipId)?.traits.variant) === 2)) &&
               (() => {
-                let attackerRow = -1;
-                let attackerCol = -1;
-                let targetPosition: { row: number; col: number } | null = null;
-                grid.forEach((row, r) => {
-                  row.forEach((cell, c) => {
-                    if (cell?.shipId === lastMoveShipId) {
-                      attackerRow = r;
-                      attackerCol = c;
-                    }
-                  });
+                const attackerPos = resolveLastMoveAttackerPos({
+                  lastMoveNewPosition,
+                  lastMoveShipId,
+                  findShipPositionById,
                 });
-                if (!targetPosition) {
-                  targetPosition = findShipPositionById(lastMoveTargetShipId);
-                }
-                if (
-                  attackerRow === -1 ||
-                  attackerCol === -1 ||
-                  !targetPosition
-                )
-                  return null;
+                const targetPosition = findShipPositionById(lastMoveTargetShipId);
+                if (!attackerPos || !targetPosition) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
                 return (
                   <RepairDroneAnimation
                     gridContainerRef={gridContainerRef}
@@ -1123,29 +1021,14 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                 shipMap.get(lastMoveShipId)?.equipment.special ?? 0,
               ) &&
               (() => {
-                let attackerRow = -1;
-                let attackerCol = -1;
-                if (lastMoveNewPosition) {
-                  attackerRow = lastMoveNewPosition.row;
-                  attackerCol = lastMoveNewPosition.col;
-                } else {
-                  grid.forEach((row, r) => {
-                    row.forEach((cell, c) => {
-                      if (cell?.shipId === lastMoveShipId) {
-                        attackerRow = r;
-                        attackerCol = c;
-                      }
-                    });
-                  });
-                }
+                const attackerPos = resolveLastMoveAttackerPos({
+                  lastMoveNewPosition,
+                  lastMoveShipId,
+                  findShipPositionById,
+                });
                 const targetPosition = findShipPositionById(lastMoveTargetShipId);
-                if (
-                  attackerRow === -1 ||
-                  attackerCol === -1 ||
-                  !targetPosition
-                ) {
-                  return null;
-                }
+                if (!attackerPos || !targetPosition) return null;
+                const { row: attackerRow, col: attackerCol } = attackerPos;
                 return (
                   <AttackDroneAnimation
                     gridContainerRef={gridContainerRef}

@@ -108,6 +108,7 @@ export function useShipAttributesRead(
     functionName,
     query: {
       enabled,
+      staleTime: Infinity,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       notifyOnChangeProps: ["data", "error"],

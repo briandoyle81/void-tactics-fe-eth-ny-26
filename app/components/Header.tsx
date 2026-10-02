@@ -619,7 +619,15 @@ const Header: React.FC = () => {
   useEffect(() => {
     const onDetail = (event: Event) => {
       const custom = event as CustomEvent<{ active?: boolean }>;
-      setMatchViewOpen(Boolean(custom.detail?.active));
+      const active = Boolean(custom.detail?.active);
+      setMatchViewOpen(active);
+      if (active) {
+        setShowUtcLotteryPanel(false);
+        setShowUTCPurchaseModal(false);
+        setShowUTCPurchaseModalWeb2(false);
+        setShowDroneStorefront(false);
+        setShowDroneStorefrontWeb2(false);
+      }
     };
     window.addEventListener("void-tactics-games-detail-active", onDetail);
     return () =>

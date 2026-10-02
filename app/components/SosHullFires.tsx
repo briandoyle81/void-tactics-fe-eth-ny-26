@@ -191,7 +191,14 @@ export function SosHullFires({ shipId }: { shipId: string | number }) {
     sync();
     const ro = new ResizeObserver(scheduleSync);
     ro.observe(host);
-    const mo = new MutationObserver(scheduleSync);
+    const mo = new MutationObserver((records) => {
+      for (const rec of records) {
+        const target = rec.target as Element | null;
+        if (target?.closest?.(".sos-hull-fires")) continue;
+        scheduleSync();
+        return;
+      }
+    });
     mo.observe(host, { childList: true, subtree: true });
     return () => {
       cancelAnimationFrame(raf);

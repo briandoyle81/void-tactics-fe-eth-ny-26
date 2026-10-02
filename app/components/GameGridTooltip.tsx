@@ -33,7 +33,7 @@ interface GameGridTooltipProps {
 // positioning/delay logic needs. See HoverShipCardTooltip.tsx for the part
 // shared with other ship-hover tooltips (e.g. CampaignNodePreview.tsx's
 // enemy-fleet preview grid).
-export function GameGridTooltip({
+export const GameGridTooltip = React.memo(function GameGridTooltip({
   hoveredCell,
   disableTooltips,
   draggedShipId,
@@ -85,4 +85,4 @@ export function GameGridTooltip({
       renderCard={() => (hoveredCell ? renderShipCard(hoveredCell) : null)}
     />
   );
-}
+});

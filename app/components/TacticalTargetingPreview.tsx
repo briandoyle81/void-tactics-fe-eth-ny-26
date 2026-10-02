@@ -382,7 +382,6 @@ export function TacticalTargetingPreview() {
             previewPosition={interaction.previewPosition}
             targetShipId={interaction.targetShipId}
             selectedWeaponType={interaction.selectedWeaponType}
-            hoveredCell={interaction.hoveredCell}
             draggedShipId={interaction.draggedShipId}
             dragOverCell={interaction.dragOverCell}
             movementRange={interaction.movementRange}
@@ -436,12 +435,9 @@ export function TacticalTargetingPreview() {
             setPreviewPosition={interaction.setPreviewPosition}
             setTargetShipId={interaction.setTargetShipId}
             setSelectedWeaponType={interaction.setSelectedWeaponType}
-            setHoveredCell={interaction.setHoveredCell}
             setDraggedShipId={interaction.setDraggedShipId}
             setDragOverCell={interaction.setDragOverCell}
-            hoverShootingRange={interaction.hoverShootingRange}
-            hoverValidTargets={interaction.hoverValidTargets}
-            onMoveTileHover={interaction.onMoveTileHover}
+            getHoverPreview={interaction.getHoverPreview}
             showConfirmWidget={interaction.showConfirmWidget}
             confirmWidgetLabel={interaction.confirmWidgetLabel}
             onCancelMove={interaction.handleCancelMove}

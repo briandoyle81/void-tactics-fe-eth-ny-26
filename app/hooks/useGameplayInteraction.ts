@@ -153,9 +153,7 @@ export function useGameplayInteraction({
   const [retreatExplicitByShipId, setRetreatExplicitByShipId] = useState<Record<string, true>>({});
   const [selectedWeaponType, setSelectedWeaponType] = useState<"weapon" | "special" | "ram">("weapon");
   const [weaponPreferenceByShipId, setWeaponPreferenceByShipId] = useState<Record<string, "weapon" | "special">>({});
-  const [hoveredCell, setHoveredCell] = useState<GameplayHoveredCell | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{ row: number; col: number } | null>(null);
-  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{ row: number; col: number } | null>(null);
   const [optimisticLastMove, setOptimisticLastMove] = useState<Web2LastMove | null>(null);
 
   const isShipOwnedByCurrentPlayer = useCallback(
@@ -187,7 +185,6 @@ export function useGameplayInteraction({
     setActionOverride(null);
     setDraggedShipId(null);
     setDragOverCell(null);
-    setHoveredCell(null);
     setRetreatExplicitByShipId({});
   }, [setSelectedShipId, setDraggedShipId]);
   useResetSelectionOnTurnChange(currentTurn, resetSelection);
@@ -222,7 +219,6 @@ export function useGameplayInteraction({
     prevSelectedShipIdRef.current = selectedShipId;
     setPreviewPosition(null);
     setTargetShipId(null);
-    setHoverPreviewPosition(null);
     setDragOverCell(null);
   }, [selectedShipId]);
 
@@ -626,44 +622,63 @@ export function useGameplayInteraction({
     return validShootingPositions;
   }, [draggedShipId, dragOverCell, shipMap, getShipAttributes, dragWeaponPlan, aliveShipPositions, blockedGrid, gridWidth, gridHeight, draggedEnemyOccupiedGrid]);
 
-  const hoverValidTargets = useMemo(
-    () =>
-      computeHoverValidTargets({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: shipMap.size > 0,
-        shipPositions: aliveShipPositions,
-        shipMap,
-        playerAddress,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        shipVariant: selectedShip?.traits.variant,
-        factionAbilityRange: selectedShipFactionAbilityRange,
-        factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
-        blockedGrid,
-      }),
-    [selectedShipId, hoverPreviewPosition, shipMap, playerAddress, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, selectedShipFactionAbilityRange, selectedShipFactionAbilityIsHeal, selectedShip],
-  );
-
-  const hoverShootingRange = useMemo(
-    () =>
-      computeHoverShootingRange({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: shipMap.size > 0,
-        shipPositions: aliveShipPositions,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        factionAbilityRange: selectedShipFactionAbilityRange,
-        blockedGrid,
-        gridWidth,
-        gridHeight,
-      }),
-    [selectedShipId, hoverPreviewPosition, shipMap, getShipAttributes, selectedWeaponType, specialType, specialRange, aliveShipPositions, blockedGrid, gridWidth, gridHeight, selectedShipFactionAbilityRange],
+  const getHoverPreview = useCallback(
+    (hoverPreviewPosition: { row: number; col: number } | null) => {
+      if (!hoverPreviewPosition) {
+        return {
+          shootingRange: EMPTY_RANGE_CELLS,
+          validTargets: EMPTY_TARGET_REFS,
+        };
+      }
+      return {
+        shootingRange: computeHoverShootingRange({
+          selectedShipId,
+          hoverPreviewPosition,
+          hasShips: shipMap.size > 0,
+          shipPositions: aliveShipPositions,
+          getShipAttributes,
+          selectedWeaponType,
+          specialRange,
+          specialType,
+          factionAbilityRange: selectedShipFactionAbilityRange,
+          blockedGrid,
+          gridWidth,
+          gridHeight,
+        }),
+        validTargets: computeHoverValidTargets({
+          selectedShipId,
+          hoverPreviewPosition,
+          hasShips: shipMap.size > 0,
+          shipPositions: aliveShipPositions,
+          shipMap,
+          playerAddress,
+          getShipAttributes,
+          selectedWeaponType,
+          specialRange,
+          specialType,
+          shipVariant: selectedShip?.traits.variant,
+          factionAbilityRange: selectedShipFactionAbilityRange,
+          factionAbilityIsHeal: selectedShipFactionAbilityIsHeal,
+          blockedGrid,
+        }),
+      };
+    },
+    [
+      selectedShipId,
+      shipMap,
+      playerAddress,
+      getShipAttributes,
+      selectedWeaponType,
+      specialType,
+      specialRange,
+      aliveShipPositions,
+      blockedGrid,
+      gridWidth,
+      gridHeight,
+      selectedShipFactionAbilityRange,
+      selectedShipFactionAbilityIsHeal,
+      selectedShip,
+    ],
   );
 
   const isShowingProposedMove = useMemo(() => {
@@ -890,7 +905,6 @@ export function useGameplayInteraction({
     previewPosition,
     targetShipId,
     selectedWeaponType,
-    hoveredCell,
     draggedShipId,
     dragOverCell,
     // setters
@@ -898,10 +912,9 @@ export function useGameplayInteraction({
     setPreviewPosition,
     setTargetShipId,
     setSelectedWeaponType: setWeaponTypeFromGrid,
-    setHoveredCell,
     setDraggedShipId,
     setDragOverCell,
-    onMoveTileHover: setHoverPreviewPosition,
+    getHoverPreview,
     // derived
     displayGrid,
     movementRange,
@@ -912,8 +925,6 @@ export function useGameplayInteraction({
     assistableTargetsFromStart,
     dragValidTargets,
     dragShootingRange,
-    hoverValidTargets,
-    hoverShootingRange,
     isRammingMovePreview,
     isShipOwnedByCurrentPlayer,
     isShowingProposedMove,

@@ -57,6 +57,7 @@ import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
 import { toShipCardData } from "../utils/toShipCardData";
 import { GameFleetStatusCard } from "./GameFleetStatusCard";
+import { GridHoverProvider } from "./GridHover";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
 import { GameFleetDetailShipCard } from "./GameFleetDetailShipCard";
@@ -153,6 +154,11 @@ function mapNodeToMobileTouchCopy(node: React.ReactNode): React.ReactNode {
 
 const GRID_WIDTH = GRID_DIMENSIONS.WIDTH;
 const GRID_HEIGHT = GRID_DIMENSIONS.HEIGHT;
+const EMPTY_HOVER_RANGE: Array<{ row: number; col: number }> = [];
+const EMPTY_HOVER_TARGETS: Array<{
+  shipId: number;
+  position: { row: number; col: number };
+}> = [];
 
 /** Once true per chain+wallet, tutorial claim never reverts; cache indefinitely. */
 const TUTORIAL_CLAIM_COMPLETED_CACHE_KEY =
@@ -555,23 +561,12 @@ export function SimulatedGameDisplay({
     setRetreatExplicitByShipId({});
     setActionOverride(null);
   }, [currentStepIndex]);
-  const [hoveredCell, setHoveredCell] = useState<{
-    shipId: bigint;
-    row: number;
-    col: number;
-    isCreator: boolean;
-    fromFleet?: boolean;
-  } | null>(null);
   const [draggedShipId, setDraggedShipId] = useState<bigint | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{
     row: number;
     col: number;
   } | null>(null);
   const [showFleetModal, setShowFleetModal] = useState(false);
-  const [hoverPreviewPosition, setHoverPreviewPosition] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
   const [isLastMovePanelMinimized, setIsLastMovePanelMinimized] =
     useState(true);
   const [mobileLeftPanelTab, setMobileLeftPanelTab] = useState<
@@ -641,7 +636,6 @@ export function SimulatedGameDisplay({
     setActionOverride(null);
     setDraggedShipId(null);
     setDragOverCell(null);
-    setHoveredCell(null);
     setRetreatExplicitByShipId({});
   }, []);
   useResetSelectionOnTurnChange(gameState.turnState.currentTurn, resetSelection);
@@ -2298,46 +2292,51 @@ export function SimulatedGameDisplay({
      shipMap, getShipAttributes, blockedGrid, selectedWeaponType, specialRange, specialType],
   );
 
-  const hoverValidTargets = useMemo(
-    () =>
-      computeHoverValidTargets({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: shipMap.size > 0,
-        shipPositions: allShipPositionsForGrid,
-        shipMap,
-        playerAddress: TUTORIAL_PLAYER_ADDRESS,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        shipVariant:
-          selectedShipId != null
-            ? Number(selectedShip?.traits.variant ?? 1)
-            : 1,
-        blockedGrid,
-      }),
-    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid,
-     getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
-  );
-
-  const hoverShootingRange = useMemo(
-    () =>
-      computeHoverShootingRange({
-        selectedShipId,
-        hoverPreviewPosition,
-        hasShips: shipMap.size > 0,
-        shipPositions: allShipPositionsForGrid,
-        getShipAttributes,
-        selectedWeaponType,
-        specialRange,
-        specialType,
-        blockedGrid,
-        gridWidth: GRID_WIDTH,
-        gridHeight: GRID_HEIGHT,
-      }),
-    [selectedShipId, hoverPreviewPosition, shipMap, allShipPositionsForGrid,
-     getShipAttributes, selectedWeaponType, specialType, specialRange, blockedGrid],
+  // Called by GameGrid's dest-hover overlay with the hovered movement tile.
+  // Hover state lives in GridHover context so pointer moves do not
+  // re-render this component (same contract as useGameplayInteraction).
+  const getHoverPreview = useCallback(
+    (hoverPreviewPosition: { row: number; col: number } | null) => {
+      if (!hoverPreviewPosition) {
+        return { shootingRange: EMPTY_HOVER_RANGE, validTargets: EMPTY_HOVER_TARGETS };
+      }
+      return {
+        shootingRange: computeHoverShootingRange({
+          selectedShipId,
+          hoverPreviewPosition,
+          hasShips: shipMap.size > 0,
+          shipPositions: allShipPositionsForGrid,
+          getShipAttributes,
+          selectedWeaponType,
+          specialRange,
+          specialType,
+          blockedGrid,
+          gridWidth: GRID_WIDTH,
+          gridHeight: GRID_HEIGHT,
+        }),
+        validTargets: toGridTargets(
+          computeHoverValidTargets({
+            selectedShipId,
+            hoverPreviewPosition,
+            hasShips: shipMap.size > 0,
+            shipPositions: allShipPositionsForGrid,
+            shipMap,
+            playerAddress: TUTORIAL_PLAYER_ADDRESS,
+            getShipAttributes,
+            selectedWeaponType,
+            specialRange,
+            specialType,
+            shipVariant:
+              selectedShipId != null
+                ? Number(selectedShip?.traits.variant ?? 1)
+                : 1,
+            blockedGrid,
+          }),
+        ),
+      };
+    },
+    [selectedShipId, shipMap, allShipPositionsForGrid, getShipAttributes,
+     selectedWeaponType, specialType, specialRange, blockedGrid, selectedShip],
   );
 
   // Convert tutorial string ids to bigint ids for GameGrid targeting logic.
@@ -3021,19 +3020,6 @@ export function SimulatedGameDisplay({
   const selectedShipIdForDisplay = selectedShipId != null ? Number(selectedShipId) : null;
   const targetShipIdForDisplay = targetShipId != null ? Number(targetShipId) : null;
   const draggedShipIdForDisplay = draggedShipId != null ? Number(draggedShipId) : null;
-  const hoveredCellForDisplay: GameGridTooltipHoveredCell | null = useMemo(
-    () =>
-      hoveredCell
-        ? {
-            shipId: Number(hoveredCell.shipId),
-            row: hoveredCell.row,
-            col: hoveredCell.col,
-            isCreator: hoveredCell.isCreator,
-            fromFleet: hoveredCell.fromFleet,
-          }
-        : null,
-    [hoveredCell],
-  );
   const gridValidTargetsForDisplay = useMemo(
     () => toGridTargets(gridValidTargets),
     [gridValidTargets],
@@ -3053,10 +3039,6 @@ export function SimulatedGameDisplay({
   const dragValidTargetsForDisplay = useMemo(
     () => toGridTargets(dragValidTargets),
     [dragValidTargets],
-  );
-  const hoverValidTargetsForDisplay = useMemo(
-    () => toGridTargets(hoverValidTargets),
-    [hoverValidTargets],
   );
   const gridMovedShipIdsSetForDisplay = useMemo(
     () => toGridIdSet(gridMovedShipIdsSet),
@@ -3102,21 +3084,6 @@ export function SimulatedGameDisplay({
   const setTargetShipIdForDisplay = useCallback(
     (shipId: number | null) => wrappedSetTargetShipId(displayIdToBigint(shipId)),
     [wrappedSetTargetShipId],
-  );
-  const setHoveredCellForDisplay = useCallback(
-    (cell: GameGridTooltipHoveredCell | null) =>
-      setHoveredCell(
-        cell
-          ? {
-              shipId: BigInt(cell.shipId),
-              row: cell.row,
-              col: cell.col,
-              isCreator: cell.isCreator,
-              fromFleet: cell.fromFleet,
-            }
-          : null,
-      ),
-    [setHoveredCell],
   );
   const setDraggedShipIdForDisplay = useCallback(
     (shipId: number | null) => setDraggedShipId(displayIdToBigint(shipId)),
@@ -3253,6 +3220,7 @@ export function SimulatedGameDisplay({
 
   if (isLandscapeMobile) {
     return (
+      <GridHoverProvider>
       <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
         <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
           <div
@@ -3954,7 +3922,6 @@ export function SimulatedGameDisplay({
                       previewPosition={previewPosition}
                       targetShipId={targetShipIdForDisplay}
                       selectedWeaponType={selectedWeaponType}
-                      hoveredCell={hoveredCellForDisplay}
                       draggedShipId={draggedShipIdForDisplay}
                       dragOverCell={dragOverCell}
                       movementRange={movementRange}
@@ -3964,10 +3931,8 @@ export function SimulatedGameDisplay({
                       assistableTargetsFromStart={gridAssistableTargetsFromStartForDisplay}
                       dragShootingRange={dragShootingRange}
                       dragValidTargets={dragValidTargetsForDisplay}
-                      hoverShootingRange={hoverShootingRange}
-                      hoverValidTargets={hoverValidTargetsForDisplay}
                       labelTargets={labelTargetsForDisplay}
-                      onMoveTileHover={setHoverPreviewPosition}
+                      getHoverPreview={getHoverPreview}
                       isCurrentPlayerTurn={isMyTurn}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                       movedShipIdsSet={gridMovedShipIdsSetForDisplay}
@@ -4002,7 +3967,6 @@ export function SimulatedGameDisplay({
                       setPreviewPosition={wrappedSetPreviewPosition}
                       setTargetShipId={setTargetShipIdForDisplay}
                       setSelectedWeaponType={setWeaponTypeFromGrid}
-                      setHoveredCell={setHoveredCellForDisplay}
                       setDraggedShipId={setDraggedShipIdForDisplay}
                       setDragOverCell={setDragOverCell}
                       renderShipCard={renderShipCard}
@@ -4171,10 +4135,12 @@ export function SimulatedGameDisplay({
           />
         )}
       </div>
+      </GridHoverProvider>
     );
   }
 
   return (
+    <GridHoverProvider>
     <div
       ref={gameViewRootRef}
       className={`flex flex-col ${
@@ -4740,14 +4706,17 @@ export function SimulatedGameDisplay({
                   teamColor={teamColor}
                   flip={flip}
                   isSelected={selectedShipId === bigId}
-                  isHovered={hoveredCell?.shipId === bigId}
                   shipImage={ship && <ShipImage ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
                   onClick={() => setSelectedShipId(bigId)}
-                  onMouseEnter={() =>
-                    shipPos &&
-                    setHoveredCell({ shipId: bigId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })
+                  fleetHoverAnchor={
+                    shipPos
+                      ? {
+                          row: shipPos.position.row,
+                          col: shipPos.position.col,
+                          isCreator: shipPos.isCreator,
+                        }
+                      : null
                   }
-                  onMouseLeave={() => setHoveredCell(null)}
                 />
               );
             };
@@ -4801,7 +4770,6 @@ export function SimulatedGameDisplay({
                   previewPosition={previewPosition}
                   targetShipId={targetShipIdForDisplay}
                   selectedWeaponType={selectedWeaponType}
-                  hoveredCell={hoveredCellForDisplay}
                   draggedShipId={draggedShipIdForDisplay}
                   dragOverCell={dragOverCell}
                   movementRange={movementRange}
@@ -4811,10 +4779,8 @@ export function SimulatedGameDisplay({
                   assistableTargetsFromStart={gridAssistableTargetsFromStartForDisplay}
                   dragShootingRange={dragShootingRange}
                   dragValidTargets={dragValidTargetsForDisplay}
-                  hoverShootingRange={hoverShootingRange}
-                  hoverValidTargets={hoverValidTargetsForDisplay}
                   labelTargets={labelTargetsForDisplay}
-                  onMoveTileHover={setHoverPreviewPosition}
+                  getHoverPreview={getHoverPreview}
                   isCurrentPlayerTurn={isMyTurn}
                   isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                   movedShipIdsSet={gridMovedShipIdsSetForDisplay}
@@ -4851,7 +4817,6 @@ export function SimulatedGameDisplay({
                   setPreviewPosition={wrappedSetPreviewPosition}
                   setTargetShipId={setTargetShipIdForDisplay}
                   setSelectedWeaponType={setWeaponTypeFromGrid}
-                  setHoveredCell={setHoveredCellForDisplay}
                   setDraggedShipId={setDraggedShipIdForDisplay}
                   setDragOverCell={setDragOverCell}
                   renderShipCard={renderShipCard}
@@ -5092,5 +5057,6 @@ export function SimulatedGameDisplay({
         />
       )}
     </div>
+    </GridHoverProvider>
   );
 }

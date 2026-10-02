@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import { cellCenterOnGrid, gridLayoutSize } from "./gridLayout";
 
 interface WarpFieldCollapseAnimationProps {
@@ -9,26 +9,69 @@ interface WarpFieldCollapseAnimationProps {
   col: number;
 }
 
+type WarpLayout = {
+  width: number;
+  height: number;
+  cellWidth: number;
+  cellHeight: number;
+  centerX: number;
+  centerY: number;
+};
+
+function readWarpLayout(
+  el: HTMLElement,
+  row: number,
+  col: number,
+): WarpLayout {
+  const { width, height, cellWidth, cellHeight } = gridLayoutSize(el);
+  const center = cellCenterOnGrid(el, row, col);
+  return {
+    width,
+    height,
+    cellWidth,
+    cellHeight,
+    centerX: center.x,
+    centerY: center.y,
+  };
+}
+
+function warpLayoutUnchanged(prev: WarpLayout, next: WarpLayout) {
+  return (
+    Math.abs(prev.width - next.width) < 0.5 &&
+    Math.abs(prev.height - next.height) < 0.5 &&
+    Math.abs(prev.cellWidth - next.cellWidth) < 0.5 &&
+    Math.abs(prev.cellHeight - next.cellHeight) < 0.5 &&
+    Math.abs(prev.centerX - next.centerX) < 0.5 &&
+    Math.abs(prev.centerY - next.centerY) < 0.5
+  );
+}
+
 /** Warp field collapsing at a grid position (e.g. retreat last move). Uses only position data. */
 export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseAnimation({
   gridContainerRef,
   row,
   col,
 }: WarpFieldCollapseAnimationProps) {
-  const getCellCenter = useCallback(
-    (r: number, c: number) => {
-      if (!gridContainerRef.current) return { x: 0, y: 0 };
-      return cellCenterOnGrid(gridContainerRef.current, r, c);
-    },
-    [gridContainerRef]
-  );
+  const [layout, setLayout] = useState<WarpLayout | null>(null);
 
-  if (!gridContainerRef.current) return null;
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = gridContainerRef.current;
+      if (!el) return;
+      const next = readWarpLayout(el, row, col);
+      setLayout((prev) => (prev && warpLayoutUnchanged(prev, next) ? prev : next));
+    };
+    measure();
+    const el = gridContainerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [gridContainerRef, row, col]);
 
-  const { width, height, cellWidth, cellHeight } = gridLayoutSize(
-    gridContainerRef.current,
-  );
-  const center = getCellCenter(row, col);
+  if (!layout) return null;
+
+  const { width, height, cellWidth, cellHeight, centerX, centerY } = layout;
   const size = Math.max(cellWidth, cellHeight) * 2;
 
   return (
@@ -46,8 +89,8 @@ export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseA
       <div
         className="absolute"
         style={{
-          left: center.x,
-          top: center.y,
+          left: centerX,
+          top: centerY,
           width: size,
           height: size,
           marginLeft: -size / 2,
@@ -72,8 +115,8 @@ export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseA
       <div
         className="absolute"
         style={{
-          left: center.x,
-          top: center.y,
+          left: centerX,
+          top: centerY,
           width: size,
           height: size,
           marginLeft: -size / 2,
@@ -90,8 +133,8 @@ export const WarpFieldCollapseAnimation = React.memo(function WarpFieldCollapseA
       <div
         className="absolute pointer-events-none"
         style={{
-          left: center.x,
-          top: center.y,
+          left: centerX,
+          top: centerY,
           width: Math.max(cellWidth, cellHeight) * 0.5,
           height: Math.max(cellWidth, cellHeight) * 0.5,
           marginLeft: -(Math.max(cellWidth, cellHeight) * 0.25),

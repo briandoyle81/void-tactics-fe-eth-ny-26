@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { RETREAT_GLOW_BUILD_MS } from "../../constants/animationTiming";
 import { GridShip } from "../../types/gridDisplay";
 import { GridShipImage } from "../GridShipImage";
@@ -20,7 +20,9 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
   isCreator,
   selectionOutlineClassName = "ring-2 ring-blue-400",
 }: RetreatPrepAnimationProps) {
-  const [glowOpacity, setGlowOpacity] = useState(0);
+  // Opacity ramps through the DOM, not React state: a per-frame setState
+  // re-rendered this cell (and its ship image) for the whole build-up.
+  const glowRef = useRef<HTMLDivElement | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
 
@@ -32,7 +34,7 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
       if (cancelled) return;
       const elapsed = performance.now() - (startTimeRef.current ?? 0);
       const t = Math.min(1, elapsed / RETREAT_GLOW_BUILD_MS);
-      setGlowOpacity(t * 0.95);
+      if (glowRef.current) glowRef.current.style.opacity = String(t * 0.95);
       if (t < 1) {
         frameRef.current = requestAnimationFrame(tick);
       }
@@ -55,6 +57,7 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
     >
       {/* When ship faces left: glow left edge 10% from right edge. When ship faces right: glow right edge 10% from left. Wide so it extends into the cell behind. */}
       <div
+        ref={glowRef}
         className="absolute pointer-events-none animate-thrust-pulse"
         style={{
           left: engineOnRightSide ? "90%" : "auto",
@@ -70,7 +73,7 @@ export const RetreatPrepAnimation = React.memo(function RetreatPrepAnimation({
             engineOnRightSide
               ? "linear-gradient(90deg, rgba(180, 230, 255, 0.95) 0%, rgba(120, 200, 255, 0.7) 25%, rgba(80, 170, 255, 0.4) 50%, transparent 85%)"
               : "linear-gradient(270deg, rgba(180, 230, 255, 0.95) 0%, rgba(120, 200, 255, 0.7) 25%, rgba(80, 170, 255, 0.4) 50%, transparent 85%)",
-          opacity: glowOpacity,
+          opacity: 0,
           filter: "blur(3px)",
           transition: "opacity 0.05s linear",
           clipPath: engineOnRightSide

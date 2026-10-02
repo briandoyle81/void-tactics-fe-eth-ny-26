@@ -51,6 +51,7 @@ import {
   TurnCountdownText,
   TurnCountdownBar,
 } from "./TurnCountdown";
+import { GridHoverProvider } from "./GridHover";
 import { GameFleetStatusCard } from "./GameFleetStatusCard";
 import { GameFleetStatusPanel } from "./GameFleetStatusPanel";
 import { GameFleetDetailsModal } from "./GameFleetDetailsModal";
@@ -190,7 +191,7 @@ function GameDisplayWeb2({
       });
     }, 1200);
     return () => clearInterval(timer);
-  }, [replayAutoPlay, replayData]);
+  }, [replayAutoPlay, replayData?.turns.length]);
 
   const isReplaying = replayStep !== null && !!replayData && replayData.turns.length > 0;
   const replaySnapshotGame: Web2GameDataView | null = isReplaying
@@ -448,7 +449,6 @@ function GameDisplayWeb2({
     previewPosition,
     targetShipId,
     selectedWeaponType,
-    hoveredCell,
     dragOverCell,
     displayGrid,
     movementRange,
@@ -459,8 +459,6 @@ function GameDisplayWeb2({
     assistableTargetsFromStart,
     dragValidTargets,
     dragShootingRange,
-    hoverValidTargets,
-    hoverShootingRange,
     isRammingMovePreview,
     isShipOwnedByCurrentPlayer,
     computedActionType,
@@ -482,9 +480,8 @@ function GameDisplayWeb2({
     setPreviewPosition,
     setTargetShipId,
     setSelectedWeaponType,
-    setHoveredCell,
     setDragOverCell,
-    onMoveTileHover,
+    getHoverPreview,
   } = interaction;
 
   // Escape deselects/cancels the current move — mirrors GameDisplay.tsx's
@@ -824,15 +821,18 @@ function GameDisplayWeb2({
         teamColor={teamColor}
         flip={flip}
         isSelected={selectedShipId === shipId}
-        isHovered={hoveredCell?.shipId === shipId}
         optimisticSos={optimisticSosShipIds.has(shipId)}
         shipImage={ship && <ShipImageWeb2 ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
         onClick={() => setSelectedShipId(shipId)}
-        onMouseEnter={() =>
-          shipPos &&
-          setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })
+        fleetHoverAnchor={
+          shipPos
+            ? {
+                row: shipPos.position.row,
+                col: shipPos.position.col,
+                isCreator: shipPos.isCreator,
+              }
+            : null
         }
-        onMouseLeave={() => setHoveredCell(null)}
       />
     );
   };
@@ -849,7 +849,6 @@ function GameDisplayWeb2({
       previewPosition={previewPosition}
       targetShipId={targetShipId}
       selectedWeaponType={selectedWeaponType}
-      hoveredCell={hoveredCell}
       draggedShipId={draggedShipId}
       dragOverCell={dragOverCell}
       movementRange={movementRange}
@@ -860,9 +859,7 @@ function GameDisplayWeb2({
       assistableTargetsFromStart={assistableTargetsFromStart}
       dragShootingRange={dragShootingRange}
       dragValidTargets={dragValidTargets}
-      hoverShootingRange={hoverShootingRange}
-      hoverValidTargets={hoverValidTargets}
-      onMoveTileHover={onMoveTileHover}
+      getHoverPreview={getHoverPreview}
       isCurrentPlayerTurn={isCurrentPlayerTurn}
       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayer}
       movedShipIdsSet={movedShipIdsSet}
@@ -898,7 +895,6 @@ function GameDisplayWeb2({
       setPreviewPosition={setPreviewPosition}
       setTargetShipId={setTargetShipId}
       setSelectedWeaponType={setSelectedWeaponType}
-      setHoveredCell={setHoveredCell}
       setDraggedShipId={setDraggedShipId}
       setDragOverCell={setDragOverCell}
       showConfirmWidget={showConfirmWidget}
@@ -1080,6 +1076,7 @@ function GameDisplayWeb2({
   if (isLandscapeMobile) {
     return (
       <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
+      <GridHoverProvider>
       <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
         <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
           <div className="flex h-full min-h-0 min-w-0 flex-1 items-center justify-center">
@@ -1233,12 +1230,14 @@ function GameDisplayWeb2({
         {roundStartModalNode}
         {gameResultModalNode}
       </div>
+      </GridHoverProvider>
       </TurnCountdownProvider>
     );
   }
 
   return (
     <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
+    <GridHoverProvider>
     <div
       ref={gameViewRootRef}
       className={`flex flex-col gap-6 ${useSideLayout ? GAME_VIEW_SIDE_ROOT_CLASS : "mx-auto w-full"}`}
@@ -1498,6 +1497,7 @@ function GameDisplayWeb2({
       {roundStartModalNode}
       {gameResultModalNode}
     </div>
+    </GridHoverProvider>
     </TurnCountdownProvider>
   );
 }

@@ -215,7 +215,9 @@ export function useGetGamesForPlayer(
     args,
     query: {
       enabled,
+      staleTime: Infinity,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       notifyOnChangeProps: ["data", "error"],
       select: selectGames,
     },

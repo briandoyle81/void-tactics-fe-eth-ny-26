@@ -32,6 +32,7 @@ import {
   TurnCountdownText,
   TurnCountdownBar,
 } from "./TurnCountdown";
+import { GridHoverProvider } from "./GridHover";
 import { useGetGameMapState } from "../hooks/useMapsContract";
 import {
   useGameContract,
@@ -954,7 +955,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     movementRange,
     shootingRange,
     dragShootingRange,
-    hoverShootingRange,
     isRammingMovePreview,
     isShowingProposedMove,
     showConfirmWidget,
@@ -965,7 +965,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     handleGridRightClickDeselect: interactionHandleGridRightClickDeselect,
     retreatPrepIsCreator,
     setSelectedWeaponType: setWeaponTypeFromGrid,
-    onMoveTileHover,
+    getHoverPreview,
     recordOptimisticSos,
     clearOptimisticSos,
     optimisticSosShipIds,
@@ -999,31 +999,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (!lastMoveSignal) return;
     setTargetShipId(null);
   }, [lastMoveSignal, setTargetShipId]);
-
-  const hoveredCell = React.useMemo(() => {
-    const cell = interaction.hoveredCell;
-    if (!cell) return null;
-    return { ...cell, shipId: BigInt(cell.shipId) };
-  }, [interaction.hoveredCell]);
-  const setHoveredCell = React.useCallback(
-    (
-      cell:
-        | {
-            shipId: bigint;
-            row: number;
-            col: number;
-            isCreator: boolean;
-            fromFleet?: boolean;
-          }
-        | null,
-    ) =>
-      interaction.setHoveredCell(
-        cell ? { ...cell, shipId: Number(cell.shipId) } : null,
-      ),
-    // interaction is a fresh object every render; depend on the stable setter only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [interaction.setHoveredCell],
-  );
 
   const calculateDamageForShip = useDamageCalculation({
     selectedShipId,
@@ -1553,13 +1528,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const selectedShipIdForDisplay = selectedShipId != null ? Number(selectedShipId) : null;
   const targetShipIdForDisplay = interaction.targetShipId;
   const draggedShipIdForDisplay = draggedShipId != null ? Number(draggedShipId) : null;
-  const hoveredCellForDisplay: GameGridTooltipHoveredCell | null = interaction.hoveredCell;
   const validTargetsForDisplay = interaction.validTargets;
   const labelTargetsForDisplay = interaction.labelTargets;
   const assistableTargetsForDisplay = interaction.assistableTargets;
   const assistableTargetsFromStartForDisplay = interaction.assistableTargetsFromStart;
   const dragValidTargetsForDisplay = interaction.dragValidTargets;
-  const hoverValidTargetsForDisplay = interaction.hoverValidTargets;
   const movedShipIdsSetForDisplay = movedShipIdsSetForInteraction;
   const lastMoveShipIdForDisplay = lastMoveShipId != null ? Number(lastMoveShipId) : null;
   const lastMoveTargetShipIdForDisplay =
@@ -1618,7 +1591,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   const setSelectedShipIdForDisplay = interaction.setSelectedShipId;
   const setTargetShipIdForDisplay = interaction.setTargetShipId;
-  const setHoveredCellForDisplay = interaction.setHoveredCell;
   const setDraggedShipIdForDisplay = interaction.setDraggedShipId;
 
   const renderShipCard = React.useCallback(
@@ -1641,6 +1613,134 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     },
     [shipMap, getShipAttributes, isShipOwnedByCurrentPlayer, movedShipIdsSet],
   );
+
+  const confirmMoveButton = React.useMemo(() => {
+    if (!showConfirmWidget) return undefined;
+    const computedRow = computedMoveCoords.row;
+    const computedCol = computedMoveCoords.col;
+    return (
+      <TransactionButton
+        transactionId={`move-ship-${selectedShipId}-${game.metadata.gameId}`}
+        contractAddress={gameContract.address}
+        abi={gameContract.abi}
+        functionName="moveShip"
+        args={[
+          game.metadata.gameId,
+          selectedShipId,
+          computedRow,
+          computedCol,
+          toOnChainActionType(computedActionType),
+          computedActionType === ActionType.Pass ? 0n : targetShipId || 0n,
+        ]}
+        className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
+        style={{
+          ...STYLE_LABEL,
+          color: "var(--color-phosphor-green)",
+          backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
+          borderRight: "1px solid var(--color-gunmetal)",
+          borderRadius: 0,
+          letterSpacing: "0.14em",
+        }}
+        loadingText="[...]"
+        errorText="[ERR]"
+        validateBeforeTransaction={() => {
+          if (!selectedShipId) {
+            return "No ship selected";
+          }
+          if (!game.metadata.gameId || game.metadata.gameId === 0n) {
+            return "Invalid game ID";
+          }
+          if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
+            return "You can only move your own ships";
+          }
+          if ((computedActionType as ActionType) !== ActionType.Retreat) {
+            if (movedShipIdsSet.has(selectedShipId)) {
+              return "This ship has already moved this round";
+            }
+            if (
+              computedRow < 0 ||
+              computedRow >= GRID_HEIGHT ||
+              computedCol < 0 ||
+              computedCol >= GRID_WIDTH
+            ) {
+              return "Invalid position coordinates";
+            }
+          }
+          return true;
+        }}
+        onTransactionSent={() => {
+          snapshotOptimisticSosIfNeeded();
+          setAwaitingTurnSyncAfterSubmit(true);
+        }}
+        onSuccess={async () => {
+          const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
+          const submittedTargetShipId = targetShipId ?? 0n;
+          const oldRow = currentPosition?.position.row ?? computedRow;
+          const oldCol = currentPosition?.position.col ?? computedCol;
+          const isRamRelocate =
+            computedActionType === ActionType.FactionAbility && !selectedShipFactionAbilityIsHeal;
+          const ramTargetPosition = isRamRelocate
+            ? game.shipPositions.find((p) => p.shipId === submittedTargetShipId)?.position
+            : undefined;
+          const optimisticNewRow =
+            computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.row ?? computedRow);
+          const optimisticNewCol =
+            computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.col ?? computedCol);
+          setOptimisticLastMove({
+            shipId: selectedShipId!,
+            oldRow,
+            oldCol,
+            newRow: optimisticNewRow,
+            newCol: optimisticNewCol,
+            actionType: computedActionType,
+            targetShipId: submittedTargetShipId,
+            timestamp: BigInt(Date.now()),
+          });
+          interaction.recordOptimisticMove({
+            shipId: Number(selectedShipId),
+            oldRow,
+            oldCol,
+            newRow: optimisticNewRow,
+            newCol: optimisticNewCol,
+            actionType: computedActionType,
+            targetShipId: Number(submittedTargetShipId),
+            timestamp: Date.now(),
+          });
+          snapshotOptimisticSosIfNeeded();
+          toast.success("Move submitted successfully!");
+          recordPlayerMove();
+          handleCancelMove();
+          await Promise.resolve(refetchGame());
+          await Promise.resolve(refetch?.());
+        }}
+        onError={handleMoveSubmitError}
+      >
+        {confirmWidgetLabel}
+      </TransactionButton>
+    );
+  }, [
+    showConfirmWidget,
+    selectedShipId,
+    game.metadata.gameId,
+    game.shipPositions,
+    gameContract.address,
+    gameContract.abi,
+    computedMoveCoords.row,
+    computedMoveCoords.col,
+    computedActionType,
+    targetShipId,
+    confirmWidgetLabel,
+    isShipOwnedByCurrentPlayer,
+    movedShipIdsSet,
+    snapshotOptimisticSosIfNeeded,
+    selectedShipFactionAbilityIsHeal,
+    interaction.recordOptimisticMove,
+    recordPlayerMove,
+    handleCancelMove,
+    refetchGame,
+    refetch,
+    handleMoveSubmitError,
+  ]);
 
   /** Top of proposed-move panel: 2/3 submit + 1/3 cancel (side), or horizontal row (wide). */
   const renderProposedMoveSubmitCancelRow = (): React.ReactNode => {
@@ -2474,6 +2574,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   if (isLandscapeMobile) {
     return (
       <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
+      <GridHoverProvider>
       <div className="mx-auto h-full w-full overflow-hidden" style={{ height: "100dvh" }}>
         <div className="flex h-full min-h-0 items-stretch gap-2 overflow-hidden">
           <div
@@ -2799,7 +2900,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       previewPosition={previewPosition}
                       targetShipId={targetShipIdForDisplay}
                       selectedWeaponType={selectedWeaponType}
-                      hoveredCell={hoveredCellForDisplay}
                       draggedShipId={draggedShipIdForDisplay}
                       dragOverCell={dragOverCell}
                       movementRange={movementRange}
@@ -2810,9 +2910,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       assistableTargetsFromStart={assistableTargetsFromStartForDisplay}
                       dragShootingRange={dragShootingRange}
                       dragValidTargets={dragValidTargetsForDisplay}
-                      hoverShootingRange={hoverShootingRange}
-                      hoverValidTargets={hoverValidTargetsForDisplay}
-                      onMoveTileHover={onMoveTileHover}
+                      getHoverPreview={getHoverPreview}
                       isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
                       isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
                       movedShipIdsSet={movedShipIdsSetForDisplay}
@@ -2857,7 +2955,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       setPreviewPosition={interaction.setPreviewPosition}
                       setTargetShipId={setTargetShipIdForDisplay}
                       setSelectedWeaponType={setWeaponTypeFromGrid}
-                      setHoveredCell={setHoveredCellForDisplay}
                       setDraggedShipId={setDraggedShipIdForDisplay}
                       setDragOverCell={interaction.setDragOverCell}
                       renderShipCard={renderShipCard}
@@ -3029,12 +3126,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           />
         )}
       </div>
+      </GridHoverProvider>
       </TurnCountdownProvider>
     );
   }
 
   return (
     <TurnCountdownProvider turnTimeSec={turnTimeSec} turnStartTimeMs={turnStartTimeMs}>
+    <GridHoverProvider>
     <div
       ref={gameViewRootRef}
       className={`flex flex-col ${
@@ -3339,15 +3438,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   teamColor={teamColor}
                   flip={flip}
                   isSelected={selectedShipId === shipId}
-                  isHovered={hoveredCell?.shipId === shipId}
                   optimisticSos={optimisticSosShipIds.has(Number(shipId))}
                   shipImage={ship && <ShipImage ship={ship} className="w-full h-full" showLoadingState={false} hideRankStars />}
                   onClick={() => setSelectedShipId(shipId)}
-                  onMouseEnter={() =>
-                    shipPos &&
-                    setHoveredCell({ shipId, row: shipPos.position.row, col: shipPos.position.col, isCreator: shipPos.isCreator, fromFleet: true })
+                  fleetHoverAnchor={
+                    shipPos
+                      ? {
+                          row: Number(shipPos.position.row),
+                          col: Number(shipPos.position.col),
+                          isCreator: shipPos.isCreator,
+                        }
+                      : null
                   }
-                  onMouseLeave={() => setHoveredCell(null)}
                 />
               );
             };
@@ -3407,7 +3509,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           previewPosition={previewPosition}
           targetShipId={targetShipIdForDisplay}
           selectedWeaponType={selectedWeaponType}
-          hoveredCell={hoveredCellForDisplay}
           draggedShipId={draggedShipIdForDisplay}
           dragOverCell={dragOverCell}
           movementRange={movementRange}
@@ -3418,9 +3519,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           assistableTargetsFromStart={assistableTargetsFromStartForDisplay}
           dragShootingRange={dragShootingRange}
           dragValidTargets={dragValidTargetsForDisplay}
-          hoverShootingRange={hoverShootingRange}
-          hoverValidTargets={hoverValidTargetsForDisplay}
-          onMoveTileHover={onMoveTileHover}
+          getHoverPreview={getHoverPreview}
                 isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
           isShipOwnedByCurrentPlayer={isShipOwnedByCurrentPlayerForDisplay}
           movedShipIdsSet={movedShipIdsSetForDisplay}
@@ -3465,122 +3564,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           setPreviewPosition={interaction.setPreviewPosition}
           setTargetShipId={setTargetShipIdForDisplay}
           setSelectedWeaponType={setWeaponTypeFromGrid}
-          setHoveredCell={setHoveredCellForDisplay}
           setDraggedShipId={setDraggedShipIdForDisplay}
           setDragOverCell={interaction.setDragOverCell}
           renderShipCard={renderShipCard}
           showConfirmWidget={showConfirmWidget}
           confirmWidgetLabel={confirmWidgetLabel}
           onCancelMove={handleCancelMove}
-          confirmButton={showConfirmWidget ? (() => {
-            const computedRow = computedMoveCoords.row;
-            const computedCol = computedMoveCoords.col;
-            return (
-              <TransactionButton
-                transactionId={`move-ship-${selectedShipId}-${game.metadata.gameId}`}
-                contractAddress={gameContract.address}
-                abi={gameContract.abi}
-                functionName="moveShip"
-                args={[
-                  game.metadata.gameId,
-                  selectedShipId,
-                  computedRow,
-                  computedCol,
-                  toOnChainActionType(computedActionType),
-                  computedActionType === ActionType.Pass ? 0n : targetShipId || 0n,
-                ]}
-                className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
-                style={{
-                  ...STYLE_LABEL,
-                  color: "var(--color-phosphor-green)",
-                  backgroundColor: "color-mix(in srgb, var(--color-phosphor-green) 10%, transparent)",
-                  borderRight: "1px solid var(--color-gunmetal)",
-                  borderRadius: 0,
-                  letterSpacing: "0.14em",
-                }}
-                loadingText="[...]"
-                errorText="[ERR]"
-                validateBeforeTransaction={() => {
-                  if (!selectedShipId) {
-                    return "No ship selected";
-                  }
-                  if (!game.metadata.gameId || game.metadata.gameId === 0n) {
-                    return "Invalid game ID";
-                  }
-                  if (!isShipOwnedByCurrentPlayer(selectedShipId)) {
-                    return "You can only move your own ships";
-                  }
-                  if ((computedActionType as ActionType) !== ActionType.Retreat) {
-                    if (movedShipIdsSet.has(selectedShipId)) {
-                      return "This ship has already moved this round";
-                    }
-                    if (
-                      computedRow < 0 ||
-                      computedRow >= GRID_HEIGHT ||
-                      computedCol < 0 ||
-                      computedCol >= GRID_WIDTH
-                    ) {
-                      return "Invalid position coordinates";
-                    }
-                  }
-                  return true;
-                }}
-                onTransactionSent={() => {
-                  snapshotOptimisticSosIfNeeded();
-                  setAwaitingTurnSyncAfterSubmit(true);
-                }}
-                onSuccess={async () => {
-                  const currentPosition = game.shipPositions.find(p => p.shipId === selectedShipId);
-                  const submittedTargetShipId = targetShipId ?? 0n;
-                  const oldRow = currentPosition?.position.row ?? computedRow;
-                  const oldCol = currentPosition?.position.col ?? computedCol;
-                  // See the toolbar submit button's onSuccess above for why
-                  // Ram's final position isn't the submitted destination.
-                  const isRamRelocate =
-                    computedActionType === ActionType.FactionAbility && !selectedShipFactionAbilityIsHeal;
-                  const ramTargetPosition = isRamRelocate
-                    ? game.shipPositions.find((p) => p.shipId === submittedTargetShipId)?.position
-                    : undefined;
-                  const optimisticNewRow =
-                    computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.row ?? computedRow);
-                  const optimisticNewCol =
-                    computedActionType === ActionType.Retreat ? -1 : (ramTargetPosition?.col ?? computedCol);
-                  setOptimisticLastMove({
-                    shipId: selectedShipId!,
-                    oldRow,
-                    oldCol,
-                    newRow: optimisticNewRow,
-                    newCol: optimisticNewCol,
-                    actionType: computedActionType,
-                    targetShipId: submittedTargetShipId,
-                    timestamp: BigInt(Date.now()),
-                  });
-                  interaction.recordOptimisticMove({
-                    shipId: Number(selectedShipId),
-                    oldRow,
-                    oldCol,
-                    newRow: optimisticNewRow,
-                    newCol: optimisticNewCol,
-                    actionType: computedActionType,
-                    targetShipId: Number(submittedTargetShipId),
-                    timestamp: Date.now(),
-                  });
-                  snapshotOptimisticSosIfNeeded();
-                  toast.success("Move submitted successfully!");
-                  recordPlayerMove();
-                  handleCancelMove();
-                  await Promise.resolve(refetchGame());
-                  await Promise.resolve(refetch?.());
-                  // See the toolbar submit button's onSuccess for why this
-                  // is called here rather than waiting on the chain-sync
-                  // effect.
-                }}
-                onError={handleMoveSubmitError}
-              >
-                {confirmWidgetLabel}
-              </TransactionButton>
-            );
-          })() : undefined}
+          confirmButton={confirmMoveButton}
         />
             </div>
           {/* Replay banner */}
@@ -4056,6 +4046,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         />
       )}
     </div>
+    </GridHoverProvider>
     </TurnCountdownProvider>
   );
 };

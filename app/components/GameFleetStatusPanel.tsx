@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 
 // Shared fleet-status panel layout between GameDisplay.tsx (web3) and

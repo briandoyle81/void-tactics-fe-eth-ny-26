@@ -43,7 +43,6 @@ function isValidActionTargetType(params: {
 }
 
 type Position = { row: number; col: number };
-type TargetRef = { shipId: number; position: Position };
 type HoveredCell = {
   shipId: number;
   row: number;
@@ -56,7 +55,8 @@ interface GameGridCellProps {
   cell: GridShipPosition | null;
   rowIndex: number;
   colIndex: number;
-  grid: (GridShipPosition | null)[][];
+  /** Read only inside click handlers; a ref so board-wide grid changes do not re-render every cell. */
+  gridRef: React.RefObject<(GridShipPosition | null)[][]>;
   shipMap: Map<number, GridShip>;
   selectedShipId: number | null;
   previewPosition: Position | null;
@@ -65,8 +65,6 @@ interface GameGridCellProps {
   isHoveringThisCellAsValidTarget: boolean;
   isFleetHoveredShip: boolean;
   draggedShipId: number | null;
-  assistableTargets: TargetRef[];
-  assistableTargetsFromStart: TargetRef[];
   isCurrentPlayerTurn: boolean;
   isShipOwnedByCurrentPlayer: (shipId: number) => boolean;
   movedShipIdsSet: Set<number>;
@@ -122,7 +120,6 @@ interface GameGridCellProps {
   setDraggedShipId: (shipId: number | null) => void;
   setDragOverCell: (cell: Position | null) => void;
   setHoveredMoveTile: (cell: Position | null) => void;
-  onMoveTileHover?: (cell: Position | null) => void;
 }
 
 /**
@@ -137,7 +134,7 @@ export const GameGridCell = React.memo(function GameGridCell({
   cell,
   rowIndex,
   colIndex,
-  grid,
+  gridRef,
   shipMap,
   selectedShipId,
   previewPosition,
@@ -146,8 +143,6 @@ export const GameGridCell = React.memo(function GameGridCell({
   isHoveringThisCellAsValidTarget,
   isFleetHoveredShip,
   draggedShipId,
-  assistableTargets,
-  assistableTargetsFromStart,
   isCurrentPlayerTurn,
   isShipOwnedByCurrentPlayer,
   movedShipIdsSet,
@@ -196,7 +191,6 @@ export const GameGridCell = React.memo(function GameGridCell({
   setDraggedShipId,
   setDragOverCell,
   setHoveredMoveTile,
-  onMoveTileHover,
 }: GameGridCellProps) {
                 const ship = cell ? shipMap.get(cell.shipId) : null;
                 const cellStatus = cell?.status ?? 0;
@@ -340,6 +334,7 @@ export const GameGridCell = React.memo(function GameGridCell({
 
                 const handleCellClick = () => {
                   if (cell && !shouldRenderShipContent) return;
+                  const grid = gridRef.current ?? [];
                   // A hover-preview ghost sits at a movement tile before the player commits a
                   // click. Treat it as an empty cell so the movement-tile path fires correctly.
                   const isHoverGhost = !!(cell?.isPreview && !previewPosition && isMovementTile);
@@ -794,12 +789,8 @@ export const GameGridCell = React.memo(function GameGridCell({
                           ? (() => {
                               // Check if this is an assist action
                               const isAssistAction =
-                                assistableTargets.some(
-                                  (target) => target.shipId === cell.shipId,
-                                ) ||
-                                assistableTargetsFromStart.some(
-                                  (target) => target.shipId === cell.shipId,
-                                );
+                                assistableTargetIdSet.has(cell.shipId) ||
+                                assistableTargetsFromStartIdSet.has(cell.shipId);
                               if (isAssistAction) {
                                 return "bg-cyan/20 ring-2 ring-inset ring-cyan";
                               }
@@ -845,7 +836,6 @@ export const GameGridCell = React.memo(function GameGridCell({
                           ? () => {
                               const pos = { row: rowIndex, col: colIndex };
                               setHoveredMoveTile(pos);
-                              onMoveTileHover?.(pos);
                             }
                           : undefined
                     }
@@ -855,7 +845,6 @@ export const GameGridCell = React.memo(function GameGridCell({
                         : isMovementTile && !draggedShipId
                           ? () => {
                               setHoveredMoveTile(null);
-                              onMoveTileHover?.(null);
                             }
                           : undefined
                     }
@@ -1012,7 +1001,7 @@ export const GameGridCell = React.memo(function GameGridCell({
 
                     {/* Shooting range highlight */}
                     {isShootingTile && (
-                      <div className={`absolute inset-0 z-[3] border-1 pointer-events-none ${
+                      <div className={`absolute inset-0 z-[3] border-1 pointer-events-none group-data-[dest-hover=1]:invisible ${
                         selectedWeaponType === "special" &&
                         isRepairDronesSpecial(
                           selectedShipId != null

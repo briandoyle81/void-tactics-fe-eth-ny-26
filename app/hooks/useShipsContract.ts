@@ -37,6 +37,7 @@ export function useShipsRead(
     args,
     query: {
       enabled,
+      staleTime: Infinity,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       notifyOnChangeProps: ["data", "error"],

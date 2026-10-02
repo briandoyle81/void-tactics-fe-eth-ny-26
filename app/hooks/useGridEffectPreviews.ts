@@ -26,6 +26,7 @@ export function useGridEffectPreviews(params: {
   selectedShipId: number | null;
   targetShipId: number | null;
   previewPosition: { row: number; col: number } | null;
+  draggedShipId: number | null;
   effectiveDragCell: { row: number; col: number } | null;
   effectiveDragShipId: number | null;
   effectiveShootingRange: Array<{ row: number; col: number }>;
@@ -71,6 +72,7 @@ export function useGridEffectPreviews(params: {
     selectedShipId,
     targetShipId,
     previewPosition,
+    draggedShipId,
     effectiveDragCell,
     effectiveDragShipId,
     effectiveShootingRange,
@@ -102,9 +104,12 @@ export function useGridEffectPreviews(params: {
    * attacker, which looks like friendly fire.
    */
   const directedWeaponBeamTargetId = React.useMemo(() => {
+    // Dest-tile hover is not a staged shot. Treating it as one cleared the
+    // last-move beam target and remounted laser/plasma/missile loops on
+    // every dest tile.
     const stagingOwnShot =
       selectedShipId != null &&
-      (previewPosition != null || effectiveDragCell != null);
+      (previewPosition != null || draggedShipId != null);
     if (stagingOwnShot) {
       if (targetShipId == null || targetShipId === 0) return null;
       return targetShipId;
@@ -113,7 +118,7 @@ export function useGridEffectPreviews(params: {
   }, [
     selectedShipId,
     previewPosition,
-    effectiveDragCell,
+    draggedShipId,
     targetShipId,
     lastMoveTargetShipId,
   ]);
@@ -122,7 +127,8 @@ export function useGridEffectPreviews(params: {
     if (selectedWeaponType !== "special" || specialType !== 3) return EMPTY_RANGE_CELLS;
 
     const range = readShipValue("specialRange", specialRange);
-    const origin = effectiveDragCell ?? previewPosition;
+    const origin =
+      previewPosition ?? (draggedShipId != null ? effectiveDragCell : null);
     if (origin) {
       const rangeCells = effectiveDragCell ? effectiveShootingRange : shootingRange;
       const targetCells = (effectiveDragCell ? effectiveValidTargets : validTargets)
@@ -159,6 +165,7 @@ export function useGridEffectPreviews(params: {
     specialRange,
     selectedShipId,
     grid,
+    draggedShipId,
     effectiveDragCell,
     previewPosition,
     effectiveShootingRange,

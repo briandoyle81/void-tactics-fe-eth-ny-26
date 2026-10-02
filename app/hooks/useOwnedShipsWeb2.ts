@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { Web2Ship } from "../types/web2Ship";
 import { cacheShipsData } from "./useShipDataCacheWeb2";
 import { useCurrentUser } from "./useCurrentUser";
+
+const GAMES_DETAIL_ACTIVE_EVENT = "void-tactics-games-detail-active";
 
 // Web2-mode counterpart to `useOwnedShips.ts` — fetches the current user's
 // ships from the Prisma-backed `/api/ships` route instead of an on-chain
@@ -33,15 +36,30 @@ export function useOwnedShipsWeb2() {
   // this gate, it hits /api/ships and retries/polls indefinitely even for
   // web3 users who have no web2 session at all.
   const { isLoggedIn } = useCurrentUser();
+  const [pausePolling, setPausePolling] = useState(false);
+  useEffect(() => {
+    const onDetail = (event: Event) => {
+      const custom = event as CustomEvent<{ active?: boolean }>;
+      setPausePolling(Boolean(custom.detail?.active));
+    };
+    window.addEventListener(GAMES_DETAIL_ACTIVE_EVENT, onDetail as EventListener);
+    return () =>
+      window.removeEventListener(
+        GAMES_DETAIL_ACTIVE_EVENT,
+        onDetail as EventListener,
+      );
+  }, []);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["ships", "owned", "web2"],
     queryFn: fetchAllShips,
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && !pausePolling,
     // Every purchase/construct/recycle/claim-free action already calls
     // `refetch()` on success (see ManageNavyWeb2.tsx) — this interval only
     // needs to catch changes from elsewhere (another tab/device), not
     // reflect your own actions, so it doesn't need to be this tight.
-    refetchInterval: 20000,
+    refetchInterval: pausePolling ? false : 20000,
+    refetchOnWindowFocus: !pausePolling,
+    notifyOnChangeProps: ["data", "error"],
   });
 
   const ships = data ?? [];

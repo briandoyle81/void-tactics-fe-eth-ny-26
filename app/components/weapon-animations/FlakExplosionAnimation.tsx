@@ -7,7 +7,7 @@ import {
   FLAK_BURST_SLOTS,
 } from "../../constants/animationTiming";
 import { gridLayoutSize } from "./gridLayout";
-import { createOverlaySizeSync, restartCssAnimation } from "./overlayPaint";
+import { createOverlaySizeSync, restartCssAnimation, startVisibilityAwareInterval } from "./overlayPaint";
 
 type GridCell = { row: number; col: number };
 
@@ -169,10 +169,13 @@ export const FlakExplosionAnimation = React.memo(function FlakExplosionAnimation
     };
 
     spawnBursts();
-    const interval = window.setInterval(spawnBursts, FLAK_BURST_SPAWN_INTERVAL_MS);
+    const stopInterval = startVisibilityAwareInterval(
+      spawnBursts,
+      FLAK_BURST_SPAWN_INTERVAL_MS,
+    );
     return () => {
       mountedRef.current = false;
-      window.clearInterval(interval);
+      stopInterval();
       ro?.disconnect();
       timersRef.current.forEach((id) => window.clearTimeout(id));
       timersRef.current.clear();

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
 import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
@@ -24,15 +25,19 @@ export function canOfferFactionAbility(params: {
   if (!params.isFactionAbilitySupported) return false;
   if (params.factionAbilityIsHeal) return true;
   const range = params.factionAbilityRange ?? 1;
-  for (const origin of params.origins) {
-    for (let r = 0; r < params.grid.length; r++) {
-      const rowCells = params.grid[r] ?? [];
-      for (let c = 0; c < rowCells.length; c++) {
-        if (Math.abs(r - origin.row) + Math.abs(c - origin.col) > range) continue;
-        const cell = rowCells[c];
-        if (!cell || cell.isPreview) continue;
-        if (params.isShipOwnedByCurrentPlayer(cell.shipId)) continue;
-        if ((params.getShipAttributes(cell.shipId)?.hullPoints ?? 1) === 0) {
+  const origins = params.origins;
+  if (origins.length === 0) return false;
+  const grid = params.grid;
+  for (let r = 0; r < grid.length; r++) {
+    const rowCells = grid[r] ?? [];
+    for (let c = 0; c < rowCells.length; c++) {
+      const cell = rowCells[c];
+      if (!cell || cell.isPreview) continue;
+      if (params.isShipOwnedByCurrentPlayer(cell.shipId)) continue;
+      if ((params.getShipAttributes(cell.shipId)?.hullPoints ?? 1) !== 0) continue;
+      for (let i = 0; i < origins.length; i++) {
+        const origin = origins[i];
+        if (Math.abs(r - origin.row) + Math.abs(c - origin.col) <= range) {
           return true;
         }
       }
@@ -73,7 +78,7 @@ interface GameGridWeaponSelectorProps {
  * when targeting. Extracted verbatim from `GameGrid.tsx` — same JSX, same
  * behavior, just relocated.
  */
-export function GameGridWeaponSelector({
+export const GameGridWeaponSelector = React.memo(function GameGridWeaponSelector({
   grid,
   allShipPositions,
   shipMap,
@@ -256,4 +261,4 @@ export function GameGridWeaponSelector({
       </div>
     </div>
   );
-}
+});
