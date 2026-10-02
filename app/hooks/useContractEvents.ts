@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import { useOwnedShips } from "./useOwnedShips";
 import { usePlayerGames } from "./usePlayerGames";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSelectedChainId } from "../config/networks";
 import { baseSepolia } from "viem/chains";
 import { SINGLE_PLAYER_MATCH_ADDRESS } from "./useSinglePlayerMatch";
@@ -38,6 +38,27 @@ const GAME_UPDATE_EVENT_ABI = [
     type: "event",
   },
 ] as const;
+
+// Game.sol emits this once per new game with both players' addresses, so a
+// player can learn about a game the *other* side started without polling.
+const GAME_STARTED_EVENT_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "gameId", type: "uint256" },
+      { indexed: true, internalType: "uint256", name: "lobbyId", type: "uint256" },
+      { indexed: false, internalType: "address", name: "creator", type: "address" },
+      { indexed: false, internalType: "address", name: "joiner", type: "address" },
+    ],
+    name: "GameStarted",
+    type: "event",
+  },
+] as const;
+
+// Games live on Base Sepolia only while multi-chain is disabled; usePlayerGames
+// is pinned there, so the game watchers must be too or a wallet on another
+// chain would watch the wrong contract and the list would never refresh.
+const GAMES_CHAIN_ID = baseSepolia.id;
 
 const AI_TURN_TAKEN_EVENT_ABI = [
   {
@@ -120,9 +141,21 @@ export function ContractEventsHost() {
   const { refetch: refetchShips } = useOwnedShips(undefined, {
     enabled: watchListEvents,
   });
-  const { refetch: refetchGames } = usePlayerGames({
+  const { games: playerGames, refetch: refetchGames } = usePlayerGames({
     enabled: watchListEvents,
   });
+  // GameUpdate carries only a gameId and fires for every match on the
+  // contract. Only this player's games may refetch their list; new games
+  // arrive through GameStarted below. Disabled queries still return cached
+  // data, so this stays populated while a match is open.
+  const knownGameIdsRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    knownGameIdsRef.current = new Set(
+      playerGames.map((g) => Number(g.metadata.gameId)),
+    );
+  }, [playerGames]);
+  const gamesContractAddress = getContractAddresses(GAMES_CHAIN_ID)
+    .GAME as `0x${string}`;
 
   const handleShipTransferLogs = useCallback(
     (logs: unknown[]) => {
@@ -152,12 +185,19 @@ export function ContractEventsHost() {
       if (!Array.isArray(logs) || logs.length === 0) return;
 
       try {
-        // Extract game IDs from the events
+        // Keep only this player's games: the open match (registered live
+        // refetch) or one already in their list. Other players' moves are noise.
         const gameIds = new Set<number>();
         logs.forEach((log) => {
           const args = (log as { args?: { gameId?: bigint } }).args;
           if (args && typeof args.gameId === "bigint") {
-            gameIds.add(Number(args.gameId));
+            const id = Number(args.gameId);
+            if (
+              globalGameRefetchFunctions.has(id) ||
+              knownGameIdsRef.current.has(id)
+            ) {
+              gameIds.add(id);
+            }
           }
         });
 
@@ -171,6 +211,24 @@ export function ContractEventsHost() {
       }
     },
     [refetchGames]
+  );
+
+  const handleGameStartedLogs = useCallback(
+    (logs: Log[]) => {
+      if (!address) return;
+      const me = address.toLowerCase();
+      const involvesMe = logs.some((log) => {
+        const args = (log as unknown as {
+          args?: { creator?: string; joiner?: string };
+        }).args;
+        return (
+          args?.creator?.toLowerCase() === me ||
+          args?.joiner?.toLowerCase() === me
+        );
+      });
+      if (involvesMe) void refetchGames();
+    },
+    [address, refetchGames],
   );
 
   // Fired once per SinglePlayerMatch.takeAITurn call. takeAITurn already
@@ -245,8 +303,8 @@ export function ContractEventsHost() {
 
   const gameEventConfig = useMemo(
     () => ({
-      chainId: activeChainId,
-      address: contractAddresses.GAME as `0x${string}`,
+      chainId: GAMES_CHAIN_ID,
+      address: gamesContractAddress,
       abi: GAME_UPDATE_EVENT_ABI,
       eventName: "GameUpdate" as const,
       poll: true as const,
@@ -254,21 +312,35 @@ export function ContractEventsHost() {
       enabled: shouldWatch,
       onLogs: handleGameUpdateLogs,
     }),
-    [activeChainId, contractAddresses.GAME, handleGameUpdateLogs, shouldWatch]
+    [gamesContractAddress, handleGameUpdateLogs, shouldWatch]
+  );
+
+  const gameStartedEventConfig = useMemo(
+    () => ({
+      chainId: GAMES_CHAIN_ID,
+      address: gamesContractAddress,
+      abi: GAME_STARTED_EVENT_ABI,
+      eventName: "GameStarted" as const,
+      poll: true as const,
+      pollingInterval: 5000,
+      enabled: shouldWatch,
+      onLogs: handleGameStartedLogs,
+    }),
+    [gamesContractAddress, handleGameStartedLogs, shouldWatch]
   );
 
   const aiTurnEventConfig = useMemo(
     () => ({
-      chainId: activeChainId,
+      chainId: GAMES_CHAIN_ID,
       address: SINGLE_PLAYER_MATCH_ADDRESS,
       abi: AI_TURN_TAKEN_EVENT_ABI,
       eventName: "AITurnTaken" as const,
       poll: true as const,
       pollingInterval: 5000,
-      enabled: shouldWatch && matchViewOpen && activeChainId === baseSepolia.id,
+      enabled: shouldWatch && matchViewOpen,
       onLogs: handleAITurnTakenLogs,
     }),
-    [activeChainId, handleAITurnTakenLogs, shouldWatch, matchViewOpen]
+    [handleAITurnTakenLogs, shouldWatch, matchViewOpen]
   );
 
   const gameReservedEventConfig = useMemo(
@@ -290,6 +362,9 @@ export function ContractEventsHost() {
 
   // Watch game update events
   useWatchContractEvent(gameEventConfig);
+
+  // Watch new games involving this player (including ones the opponent started)
+  useWatchContractEvent(gameStartedEventConfig);
 
   // Watch AI turn events (single-player, Base Sepolia only)
   useWatchContractEvent(aiTurnEventConfig);

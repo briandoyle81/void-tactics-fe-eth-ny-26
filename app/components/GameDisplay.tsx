@@ -16,7 +16,7 @@ import {
   Ship,
 } from "../types/types";
 import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
-import { wouldEnterSos } from "../utils/calculateDamage";
+import { wouldDestroy, wouldEnterSos } from "../utils/calculateDamage";
 import { useShipsByIds } from "../hooks/useShipsByIds";
 import ShipCard from "./ShipCard";
 import { ShipImage } from "./ShipImage";
@@ -969,6 +969,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     recordOptimisticSos,
     clearOptimisticSos,
     optimisticSosShipIds,
+    recordOptimisticDestroy,
+    clearOptimisticDestroy,
+    optimisticDestroyShipIds,
   } = interaction;
 
   const toBigTargets = React.useCallback(
@@ -1049,6 +1052,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       // to the pre-submit state instead of a clean vanish.
       handleCancelMove();
       clearOptimisticSos();
+      clearOptimisticDestroy();
       setAwaitingTurnSyncAfterSubmit(false);
 
       const errorMessage =
@@ -1088,7 +1092,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
         toast.error(`Transaction failed: ${errorMessage}`);
       }
     },
-    [handleCancelMove, clearOptimisticSos],
+    [handleCancelMove, clearOptimisticSos, clearOptimisticDestroy],
   );
 
   /** Tutorial parity: pulse is driven by tutorial steps in SimulatedGameDisplay; live game leaves it off. */
@@ -1577,7 +1581,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       computedActionType === ActionType.Special ? "special" : "weapon",
       specialType === 3 ? true : undefined,
     );
-    if (wouldEnterSos(dmg, getShipAttributesForDisplay(t))) {
+    const attrs = getShipAttributesForDisplay(t);
+    if (wouldDestroy(dmg, attrs)) {
+      recordOptimisticDestroy([t]);
+    } else if (wouldEnterSos(dmg, attrs)) {
       recordOptimisticSos([t]);
     }
   }, [
@@ -1587,6 +1594,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     calculateDamageForDisplay,
     getShipAttributesForDisplay,
     recordOptimisticSos,
+    recordOptimisticDestroy,
   ]);
 
   const setSelectedShipIdForDisplay = interaction.setSelectedShipId;
@@ -2010,6 +2018,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleCancelMove, interaction.setDraggedShipId, interaction.setDragOverCell]);
 
+  // Must stay above the loading/error early returns below (rules of hooks).
+  const gameScoreData = React.useMemo(
+    () => toGameScoreData(game, address),
+    [
+      game.creatorScore,
+      game.joinerScore,
+      game.maxScore,
+      game.metadata.creator,
+      address,
+    ],
+  );
+  const { myScore, opponentScore, maxScore } = gameScoreData;
+
   if (requiresLandscapeMode) {
     return (
       <div
@@ -2429,18 +2450,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       </div>
     </>
   );
-
-  const gameScoreData = React.useMemo(
-    () => toGameScoreData(game, address),
-    [
-      game.creatorScore,
-      game.joinerScore,
-      game.maxScore,
-      game.metadata.creator,
-      address,
-    ],
-  );
-  const { myScore, opponentScore, maxScore } = gameScoreData;
 
   // Best-effort loss explanation for GameResultModal's mission copy — only
   // meaningful for single-player, since PvP defeats just show the score
@@ -2923,6 +2932,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       calculateDamage={calculateDamageForDisplay}
                       getShipAttributes={getShipAttributesForDisplay}
                       optimisticSosShipIds={optimisticSosShipIds}
+                      optimisticDestroyShipIds={optimisticDestroyShipIds}
                       isSubmitting={isSubmittingMove}
                       disableTooltips={true}
                       address={address}
@@ -3532,6 +3542,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           calculateDamage={calculateDamageForDisplay}
           getShipAttributes={getShipAttributesForDisplay}
           optimisticSosShipIds={optimisticSosShipIds}
+          optimisticDestroyShipIds={optimisticDestroyShipIds}
           isSubmitting={isSubmittingMove}
           disableTooltips={disableTooltips}
           address={address}

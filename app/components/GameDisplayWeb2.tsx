@@ -34,7 +34,7 @@ import {
 import { apiMutate } from "../lib/apiMutate";
 import { apiFetch } from "../lib/apiFetch";
 import { getSpecialConfigWeb2 } from "../utils/specialConfigWeb2";
-import { wouldEnterSos } from "../utils/calculateDamage";
+import { wouldDestroy, wouldEnterSos } from "../utils/calculateDamage";
 import { requireShipValue } from "../utils/requireShipValue";
 import { getFactionAbilityConfigWeb2 } from "../utils/factionAbilityConfigWeb2";
 import { AI_USER_ID } from "../config/aiUser";
@@ -477,6 +477,9 @@ function GameDisplayWeb2({
     recordOptimisticSos,
     clearOptimisticSos,
     optimisticSosShipIds,
+    recordOptimisticDestroy,
+    clearOptimisticDestroy,
+    optimisticDestroyShipIds,
     setPreviewPosition,
     setTargetShipId,
     setSelectedWeaponType,
@@ -531,7 +534,10 @@ function GameDisplayWeb2({
         payload.actionType === ActionType.Special ? "special" : "weapon",
         payload.specialType === 3 ? true : undefined,
       );
-      if (wouldEnterSos(dmg, getShipAttributes(payload.targetShipId))) {
+      const targetAttrs = getShipAttributes(payload.targetShipId);
+      if (wouldDestroy(dmg, targetAttrs)) {
+        recordOptimisticDestroy([payload.targetShipId]);
+      } else if (wouldEnterSos(dmg, targetAttrs)) {
         recordOptimisticSos([payload.targetShipId]);
       }
     }
@@ -593,6 +599,7 @@ function GameDisplayWeb2({
       // state before disappearing — matches GameDisplay.tsx's ordering.
       handleCancelMove();
       clearOptimisticSos();
+      clearOptimisticDestroy();
       toast.error(e instanceof Error ? e.message : "Move failed");
     } finally {
       setIsSubmitting(false);
@@ -605,6 +612,8 @@ function GameDisplayWeb2({
     recordOptimisticMove,
     recordOptimisticSos,
     clearOptimisticSos,
+    recordOptimisticDestroy,
+    clearOptimisticDestroy,
     calculateDamageForShip,
     getShipAttributes,
     handleCancelMove,
@@ -872,6 +881,7 @@ function GameDisplayWeb2({
       calculateDamage={calculateDamageForShip}
       getShipAttributes={getShipAttributes}
       optimisticSosShipIds={optimisticSosShipIds}
+      optimisticDestroyShipIds={optimisticDestroyShipIds}
       isSubmitting={isSubmitting}
       disableTooltips={false}
       address={userId ?? undefined}

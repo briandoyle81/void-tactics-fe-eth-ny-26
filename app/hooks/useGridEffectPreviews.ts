@@ -3,7 +3,7 @@ import { GridShipPosition } from "../types/gridDisplay";
 import { collectDamageLabelTargets } from "../utils/gameGridRanges";
 import { isRepairDronesSpecial } from "../utils/specialConfigWeb2";
 import { readShipValue } from "../utils/requireShipValue";
-import { wouldEnterSos } from "../utils/calculateDamage";
+import { wouldDestroy, wouldEnterSos } from "../utils/calculateDamage";
 
 type Target = { shipId: number; position: { row: number; col: number } };
 
@@ -97,31 +97,16 @@ export function useGridEffectPreviews(params: {
   } = params;
 
   /**
-   * Beam target for directed main weapons. When the player is staging a shot from
-   * a preview or drag origin, only `targetShipId` applies. Falling back to
-   * `lastMoveTargetShipId` in that case would replay the *previous* move's victim
-   * (e.g. opponent shot the player's ship) while drawing from the staged
+   * Beam target for directed main weapons. With a ship selected, only the
+   * player's picked `targetShipId` applies — with or without a destination.
+   * Falling back to `lastMoveTargetShipId` there would replay the *previous*
+   * move's victim (e.g. opponent shot the player's ship) from the selected
    * attacker, which looks like friendly fire.
    */
   const directedWeaponBeamTargetId = React.useMemo(() => {
-    // Dest-tile hover is not a staged shot. Treating it as one cleared the
-    // last-move beam target and remounted laser/plasma/missile loops on
-    // every dest tile.
-    const stagingOwnShot =
-      selectedShipId != null &&
-      (previewPosition != null || draggedShipId != null);
-    if (stagingOwnShot) {
-      if (targetShipId == null || targetShipId === 0) return null;
-      return targetShipId;
-    }
+    if (selectedShipId != null) return targetShipId || null;
     return targetShipId || lastMoveTargetShipId || null;
-  }, [
-    selectedShipId,
-    previewPosition,
-    draggedShipId,
-    targetShipId,
-    lastMoveTargetShipId,
-  ]);
+  }, [selectedShipId, targetShipId, lastMoveTargetShipId]);
 
   const flakEffectCells = React.useMemo(() => {
     if (selectedWeaponType !== "special" || specialType !== 3) return EMPTY_RANGE_CELLS;
@@ -316,13 +301,8 @@ export function useGridEffectPreviews(params: {
           ? true
           : undefined,
       );
-      const targetAttributes = getShipAttributes(target.shipId);
-      const willDestroyByReactor =
-        damage.reactorCritical &&
-        !!targetAttributes &&
-        targetAttributes.reactorCriticalTimer + 1 >= 3;
       // Same condition as label text "[DESTROY]" (main gun, flak, EMP reactor stack).
-      if (willDestroyByReactor) {
+      if (wouldDestroy(damage, getShipAttributes(target.shipId))) {
         ids.add(target.shipId);
       }
     }

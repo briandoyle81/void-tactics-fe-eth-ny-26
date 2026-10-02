@@ -102,6 +102,7 @@ function resolveDirectedAttackerPos(params: {
   previewPosition: Position | null;
   draggedShipId: number | null;
   dragOverCell: Position | null;
+  selectedShipId: number | null;
   lastMoveShipId?: number | null;
   lastMoveNewPosition?: Position | null;
   shipId: number;
@@ -109,6 +110,11 @@ function resolveDirectedAttackerPos(params: {
 }): Position | null {
   if (params.previewPosition) return params.previewPosition;
   if (params.draggedShipId && params.dragOverCell) return params.dragOverCell;
+  // Target picked before (or without) a destination: fire from where the
+  // selected ship currently sits.
+  if (params.selectedShipId != null && params.shipId === params.selectedShipId) {
+    return params.findShipPositionById(params.shipId);
+  }
   if (params.lastMoveShipId && params.shipId === params.lastMoveShipId) {
     return params.lastMoveNewPosition ?? params.findShipPositionById(params.shipId);
   }
@@ -463,10 +469,10 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
     !selectedShipId || showLastMoveEmpReplayWhenSelected;
   // Preview weapon fire is a hologram at To. Last-move fire is live color at To.
   const hologramFire = !!(previewPosition && selectedShipId);
+  // Show the player's directed fire as soon as a target is picked; the
+  // destination only changes where it fires from.
   const stagingDirectedFire =
-    selectedShipId != null &&
-    (previewPosition != null || draggedShipId != null) &&
-    selectedWeaponType === "weapon";
+    selectedShipId != null && selectedWeaponType === "weapon";
   const idleLastMoveDirectedFire =
     selectedShipId == null &&
     (lastMoveActionType as ActionType) === ActionType.Shoot;
@@ -533,6 +539,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   previewPosition,
                   draggedShipId,
                   dragOverCell,
+                  selectedShipId,
                   lastMoveShipId,
                   lastMoveNewPosition,
                   shipId,
@@ -595,6 +602,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   previewPosition,
                   draggedShipId,
                   dragOverCell,
+                  selectedShipId,
                   lastMoveShipId,
                   lastMoveNewPosition,
                   shipId,
@@ -657,6 +665,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   previewPosition,
                   draggedShipId,
                   dragOverCell,
+                  selectedShipId,
                   lastMoveShipId,
                   lastMoveNewPosition,
                   shipId,
@@ -726,6 +735,7 @@ export const GameGridOverlays = React.memo(function GameGridOverlays({
                   previewPosition,
                   draggedShipId,
                   dragOverCell,
+                  selectedShipId,
                   lastMoveShipId,
                   lastMoveNewPosition,
                   shipId,

@@ -192,6 +192,8 @@ interface GameGridProps {
    * hologram) until chain/server attributes confirm 0 HP.
    */
   optimisticSosShipIds?: Set<number>;
+  /** Targets a submitted move is predicted to destroy; held until chain data confirms. */
+  optimisticDestroyShipIds?: Set<number>;
   /** True while the current move tx/request is in flight. */
   isSubmitting?: boolean;
   /**
@@ -801,6 +803,7 @@ const GameGridBoard = React.memo(function GameGridBoard({
   onCancelMove,
   confirmButton,
   optimisticSosShipIds = EMPTY_SHIP_ID_SET,
+  optimisticDestroyShipIds = EMPTY_SHIP_ID_SET,
   isSubmitting = false,
   renderShipCard,
 }: GameGridProps) {
@@ -886,7 +889,7 @@ const GameGridBoard = React.memo(function GameGridBoard({
     flakEffectCells,
     projectedDamageByShipId,
     projectedRepairByShipId,
-    destroyPreviewShipIds,
+    destroyPreviewShipIds: stagedDestroyShipIds,
     sosPreviewShipIds,
     findShipPositionById,
   } = useGridEffectPreviews({
@@ -918,6 +921,14 @@ const GameGridBoard = React.memo(function GameGridBoard({
     calculateDamage,
     getShipAttributes,
   });
+  // Staged prediction while aiming, plus submitted-shot predictions that must
+  // outlive the staging (selection clears on send) until chain data shows the
+  // ship destroyed. Cells only see the union.
+  const destroyPreviewShipIds = React.useMemo(() => {
+    if (optimisticDestroyShipIds.size === 0) return stagedDestroyShipIds;
+    if (stagedDestroyShipIds.size === 0) return optimisticDestroyShipIds;
+    return new Set([...stagedDestroyShipIds, ...optimisticDestroyShipIds]);
+  }, [stagedDestroyShipIds, optimisticDestroyShipIds]);
 
   // Compute the best placement for the confirm widget to avoid covering the target ship,
   // weapon beam path, and move arrow. See computeConfirmWidgetAnchor for the algorithm.

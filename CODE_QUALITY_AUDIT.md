@@ -95,3 +95,11 @@ Generated 2026-05-20. Do not fix anything without checking this list first.
 - [x] `useLobbies.ts` — removed 4 fire-and-forget `loadLobbies()` calls from `createLobby`, `joinLobby`, `acceptGame`, `rejectGame`; block-based invalidation in `useLobbyList` handles refresh after on-chain settlement
 - [x] `useShipImageCache.ts` — `initializeCacheSystem()`, `startQueueCheck()`, and `window.addEventListener("beforeunload")` consolidated into a single `if (typeof window !== "undefined")` SSR guard
 - [x] `useNavyOptimization.ts` — deleted in Group 4 (no consumers)
+
+---
+
+## 9. Game Board Render Performance
+
+Added 2026-10-02 after the hover/animation regression pass. Measure before fixing.
+
+- [ ] `GameGridCell.tsx` — selecting a ship or picking a destination still re-renders all 187 cells. `GameGridCell` is `React.memo`, but `GameGridCells` (`GameGrid.tsx`) passes every cell board-wide props that change on each click: `selectedShipId`, `previewPosition`, `effectiveDragCell`, `targetShipId`, `draggedShipId`, and the range sets (`movementTileSet`, `shootingTileSet`, `effectiveShootingTileSet`, target-id sets). Fix: compute per-cell primitives in `GameGridCells` (e.g. `isMovementTile`, `isShootingTile`, `isPreviewCell`, `isSelectedShipCell`, `isTargetCell`) so only cells whose output changes re-render. Large change (~85 uses in a 1,786-line render body) and selection legitimately changes many cells, so the gain is partial. **Before starting:** time real clicks with the Event Timing API (INP data) in a production build (`npm run build && npx next start -p 3001`); only proceed if click-to-next-paint is clearly over ~100 ms. Convert the range sets and selection checks first. Keep `SimulatedGameDisplay` and `GameDisplay` visually identical (parity rule). `grid` and the assistable-target arrays were already moved off cell props (grid is read via a ref in click handlers).

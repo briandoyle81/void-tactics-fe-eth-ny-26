@@ -54,7 +54,7 @@ function faction1LaserOrigin(
   const dir = facingRight ? 1 : -1;
   return {
     x: cx + dir * box.width * 0.08,
-    y: cy - box.height * (facingRight ? 0.3 : 0.15),
+    y: cy + (facingRight ? -box.height * 0.15 : 0),
   };
 }
 

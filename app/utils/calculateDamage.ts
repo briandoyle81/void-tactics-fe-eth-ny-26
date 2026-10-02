@@ -87,13 +87,19 @@ export function calculateDamage({
   return { baseDamage, reducedDamage, willKill, reactorCritical: false };
 }
 
+/** Reactor stack reaching 3 is DESTROY (permanent), as opposed to SOS. */
+export function wouldDestroy(
+  damage: Pick<DamageResult, "reactorCritical">,
+  attrs: { reactorCriticalTimer: number } | null,
+): boolean {
+  return !!attrs && damage.reactorCritical && attrs.reactorCriticalTimer + 1 >= 3;
+}
+
 /** Hull going to 0 is SOS (disabled). Reactor stack to 3 is DESTROY, not SOS. */
 export function wouldEnterSos(
   damage: Pick<DamageResult, "willKill" | "reactorCritical">,
   attrs: { hullPoints: number; reactorCriticalTimer: number } | null,
 ): boolean {
   if (!attrs || attrs.hullPoints <= 0) return false;
-  const willDestroy =
-    damage.reactorCritical && attrs.reactorCriticalTimer + 1 >= 3;
-  return damage.willKill && !willDestroy;
+  return damage.willKill && !wouldDestroy(damage, attrs);
 }

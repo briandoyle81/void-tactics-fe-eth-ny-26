@@ -802,6 +802,38 @@ export function useGameplayInteraction({
     });
   }, [optimisticSosHullKey, getShipAttributes]);
 
+  // Same idea as optimistic SOS, for a submitted shot predicted to destroy its
+  // target: keep destroyed art up from send until chain data catches up,
+  // instead of reverting to live art while the staged preview is torn down.
+  const [optimisticDestroyShipIds, setOptimisticDestroyShipIds] = useState<
+    Set<number>
+  >(() => new Set());
+  const recordOptimisticDestroy = useCallback((ids: number[]) => {
+    if (ids.length === 0) return;
+    setOptimisticDestroyShipIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (id > 0) next.add(id);
+      }
+      return next;
+    });
+  }, []);
+  const clearOptimisticDestroy = useCallback(() => {
+    setOptimisticDestroyShipIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, []);
+  // Drop ids once chain data shows the ship destroyed (status 1) or gone.
+  React.useEffect(() => {
+    setOptimisticDestroyShipIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<number>();
+      for (const id of prev) {
+        const pos = allShipPositions.find((p) => p.shipId === id);
+        if (pos && pos.status !== 1) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [allShipPositions]);
+
   // Clear the optimistic overlay once fresh data's lastMove matches it.
   React.useEffect(() => {
     if (!optimisticLastMove || !lastMove) return;
@@ -815,9 +847,11 @@ export function useGameplayInteraction({
       lastMove.newCol === optimisticLastMove.newCol;
     if (matches) {
       setOptimisticLastMove(null);
+      // The confirmed move's outcome is now in chain data; stop overriding it.
+      clearOptimisticDestroy();
       handleCancelMove();
     }
-  }, [optimisticLastMove, lastMove, handleCancelMove]);
+  }, [optimisticLastMove, lastMove, handleCancelMove, clearOptimisticDestroy]);
 
   const displayGrid: (GridShipPosition | null)[][] = useMemo(() => {
     const newGrid: (GridShipPosition | null)[][] = Array(gridHeight)
@@ -947,5 +981,8 @@ export function useGameplayInteraction({
     recordOptimisticSos,
     clearOptimisticSos,
     optimisticSosShipIds,
+    recordOptimisticDestroy,
+    clearOptimisticDestroy,
+    optimisticDestroyShipIds,
   };
 }
