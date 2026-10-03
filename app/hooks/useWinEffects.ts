@@ -1,6 +1,7 @@
 "use client";
 
-import { useReadContract } from "wagmi";
+import { useMemo } from "react";
+import { useReadContract, useReadContracts } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
@@ -24,10 +25,12 @@ export const WIN_EFFECT_CATALOG = [
 ] as const;
 
 export function useWinEffectAddresses(): Record<string, Address> {
-  const addresses = CONTRACT_ADDRESSES_BY_CHAIN_ID[CHAIN_ID];
-  return Object.fromEntries(
-    WIN_EFFECT_CATALOG.map(({ key }) => [key, addresses[key] as Address]),
-  );
+  return useMemo(() => {
+    const addresses = CONTRACT_ADDRESSES_BY_CHAIN_ID[CHAIN_ID];
+    return Object.fromEntries(
+      WIN_EFFECT_CATALOG.map(({ key }) => [key, addresses[key] as Address]),
+    );
+  }, []);
 }
 
 export function useRoguelikeNodeWinEffects(nodeId: bigint | undefined) {
@@ -42,6 +45,36 @@ export function useRoguelikeNodeWinEffects(nodeId: bigint | undefined) {
     query: { enabled: nodeId != null },
   });
   return { ...result, data: result.data as Address[] | undefined };
+}
+
+/** Batched getNodeWinEffects for many roguelike nodes (admin export). */
+export function useRoguelikeNodesWinEffects(nodeIds: bigint[]) {
+  const nodeMapAddress = CONTRACT_ADDRESSES_BY_CHAIN_ID[CHAIN_ID]
+    .ROGUELIKE_NODE_MAP as Address;
+  const contracts = useMemo(
+    () =>
+      nodeIds.map((id) => ({
+        address: nodeMapAddress,
+        abi: CONTRACT_ABIS.ROGUELIKE_NODE_MAP as Abi,
+        chainId: CHAIN_ID,
+        functionName: "getNodeWinEffects" as const,
+        args: [id] as const,
+      })),
+    [nodeIds, nodeMapAddress],
+  );
+  const result = useReadContracts({
+    contracts,
+    query: { enabled: nodeIds.length > 0 },
+  });
+  const effectsByNodeId = useMemo(() => {
+    const map = new Map<number, Address[]>();
+    nodeIds.forEach((id, i) => {
+      const effects = result.data?.[i]?.result as Address[] | undefined;
+      if (effects) map.set(Number(id), effects);
+    });
+    return map;
+  }, [nodeIds, result.data]);
+  return { effectsByNodeId, isLoading: result.isLoading, error: result.error };
 }
 
 export function usePvPMatchWinEffects() {

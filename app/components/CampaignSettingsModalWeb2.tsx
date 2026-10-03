@@ -3,15 +3,11 @@
 import React from "react";
 import { toast } from "react-hot-toast";
 import { useCampaignAdminWeb2, type CampaignWeb2 } from "../hooks/useCampaignAdminWeb2";
-import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
 
 const DEFAULT_CAMPAIGN_ID = 1;
 
 interface CampaignSettingsModalWeb2Props {
   campaign: CampaignWeb2 | undefined;
-  /** Every node id in this campaign — passed straight through to
-   * NodeContentPublishPanel, see its prop doc for why. */
-  nodeIds: number[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -23,7 +19,6 @@ interface CampaignSettingsModalWeb2Props {
 // the map editor plan's decision log on "merge the permissions").
 export function CampaignSettingsModalWeb2({
   campaign,
-  nodeIds,
   onClose,
   onSaved,
 }: CampaignSettingsModalWeb2Props) {
@@ -118,8 +113,6 @@ export function CampaignSettingsModalWeb2({
               {isCreatingCampaign ? "[CREATING...]" : "[CREATE CAMPAIGN]"}
             </button>
           </div>
-
-          <NodeContentPublishPanel graphType="CAMPAIGN" nodeIds={nodeIds} />
         </div>
       </div>
     </div>

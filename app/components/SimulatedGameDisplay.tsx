@@ -1,5 +1,6 @@
 "use client";
 
+import { useOpenWalletSignIn } from "../hooks/useOpenWalletSignIn";
 import React, {
   useState,
   useMemo,
@@ -95,7 +96,6 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
 import { useSelectedChainId } from "../hooks/useSelectedChainId";
@@ -286,7 +286,7 @@ export function SimulatedGameDisplay({
   onBack,
 }: SimulatedGameDisplayProps) {
   const { address } = useAccount();
-  const { setShowAuthFlow } = useDynamicContext();
+  const openWalletSignIn = useOpenWalletSignIn();
   const activeChainId = useSelectedChainId();
   const publicClient = usePublicClient({ chainId: activeChainId });
   const switchToSelectedChainIfNeeded = useSwitchToSelectedChainIfNeeded();
@@ -462,7 +462,7 @@ export function SimulatedGameDisplay({
       functionName: "completeTutorialWinPath" | "completeTutorialLossPath",
     ) => {
       if (!address) {
-        setShowAuthFlow(true);
+        void openWalletSignIn();
         return;
       }
       if (isTutorialRewardAlreadyClaimed) {

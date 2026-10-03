@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { nodeContentTextClass } from "../hooks/useNodeContent";
+import type { NodeContentStatus } from "../hooks/useNodeContent";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import { RoguelikeNodeKind, type RoguelikeRun } from "../types/roguelike";
@@ -37,6 +39,14 @@ const DEFAULT_ROGUELIKE_CAMPAIGN_ID = 1n;
 
 const ADD_NODE_SENTINEL_ID = Number.MAX_SAFE_INTEGER;
 
+function missionEditModeKey(address: string | undefined): string {
+  return `mission-edit-mode-${address || "anonymous"}`;
+}
+
+function missionSelectedNodeKey(address: string | undefined): string {
+  return `mission-selected-node-${address || "anonymous"}`;
+}
+
 interface RoguelikeGraphProps {
   /** Null in the run-less "browse/edit" entry point (RoguelikeCampaign.tsx's
    * [EDIT CAMPAIGN MAP] button, for editors with no active run) — every
@@ -54,6 +64,7 @@ interface RoguelikeGraphProps {
 interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
   prerequisites: number[];
   title: string;
+  titleStatus: NodeContentStatus;
   editMode: boolean;
   connectHighlight: "source" | "candidate" | "invalid" | undefined;
 }
@@ -77,7 +88,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   const [selectedNodeId, setSelectedNodeId] = React.useState<number | null>(null);
   const [enteringResupply, setEnteringResupply] = React.useState<bigint | null>(null);
   const [isRetreating, setIsRetreating] = React.useState(false);
-  const [editMode, setEditMode] = React.useState(false);
+  const [editMode, setEditModeState] = React.useState(false);
   const [connectMode, setConnectMode] = React.useState<{ sourceNodeId: bigint; twoWay: boolean } | null>(
     null,
   );
@@ -85,6 +96,22 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
 
   const isBrowseMode = run == null;
   const campaignId = run?.campaignId ?? DEFAULT_ROGUELIKE_CAMPAIGN_ID;
+
+  React.useEffect(() => {
+    setEditModeState(localStorage.getItem(missionEditModeKey(address)) === "1");
+  }, [address]);
+  const setEditMode = React.useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setEditModeState((prev) => {
+        const next = typeof value === "function" ? value(prev) : value;
+        const key = missionEditModeKey(address);
+        if (next) localStorage.setItem(key, "1");
+        else localStorage.removeItem(key);
+        return next;
+      });
+    },
+    [address],
+  );
 
   const { nodes: campaignNodes, isLoading: nodesLoading, refetch: refetchNodes } =
     useRoguelikeGraphWithContent(campaignId);
@@ -138,6 +165,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
           unlocked: isBrowseMode ? true : isCurrent ? true : !lockedByNodeId.get(n.id.toString()),
           isCurrent,
           title: n.title,
+          titleStatus: n.titleStatus,
           editMode,
           connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
         };
@@ -162,20 +190,26 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       unlocked: true,
       isCurrent: false,
       title: "+ ADD NODE",
+      titleStatus: "ok",
       editMode: true,
       connectHighlight: connectMode ? "invalid" : undefined,
     });
   }
 
-  // Snap the selection back to "where you are" whenever your position
-  // actually changes (entering a node) — same intent as CampaignGraph.tsx
-  // restoring a saved selection, but here "the interesting node" is always
-  // your current position rather than something worth persisting. Browse
-  // mode has no current position, so selection is left alone (nothing to
-  // snap to) once initially set.
+  // Play mode snaps to the current run node. Browse/edit mode restores the
+  // last selected node so leaving Mission and coming back keeps the panel.
   React.useEffect(() => {
-    if (!isBrowseMode) setSelectedNodeId(Number(run.currentNodeId));
-  }, [isBrowseMode, run?.currentNodeId]);
+    if (!isBrowseMode) {
+      setSelectedNodeId(Number(run.currentNodeId));
+      return;
+    }
+    if (selectedNodeId !== null || campaignNodes.length === 0) return;
+    const saved = localStorage.getItem(missionSelectedNodeKey(address));
+    const savedId = saved ? Number(saved) : NaN;
+    if (Number.isFinite(savedId) && byNumberId.has(savedId)) {
+      setSelectedNodeId(savedId);
+    }
+  }, [isBrowseMode, run?.currentNodeId, campaignNodes, selectedNodeId, address, byNumberId]);
 
   React.useEffect(() => {
     if (!editMode) {
@@ -352,6 +386,9 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       return;
     }
     setSelectedNodeId(id);
+    if (isBrowseMode) {
+      localStorage.setItem(missionSelectedNodeKey(address), String(id));
+    }
   };
 
   if (nodesLoading || (!isBrowseMode && !currentNode)) {
@@ -432,6 +469,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
             isSelected={isSelected}
             onSelect={onSelect}
             title={node.title}
+            titleStatus={node.titleStatus}
             editMode={node.editMode}
             connectHighlight={node.connectHighlight}
           />
@@ -475,12 +513,16 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
               style={{ borderRadius: 0 }}
             >
               <div className="flex flex-col">
-                <h4 className="text-lg font-bold text-cyan">{selectedNode.title}</h4>
+                <h4 className={`text-lg font-bold ${nodeContentTextClass(selectedNode.titleStatus, "text-cyan")}`}>
+                  {selectedNode.title}
+                </h4>
                 <p className="mt-1 text-xs uppercase tracking-wider text-text-muted">
                   {selectedNode.kind === RoguelikeNodeKind.Combat ? "Combat" : "Resupply"} · Node #
                   {selectedNode.id.toString()}
                 </p>
-                <p className="mt-2 text-sm text-text-secondary">{selectedNode.description}</p>
+                <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(selectedNode.descriptionStatus, "text-text-secondary")}`}>
+                  {selectedNode.description}
+                </p>
                 {isSelectedCombatNode && isSelectedNodeDefeated && !isSelectedCurrentNode && (
                   <p className="mt-2 text-sm text-phosphor-green">Cleared.</p>
                 )}
@@ -557,7 +599,6 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       {showSettings && (
         <RoguelikeSettingsModal
           campaignId={campaignId}
-          nodeIds={campaignNodes.map((n) => Number(n.id))}
           onClose={() => setShowSettings(false)}
           onSaved={() => void refetchAutoHeal()}
         />

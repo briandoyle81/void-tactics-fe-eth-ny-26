@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { CampaignNode } from "../types/types";
-import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
+import { useOnChainNodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
 
 // Single-player (NodeMap/SinglePlayerMatch/AIEncounters) is Base Sepolia
 // only — always read from that chain regardless of the connected
@@ -176,6 +176,7 @@ export function useAllCampaignNodes() {
 
   return {
     data: nodes,
+    campaignCount: campaignIds.length,
     isLoading: countResult.isLoading || idsPerCampaignResult.isLoading || nodesResult.isLoading,
     error: countResult.error ?? idsPerCampaignResult.error ?? nodesResult.error ?? null,
     refetch: () => {
@@ -247,13 +248,14 @@ export function useCampaignGraph(playerAddress: Address | undefined, campaignId:
   };
 }
 
-export type CampaignGraphNodeWithContent = CampaignGraphNode & NodeContentValue;
+export type CampaignGraphNodeWithContent = CampaignGraphNode & ResolvedNodeContent;
 
 /**
  * The full campaign graph, content included: useCampaignGraph's on-chain
  * structure/unlock/completed reads, merged with the three-layer
  * (DB -> static config -> default) title/description resolution from
- * useNodeContent.ts — one call for what CampaignGraph.tsx previously
+ * useNodeContent.ts (on-chain NodeContentRegistry -> static config ->
+ * default) — one call for what CampaignGraph.tsx previously
  * assembled from two separate hooks plus a per-node resolveNodeContent call.
  */
 export function useCampaignGraphWithContent(
@@ -261,12 +263,23 @@ export function useCampaignGraphWithContent(
   campaignId: bigint,
 ) {
   const graph = useCampaignGraph(playerAddress, campaignId);
-  const { contentById } = useAllNodeContent("CAMPAIGN");
+  const nodeIds = useMemo(() => graph.nodes.map((n) => n.id), [graph.nodes]);
+  const {
+    contentById,
+    isLoading: contentLoading,
+    refetch: refetchContent,
+  } = useOnChainNodeContent("CAMPAIGN", nodeIds);
 
   const nodes = useMemo(
-    () => mergeNodeContent("CAMPAIGN", graph.nodes, contentById),
-    [graph.nodes, contentById],
+    () => mergeNodeContent(graph.nodes, contentById, contentLoading),
+    [graph.nodes, contentById, contentLoading],
   );
 
-  return { ...graph, nodes };
+  const { refetch: refetchGraph } = graph;
+  const refetch = useCallback(() => {
+    refetchGraph();
+    void refetchContent();
+  }, [refetchGraph, refetchContent]);
+
+  return { ...graph, nodes, refetch };
 }

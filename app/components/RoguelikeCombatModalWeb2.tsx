@@ -12,6 +12,8 @@ import { buildFleetShipListItemsWeb2 } from "../utils/buildFleetShipListItemsWeb
 import { useRoguelikeMatchWeb2, type RoguelikeRunWeb2, type RoguelikeNodeWeb2 } from "../hooks/useRoguelikeWeb2";
 import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
 import type { Web2Ship } from "../types/web2Ship";
+import { useMapWeb2 } from "../hooks/useMapWeb2";
+import { GRID_DIMENSIONS } from "../types/types";
 
 interface AIMapPlacementWeb2 {
   id: number;
@@ -50,11 +52,14 @@ export function RoguelikeCombatModalWeb2({
 
   const rosterShips: Web2Ship[] = React.useMemo(() => run.roster.map((r) => r.ship), [run.roster]);
 
+  // The player is the creator side in single-player.
+  const { creatorZone } = useMapWeb2(targetNode.mapId ?? 0, GRID_DIMENSIONS.WIDTH, GRID_DIMENSIONS.HEIGHT);
   const fleet = useFleetPlacementWeb2({
     ships: rosterShips,
     costLimit: Number.MAX_SAFE_INTEGER,
     costsVersion: null,
     isCreatorSide: true,
+    zoneTiles: creatorZone,
   });
 
   React.useEffect(() => {

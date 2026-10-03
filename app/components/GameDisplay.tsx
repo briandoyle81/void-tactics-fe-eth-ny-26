@@ -45,6 +45,7 @@ import {
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
 import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { resolveNodeContent, useOnChainNodeContent } from "../hooks/useNodeContent";
 import { inferVictoryReason } from "../utils/victoryReason";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
@@ -802,6 +803,16 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   const { data: nodeIdForGame } = useGameIdToNodeId(
     isSinglePlayerGame ? game.metadata.gameId : undefined,
   );
+  const missionNodeIds = React.useMemo(
+    () => (nodeIdForGame != null && nodeIdForGame > 0n ? [nodeIdForGame] : []),
+    [nodeIdForGame],
+  );
+  const { contentById: missionContentById, isLoading: missionContentLoading } =
+    useOnChainNodeContent("CAMPAIGN", missionNodeIds);
+  const missionNodeContent =
+    nodeIdForGame != null && nodeIdForGame > 0n
+      ? resolveNodeContent(missionContentById, nodeIdForGame, missionContentLoading)
+      : undefined;
   const [isGameResultDismissed, setIsGameResultDismissed] = React.useState(false);
 
   const { recordPlayerMove } = useGamePolling({
@@ -3118,6 +3129,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 ? nodeIdForGame
                 : undefined
             }
+            nodeContent={missionNodeContent}
             onClose={() => setIsGameResultDismissed(true)}
             primaryActionLabel={
               isRoguelikeGame
@@ -4040,6 +4052,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               ? nodeIdForGame
               : undefined
           }
+          nodeContent={missionNodeContent}
           onClose={() => setIsGameResultDismissed(true)}
           primaryActionLabel={
             isRoguelikeGame

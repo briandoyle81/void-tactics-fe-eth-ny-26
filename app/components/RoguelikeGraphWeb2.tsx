@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { nodeContentTextClass } from "../hooks/useNodeContent";
+import type { NodeContentStatus } from "../hooks/useNodeContent";
 import { toast } from "react-hot-toast";
 import { RoguelikeNodeKind } from "../types/roguelike";
 import {
@@ -30,6 +32,8 @@ import ShipCard from "./ShipCard";
 
 const DEFAULT_ROGUELIKE_CAMPAIGN_ID = 1;
 const ADD_NODE_SENTINEL_ID = Number.MAX_SAFE_INTEGER;
+const MISSION_EDIT_MODE_KEY = "mission-edit-mode-web2";
+const MISSION_SELECTED_NODE_KEY = "mission-selected-node-web2";
 
 interface RoguelikeGraphWeb2Props {
   /** Null in the run-less "browse/edit" entry point — see RoguelikeGraph.tsx's matching prop doc. */
@@ -40,6 +44,7 @@ interface RoguelikeGraphWeb2Props {
 interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
   prerequisites: number[];
   title: string;
+  titleStatus: NodeContentStatus;
   editMode: boolean;
   connectHighlight: "source" | "candidate" | "invalid" | undefined;
 }
@@ -59,7 +64,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
   const [selectedNodeId, setSelectedNodeId] = React.useState<number | null>(null);
   const [enteringResupply, setEnteringResupply] = React.useState<number | null>(null);
   const [isRetreating, setIsRetreating] = React.useState(false);
-  const [editMode, setEditMode] = React.useState(false);
+  const [editMode, setEditModeState] = React.useState(false);
   const [connectMode, setConnectMode] = React.useState<{ sourceNodeId: number; twoWay: boolean } | null>(
     null,
   );
@@ -67,6 +72,18 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
 
   const isBrowseMode = run == null;
   const campaignId = run?.campaignId ?? DEFAULT_ROGUELIKE_CAMPAIGN_ID;
+
+  React.useEffect(() => {
+    setEditModeState(localStorage.getItem(MISSION_EDIT_MODE_KEY) === "1");
+  }, []);
+  const setEditMode = React.useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setEditModeState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      if (next) localStorage.setItem(MISSION_EDIT_MODE_KEY, "1");
+      else localStorage.removeItem(MISSION_EDIT_MODE_KEY);
+      return next;
+    });
+  }, []);
 
   const { nodes: campaignNodes, isLoading: nodesLoading, refetch: refetchNodes } =
     useRoguelikeCampaignNodesWeb2WithContent(campaignId);
@@ -110,6 +127,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
           unlocked: isBrowseMode ? true : isAdjacent,
           isCurrent,
           title: n.title,
+          titleStatus: n.titleStatus,
           editMode,
           connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
         };
@@ -125,17 +143,24 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       unlocked: true,
       isCurrent: false,
       title: "+ ADD NODE",
+      titleStatus: "ok",
       editMode: true,
       connectHighlight: connectMode ? "invalid" : undefined,
     });
   }
 
-  // Snap the selection back to "where you are" whenever your position
-  // actually changes — see RoguelikeGraph.tsx's matching comment. Browse
-  // mode has no current position, so selection is left alone.
   React.useEffect(() => {
-    if (!isBrowseMode) setSelectedNodeId(run.currentNodeId);
-  }, [isBrowseMode, run?.currentNodeId]);
+    if (!isBrowseMode) {
+      setSelectedNodeId(run.currentNodeId);
+      return;
+    }
+    if (selectedNodeId !== null || campaignNodes.length === 0) return;
+    const saved = localStorage.getItem(MISSION_SELECTED_NODE_KEY);
+    const savedId = saved ? Number(saved) : NaN;
+    if (Number.isFinite(savedId) && byId.has(savedId)) {
+      setSelectedNodeId(savedId);
+    }
+  }, [isBrowseMode, run?.currentNodeId, campaignNodes, selectedNodeId, byId]);
 
   React.useEffect(() => {
     if (!editMode) {
@@ -245,6 +270,9 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       return;
     }
     setSelectedNodeId(id);
+    if (isBrowseMode) {
+      localStorage.setItem(MISSION_SELECTED_NODE_KEY, String(id));
+    }
   };
 
   if (nodesLoading || (!isBrowseMode && !currentNode)) {
@@ -325,6 +353,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
             isSelected={isSelected}
             onSelect={onSelect}
             title={node.title}
+            titleStatus={node.titleStatus}
             editMode={node.editMode}
             connectHighlight={node.connectHighlight}
           />
@@ -368,12 +397,16 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
               style={{ borderRadius: 0 }}
             >
               <div className="flex flex-col">
-                <h4 className="text-lg font-bold text-cyan">{selectedNode.title}</h4>
+                <h4 className={`text-lg font-bold ${nodeContentTextClass(selectedNode.titleStatus, "text-cyan")}`}>
+                  {selectedNode.title}
+                </h4>
                 <p className="mt-1 text-xs uppercase tracking-wider text-text-muted">
                   {selectedNode.kind === RoguelikeNodeKind.Combat ? "Combat" : "Resupply"} · Node #
                   {selectedNode.id}
                 </p>
-                <p className="mt-2 text-sm text-text-secondary">{selectedNode.description}</p>
+                <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(selectedNode.descriptionStatus, "text-text-secondary")}`}>
+                  {selectedNode.description}
+                </p>
                 {isSelectedCombatNode && isSelectedNodeDefeated && !isSelectedCurrentNode && (
                   <p className="mt-2 text-sm text-phosphor-green">Cleared.</p>
                 )}
@@ -450,7 +483,6 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       {showSettings && campaign && (
         <RoguelikeSettingsModalWeb2
           campaign={campaign}
-          nodeIds={campaignNodes.map((n) => n.id)}
           onClose={() => setShowSettings(false)}
           onSaved={() => void refetchCampaign()}
         />

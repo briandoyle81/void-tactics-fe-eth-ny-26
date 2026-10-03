@@ -549,7 +549,7 @@ export interface MapEditorState {
   impassableTiles: boolean[][];
   scoringTiles: number[][];
   onlyOnceTiles: boolean[][];
-  selectedTool: "block" | "impassable" | "score" | "erase";
+  selectedTool: "block" | "impassable" | "score" | "erase" | "creatorZone" | "joinerZone";
   selectedScoreValue: number;
   selectedOnlyOnce: boolean;
   symmetryMode: "none" | "radial";

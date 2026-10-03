@@ -7,6 +7,14 @@ import {
   ScoringPosition,
   GRID_DIMENSIONS,
 } from "../types/types";
+import {
+  MapTileContents,
+  MapTileLegend,
+  mapTileClass,
+  type MapTileLook,
+  type ZoneSide,
+} from "./MapTileVisual";
+import { DEFAULT_DEPLOYMENT_COLS } from "../utils/deploymentZone";
 
 // Data-source-agnostic — the initial map data and the save action are both
 // supplied by the caller (contract reads/writes for web3's Maps.tsx, REST
@@ -17,6 +25,9 @@ interface MapEditorRenderSaveButtonArgs {
   blockedPositions: MapPosition[];
   impassablePositions: MapPosition[];
   scoringPositions: ScoringPosition[];
+  /** Deployment zones (empty = the side uses the default column band). Only meaningful when `canEditZones`. */
+  creatorZonePositions: MapPosition[];
+  joinerZonePositions: MapPosition[];
   /** Non-null blocks saving; render/disable your save control accordingly. */
   validationError: string | null;
   /** Call once your save action succeeds — clears the local draft and calls onSaveSuccess. */
@@ -28,20 +39,43 @@ interface MapEditorProps {
   initialBlockedPositions?: MapPosition[];
   initialImpassablePositions?: MapPosition[];
   initialScoringPositions?: ScoringPosition[];
+  initialCreatorZonePositions?: MapPosition[];
+  initialJoinerZonePositions?: MapPosition[];
+  /**
+   * "editable": zone tools are live. "saveFirst": shown disabled with a
+   * "save the map first" note (web3 zones are per-map setters, so a new map
+   * needs an id first). Omitted: no zone tools at all.
+   */
+  zoneEditing?: "editable" | "saveFirst";
   onSaveSuccess?: () => void;
   onCancel?: () => void;
   canEdit?: boolean;
-  /**
-   * Whether the impassable-tile tool can be used at all — false grays it
-   * out with an explanatory note. Web3's `updatePresetMap` has no way to
-   * set impassable tiles on an already-created map (only `createFullPresetMap`
-   * can, at creation time — see
-   * docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
-   * §1.2), so Maps.tsx passes `false` while editing an existing map. Web2's
-   * PATCH route has no such limitation, so MapsWeb2.tsx always passes true.
-   */
-  canEditImpassable?: boolean;
   renderSaveButton: (args: MapEditorRenderSaveButtonArgs) => React.ReactNode;
+}
+
+
+const isZoneTool = (tool: string | null | undefined): tool is ZoneSide =>
+  tool === "creatorZone" || tool === "joinerZone";
+
+const emptyBoolGrid = () =>
+  Array.from({ length: GRID_DIMENSIONS.HEIGHT }, () => Array(GRID_DIMENSIONS.WIDTH).fill(false) as boolean[]);
+
+function gridFromPositions(positions: MapPosition[] | undefined): boolean[][] {
+  const grid = emptyBoolGrid();
+  (positions ?? []).forEach((p) => {
+    const row = Number(p.row);
+    const col = Number(p.col);
+    if (row >= 0 && row < GRID_DIMENSIONS.HEIGHT && col >= 0 && col < GRID_DIMENSIONS.WIDTH) {
+      grid[row][col] = true;
+    }
+  });
+  return grid;
+}
+
+function positionsFromGrid(grid: boolean[][]): MapPosition[] {
+  const positions: MapPosition[] = [];
+  grid.forEach((cells, row) => cells.forEach((on, col) => on && positions.push({ row, col })));
+  return positions;
 }
 
 export function MapEditor({
@@ -49,10 +83,12 @@ export function MapEditor({
   initialBlockedPositions,
   initialImpassablePositions,
   initialScoringPositions,
+  initialCreatorZonePositions,
+  initialJoinerZonePositions,
+  zoneEditing,
   onSaveSuccess,
   onCancel,
   canEdit = true,
-  canEditImpassable = true,
   renderSaveButton,
 }: MapEditorProps) {
   const isEditing = mapId !== undefined;
@@ -149,7 +185,23 @@ export function MapEditor({
 
   // Track mouse drag state for block tool
   const [isDragging, setIsDragging] = useState(false);
-  const [dragTool, setDragTool] = useState<"block" | "impassable" | null>(null);
+  const [dragTool, setDragTool] = useState<"block" | "impassable" | ZoneSide | null>(null);
+
+  // Deployment zones live outside MapEditorState (they aren't part of the
+  // cached create-mode draft — zones can only be set on an existing map).
+  const [zones, setZones] = useState<Record<ZoneSide, boolean[][]>>(() => ({
+    creatorZone: emptyBoolGrid(),
+    joinerZone: emptyBoolGrid(),
+  }));
+  const canEditZones = zoneEditing === "editable";
+  useEffect(() => {
+    if (!canEditZones) return;
+    setZones({
+      creatorZone: gridFromPositions(initialCreatorZonePositions),
+      joinerZone: gridFromPositions(initialJoinerZonePositions),
+    });
+  }, [canEditZones, initialCreatorZonePositions, initialJoinerZonePositions]);
+
 
   // Load map data when editing
   useEffect(() => {
@@ -262,6 +314,31 @@ export function MapEditor({
     );
   }, []);
 
+  // Paint (or clear) zone tiles. A tile belongs to at most one side; with
+  // radial symmetry the mirrored tile goes to the OPPOSITE side, so the two
+  // fleets get matching start areas.
+  const paintZone = useCallback(
+    (side: ZoneSide, row: number, col: number, value: boolean, radial: boolean) => {
+      setZones((prev) => {
+        const next = { creatorZone: prev.creatorZone.map((r) => [...r]), joinerZone: prev.joinerZone.map((r) => [...r]) };
+        const set = (target: ZoneSide, r: number, c: number) => {
+          const other: ZoneSide = target === "creatorZone" ? "joinerZone" : "creatorZone";
+          next[target][r][c] = value;
+          if (value) next[other][r][c] = false;
+        };
+        set(side, row, col);
+        if (radial) {
+          const mirror = getRadialSymmetryPositions(row, col)[1];
+          if (mirror && (mirror.row !== row || mirror.col !== col)) {
+            set(side === "creatorZone" ? "joinerZone" : "creatorZone", mirror.row, mirror.col);
+          }
+        }
+        return next;
+      });
+    },
+    [getRadialSymmetryPositions],
+  );
+
   // Handle tile click
   const handleTileClick = useCallback(
     (row: number, col: number) => {
@@ -326,8 +403,20 @@ export function MapEditor({
           onlyOnceTiles: newOnlyOnceTiles,
         };
       });
+      if (editorState.selectedTool === "erase" && canEditZones) {
+        const radial = editorState.symmetryMode === "radial";
+        const targets = radial ? getRadialSymmetryPositions(row, col) : [{ row, col }];
+        setZones((prev) => {
+          const next = { creatorZone: prev.creatorZone.map((r) => [...r]), joinerZone: prev.joinerZone.map((r) => [...r]) };
+          targets.forEach(({ row: r, col: c }) => {
+            next.creatorZone[r][c] = false;
+            next.joinerZone[r][c] = false;
+          });
+          return next;
+        });
+      }
     },
-    [getRadialSymmetryPositions, canEdit]
+    [getRadialSymmetryPositions, canEdit, canEditZones, editorState.selectedTool, editorState.symmetryMode]
   );
 
   // Handle tile mouse down for drag start
@@ -339,6 +428,14 @@ export function MapEditor({
       }
 
       e.preventDefault();
+      if (isZoneTool(editorState.selectedTool)) {
+        if (!canEditZones) return;
+        const side = editorState.selectedTool;
+        setIsDragging(true);
+        setDragTool(side);
+        paintZone(side, row, col, true, editorState.symmetryMode === "radial");
+        return;
+      }
       if (editorState.selectedTool === "block" || editorState.selectedTool === "impassable") {
         const tool = editorState.selectedTool;
         setIsDragging(true);
@@ -366,7 +463,7 @@ export function MapEditor({
       }
       // For non-paintable tools, don't do anything here - let onClick handle it
     },
-    [editorState.selectedTool, getRadialSymmetryPositions, canEdit]
+    [editorState.selectedTool, editorState.symmetryMode, getRadialSymmetryPositions, canEdit, canEditZones, paintZone]
   );
 
   // Handle tile mouse enter for drag painting
@@ -377,6 +474,10 @@ export function MapEditor({
         return;
       }
 
+      if (isDragging && isZoneTool(dragTool)) {
+        paintZone(dragTool, row, col, true, editorState.symmetryMode === "radial");
+        return;
+      }
       if (isDragging && (dragTool === "block" || dragTool === "impassable")) {
         const key = dragTool === "block" ? "blockedTiles" : "impassableTiles";
         setEditorState((prev) => {
@@ -401,7 +502,7 @@ export function MapEditor({
         });
       }
     },
-    [isDragging, dragTool, getRadialSymmetryPositions, canEdit]
+    [isDragging, dragTool, getRadialSymmetryPositions, canEdit, paintZone, editorState.symmetryMode]
   );
 
   // Handle mouse up to stop dragging
@@ -446,6 +547,13 @@ export function MapEditor({
       }
 
       e.preventDefault();
+      if (isZoneTool(editorState.selectedTool)) {
+        if (canEditZones) {
+          const side = editorState.selectedTool;
+          paintZone(side, row, col, !zones[side][row][col], false);
+        }
+        return;
+      }
       setEditorState((prev) => {
         if (prev.selectedTool === "impassable") {
           const newImpassableTiles = prev.impassableTiles.map((rowArray) => [
@@ -467,7 +575,7 @@ export function MapEditor({
         };
       });
     },
-    [canEdit]
+    [canEdit, canEditZones, editorState.selectedTool, paintZone, zones]
   );
 
   // Convert editor state to contract format
@@ -542,6 +650,7 @@ export function MapEditor({
 
   // Clear all tiles
   const clearAll = useCallback(() => {
+    if (canEditZones) setZones({ creatorZone: emptyBoolGrid(), joinerZone: emptyBoolGrid() });
     setEditorState((prev) => ({
       ...prev,
       blockedTiles: Array(GRID_DIMENSIONS.HEIGHT)
@@ -557,7 +666,7 @@ export function MapEditor({
         .fill(null)
         .map(() => Array(GRID_DIMENSIONS.WIDTH).fill(false)),
     }));
-  }, []);
+  }, [canEditZones]);
 
   // Download map as JSON file
   const downloadMap = useCallback(() => {
@@ -662,55 +771,36 @@ export function MapEditor({
   );
 
   // Get tile class based on state
-  const getTileClass = (row: number, col: number) => {
-    // Bounds checking to prevent errors
-    if (
-      row < 0 ||
-      row >= GRID_DIMENSIONS.HEIGHT ||
-      col < 0 ||
-      col >= GRID_DIMENSIONS.WIDTH ||
-      !editorState.blockedTiles[row] ||
-      !editorState.impassableTiles[row] ||
-      !editorState.scoringTiles[row] ||
-      !editorState.onlyOnceTiles[row]
-    ) {
-      return "w-full h-full aspect-square cursor-pointer hover:border-white transition-colors border-0 outline outline-1 outline-gunmetal bg-near-black";
-    }
-
-    const isBlocked = editorState.blockedTiles[row][col];
-    const isImpassable = editorState.impassableTiles[row][col];
-    const scoreValue = editorState.scoringTiles[row][col];
-    const isOnlyOnce = editorState.onlyOnceTiles[row][col];
-
-    let baseClass =
-      "w-full h-full aspect-square cursor-pointer hover:border-white transition-colors";
-
-    // Set border/ring based on blocked (purple) and impassable (amber,
-    // independent bit — a tile can be both, in which case both rings show).
-    if (isBlocked && isImpassable) {
-      baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(168,85,247),inset_0_0_0_5px_rgb(245,158,11)]";
-    } else if (isBlocked) {
-      baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(168,85,247)]";
-    } else if (isImpassable) {
-      baseClass += " border-0 shadow-[inset_0_0_0_2px_rgb(245,158,11)]";
-    } else {
-      baseClass += " border-0 outline outline-1 outline-gunmetal";
-    }
-
-    // Set background color based on scoring status
-    if (scoreValue > 0) {
-      if (isOnlyOnce) {
-        baseClass += " bg-amber"; // once-only scoring
-      } else {
-        baseClass += " bg-cyan"; // reusable scoring
-      }
-    } else {
-      // Empty
-      baseClass += " bg-near-black";
-    }
-
-    return baseClass;
+  const zoneHasCustom: Record<ZoneSide, boolean> = {
+    creatorZone: zones.creatorZone.some((r) => r.some(Boolean)),
+    joinerZone: zones.joinerZone.some((r) => r.some(Boolean)),
   };
+
+  // What a tile shows — same format as the mini-map preview (MapTileVisual).
+  const tileLook = (row: number, col: number): MapTileLook => {
+    const look: MapTileLook = {
+      blocked: !!editorState.blockedTiles[row]?.[col],
+      impassable: !!editorState.impassableTiles[row]?.[col],
+      score: editorState.scoringTiles[row]?.[col] ?? 0,
+      onlyOnce: !!editorState.onlyOnceTiles[row]?.[col],
+    };
+    if (zoneEditing) {
+      for (const side of ["creatorZone", "joinerZone"] as const) {
+        const band = side === "creatorZone" ? DEFAULT_DEPLOYMENT_COLS.creator : DEFAULT_DEPLOYMENT_COLS.joiner;
+        const inZone = zoneHasCustom[side]
+          ? zones[side][row][col]
+          : col >= band.colMin && col <= band.colMax;
+        if (inZone) {
+          look.zone = { side, isDefault: !zoneHasCustom[side] };
+          break;
+        }
+      }
+    }
+    return look;
+  };
+
+  const getTileClass = (row: number, col: number) =>
+    `w-full h-full aspect-square cursor-pointer hover:border-white transition-colors ${mapTileClass(tileLook(row, col))}`;
 
   return (
     <div className="w-full space-y-4">
@@ -722,19 +812,6 @@ export function MapEditor({
             <span className="font-mono text-sm">
               READ-ONLY MODE: You are not authorized to edit maps. Only
               authorized addresses can modify maps.
-            </span>
-          </div>
-        </div>
-      )}
-
-      {canEdit && !canEditImpassable && (
-        <div className="p-4 bg-amber/10 border border-amber/30">
-          <div className="flex items-center gap-2 text-amber">
-            <span className="font-mono font-bold text-sm">[!]</span>
-            <span className="font-mono text-sm">
-              Impassable tiles can only be set when a map is first created —
-              this existing map&apos;s impassable terrain can&apos;t be
-              changed here.
             </span>
           </div>
         </div>
@@ -777,14 +854,9 @@ export function MapEditor({
             onClick={() =>
               setEditorState((prev) => ({ ...prev, selectedTool: "impassable" }))
             }
-            disabled={!canEdit || !canEditImpassable}
-            title={
-              !canEditImpassable
-                ? "This map's impassable tiles can only be set when it's first created (see createFullPresetMap) — not editable afterward."
-                : undefined
-            }
+            disabled={!canEdit}
             className={`px-3 py-2 rounded-none text-sm font-mono ${
-              !canEdit || !canEditImpassable
+              !canEdit
                 ? "bg-steel text-text-muted cursor-not-allowed"
                 : editorState.selectedTool === "impassable"
                 ? "bg-amber text-black"
@@ -793,6 +865,33 @@ export function MapEditor({
           >
             Toggle Impassable
           </button>
+          {zoneEditing &&
+            (["creatorZone", "joinerZone"] as const).map((side) => {
+              const disabled = !canEdit || !canEditZones;
+              return (
+                <button
+                  key={side}
+                  onClick={() => setEditorState((prev) => ({ ...prev, selectedTool: side }))}
+                  disabled={disabled}
+                  title={
+                    zoneEditing === "saveFirst"
+                      ? "Save the map first — deployment zones are set on an existing map."
+                      : "Click or drag to add tiles, right-click to remove. Empty = default columns."
+                  }
+                  className={`px-3 py-2 rounded-none text-sm font-mono ${
+                    disabled
+                      ? "bg-steel text-text-muted cursor-not-allowed"
+                      : editorState.selectedTool === side
+                        ? side === "creatorZone"
+                          ? "bg-cyan text-black"
+                          : "bg-warning-red text-white"
+                        : "bg-steel text-text-secondary hover:bg-gunmetal"
+                  }`}
+                >
+                  {side === "creatorZone" ? "Creator Zone" : "Joiner Zone"}
+                </button>
+              );
+            })}
           <button
             onClick={() =>
               setEditorState((prev) => ({ ...prev, selectedTool: "erase" }))
@@ -897,6 +996,11 @@ export function MapEditor({
           </div>
         </div>
 
+        {zoneEditing === "saveFirst" && (
+          <div className="text-xs text-text-muted">
+            Deployment zones can be set once this map is saved.
+          </div>
+        )}
         <div className="text-xs text-amber">
           Current tool: {editorState.selectedTool} | Points:{" "}
           {editorState.selectedScoreValue} | Once only:{" "}
@@ -905,26 +1009,7 @@ export function MapEditor({
         </div>
 
         <div className="flex flex-wrap gap-4 text-xs text-text-secondary">
-          <div className="flex items-center gap-2">
-            <div className="w-[20px] h-[20px] bg-near-black border-2 border-purple"></div>
-            <span>Blocked (LOS) - Thick purple border</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-[20px] h-[20px] bg-near-black border-2 border-amber"></div>
-            <span>Impassable (movement) - Amber border</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-[20px] h-[20px] bg-cyan border border-gunmetal"></div>
-            <span>Scoring (reusable)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-[20px] h-[20px] bg-amber border border-gunmetal"></div>
-            <span>Scoring (once only)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-[20px] h-[20px] bg-cyan border-2 border-purple"></div>
-            <span>Blocked + Scoring</span>
-          </div>
+          <MapTileLegend showZones={!!zoneEditing} />
           <div className="flex items-center gap-2">
             <div className="w-[20px] h-[20px] bg-near-black border border-gunmetal"></div>
             <span>Empty</span>
@@ -944,36 +1029,6 @@ export function MapEditor({
               </div>
             </div>
             <span>Reference lines (faint)</span>
-          </div>
-        </div>
-
-        <div className="text-xs text-text-muted space-y-1">
-          <div>
-            <strong>Instructions:</strong>
-          </div>
-          <div>
-            • <strong>Left-click</strong> with &quot;Set Points&quot; tool to
-            add/remove scoring tiles
-          </div>
-          <div>
-            • <strong>Left-click or drag</strong> with &quot;Toggle
-            Block&quot; to paint blocking (LOS); <strong>right-click</strong>{" "}
-            a tile to un-block it
-          </div>
-          <div>
-            • <strong>Left-click or drag</strong> with &quot;Toggle
-            Impassable&quot; to paint movement-blocking terrain — independent
-            of blocking (LOS); a ship can&apos;t land on or cross it, but can
-            still shoot through it. <strong>Right-click</strong> a tile to
-            clear it
-          </div>
-          <div>
-            • <strong>Left-click</strong> with &quot;Erase&quot; tool to clear
-            everything
-          </div>
-          <div>
-            • Set point value and &quot;once only&quot; option above before
-            placing scoring tiles
           </div>
         </div>
       </div>
@@ -1007,6 +1062,8 @@ export function MapEditor({
                     editorState.blockedTiles[row][col] ? ", Blocked (LOS)" : ""
                   }${
                     editorState.impassableTiles[row][col] ? ", Impassable (movement)" : ""
+                  }${zones.creatorZone[row][col] ? ", Creator deployment zone" : ""}${
+                    zones.joinerZone[row][col] ? ", Joiner deployment zone" : ""
                   }${
                     editorState.scoringTiles[row][col] > 0
                       ? `, Score: ${editorState.scoringTiles[row][col]}${
@@ -1017,14 +1074,7 @@ export function MapEditor({
                       : ""
                   }`}
                 >
-                  {/* Score value display */}
-                  {editorState.scoringTiles[row][col] > 0 && (
-                    <div
-                      className={`flex items-center justify-center text-lg font-bold text-black w-full h-full`}
-                    >
-                      {editorState.scoringTiles[row][col]}
-                    </div>
-                  )}
+                  <MapTileContents look={tileLook(row, col)} />
                 </div>
               ))}
             </div>
@@ -1179,6 +1229,8 @@ export function MapEditor({
             blockedPositions: getBlockedPositions(),
             impassablePositions: getImpassablePositions(),
             scoringPositions: getScoringPositions(),
+            creatorZonePositions: positionsFromGrid(zones.creatorZone),
+            joinerZonePositions: positionsFromGrid(zones.joinerZone),
             validationError,
             onSuccess: handleSaveSuccess,
           })}
@@ -1188,6 +1240,36 @@ export function MapEditor({
         >
           Cancel
         </button>
+      </div>
+
+      <div className="text-xs text-text-muted space-y-1">
+        <div>
+          <strong>Instructions:</strong>
+        </div>
+        <div>
+          • <strong>Left-click</strong> with &quot;Set Points&quot; tool to
+          add/remove scoring tiles
+        </div>
+        <div>
+          • <strong>Left-click or drag</strong> with &quot;Toggle
+          Block&quot; to paint blocking (LOS); <strong>right-click</strong>{" "}
+          a tile to un-block it
+        </div>
+        <div>
+          • <strong>Left-click or drag</strong> with &quot;Toggle
+            Impassable&quot; to paint movement-blocking terrain, independent
+          of blocking (LOS); a ship can&apos;t land on or cross it, but can
+          still shoot through it. <strong>Right-click</strong> a tile to
+          clear it
+        </div>
+        <div>
+          • <strong>Left-click</strong> with &quot;Erase&quot; tool to clear
+          everything
+        </div>
+        <div>
+          • Set point value and &quot;once only&quot; option above before
+          placing scoring tiles
+        </div>
       </div>
     </div>
   );

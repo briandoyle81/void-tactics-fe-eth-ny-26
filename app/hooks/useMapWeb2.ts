@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { buildMapGridsFromContractMap, type MapGrids } from "../utils/mapGridUtils";
+import { parseZoneTiles, type ZoneTile } from "../utils/deploymentZone";
 
 interface MapTilesResponse {
   gridWidth: number;
@@ -11,7 +12,11 @@ interface MapTilesResponse {
   blockedTiles: Array<{ row: number; col: number }>;
   impassableTiles: Array<{ row: number; col: number }>;
   scoringTiles: Array<{ row: number; col: number; points: number; onlyOnce: boolean }>;
+  creatorZone?: unknown;
+  joinerZone?: unknown;
 }
+
+const NO_ZONE: ZoneTile[] = [];
 
 export function useMapWeb2(mapId: number, gridWidth: number, gridHeight: number) {
   const { data, isLoading, error } = useQuery({
@@ -46,5 +51,9 @@ export function useMapWeb2(mapId: number, gridWidth: number, gridHeight: number)
     );
   }, [data, gridWidth, gridHeight]);
 
-  return { ...grids, isLoading, error };
+  // Custom deployment zones (empty = that side uses the default columns).
+  const creatorZone = useMemo(() => parseZoneTiles(data?.creatorZone) ?? NO_ZONE, [data]);
+  const joinerZone = useMemo(() => parseZoneTiles(data?.joinerZone) ?? NO_ZONE, [data]);
+
+  return { ...grids, creatorZone, joinerZone, isLoading, error };
 }

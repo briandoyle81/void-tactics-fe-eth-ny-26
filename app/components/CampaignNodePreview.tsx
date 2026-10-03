@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { nodeContentTextClass } from "../hooks/useNodeContent";
 import { useAccount } from "wagmi";
 import { useCampaignRequiredVariant, type CampaignGraphNodeWithContent } from "../hooks/useNodeMap";
 import {
@@ -94,8 +95,10 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
       style={{ borderRadius: 0 }}
     >
       <div className="flex flex-col">
-        <h3 className="text-xl font-bold text-cyan">{node.title}</h3>
-        <p className="mt-2 text-sm text-text-secondary">{node.description}</p>
+        <h3 className={`text-xl font-bold ${nodeContentTextClass(node.titleStatus, "text-cyan")}`}>{node.title}</h3>
+        <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(node.descriptionStatus, "text-text-secondary")}`}>
+          {node.description}
+        </p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
             Player cost limit: <span className="text-cyan">{node.costLimit.toString()}</span>

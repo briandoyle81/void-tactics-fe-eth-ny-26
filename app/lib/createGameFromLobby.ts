@@ -3,6 +3,7 @@ import { dbShipToShip } from "./dbToType";
 import { calculateAttributesFromContractsWeb2 } from "../utils/shipAttributesCalculatorWeb2";
 import { getShipAttributeTablesByVariant } from "./getShipAttributeTables";
 import type { Web2GameDataView, Web2ShipPosition } from "../types/web2Game";
+import { defaultStartingPositionsForMap } from "./deploymentZoneWeb2";
 
 type FleetWithShips = {
   id: number;
@@ -50,17 +51,14 @@ export async function createGameFromLobby(
     return attrs;
   });
 
-  const defaultPositions = (isCreator: boolean, count: number): Array<{ row: number; col: number }> => {
-    const col = isCreator ? 0 : 16;
-    return Array.from({ length: count }, (_, i) => ({ row: 1 + i * 2, col }));
-  };
-
+  // Fleets stored without positions fall back to the first tiles of the
+  // map's deployment zone for that side (custom zone, else default columns).
   const creatorPositions =
     (creatorFleet.startingPositions as Array<{ row: number; col: number }> | null) ??
-    defaultPositions(true, creatorShips.length);
+    (await defaultStartingPositionsForMap(lobby.mapId, creatorShips.length, true));
   const joinerPositions =
     (joinerFleet.startingPositions as Array<{ row: number; col: number }> | null) ??
-    defaultPositions(false, joinerShips.length);
+    (await defaultStartingPositionsForMap(lobby.mapId, joinerShips.length, false));
 
   const shipPositions: Web2ShipPosition[] = [
     ...creatorShips.map((ship, i) => ({

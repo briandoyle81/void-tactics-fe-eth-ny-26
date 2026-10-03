@@ -1,19 +1,118 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAccount, useSignMessage } from "wagmi";
+import { usePublicClient, useReadContract, useWriteContract } from "wagmi";
+import { baseSepolia } from "viem/chains";
+import type { Abi, Address } from "viem";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
-import { getNodeContent } from "../config/campaignNodes";
-import { getRoguelikeNodeContent } from "../config/roguelikeNodes";
-import { buildNodeContentSignMessage } from "../utils/nodeContentSignMessage";
+import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 
 export type NodeGraphType = "CAMPAIGN" | "ROGUELIKE";
 
 export interface NodeContentValue {
   title: string;
   description: string;
+}
+
+// Node title/description, keyed by node id in `contentById`. There is no
+// fallback text: a node with nothing set shows an error in its place (see
+// resolveNodeContent). Where `contentById` comes from depends on the mode:
+// - web3: NodeContentRegistry on chain (useOnChainNodeContent), edited by a
+//   wallet transaction (useSaveOnChainNodeContent).
+// - web2: the NodeContent table (useNodeContentWeb2), edited through
+//   PUT /api/node-content by a web2 admin.
+// Fetched once per graph screen (not per node card) so node cards stay
+// plain, sync, data-fetching-free components.
+
+const CHAIN_ID = baseSepolia.id;
+const REGISTRY_ADDRESS = CONTRACT_ADDRESSES_BY_CHAIN_ID[CHAIN_ID]
+  .NODE_CONTENT_REGISTRY as Address;
+const REGISTRY_ABI = CONTRACT_ABIS.NODE_CONTENT_REGISTRY as Abi;
+
+/** On-chain node text for the given nodes (web3). Nodes with nothing published are left out. */
+export function useOnChainNodeContent(
+  graphType: NodeGraphType,
+  nodeIds: readonly (bigint | number)[],
+) {
+  const isRoguelike = graphType === "ROGUELIKE";
+  const args = useMemo(
+    () =>
+      [nodeIds.map(() => isRoguelike), nodeIds.map((id) => BigInt(id))] as const,
+    [nodeIds, isRoguelike],
+  );
+  const { data, isLoading, refetch } = useReadContract({
+    address: REGISTRY_ADDRESS,
+    abi: REGISTRY_ABI,
+    chainId: CHAIN_ID,
+    functionName: "getNodeContentBatch",
+    args,
+    query: { enabled: nodeIds.length > 0 },
+  });
+
+  const contentById = useMemo(() => {
+    const map = new Map<number, NodeContentValue>();
+    const [titles, descriptions] = (data as readonly [readonly string[], readonly string[]] | undefined) ?? [
+      [],
+      [],
+    ];
+    nodeIds.forEach((id, i) => {
+      const title = titles[i] ?? "";
+      const description = descriptions[i] ?? "";
+      if (title || description) map.set(Number(id), { title, description });
+    });
+    return map;
+  }, [data, nodeIds]);
+
+  return { contentById, isLoading, refetch };
+}
+
+/**
+ * Writes one node's title/description straight to NodeContentRegistry from
+ * the connected wallet, and resolves once the transaction is mined. The
+ * wallet must be the registry owner or one of its node editors
+ * (NodeContentRegistry.setNodeEditor — owner-only, separate from the
+ * NodeMap/RoguelikeNodeMap editor roles).
+ */
+export function useSaveOnChainNodeContent() {
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient({ chainId: CHAIN_ID });
+
+  return useCallback(
+    async (graphType: NodeGraphType, nodeId: bigint | number, content: NodeContentValue) => {
+      const hash = await writeContractAsync({
+        address: REGISTRY_ADDRESS,
+        abi: REGISTRY_ABI,
+        chainId: CHAIN_ID,
+        functionName: "setNodeContentBatch",
+        args: [
+          [graphType === "ROGUELIKE"],
+          [BigInt(nodeId)],
+          [content.title],
+          [content.description],
+        ],
+      });
+      await publicClient!.waitForTransactionReceipt({ hash });
+      return hash;
+    },
+    [writeContractAsync, publicClient],
+  );
+}
+
+/** Readable message for a failed on-chain content save. */
+export function nodeContentSaveError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("NotNodeEditor")) {
+    return (
+      "This wallet can't edit node text on chain. The NodeContentRegistry owner " +
+      "has to grant it with setNodeEditor."
+    );
+  }
+  if (message.includes("User rejected") || message.includes("User denied")) {
+    return "Transaction declined.";
+  }
+  return message || "Failed to save node content";
 }
 
 interface NodeContentRow {
@@ -23,19 +122,12 @@ interface NodeContentRow {
   description: string;
 }
 
-const QUERY_KEY = (graphType: NodeGraphType) => ["node-content", graphType];
+const WEB2_QUERY_KEY = (graphType: NodeGraphType) => ["node-content", graphType];
 
-// Admin-editable overlay for node title/description, layered on top of the
-// hand-maintained campaignNodes.ts/roguelikeNodes.ts static fallback files —
-// a DB row wins if present for a given node id, otherwise the static file's
-// placeholder entry is used, otherwise DEFAULT_*_NODE_CONTENT. Fetched once
-// per graph screen (not per node card) so CampaignNodeCard/RoguelikeNodeCard
-// stay plain, sync, data-fetching-free components — callers merge this map
-// into their own canvasNodes entries before handing off to
-// CampaignGraphCanvas, the same way they already resolve unlocked/completed.
-export function useAllNodeContent(graphType: NodeGraphType) {
+/** Web2 node text from the NodeContent table. */
+export function useNodeContentWeb2(graphType: NodeGraphType) {
   const { data, isLoading, refetch } = useQuery({
-    queryKey: QUERY_KEY(graphType),
+    queryKey: WEB2_QUERY_KEY(graphType),
     queryFn: () => apiFetch<NodeContentRow[]>(`/api/node-content?graphType=${graphType}`),
   });
 
@@ -50,53 +142,77 @@ export function useAllNodeContent(graphType: NodeGraphType) {
   return { contentById, isLoading, refetch };
 }
 
-// Web3-connected admins have no NextAuth session (see requireWeb2Admin), so a
-// pure PUT with no credentials 403s them even though they hold a real
-// on-chain isNodeEditor/isRoguelikeNodeEditor role. When a wallet is
-// connected, sign buildNodeContentSignMessage(...) and send {address,
-// signature} so the server (requireNodeContentEditor in app/lib/auth.ts) can
-// recover the signer and check their on-chain editor role instead. Web2
-// admins with no wallet connected just omit these and rely on their session.
-export function useSaveNodeContent() {
+/** Saves web2 node text (web2 admin session required). */
+export function useSaveNodeContentWeb2() {
   const queryClient = useQueryClient();
-  const { address } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-
-  return async (graphType: NodeGraphType, nodeId: number, content: NodeContentValue) => {
-    let signaturePayload: { address: string; signature: string } | Record<string, never> = {};
-    if (address) {
-      const message = buildNodeContentSignMessage({
+  return useCallback(
+    async (graphType: NodeGraphType, nodeId: number, content: NodeContentValue) => {
+      await apiMutate<NodeContentRow>("/api/node-content", "PUT", {
         graphType,
         nodeId,
         title: content.title,
         description: content.description,
       });
-      const signature = await signMessageAsync({ message });
-      signaturePayload = { address, signature };
-    }
+      await queryClient.invalidateQueries({ queryKey: WEB2_QUERY_KEY(graphType) });
+    },
+    [queryClient],
+  );
+}
 
-    await apiMutate<NodeContentRow>("/api/node-content", "PUT", {
-      graphType,
-      nodeId,
-      title: content.title,
-      description: content.description,
-      ...signaturePayload,
-    });
-    await queryClient.invalidateQueries({ queryKey: QUERY_KEY(graphType) });
+export type NodeContentStatus = "ok" | "loading" | "missing";
+
+/** A node's title/description as displayed, with each field's status. */
+export interface ResolvedNodeContent extends NodeContentValue {
+  titleStatus: NodeContentStatus;
+  descriptionStatus: NodeContentStatus;
+}
+
+const NODE_CONTENT_LOADING_TEXT = "Loading…";
+
+/**
+ * Title/description for a node, with no fallback text: a field that hasn't
+ * been set shows an error in its place, and while the content read is still
+ * in flight both fields show a loading placeholder instead, so errors don't
+ * flash on first load.
+ */
+export function resolveNodeContent(
+  contentById: Map<number, NodeContentValue>,
+  nodeId: bigint | number,
+  isLoading = false,
+): ResolvedNodeContent {
+  const id = Number(nodeId);
+  const content = contentById.get(id);
+  if (!content && isLoading) {
+    return {
+      title: NODE_CONTENT_LOADING_TEXT,
+      description: NODE_CONTENT_LOADING_TEXT,
+      titleStatus: "loading",
+      descriptionStatus: "loading",
+    };
+  }
+  const title = content?.title.trim() ? content.title : null;
+  const description = content?.description.trim() ? content.description : null;
+  return {
+    title: title ?? `Error: node #${id} has no title`,
+    description: description ?? `Error: node #${id} has no description`,
+    titleStatus: title ? "ok" : "missing",
+    descriptionStatus: description ? "ok" : "missing",
   };
 }
 
-// contentById comes from useAllNodeContent for the same graphType; falls
-// back to the relevant static file, then a generic default, so a node
-// always has something to render even before any DB row exists for it.
-export function resolveNodeContent(
-  graphType: NodeGraphType,
-  contentById: Map<number, NodeContentValue>,
-  nodeId: bigint | number,
-): NodeContentValue {
-  const dbContent = contentById.get(Number(nodeId));
-  if (dbContent) return dbContent;
-  return graphType === "CAMPAIGN" ? getNodeContent(nodeId) : getRoguelikeNodeContent(nodeId);
+/** Editor field values: only real content, never the loading/error placeholder. */
+export function editableTitle(node: Partial<ResolvedNodeContent> | null | undefined): string {
+  return node?.titleStatus === "ok" ? (node.title ?? "") : "";
+}
+export function editableDescription(node: Partial<ResolvedNodeContent> | null | undefined): string {
+  return node?.descriptionStatus === "ok" ? (node.description ?? "") : "";
+}
+
+/** Text class for a node title/description: warning color when missing, muted while loading. */
+export function nodeContentTextClass(status: NodeContentStatus | undefined, okClass: string): string {
+  if (status === "missing") return "text-warning-red";
+  if (status === "loading") return "text-text-muted";
+  return okClass;
 }
 
 // Attaches resolveNodeContent's title/description onto each node in one
@@ -106,12 +222,12 @@ export function resolveNodeContent(
 // selected. Generic over both bigint ids (on-chain CampaignGraphNode/
 // RoguelikeNode) and number ids (web2's DB-native node shapes).
 export function mergeNodeContent<T extends { id: bigint | number }>(
-  graphType: NodeGraphType,
   nodes: T[],
   contentById: Map<number, NodeContentValue>,
-): (T & NodeContentValue)[] {
+  isLoading = false,
+): (T & ResolvedNodeContent)[] {
   return nodes.map((node) => ({
     ...node,
-    ...resolveNodeContent(graphType, contentById, node.id),
+    ...resolveNodeContent(contentById, node.id, isLoading),
   }));
 }

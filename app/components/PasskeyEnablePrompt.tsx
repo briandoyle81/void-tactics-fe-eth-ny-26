@@ -6,7 +6,7 @@ import {
   useRefreshUser,
   useStepUpAuthentication,
 } from "@dynamic-labs/sdk-react-core";
-import { TokenScope } from "@dynamic-labs/sdk-api-core";
+import { TokenScope, WalletProviderEnum } from "@dynamic-labs/sdk-api-core";
 import { registerPasskey, NoWebAuthNSupportError } from "@dynamic-labs-sdk/client";
 import { toast } from "react-hot-toast";
 import {
@@ -47,7 +47,8 @@ function isWebAuthnSupported(): boolean {
 //
 // Evaluated once per mount (Header.tsx renders this once, high in the tree);
 // skipped entirely if the user already has a passkey, just signed in with
-// one, the browser doesn't support WebAuthn, or they previously checked
+// one or with a browser extension wallet, the browser doesn't support
+// WebAuthn, or they previously checked
 // "don't show this again" (persisted per Dynamic userId via
 // passkeyPromptStorage.ts).
 export function PasskeyEnablePrompt() {
@@ -75,6 +76,9 @@ export function PasskeyEnablePrompt() {
       (vc) => vc.format === "passkey",
     );
     if (justUsedPasskey || alreadyHasPasskey) return;
+    // A browser extension wallet (MetaMask etc.) already is the user's fast
+    // sign-in; a passkey adds nothing for them.
+    if (lastCredential?.walletProvider === WalletProviderEnum.BrowserExtension) return;
 
     setIsOpen(true);
   }, [user]);

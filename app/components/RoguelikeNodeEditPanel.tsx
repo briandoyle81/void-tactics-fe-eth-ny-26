@@ -3,11 +3,26 @@
 import React from "react";
 import { toast } from "react-hot-toast";
 import { RoguelikeNodeKind, type RoguelikeNode } from "../types/roguelike";
+import { MapMode } from "../types/types";
 import { useRoguelikeNodeMapAdmin } from "../hooks/useRoguelikeNodeMapAdmin";
-import { useGetAllPresetMaps, useMapNames, mapTitleLabel } from "../hooks/useMapsContract";
+import {
+  useGetAllPresetMaps,
+  useMapModes,
+  useMapNames,
+  useMapsCreatorZonePositions,
+  useMapsImpassablePositions,
+  useMapsJoinerZonePositions,
+  mapTitleLabel,
+} from "../hooks/useMapsContract";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
-import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
+import {
+  editableDescription,
+  editableTitle,
+  nodeContentSaveError,
+  useSaveOnChainNodeContent,
+  type ResolvedNodeContent,
+} from "../hooks/useNodeContent";
 import {
   WIN_EFFECT_CATALOG,
   useWinEffectAddresses,
@@ -15,6 +30,9 @@ import {
 } from "../hooks/useWinEffects";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPreviewCard } from "./MapPreviewCard";
+import { MapEditScreen } from "./MapEditScreen";
+import { useAccount } from "wagmi";
+import { MAP_ADMIN_ADDRESS } from "../config/alpha";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
 import { EnemyFleetPreview } from "./EnemyFleetPreview";
 import { useGetMapPlacements } from "../hooks/useAIEncountersContract";
@@ -28,7 +46,8 @@ const NEW_NODE_DEFAULTS = { turnTime: 120n, maxScore: 1000n, costCapOverride: 70
 
 interface RoguelikeNodeEditPanelProps {
   mode: "create" | "edit";
-  node: RoguelikeNode | null;
+  /** The graph passes its node with resolved title/description attached. */
+  node: (RoguelikeNode & Partial<ResolvedNodeContent>) | null;
   campaignId: bigint;
   /** True while THIS node is the active connect-mode source (parent side of addChild). */
   connectModeActive: boolean;
@@ -57,11 +76,14 @@ export function RoguelikeNodeEditPanel({
   onCancelCreate,
 }: RoguelikeNodeEditPanelProps) {
   const admin = useRoguelikeNodeMapAdmin();
-  const { data: allMapsData } = useGetAllPresetMaps();
+  const { data: allMapsData, refetch: refetchAllMaps } = useGetAllPresetMaps();
+  const { address } = useAccount();
+  const isMapAdmin = address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
+  const [showMapEditor, setShowMapEditor] = React.useState(false);
   const { data: allConfigs } = useGetAllAIShipConfigs();
-  const { isEditor: isEncounterEditor } = useIsEncounterEditor();
-  const { contentById, refetch: refetchContent } = useAllNodeContent("ROGUELIKE");
-  const saveContent = useSaveNodeContent();
+  const { isEditor: isEncounterEditor, isLoading: isEncounterEditorLoading } =
+    useIsEncounterEditor();
+  const saveContent = useSaveOnChainNodeContent();
   const winEffectAddresses = useWinEffectAddresses();
   const {
     data: currentWinEffects,
@@ -81,9 +103,8 @@ export function RoguelikeNodeEditPanel({
   const [showFleetEditor, setShowFleetEditor] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const resolvedContent = node ? resolveNodeContent("ROGUELIKE", contentById, node.id) : null;
-  const [title, setTitle] = React.useState(resolvedContent?.title ?? "");
-  const [description, setDescription] = React.useState(resolvedContent?.description ?? "");
+  const [title, setTitle] = React.useState(editableTitle(node));
+  const [description, setDescription] = React.useState(editableDescription(node));
 
   const [selectedWinEffects, setSelectedWinEffects] = React.useState<string[]>([]);
   const [isSavingWinEffects, setIsSavingWinEffects] = React.useState(false);
@@ -102,10 +123,10 @@ export function RoguelikeNodeEditPanel({
     setMaxScore(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
     setCreatorGoesFirst(node?.creatorGoesFirst ?? true);
     setCostCapOverride(node?.costCapOverride ?? NEW_NODE_DEFAULTS.costCapOverride);
-    const c = node ? resolveNodeContent("ROGUELIKE", contentById, node.id) : null;
-    setTitle(c?.title ?? "");
-    setDescription(c?.description ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-seed on node change, not when this node's content refetches
+    // (would clobber an in-progress edit).
+    setTitle(editableTitle(node));
+    setDescription(editableDescription(node));
   }, [node]);
 
   const isCombat = kind === RoguelikeNodeKind.Combat;
@@ -116,6 +137,10 @@ export function RoguelikeNodeEditPanel({
     return mapIds.map((id) => Number(id));
   }, [allMapsData]);
   const { nameByMapId } = useMapNames(allMapIds);
+  const { modeByMapId } = useMapModes(allMapIds);
+  const { impassableByMapId } = useMapsImpassablePositions(allMapIds);
+  const { creatorZoneByMapId } = useMapsCreatorZonePositions(allMapIds);
+  const { joinerZoneByMapId } = useMapsJoinerZonePositions(allMapIds);
 
   const maps: MapPickerMap[] = React.useMemo(() => {
     if (!allMapsData) return [];
@@ -125,13 +150,43 @@ export function RoguelikeNodeEditPanel({
       titleLabel: mapTitleLabel(Number(id), nameByMapId),
       blockedPositions: (blockedArr[i] as MapPickerMap["blockedPositions"]) ?? [],
       scoringPositions: (scoringArr[i] as MapPickerMap["scoringPositions"]) ?? [],
+      impassablePositions: impassableByMapId.get(Number(id)),
+      creatorZonePositions: creatorZoneByMapId.get(Number(id)),
+      joinerZonePositions: joinerZoneByMapId.get(Number(id)),
+      modeLabel: MapMode[modeByMapId.get(Number(id)) ?? MapMode.Both],
     }));
-  }, [allMapsData, nameByMapId]);
+  }, [allMapsData, nameByMapId, impassableByMapId, creatorZoneByMapId, joinerZoneByMapId, modeByMapId]);
 
+  const pickerMaps = React.useMemo(
+    () => maps.filter((m) => (modeByMapId.get(m.id) ?? MapMode.Both) !== MapMode.PvP),
+    [maps, modeByMapId],
+  );
   const selectedMapPreview = React.useMemo(
     () => (mapId === 0n ? undefined : maps.find((m) => m.id === Number(mapId))),
     [maps, mapId],
   );
+
+  const handleEditEnemyFleet = () => {
+    if (mapId === 0n) {
+      toast.error("Select a map before editing the enemy fleet.");
+      return;
+    }
+    if (!address) {
+      toast.error("Connect the Enemy Fleet Editor wallet to edit placements.");
+      return;
+    }
+    if (isEncounterEditorLoading) {
+      toast.error("Checking Enemy Fleet Editor permission...");
+      return;
+    }
+    if (!isEncounterEditor) {
+      toast.error(
+        "This wallet is not an Enemy Fleet Editor. Ask an admin to grant isEncounterEditor.",
+      );
+      return;
+    }
+    setShowFleetEditor(true);
+  };
 
   const handleSaveDetails = async () => {
     if (isCombat && mapId === 0n) {
@@ -179,12 +234,12 @@ export function RoguelikeNodeEditPanel({
   const handleSaveContent = async () => {
     if (node == null) return;
     try {
-      await saveContent("ROGUELIKE", Number(node.id), { title, description });
-      await refetchContent();
-      toast.success("Node content saved.");
+      const hash = await saveContent("ROGUELIKE", node.id, { title, description });
+      toast.success(`Node content saved on chain. (tx: ${hash.slice(0, 10)}…)`);
+      onSaved();
     } catch (error) {
       console.error("Failed to save node content:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save node content");
+      toast.error(nodeContentSaveError(error));
     }
   };
 
@@ -302,20 +357,15 @@ export function RoguelikeNodeEditPanel({
                 className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
                 style={{ borderRadius: 0 }}
               >
-                {mapId === 0n ? "[SELECT MAP]" : `[MAP #${mapId.toString()}]`}
+                {mapId === 0n
+                  ? "[SELECT MAP]"
+                  : `[CHANGE MAP] ${mapTitleLabel(Number(mapId), nameByMapId)}`}
               </button>
+              <span className="text-[10px] text-text-muted">
+                Draft until you Save Details.
+              </span>
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1 text-xs text-text-muted">
-                Turn Time (s)
-                <input
-                  type="number"
-                  value={turnTime.toString()}
-                  onChange={(e) => setTurnTime(BigInt(Math.max(0, Number(e.target.value) || 0)))}
-                  className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-                  style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-                />
-              </label>
               <label className="flex flex-col gap-1 text-xs text-text-muted">
                 Max Score
                 <input
@@ -362,10 +412,8 @@ export function RoguelikeNodeEditPanel({
         {isCombat && (
           <button
             type="button"
-            disabled={mapId === 0n}
-            onClick={() => setShowFleetEditor(true)}
-            title={mapId === 0n ? "Set a map before editing the enemy fleet." : undefined}
-            className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleEditEnemyFleet}
+            className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10"
             style={{ borderRadius: 0 }}
           >
             [EDIT ENEMY FLEET]
@@ -474,15 +522,38 @@ export function RoguelikeNodeEditPanel({
 
           {isCombat && selectedMapPreview && (
             <div className="mt-6 border-t border-steel pt-4">
-              <MapPreviewCard map={selectedMapPreview} onSelect={() => setShowMapPicker(true)} />
+              <MapPreviewCard
+                map={selectedMapPreview}
+                modeLabel={selectedMapPreview.modeLabel}
+                onSelect={() => setShowMapPicker(true)}
+                onEdit={isMapAdmin ? () => setShowMapEditor(true) : undefined}
+              />
             </div>
           )}
         </div>
       )}
 
+      {showMapEditor && selectedMapPreview && (
+        // Full-screen so the grid editor has room; same screen as the Maps tab.
+        <div className="fixed inset-0 z-[600] overflow-y-auto bg-near-black/95 p-4">
+          <div className="mx-auto max-w-5xl">
+            <MapEditScreen
+              mapId={selectedMapPreview.id}
+              initialBlockedPositions={selectedMapPreview.blockedPositions}
+              initialScoringPositions={selectedMapPreview.scoringPositions}
+              onSaved={() => {
+                setShowMapEditor(false);
+                void refetchAllMaps();
+              }}
+              onCancel={() => setShowMapEditor(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {showMapPicker && (
         <MapPickerModal
-          maps={maps}
+          maps={pickerMaps}
           selectedMapId={mapId === 0n ? null : Number(mapId)}
           onSelect={(id) => {
             setMapId(BigInt(id));
@@ -492,44 +563,13 @@ export function RoguelikeNodeEditPanel({
         />
       )}
 
-      {showFleetEditor && isCombat && mapId !== 0n && (
-        <div className="fixed inset-0 z-[450]">
-          {isEncounterEditor ? (
-            <MapPlacementsEditor mapId={mapId} configs={allConfigs ?? []} />
-          ) : (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
-              <div
-                className="bg-near-black border-2 p-6 max-w-2xl w-full rounded-none font-mono"
-                style={{ borderColor: "var(--color-cyan)" }}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-lg font-bold text-cyan">[ENEMY FLEET — VIEW ONLY]</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowFleetEditor(false)}
-                    className="text-cyan text-2xl font-bold leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-                <p className="text-xs text-text-muted mb-3">
-                  You don&apos;t have the Enemy Fleet Editor role (isEncounterEditor) — ask an admin
-                  to grant it from Campaign Settings to edit placements.
-                </p>
-                <RoguelikeEnemyFleetPreviewFor mapId={mapId} configs={allConfigs ?? []} />
-              </div>
-            </div>
-          )}
-          {isEncounterEditor && (
-            <button
-              type="button"
-              onClick={() => setShowFleetEditor(false)}
-              className="fixed top-4 right-4 z-[460] px-3 py-1 text-sm font-bold text-text-muted border border-gunmetal bg-near-black hover:text-text-secondary hover:border-steel"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+      {showFleetEditor && isCombat && mapId !== 0n && isEncounterEditor && (
+        <MapPlacementsEditor
+          mapId={mapId}
+          configs={allConfigs ?? []}
+          startOpen
+          onClose={() => setShowFleetEditor(false)}
+        />
       )}
     </div>
   );

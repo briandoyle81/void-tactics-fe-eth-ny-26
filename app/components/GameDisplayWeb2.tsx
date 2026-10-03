@@ -22,6 +22,7 @@ import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnCha
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
+import { resolveNodeContent, useNodeContentWeb2 } from "../hooks/useNodeContent";
 import { inferVictoryReason } from "../utils/victoryReason";
 import {
   useGameViewChromeLayout,
@@ -728,6 +729,8 @@ function GameDisplayWeb2({
   // isRoguelikeGame above). Also covers web2's tie outcome (WEB2_TIE_SENTINEL),
   // which web3's Game.sol can't produce at all.
   const [isGameResultDismissed, setIsGameResultDismissed] = useState(false);
+  const { contentById: missionContentById, isLoading: missionContentLoading } =
+    useNodeContentWeb2("CAMPAIGN");
   const missionLossReason: MissionLossReason | undefined =
     isVsAIGame && gameWinnerResult === "opponent"
       ? opponentScore >= maxScore
@@ -749,6 +752,10 @@ function GameDisplayWeb2({
         })
       : undefined;
   const nodeIdForGame = game.metadata.campaignNodeId;
+  const missionNodeContent =
+    nodeIdForGame != null && nodeIdForGame > 0
+      ? resolveNodeContent(missionContentById, nodeIdForGame, missionContentLoading)
+      : undefined;
   const gameResultModalNode = isGameOver && !isGameResultDismissed && (
     <GameResultModal
       isVictory={gameWinnerResult === "me"}
@@ -763,6 +770,7 @@ function GameDisplayWeb2({
           ? BigInt(nodeIdForGame)
           : undefined
       }
+      nodeContent={missionNodeContent}
       onClose={() => setIsGameResultDismissed(true)}
       primaryActionLabel={
         isRoguelikeGame ? "Return to Run" : isSinglePlayerGame ? "Return to Campaign" : "Back to Games"

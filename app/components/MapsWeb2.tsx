@@ -4,10 +4,8 @@ import React, { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
-import { apiMutate } from "../lib/apiMutate";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
-import { MapEditor } from "./MapEditor";
-import { MapEditorHeader } from "./MapEditorHeader";
+import { MapEditScreenWeb2 } from "./MapEditScreenWeb2";
 import { MapPreviewCard } from "./MapPreviewCard";
 import { MapsListShell } from "./MapsListShell";
 import { MapPosition, ScoringPosition, MapMode } from "../types/types";
@@ -16,6 +14,7 @@ import { LobbyAdminPanelWeb2 } from "./LobbyAdminPanelWeb2";
 import { GameAdminPanelWeb2 } from "./GameAdminPanelWeb2";
 import { PvPMatchAdminPanelWeb2 } from "./PvPMatchAdminPanelWeb2";
 import { AdminSettingsExportWeb2 } from "./AdminSettingsExportWeb2";
+import { parseZoneTiles } from "../utils/deploymentZone";
 
 interface Web2Map {
   id: number;
@@ -25,6 +24,8 @@ interface Web2Map {
   blockedTiles: MapPosition[];
   impassableTiles: MapPosition[];
   scoringTiles: ScoringPosition[];
+  creatorZone?: unknown;
+  joinerZone?: unknown;
   mode: MapMode;
 }
 
@@ -33,77 +34,6 @@ interface Web2Map {
 // backed by `Map` rows in Postgres via `/api/maps` instead of the Maps
 // contract, and gated on `useWeb2Admin()` (WEB2_ADMIN_EMAILS) instead of
 // `MAP_ADMIN_ADDRESS`.
-function Web2MapSaveButton({
-  isEditing,
-  mapId,
-  name,
-  mode,
-  blockedPositions,
-  impassablePositions,
-  scoringPositions,
-  validationError,
-  onSuccess,
-}: {
-  isEditing: boolean;
-  mapId?: number;
-  name: string;
-  mode: MapMode;
-  blockedPositions: MapPosition[];
-  impassablePositions: MapPosition[];
-  scoringPositions: ScoringPosition[];
-  validationError: string | null;
-  onSuccess: () => void;
-}) {
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleClick = async () => {
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-    if (!name.trim()) {
-      toast.error("Map name is required");
-      return;
-    }
-    setIsSaving(true);
-    try {
-      if (isEditing && mapId !== undefined) {
-        await apiMutate(`/api/maps/${mapId}`, "PATCH", {
-          name,
-          blockedTiles: blockedPositions,
-          impassableTiles: impassablePositions,
-          scoringTiles: scoringPositions,
-        });
-      } else {
-        await apiMutate("/api/maps", "POST", {
-          name,
-          mode,
-          blockedTiles: blockedPositions,
-          impassableTiles: impassablePositions,
-          scoringTiles: scoringPositions,
-        });
-      }
-      toast.success(isEditing ? "Map updated" : "Map created");
-      onSuccess();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save map");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isSaving}
-      className="px-4 py-2 rounded-none font-mono border border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10 disabled:opacity-50"
-    >
-      {isSaving ? "Saving…" : isEditing ? "Update Map" : "Create Map"}
-    </button>
-  );
-}
-
 export default function MapsWeb2() {
   const canCreateMaps = useWeb2Admin();
   const { data: maps = [], refetch } = useQuery({
@@ -114,12 +44,6 @@ export default function MapsWeb2() {
   const [editingMapId, setEditingMapId] = useState<number | undefined>(
     undefined,
   );
-  const [editingName, setEditingName] = useState("");
-  // Mode for a map being created — Both by default, same as Maps.tsx's
-  // createMode, valid for every picker until narrowed deliberately.
-  const [createMode, setCreateMode] = useState<MapMode>(MapMode.Both);
-  const [editingMode, setEditingMode] = useState<MapMode>(MapMode.Both);
-  const [modePending, setModePending] = useState(false);
 
   const editingMap = useMemo(
     () => maps.find((m) => m.id === editingMapId),
@@ -128,8 +52,6 @@ export default function MapsWeb2() {
 
   const handleCreateMap = () => {
     setEditingMapId(undefined);
-    setEditingName("");
-    setCreateMode(MapMode.Both);
     setShowEditor(true);
   };
 
@@ -139,8 +61,6 @@ export default function MapsWeb2() {
       return;
     }
     setEditingMapId(map.id);
-    setEditingName(map.name);
-    setEditingMode(map.mode);
     setShowEditor(true);
   };
 
@@ -155,98 +75,15 @@ export default function MapsWeb2() {
     setEditingMapId(undefined);
   };
 
-  const handleReclassifyMode = async (mapId: number, mode: MapMode) => {
-    setEditingMode(mode);
-    setModePending(true);
-    try {
-      await apiMutate(`/api/maps/${mapId}`, "PATCH", { mode });
-      await refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to reclassify map mode");
-    } finally {
-      setModePending(false);
-    }
-  };
-
   if (showEditor) {
     return (
-      <div className="space-y-4 -mx-1 -my-1 px-1 py-1">
-        <MapEditorHeader
-          title={editingMapId ? `Edit Map ${editingMapId}` : "Create New Map"}
-          onBack={handleEditorCancel}
-        />
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-text-secondary">Name:</label>
-          <input
-            type="text"
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            disabled={!canCreateMaps}
-            className="w-64 px-2 py-1 bg-near-black border border-gunmetal text-text-primary rounded-none disabled:opacity-50"
-          />
-        </div>
-        {editingMapId !== undefined ? (
-          <div className="flex flex-wrap items-center gap-3 border border-gunmetal bg-black/40 p-3 font-mono text-sm">
-            <span className="text-xs uppercase tracking-wider text-cyan">Mode</span>
-            <select
-              value={editingMode}
-              disabled={modePending}
-              onChange={(e) => void handleReclassifyMode(editingMapId, Number(e.target.value) as MapMode)}
-              className="px-2 py-1 bg-near-black border text-cyan focus:outline-none disabled:opacity-50"
-              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-            >
-              <option value={MapMode.PvP}>PvP</option>
-              <option value={MapMode.PvE}>PvE</option>
-              <option value={MapMode.Both}>Both</option>
-            </select>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-3 border border-gunmetal bg-black/40 p-3 font-mono text-sm">
-            <span className="text-xs uppercase tracking-wider text-cyan">Mode</span>
-            <select
-              value={createMode}
-              onChange={(e) => setCreateMode(Number(e.target.value) as MapMode)}
-              className="px-2 py-1 bg-near-black border text-cyan focus:outline-none"
-              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-            >
-              <option value={MapMode.PvP}>PvP</option>
-              <option value={MapMode.PvE}>PvE</option>
-              <option value={MapMode.Both}>Both</option>
-            </select>
-            <span className="text-xs text-text-muted">
-              PvP lobbies reject PvE-only maps; campaign nodes reject PvP-only maps.
-            </span>
-          </div>
-        )}
-        <MapEditor
-          mapId={editingMapId}
-          initialBlockedPositions={editingMap?.blockedTiles}
-          initialImpassablePositions={editingMap?.impassableTiles}
-          initialScoringPositions={editingMap?.scoringTiles}
-          onSaveSuccess={handleEditorSave}
-          onCancel={handleEditorCancel}
-          canEdit={canCreateMaps}
-          renderSaveButton={({
-            blockedPositions,
-            impassablePositions,
-            scoringPositions,
-            validationError,
-            onSuccess,
-          }) => (
-            <Web2MapSaveButton
-              isEditing={editingMapId !== undefined}
-              mapId={editingMapId}
-              name={editingName}
-              mode={createMode}
-              blockedPositions={blockedPositions}
-              impassablePositions={impassablePositions}
-              scoringPositions={scoringPositions}
-              validationError={validationError}
-              onSuccess={onSuccess}
-            />
-          )}
-        />
-      </div>
+      <MapEditScreenWeb2
+        key={editingMapId ?? "new"}
+        map={editingMap}
+        onSaved={handleEditorSave}
+        onCancel={handleEditorCancel}
+        onMapChanged={() => void refetch()}
+      />
     );
   }
 
@@ -268,7 +105,8 @@ export default function MapsWeb2() {
               blockedPositions: map.blockedTiles,
               scoringPositions: map.scoringTiles,
               impassablePositions: map.impassableTiles,
-              // No deployment-zone data source in web2 yet — omitted, not [].
+              creatorZonePositions: parseZoneTiles(map.creatorZone) ?? [],
+              joinerZonePositions: parseZoneTiles(map.joinerZone) ?? [],
             }}
             modeLabel={MapMode[map.mode]}
             onEdit={canCreateMaps ? () => handleEditMap(map) : undefined}

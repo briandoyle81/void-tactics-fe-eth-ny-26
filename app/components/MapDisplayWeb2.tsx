@@ -54,7 +54,7 @@ export function MapDisplayWeb2({
   showDeployZoneLabel = false,
   pendingPlacementShipId = null,
 }: MapDisplayWeb2Props) {
-  const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid } = useMapWeb2(
+  const { blockedGrid, scoringGrid, onlyOnceGrid, impassableGrid, creatorZone, joinerZone } = useMapWeb2(
     mapId,
     GRID_DIMENSIONS.WIDTH,
     GRID_DIMENSIONS.HEIGHT,
@@ -118,6 +118,8 @@ export function MapDisplayWeb2({
       onDrop={onDrop}
       dragOverPosition={dragOverPosition}
       showDeployZoneLabel={showDeployZoneLabel}
+      creatorZonePositions={creatorZone}
+      joinerZonePositions={joinerZone}
       pendingPlacementShipId={pendingPlacementShipId !== null ? String(pendingPlacementShipId) : null}
       showTooltipInGameProperties={false}
     />

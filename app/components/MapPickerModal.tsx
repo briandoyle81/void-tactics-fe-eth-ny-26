@@ -1,14 +1,10 @@
 "use client";
 
 import React from "react";
-import type { MapPosition, ScoringPosition } from "../types/types";
-import { MapPreviewCard } from "./MapPreviewCard";
+import { MapPreviewCard, type MapPreviewCardData } from "./MapPreviewCard";
 
-export interface MapPickerMap {
-  id: number;
-  titleLabel: string;
-  blockedPositions: MapPosition[];
-  scoringPositions: ScoringPosition[];
+/** Everything the preview card can show, plus an optional mode badge. */
+export interface MapPickerMap extends MapPreviewCardData {
   modeLabel?: string;
 }
 

@@ -6,12 +6,22 @@ import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { RoguelikeRunStartWeb2 } from "./RoguelikeRunStartWeb2";
 import { RoguelikeGraphWeb2 } from "./RoguelikeGraphWeb2";
 
+const BROWSING_MAP_STORAGE_KEY = "mission-browsing-map-web2";
+
 // Web2 counterpart to RoguelikeCampaign.tsx — branches on active-run same
 // as web3, plus the same run-less "browse/edit" entry point for admins.
 export function RoguelikeCampaignWeb2() {
   const { run, isLoading, error, refetch } = useRoguelikeRunWeb2();
   const isEditor = useWeb2Admin();
-  const [browsingMap, setBrowsingMap] = React.useState(false);
+  const [browsingMap, setBrowsingMapState] = React.useState(false);
+  React.useEffect(() => {
+    setBrowsingMapState(localStorage.getItem(BROWSING_MAP_STORAGE_KEY) === "1");
+  }, []);
+  const setBrowsingMap = React.useCallback((value: boolean) => {
+    setBrowsingMapState(value);
+    if (value) localStorage.setItem(BROWSING_MAP_STORAGE_KEY, "1");
+    else localStorage.removeItem(BROWSING_MAP_STORAGE_KEY);
+  }, []);
 
   if (isLoading) {
     return <div className="text-center font-mono text-sm text-text-muted">Loading run…</div>;

@@ -8,6 +8,10 @@ import { RunStatus } from "../types/roguelike";
 import { RoguelikeRunStart } from "./RoguelikeRunStart";
 import { RoguelikeGraph } from "./RoguelikeGraph";
 
+function browsingMapStorageKey(address: string | undefined): string {
+  return `mission-browsing-map-${address || "anonymous"}`;
+}
+
 // Top-level Roguelike tab container — branches on whether the connected
 // player has an active run (docs/update/Frontend_Update_Guide_Roguelike_Campaign.md).
 // Editors additionally get a run-less "browse/edit" entry point from the
@@ -19,7 +23,19 @@ export function RoguelikeCampaign() {
     useHasActiveRoguelikeRun(address);
   const { data: run, isLoading: runLoading, refetch: refetchRun } = useGetRoguelikeRun(address);
   const { data: isEditor = false } = useIsRoguelikeNodeEditor(address);
-  const [browsingMap, setBrowsingMap] = React.useState(false);
+  const [browsingMap, setBrowsingMapState] = React.useState(false);
+  React.useEffect(() => {
+    setBrowsingMapState(localStorage.getItem(browsingMapStorageKey(address)) === "1");
+  }, [address]);
+  const setBrowsingMap = React.useCallback(
+    (value: boolean) => {
+      setBrowsingMapState(value);
+      const key = browsingMapStorageKey(address);
+      if (value) localStorage.setItem(key, "1");
+      else localStorage.removeItem(key);
+    },
+    [address],
+  );
 
   const refetchAll = React.useCallback(async () => {
     await Promise.all([refetchHasActiveRun(), refetchRun()]);

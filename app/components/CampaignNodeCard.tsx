@@ -1,6 +1,6 @@
 "use client";
 
-import { getNodeContent } from "../config/campaignNodes";
+import { nodeContentTextClass, type NodeContentStatus } from "../hooks/useNodeContent";
 
 // Shared verbatim between CampaignGraph.tsx (web3, bigint node ids) and
 // CampaignGraphWeb2.tsx (web2, number node ids) — only ever reads id/
@@ -30,10 +30,10 @@ interface CampaignNodeCardProps {
   node: CampaignNodeCardNode;
   isSelected: boolean;
   onSelect: () => void;
-  /** Overrides campaignNodes.ts's static getNodeContent(id) lookup — pass
-   * the DB-merged title (see useNodeContent.ts) so an admin's edit shows up
-   * on the map immediately, not just in the preview/edit panel below. */
-  title?: string;
+  /** Resolved title (see useNodeContent.ts's resolveNodeContent). */
+  title: string;
+  /** Whether `title` is real content, a loading placeholder, or an error. */
+  titleStatus: NodeContentStatus;
   /** Shows a small edit-mode badge — set by the caller only while its own
    * Edit Mode toggle is on. */
   editMode?: boolean;
@@ -58,10 +58,10 @@ export function CampaignNodeCard({
   isSelected,
   onSelect,
   title,
+  titleStatus,
   editMode,
   connectHighlight,
 }: CampaignNodeCardProps) {
-  const resolvedTitle = title ?? getNodeContent(node.id).title;
   // In edit mode every node stays clickable (an editor previews/edits
   // locked nodes too) — outside edit mode, only unlocked nodes are.
   const clickable = editMode || node.unlocked;
@@ -124,10 +124,10 @@ export function CampaignNodeCard({
       />
 
       <span
-        className="line-clamp-2 w-full break-words text-center text-[10px] uppercase tracking-wider"
-        style={{ color: "var(--color-text-primary)" }}
+        className={`line-clamp-2 w-full break-words text-center text-[10px] uppercase tracking-wider ${nodeContentTextClass(titleStatus, "")}`}
+        style={titleStatus === "ok" ? { color: "var(--color-text-primary)" } : undefined}
       >
-        {resolvedTitle}
+        {title}
       </span>
     </button>
   );

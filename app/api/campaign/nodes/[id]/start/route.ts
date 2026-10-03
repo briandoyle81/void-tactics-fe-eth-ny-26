@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { startingPositionsErrorForMap } from "@/app/lib/deploymentZoneWeb2";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { AI_USER_ID, ensureAiUser } from "@/app/lib/aiUser";
@@ -66,6 +67,15 @@ export async function POST(
       return NextResponse.json({ error: "This node is locked" }, { status: 403 });
     }
   }
+
+  // The player is always the creator side in single-player.
+  const positionsError = await startingPositionsErrorForMap(
+    node.mapId,
+    startingPositions,
+    shipIds.length,
+    true,
+  );
+  if (positionsError) return NextResponse.json({ error: positionsError }, { status: 400 });
 
   const ships = await prisma.ship.findMany({ where: { id: { in: shipIds }, ownerId: userId! } });
   if (ships.length !== shipIds.length) {

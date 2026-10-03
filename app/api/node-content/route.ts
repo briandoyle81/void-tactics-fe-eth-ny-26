@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { requireAuth, requireNodeContentEditor } from "@/app/lib/auth";
+import { requireWeb2Admin } from "@/app/lib/auth";
 import { NodeGraphType } from "@/app/generated/prisma";
 
 function parseGraphType(value: string | null): NodeGraphType | null {
@@ -21,24 +21,29 @@ function parseGraphType(value: string | null): NodeGraphType | null {
 }
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth();
-  if (error) return error;
-
+  // Public on purpose (see header): every viewer renders node text, and
+  // wallet (web3) players have no NextAuth session. Requiring one here made
+  // every web3 client fall back to the static placeholder content, so
+  // saved edits never appeared.
   const graphType = parseGraphType(req.nextUrl.searchParams.get("graphType"));
   if (!graphType) {
     return NextResponse.json({ error: "graphType must be CAMPAIGN or ROGUELIKE" }, { status: 400 });
   }
 
-  const rows = await prisma.nodeContent.findMany({ where: { graphType } });
+  const rows = await prisma.nodeContent.findMany({
+    where: { graphType },
+    select: { graphType: true, nodeId: true, title: true, description: true },
+  });
   return NextResponse.json(rows);
 }
 
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-
-  const { error } = await requireNodeContentEditor(body);
+  // Web2 only: web3 node text lives on chain in NodeContentRegistry and is
+  // written by the editor's own wallet transaction (useSaveOnChainNodeContent).
+  const { error } = await requireWeb2Admin();
   if (error) return error;
 
+  const body = await req.json();
   const graphType = parseGraphType(body?.graphType ?? null);
   const nodeId = Number(body?.nodeId);
   const title = typeof body?.title === "string" ? body.title : null;
@@ -51,23 +56,10 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  // dirtyAt marks this row as having an unpublished on-chain edit (see
-  // NodeContentRegistry.sol / publish/route.ts) unless the saved content
-  // is identical to what's already published — e.g. re-saving unchanged
-  // content, or a save that happens to match a value sync/route.ts just
-  // pulled back from chain — in which case there's nothing new to publish.
-  const existing = await prisma.nodeContent.findUnique({
-    where: { graphType_nodeId: { graphType, nodeId } },
-  });
-  const matchesPublished =
-    existing != null &&
-    existing.publishedTitle === title &&
-    existing.publishedDescription === description;
-
   const row = await prisma.nodeContent.upsert({
     where: { graphType_nodeId: { graphType, nodeId } },
-    create: { graphType, nodeId, title, description, dirtyAt: new Date() },
-    update: { title, description, dirtyAt: matchesPublished ? null : new Date() },
+    create: { graphType, nodeId, title, description },
+    update: { title, description },
   });
 
   return NextResponse.json(row);

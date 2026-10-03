@@ -35,9 +35,13 @@ const PLACEMENT_ID_BASE = 500_000_000n;
 export function MapPlacementsEditor({
   mapId,
   configs,
+  startOpen = false,
+  onClose,
 }: {
   mapId: bigint;
   configs: AIShipConfig[];
+  startOpen?: boolean;
+  onClose?: () => void;
 }) {
   const { setMapPlacements } = useAIEncountersAdmin();
   const { data: placementsData, refetch } = useGetMapPlacements(mapId);
@@ -185,7 +189,11 @@ export function MapPlacementsEditor({
     [mapShips],
   );
 
-  const [showEditor, setShowEditor] = useState(false);
+  const [showEditor, setShowEditor] = useState(startOpen);
+  const closeEditor = () => {
+    setShowEditor(false);
+    onClose?.();
+  };
 
   // 50 configs now (25 variant-1 + 25 variant-2, per docs/faction-2.md §8) —
   // a variant filter keeps the roster scannable when placing a fleet for a
@@ -226,22 +234,26 @@ export function MapPlacementsEditor({
   }));
 
   return (
-    <div className="space-y-2 border border-gunmetal bg-black/40 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-text-secondary">
-          {placements.length}/{maxPlacementsPerMap} ships placed — total threat {totalThreat}
-        </span>
-        <button
-          type="button"
-          onClick={() => setShowEditor(true)}
-          className="px-4 py-2 rounded-none font-mono text-xs border border-cyan text-cyan hover:bg-cyan/10"
-        >
-          [EDIT PLACEMENTS]
-        </button>
-      </div>
+    <>
+      {!startOpen && (
+        <div className="space-y-2 border border-gunmetal bg-black/40 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-secondary">
+              {placements.length}/{maxPlacementsPerMap} ships placed — total threat {totalThreat}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowEditor(true)}
+              className="px-4 py-2 rounded-none font-mono text-xs border border-cyan text-cyan hover:bg-cyan/10"
+            >
+              [EDIT PLACEMENTS]
+            </button>
+          </div>
+        </div>
+      )}
 
       {showEditor && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[400]">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[600]">
           <div className="bg-near-black border border-cyan rounded-none p-6 w-[100vw] h-[100vh] flex flex-col" style={{ borderRadius: 0 }}>
             <div className="mb-2 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
               <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
@@ -287,7 +299,7 @@ export function MapPlacementsEditor({
               <div className="flex items-center justify-start gap-2 sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setShowEditor(false)}
+                  onClick={closeEditor}
                   className="px-3 py-1 text-sm font-bold text-text-muted border border-gunmetal rounded-none hover:text-text-secondary hover:border-steel transition-colors"
                 >
                   ✕
@@ -342,6 +354,6 @@ export function MapPlacementsEditor({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

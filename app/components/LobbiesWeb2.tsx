@@ -59,6 +59,8 @@ import {
 import { WinLossBadge } from "./WinLossBadge";
 import { LobbyCardActions } from "./LobbyCardActions";
 import { lobbyStatusColor, lobbyStatusLabel } from "../utils/lobbyStatusDisplay";
+import { useMapWeb2 } from "../hooks/useMapWeb2";
+import { GRID_DIMENSIONS } from "../types/types";
 
 /** Same tab-navigation mechanism as `Lobbies.tsx`'s `navigateToGamesTab` — mode-agnostic, just switches the active tab. */
 function navigateToGamesTab() {
@@ -177,11 +179,19 @@ const LobbiesWeb2: React.FC = () => {
   // components memory).
   const isCreatorForSelected = selectedLobby?.basic.creator === userId;
   const costLimitForSelected = selectedLobby ? selectedLobby.basic.costLimit : 1000;
+  // The selected lobby map's deployment zone for this player's side (empty =
+  // default columns) — mirrors Lobbies.tsx's useCreator/JoinerZonePositions.
+  const { creatorZone: selectedCreatorZone, joinerZone: selectedJoinerZone } = useMapWeb2(
+    selectedLobby?.gameConfig.selectedMapId ?? 0,
+    GRID_DIMENSIONS.WIDTH,
+    GRID_DIMENSIONS.HEIGHT,
+  );
   const fleet = useFleetPlacementWeb2({
     ships,
     costLimit: costLimitForSelected,
     costsVersion: null,
     isCreatorSide: isCreatorForSelected,
+    zoneTiles: isCreatorForSelected ? selectedCreatorZone : selectedJoinerZone,
   });
   const {
     selectedShips,

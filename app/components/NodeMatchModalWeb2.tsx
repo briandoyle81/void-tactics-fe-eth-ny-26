@@ -50,7 +50,7 @@ export function NodeMatchModalWeb2({
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
 
-  const fleet = useNodeFleetSelectionWeb2(node.costLimit, requiredVariant);
+  const fleet = useNodeFleetSelectionWeb2(node.costLimit, requiredVariant, node.mapId);
 
   const { data: placements } = useQuery({
     queryKey: ["ai-map-placements", node.mapId],

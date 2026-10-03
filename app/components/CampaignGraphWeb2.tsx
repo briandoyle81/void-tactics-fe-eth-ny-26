@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import type { NodeContentStatus } from "../hooks/useNodeContent";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { useCampaignGraphWeb2WithContent } from "../hooks/useCampaignWeb2";
@@ -107,6 +108,7 @@ export function CampaignGraphWeb2() {
     completed: boolean;
     unlocked: boolean;
     title: string;
+    titleStatus: NodeContentStatus;
     editMode: boolean;
     connectHighlight: "source" | "candidate" | "invalid" | undefined;
   }
@@ -120,6 +122,7 @@ export function CampaignGraphWeb2() {
       completed: n.completed,
       unlocked: n.unlocked,
       title: n.title,
+      titleStatus: n.titleStatus,
       editMode,
       connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
     };
@@ -131,6 +134,7 @@ export function CampaignGraphWeb2() {
       completed: false,
       unlocked: true,
       title: "+ ADD NODE",
+      titleStatus: "ok",
       editMode: true,
       connectHighlight: connectMode ? "invalid" : undefined,
     });
@@ -208,6 +212,7 @@ export function CampaignGraphWeb2() {
             isSelected={isSelected}
             onSelect={onSelect}
             title={canvasNode.title}
+            titleStatus={canvasNode.titleStatus}
             editMode={canvasNode.editMode}
             connectHighlight={canvasNode.connectHighlight}
           />
@@ -252,7 +257,6 @@ export function CampaignGraphWeb2() {
       {showSettings && (
         <CampaignSettingsModalWeb2
           campaign={campaign}
-          nodeIds={nodes.map((n) => n.id)}
           onClose={() => setShowSettings(false)}
           onSaved={() => void refetch()}
         />

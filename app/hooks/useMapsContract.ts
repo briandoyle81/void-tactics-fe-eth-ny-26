@@ -178,30 +178,38 @@ export function useMapModes(mapIds: number[]) {
 export function useMapNames(mapIds: number[]) {
   const pickerChainId = useSelectedChainId();
   const { MAPS } = getContractAddresses(pickerChainId);
+  const idsKey = mapIds.join(",");
+  const stableIds = useMemo(
+    () => (idsKey.length === 0 ? [] : idsKey.split(",").map(Number)),
+    [idsKey],
+  );
   const contracts = useMemo(
     () =>
-      mapIds.map((id) => ({
+      stableIds.map((id) => ({
         address: MAPS as `0x${string}`,
         abi: CONTRACT_ABIS.MAPS as Abi,
         chainId: pickerChainId,
         functionName: "mapName" as const,
         args: [BigInt(id)] as const,
       })),
-    [mapIds, MAPS, pickerChainId],
+    [stableIds, MAPS, pickerChainId],
   );
-  const { data, isLoading, error } = useReadContracts({
+  const { data, isLoading, isFetched, error, refetch } = useReadContracts({
     contracts,
-    query: { enabled: mapIds.length > 0 },
+    query: {
+      enabled: stableIds.length > 0,
+      refetchOnMount: "always" as const,
+    },
   });
   const nameByMapId = useMemo(() => {
     const map = new Map<number, string>();
-    mapIds.forEach((id, i) => {
+    stableIds.forEach((id, i) => {
       const name = data?.[i]?.result as string | undefined;
       if (name) map.set(id, name);
     });
     return map;
-  }, [mapIds, data]);
-  return { nameByMapId, isLoading, error };
+  }, [stableIds, data]);
+  return { nameByMapId, isLoading, isFetched, error, refetch };
 }
 
 /** `Map #<id>` alone, or `Map #<id> — <name>` when the map has one — same format web2's titleLabel construction already uses. */

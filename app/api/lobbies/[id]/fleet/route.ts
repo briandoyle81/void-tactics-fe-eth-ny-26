@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { startingPositionsErrorForMap } from "@/app/lib/deploymentZoneWeb2";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
@@ -36,6 +37,15 @@ export async function POST(
       { status: 400 },
     );
   }
+
+  // Same rule web3 enforces on chain (Fleets.createFleet -> Maps.isValidDeploymentTile).
+  const positionsError = await startingPositionsErrorForMap(
+    lobby.mapId,
+    startingPositions,
+    shipIds.length,
+    lobby.creatorId === userId,
+  );
+  if (positionsError) return NextResponse.json({ error: positionsError }, { status: 400 });
 
   // Verify all ships belong to this user and aren't destroyed
   const ships = await prisma.ship.findMany({

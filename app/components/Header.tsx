@@ -1,5 +1,6 @@
 "use client";
 
+import { useOpenWalletSignIn } from "../hooks/useOpenWalletSignIn";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useConfig, useReadContract } from "wagmi";
 import { DynamicUserProfile, useDynamicContext } from "@dynamic-labs/sdk-react-core";
@@ -182,11 +183,11 @@ function HeaderDisconnectedConnect({
 }: {
   connectButtonClassName: string;
 }) {
-  const { setShowAuthFlow } = useDynamicContext();
+  const openWalletSignIn = useOpenWalletSignIn();
 
   return (
     <button
-      onClick={() => setShowAuthFlow(true)}
+      onClick={() => void openWalletSignIn()}
       type="button"
       className={connectButtonClassName}
       style={{

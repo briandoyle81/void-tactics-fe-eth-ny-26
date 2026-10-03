@@ -6,14 +6,10 @@ import type { Address } from "viem";
 import { useCampaignRequiredVariant } from "../hooks/useNodeMap";
 import { useNodeMapAdmin } from "../hooks/useNodeMapAdmin";
 import { useAIEncountersAdmin } from "../hooks/useAIEncountersAdmin";
-import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
 
 const DEFAULT_CAMPAIGN_ID = 1n;
 
 interface CampaignSettingsModalProps {
-  /** Every node id in this campaign — passed straight through to
-   * NodeContentPublishPanel, see its prop doc for why. */
-  nodeIds: number[];
   onClose: () => void;
 }
 
@@ -24,7 +20,7 @@ interface CampaignSettingsModalProps {
 // setEncounterEditor together in one submit ("merge the permissions") so a
 // newly-granted admin never ends up able to edit node fields/edges but not
 // enemy fleets — see the map editor plan's decision log.
-export function CampaignSettingsModal({ nodeIds, onClose }: CampaignSettingsModalProps) {
+export function CampaignSettingsModal({ onClose }: CampaignSettingsModalProps) {
   const admin = useNodeMapAdmin();
   const encountersAdmin = useAIEncountersAdmin();
   const { data: currentVariant, refetch: refetchVariant } = useCampaignRequiredVariant(
@@ -178,8 +174,6 @@ export function CampaignSettingsModal({ nodeIds, onClose }: CampaignSettingsModa
               </button>
             </div>
           </div>
-
-          <NodeContentPublishPanel graphType="CAMPAIGN" nodeIds={nodeIds} />
         </div>
       </div>
     </div>

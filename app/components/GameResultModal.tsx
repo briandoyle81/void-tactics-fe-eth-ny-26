@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { getNodeContent } from "../config/campaignNodes";
+import { nodeContentTextClass, type ResolvedNodeContent } from "../hooks/useNodeContent";
 import { STYLE_LABEL } from "../styles/fontStyles";
 
 /** Why a mission was lost — only rendered when !isVictory and nodeId is set
@@ -39,6 +39,8 @@ interface GameResultModalProps {
   onPrimaryAction: () => void;
   /** Single-player only — swaps VICTORY/DEFEAT for mission-appropriate copy and shows the node title. */
   nodeId?: bigint;
+  /** The mission node's resolved title (on-chain / web2 content, no fallback text). */
+  nodeContent?: Pick<ResolvedNodeContent, "title" | "titleStatus">;
   missionLossReason?: MissionLossReason;
   /** Shown on any win (PvP or mission). */
   victoryReason?: VictoryReason;
@@ -66,6 +68,7 @@ export function GameResultModal({
   primaryActionLabel,
   onPrimaryAction,
   nodeId,
+  nodeContent,
   missionLossReason,
   victoryReason,
   isTie = false,
@@ -76,7 +79,7 @@ export function GameResultModal({
       ? "var(--color-phosphor-green)"
       : "var(--color-warning-red)";
   const isMission = nodeId != null;
-  const nodeTitle = isMission ? getNodeContent(nodeId!).title : null;
+  const nodeTitle = isMission ? nodeContent : undefined;
 
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 p-4">
@@ -110,8 +113,10 @@ export function GameResultModal({
                   : "Defeat"}
           </div>
           {nodeTitle && (
-            <div className="mt-2 text-sm uppercase tracking-wider text-text-muted">
-              {nodeTitle}
+            <div
+              className={`mt-2 text-sm uppercase tracking-wider ${nodeContentTextClass(nodeTitle.titleStatus, "text-text-muted")}`}
+            >
+              {nodeTitle.title}
             </div>
           )}
         </div>

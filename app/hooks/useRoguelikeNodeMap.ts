@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { RoguelikeNode } from "../types/roguelike";
-import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
+import { useOnChainNodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
 
 // Roguelike is Base Sepolia only, same as the original single-player stack
 // (AIEncounters/NodeMap/SinglePlayerMatch) — pin to that chain directly
@@ -152,7 +152,7 @@ export function useAllRoguelikeNodes() {
   return { ...result, nodes };
 }
 
-export type RoguelikeNodeWithContent = RoguelikeNode & NodeContentValue;
+export type RoguelikeNodeWithContent = RoguelikeNode & ResolvedNodeContent;
 
 /**
  * The full roguelike graph for one campaign, content included:
@@ -163,17 +163,29 @@ export type RoguelikeNodeWithContent = RoguelikeNode & NodeContentValue;
  */
 export function useRoguelikeGraphWithContent(campaignId: bigint) {
   const { nodes: allNodes, ...rest } = useAllRoguelikeNodes();
-  const { contentById } = useAllNodeContent("ROGUELIKE");
 
   const campaignNodes = useMemo(
     () => allNodes.filter((n) => n.campaignId === campaignId),
     [allNodes, campaignId],
   );
+  const nodeIds = useMemo(() => campaignNodes.map((n) => n.id), [campaignNodes]);
+  const {
+    contentById,
+    isLoading: contentLoading,
+    refetch: refetchContent,
+  } = useOnChainNodeContent("ROGUELIKE", nodeIds);
 
   const nodes = useMemo(
-    () => mergeNodeContent("ROGUELIKE", campaignNodes, contentById),
-    [campaignNodes, contentById],
+    () => mergeNodeContent(campaignNodes, contentById, contentLoading),
+    [campaignNodes, contentById, contentLoading],
   );
 
-  return { ...rest, nodes };
+  const { refetch: refetchNodes } = rest;
+  const refetch = useCallback(async () => {
+    const result = await refetchNodes();
+    await refetchContent();
+    return result;
+  }, [refetchNodes, refetchContent]);
+
+  return { ...rest, nodes, refetch };
 }

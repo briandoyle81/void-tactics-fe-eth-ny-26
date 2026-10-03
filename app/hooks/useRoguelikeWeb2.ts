@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
 import type { Web2Ship } from "../types/web2Ship";
-import { useAllNodeContent, mergeNodeContent, type NodeContentValue } from "./useNodeContent";
+import { useNodeContentWeb2, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
 
 // Web2-mode counterpart to useRoguelikeRun.ts/useRoguelikeMatch.ts —
 // Prisma-backed run/roster reads and mutations instead of on-chain
@@ -97,16 +97,16 @@ export function useRoguelikeCampaignNodesWeb2(campaignId: number | undefined) {
   return { nodes: data ?? [], isLoading, error: error instanceof Error ? error : null, refetch };
 }
 
-export type RoguelikeNodeWeb2WithContent = RoguelikeNodeWeb2 & NodeContentValue;
+export type RoguelikeNodeWeb2WithContent = RoguelikeNodeWeb2 & ResolvedNodeContent;
 
 /** Web2 counterpart to useRoguelikeNodeMap.ts's useRoguelikeGraphWithContent — same structure+content merge, Prisma-backed instead of on-chain. */
 export function useRoguelikeCampaignNodesWeb2WithContent(campaignId: number | undefined) {
   const graph = useRoguelikeCampaignNodesWeb2(campaignId);
-  const { contentById } = useAllNodeContent("ROGUELIKE");
+  const { contentById, isLoading: contentLoading } = useNodeContentWeb2("ROGUELIKE");
 
   const nodes = useMemo(
-    () => mergeNodeContent("ROGUELIKE", graph.nodes, contentById),
-    [graph.nodes, contentById],
+    () => mergeNodeContent(graph.nodes, contentById, contentLoading),
+    [graph.nodes, contentById, contentLoading],
   );
 
   return { ...graph, nodes };

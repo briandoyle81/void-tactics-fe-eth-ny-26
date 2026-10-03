@@ -88,6 +88,9 @@ export default function Home() {
   // Initialize with default tab to prevent hydration mismatch
   const [activeTab, setActiveTab] = useState("Info");
   const [isHydrated, setIsHydrated] = useState(false);
+  // Keep the Mission graph mounted after the first visit so leaving the tab
+  // (e.g. Maps) and coming back restores edit mode, selection, and drafts.
+  const [missionKeepAlive, setMissionKeepAlive] = useState(false);
   const [isInfoTutorialActive, setIsInfoTutorialActive] = useState(false);
   const [isManageNavyPurchaseActive, setIsManageNavyPurchaseActive] =
     useState(false);
@@ -155,6 +158,7 @@ export default function Home() {
     }
 
     setActiveTab(nextTab);
+    if (nextTab === "Mission") setMissionKeepAlive(true);
 
     const tutorialInProgress =
       localStorage.getItem(TUTORIAL_STEP_STORAGE_KEY) !== null;
@@ -165,6 +169,9 @@ export default function Home() {
   useLayoutEffect(() => {
     if (activeTab !== "Info") {
       setIsInfoTutorialActive(false);
+    }
+    if (activeTab === "Mission") {
+      setMissionKeepAlive(true);
     }
   }, [activeTab]);
 
@@ -704,7 +711,26 @@ export default function Home() {
             // instead; isHydrated flips true in the same effect that
             // restores activeTab, so this is barely perceptible.
             <div className="w-full" />
-          ) : activeTab === "Maps" ? (
+          ) : (
+            <>
+              {missionKeepAlive && (
+                <div
+                  className={activeTab === "Mission" ? "w-full" : "hidden"}
+                  aria-hidden={activeTab !== "Mission"}
+                >
+                  <div
+                    className="border-0 bg-transparent p-0 md:border md:border-solid md:bg-[var(--color-slate)] md:p-8"
+                    style={{
+                      borderColor: "var(--color-gunmetal)",
+                      borderTopColor: "var(--color-steel)",
+                      borderLeftColor: "var(--color-steel)",
+                    }}
+                  >
+                    {appMode === "web2" ? <RoguelikeCampaignWeb2 /> : <RoguelikeCampaign />}
+                  </div>
+                </div>
+              )}
+              {activeTab === "Maps" ? (
             <div className="w-full">
               <div
                 className="border border-solid p-1"
@@ -746,7 +772,7 @@ export default function Home() {
                 {appMode === "web2" ? <GamesWeb2 /> : <Games />}
               </div>
             </div>
-          ) : (
+          ) : activeTab === "Mission" ? null : (
             <div
               className={
                 isInfoTutorialActive
@@ -771,10 +797,6 @@ export default function Home() {
                 (appMode === "web2" ? <StoreWeb2 /> : <Store />)}
               {activeTab === "Lobbies" &&
                 (appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />)}
-              {/* {activeTab === "Campaign" &&
-                (appMode === "web2" ? <CampaignGraphWeb2 /> : <CampaignGraph />)} */}
-              {activeTab === "Mission" &&
-                (appMode === "web2" ? <RoguelikeCampaignWeb2 /> : <RoguelikeCampaign />)}
               {activeTab === "Profile" &&
                 (appMode === "web2" ? <ProfileWeb2 /> : <Profile />)}
               {activeTab === "Info" && <Info />}
@@ -796,6 +818,8 @@ export default function Home() {
               {activeTab === "Tournaments" &&
                 (appMode === "web2" ? <TournamentsWeb2 /> : <Tournaments />)}
             </div>
+          )}
+            </>
           )}
         </div>
       </main>

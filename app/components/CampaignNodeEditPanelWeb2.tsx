@@ -6,15 +6,15 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { useCampaignAdminWeb2, type CampaignNodeWeb2 } from "../hooks/useCampaignAdminWeb2";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
-import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useNodeContentWeb2, useSaveNodeContentWeb2 } from "../hooks/useNodeContent";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
+import { MapPreviewCard } from "./MapPreviewCard";
+import { MapEditScreenWeb2 } from "./MapEditScreenWeb2";
+import { MapMode } from "../types/types";
 import { MapPlacementsEditorWeb2 } from "./MapPlacementsEditorWeb2";
-import { EnemyFleetPreview } from "./EnemyFleetPreview";
-import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
-import { ARCHETYPE_LABEL } from "../utils/aiShipConfig";
-import { ShipImageWeb2 } from "./ShipImageWeb2";
-import ShipCard from "./ShipCard";
-import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
+import { type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
+import { parseZoneTiles } from "../utils/deploymentZone";
 
 const DEFAULT_CAMPAIGN_ID = 1;
 
@@ -26,10 +26,10 @@ interface Web2Map {
   name: string;
   blockedTiles: MapPickerMap["blockedPositions"];
   scoringTiles: MapPickerMap["scoringPositions"];
-}
-
-interface AIMapPlacementWeb2 {
-  configId: number;
+  impassableTiles?: NonNullable<MapPickerMap["impassablePositions"]>;
+  creatorZone?: unknown;
+  joinerZone?: unknown;
+  mode: MapMode;
 }
 
 interface CampaignNodeEditPanelWeb2Props {
@@ -61,7 +61,8 @@ export function CampaignNodeEditPanelWeb2({
 }: CampaignNodeEditPanelWeb2Props) {
   const admin = useCampaignAdminWeb2();
   const isWeb2Admin = useWeb2Admin();
-  const { data: web2Maps } = useQuery({
+  const { email, isLoggedIn, isLoading: isUserLoading } = useCurrentUser();
+  const { data: web2Maps, refetch: refetchWeb2Maps } = useQuery({
     queryKey: ["maps", "web2"],
     queryFn: () => apiFetch<Web2Map[]>("/api/maps"),
   });
@@ -69,8 +70,8 @@ export function CampaignNodeEditPanelWeb2({
     queryKey: ["ai-ship-configs"],
     queryFn: () => apiFetch<AIShipConfigWeb2[]>("/api/admin/ai-ship-configs"),
   });
-  const { contentById, refetch: refetchContent } = useAllNodeContent("CAMPAIGN");
-  const saveContent = useSaveNodeContent();
+  const { contentById, refetch: refetchContent } = useNodeContentWeb2("CAMPAIGN");
+  const saveContent = useSaveNodeContentWeb2();
 
   const [mapId, setMapId] = React.useState<number>(node?.mapId ?? 0);
   const [costLimit, setCostLimit] = React.useState(node?.costLimit ?? NEW_NODE_DEFAULTS.costLimit);
@@ -80,10 +81,11 @@ export function CampaignNodeEditPanelWeb2({
   const [maxScore, setMaxScore] = React.useState(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
   const [creatorGoesFirst, setCreatorGoesFirst] = React.useState(node?.creatorGoesFirst ?? true);
   const [showMapPicker, setShowMapPicker] = React.useState(false);
+  const [showMapEditor, setShowMapEditor] = React.useState(false);
   const [showFleetEditor, setShowFleetEditor] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const resolvedContent = node ? resolveNodeContent("CAMPAIGN", contentById, node.id) : null;
+  const resolvedContent = node ? contentById.get(Number(node.id)) : undefined;
   const [title, setTitle] = React.useState(resolvedContent?.title ?? "");
   const [description, setDescription] = React.useState(resolvedContent?.description ?? "");
 
@@ -97,7 +99,7 @@ export function CampaignNodeEditPanelWeb2({
     setTurnTimeSeconds(node?.turnTimeSeconds ?? NEW_NODE_DEFAULTS.turnTimeSeconds);
     setMaxScore(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
     setCreatorGoesFirst(node?.creatorGoesFirst ?? true);
-    const c = node ? resolveNodeContent("CAMPAIGN", contentById, node.id) : null;
+    const c = node ? contentById.get(Number(node.id)) : undefined;
     setTitle(c?.title ?? "");
     setDescription(c?.description ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,12 +109,48 @@ export function CampaignNodeEditPanelWeb2({
     () =>
       (web2Maps ?? []).map((m) => ({
         id: m.id,
-        titleLabel: `Map #${m.id} — ${m.name}`,
+        titleLabel: `Map #${m.id} - ${m.name}`,
         blockedPositions: m.blockedTiles,
         scoringPositions: m.scoringTiles,
+        impassablePositions: m.impassableTiles ?? [],
+        creatorZonePositions: parseZoneTiles(m.creatorZone) ?? [],
+        joinerZonePositions: parseZoneTiles(m.joinerZone) ?? [],
+        modeLabel: MapMode[m.mode],
       })),
     [web2Maps],
   );
+  const pickerMaps = React.useMemo(
+    () => maps.filter((m) => {
+      const raw = web2Maps?.find((w) => w.id === m.id)?.mode;
+      return (raw ?? MapMode.Both) !== MapMode.PvP;
+    }),
+    [maps, web2Maps],
+  );
+  const selectedMapPreview = React.useMemo(
+    () => (mapId === 0 ? undefined : maps.find((m) => m.id === mapId)),
+    [maps, mapId],
+  );
+  const editingWeb2Map = (web2Maps ?? []).find((m) => m.id === mapId);
+
+  const handleEditEnemyFleet = () => {
+    if (mapId === 0) {
+      toast.error("Select a map before editing the enemy fleet.");
+      return;
+    }
+    if (isUserLoading) {
+      toast.error("Checking admin permission...");
+      return;
+    }
+    if (!isLoggedIn || !email) {
+      toast.error("Log in as an admin to edit the enemy fleet.");
+      return;
+    }
+    if (!isWeb2Admin) {
+      toast.error("This account is not an admin. Log in with an admin email to edit the enemy fleet.");
+      return;
+    }
+    setShowFleetEditor(true);
+  };
 
   const handleSaveDetails = async () => {
     if (mapId === 0) {
@@ -239,8 +277,13 @@ export function CampaignNodeEditPanelWeb2({
             className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
             style={{ borderRadius: 0 }}
           >
-            {mapId === 0 ? "[SELECT MAP]" : `[MAP #${mapId}]`}
+            {mapId === 0
+              ? "[SELECT MAP]"
+              : `[CHANGE MAP] ${selectedMapPreview?.titleLabel ?? `#${mapId}`}`}
           </button>
+          <span className="text-[10px] text-text-muted">
+            Draft until you Save Details.
+          </span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">
@@ -250,16 +293,6 @@ export function CampaignNodeEditPanelWeb2({
               type="number"
               value={costLimit}
               onChange={(e) => setCostLimit(Math.max(0, Number(e.target.value) || 0))}
-              className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-text-muted">
-            Turn Time (s)
-            <input
-              type="number"
-              value={turnTimeSeconds}
-              onChange={(e) => setTurnTimeSeconds(Math.max(0, Number(e.target.value) || 0))}
               className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
               style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
             />
@@ -296,14 +329,23 @@ export function CampaignNodeEditPanelWeb2({
 
         <button
           type="button"
-          disabled={mapId === 0}
-          onClick={() => setShowFleetEditor(true)}
-          title={mapId === 0 ? "Set a map before editing the enemy fleet." : undefined}
-          className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={handleEditEnemyFleet}
+          className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10"
           style={{ borderRadius: 0 }}
         >
           [EDIT ENEMY FLEET]
         </button>
+
+        {selectedMapPreview && (
+          <div className="mt-2 border-t border-steel pt-4">
+            <MapPreviewCard
+              map={selectedMapPreview}
+              modeLabel={selectedMapPreview.modeLabel}
+              onSelect={() => setShowMapPicker(true)}
+              onEdit={isWeb2Admin ? () => setShowMapEditor(true) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       {mode === "edit" && node && (
@@ -354,7 +396,7 @@ export function CampaignNodeEditPanelWeb2({
 
       {showMapPicker && (
         <MapPickerModal
-          maps={maps}
+          maps={pickerMaps}
           selectedMapId={mapId === 0 ? null : mapId}
           onSelect={(id) => {
             setMapId(id);
@@ -364,102 +406,31 @@ export function CampaignNodeEditPanelWeb2({
         />
       )}
 
-      {showFleetEditor && mapId !== 0 && (
-        <div className="fixed inset-0 z-[450]">
-          {isWeb2Admin ? (
-            <MapPlacementsEditorWeb2 mapId={mapId} configs={configs ?? []} />
-          ) : (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
-              <div
-                className="bg-near-black border-2 p-6 max-w-2xl w-full rounded-none font-mono"
-                style={{ borderColor: "var(--color-cyan)" }}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-lg font-bold text-cyan">[ENEMY FLEET — VIEW ONLY]</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowFleetEditor(false)}
-                    className="text-cyan text-2xl font-bold leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-                <EnemyFleetPreviewWeb2For mapId={mapId} configs={configs ?? []} />
-              </div>
-            </div>
-          )}
-          {isWeb2Admin && (
-            <button
-              type="button"
-              onClick={() => setShowFleetEditor(false)}
-              className="fixed top-4 right-4 z-[460] px-3 py-1 text-sm font-bold text-text-muted border border-gunmetal bg-near-black hover:text-text-secondary hover:border-steel"
-            >
-              ✕
-            </button>
-          )}
+      {showMapEditor && editingWeb2Map && (
+        <div className="fixed inset-0 z-[600] overflow-y-auto bg-near-black/95 p-4">
+          <div className="mx-auto max-w-5xl">
+            <MapEditScreenWeb2
+              key={editingWeb2Map.id}
+              map={{ ...editingWeb2Map, impassableTiles: editingWeb2Map.impassableTiles ?? [] }}
+              onSaved={() => {
+                setShowMapEditor(false);
+                void refetchWeb2Maps();
+              }}
+              onCancel={() => setShowMapEditor(false)}
+              onMapChanged={() => void refetchWeb2Maps()}
+            />
+          </div>
         </div>
+      )}
+
+      {showFleetEditor && mapId !== 0 && isWeb2Admin && (
+        <MapPlacementsEditorWeb2
+          mapId={mapId}
+          configs={configs ?? []}
+          startOpen
+          onClose={() => setShowFleetEditor(false)}
+        />
       )}
     </div>
   );
-}
-
-function EnemyFleetPreviewWeb2For({
-  mapId,
-  configs,
-}: {
-  mapId: number;
-  configs: AIShipConfigWeb2[];
-}) {
-  const { data: placements, isLoading } = useQuery({
-    queryKey: ["ai-map-placements", mapId],
-    queryFn: () => apiFetch<AIMapPlacementWeb2[]>(`/api/ai-map-placements?mapId=${mapId}`),
-  });
-  const configById = React.useMemo(() => {
-    const map = new Map<number, AIShipConfigWeb2>();
-    configs.forEach((c) => map.set(c.id, c));
-    return map;
-  }, [configs]);
-
-  const ships = React.useMemo(() => {
-    if (!placements) return [];
-    return placements.flatMap((p, i) => {
-      const config = configById.get(p.configId);
-      if (!config) return [];
-      const previewShip = aiConfigToPreviewShipWeb2(config, i);
-      return [
-        {
-          key: `${p.configId}-${i}`,
-          name: config.name || ARCHETYPE_LABEL[config.archetype],
-          renderImage: () => (
-            <ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
-          ),
-          renderHoverCard: () => (
-            <ShipCard
-              ship={toShipCardDataWeb2(previewShip)}
-              shipImage={<ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} />}
-              isStarred={false}
-              onToggleStar={() => {}}
-              isSelected={false}
-              onToggleSelection={() => {}}
-              onRecycleClick={() => {}}
-              showInGameProperties={false}
-              hideRecycle
-              hideCheckbox
-              tooltipMode
-            />
-          ),
-        },
-      ];
-    });
-  }, [placements, configById]);
-
-  const totalCost = React.useMemo(() => {
-    if (!placements) return 0;
-    return placements.reduce((sum, p) => {
-      const config = configById.get(p.configId);
-      return config ? sum + aiConfigToPreviewShipWeb2(config).shipData.cost : sum;
-    }, 0);
-  }, [placements, configById]);
-
-  return <EnemyFleetPreview ships={ships} totalCost={totalCost} isLoading={isLoading} />;
 }

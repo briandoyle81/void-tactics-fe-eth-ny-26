@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { startingPositionsErrorForMap } from "@/app/lib/deploymentZoneWeb2";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { AI_USER_ID, ensureAiUser } from "@/app/lib/aiUser";
@@ -90,6 +91,14 @@ export async function POST(
   await ensureAiUser();
 
   const shipIds = run.roster.map((r) => r.shipId);
+  // The player is always the creator side in single-player.
+  const positionsError = await startingPositionsErrorForMap(
+    node.mapId,
+    startingPositions,
+    shipIds.length,
+    true,
+  );
+  if (positionsError) return NextResponse.json({ error: positionsError }, { status: 400 });
   const totalCost = (
     await prisma.ship.findMany({ where: { id: { in: shipIds } }, select: { cost: true } })
   ).reduce((sum, s) => sum + s.cost, 0);

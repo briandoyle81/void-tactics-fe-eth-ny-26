@@ -218,6 +218,8 @@ exports.Prisma.MapScalarFieldEnum = {
   gridHeight: 'gridHeight',
   blockedTiles: 'blockedTiles',
   impassableTiles: 'impassableTiles',
+  creatorZone: 'creatorZone',
+  joinerZone: 'joinerZone',
   scoringTiles: 'scoringTiles',
   mode: 'mode',
   createdAt: 'createdAt'

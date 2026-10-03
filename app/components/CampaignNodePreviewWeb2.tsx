@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { nodeContentTextClass } from "../hooks/useNodeContent";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { NodeMatchModalWeb2 } from "./NodeMatchModalWeb2";
@@ -74,8 +75,10 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
       style={{ borderRadius: 0 }}
     >
       <div className="flex flex-col">
-        <h3 className="text-xl font-bold text-cyan">{node.title}</h3>
-        <p className="mt-2 text-sm text-text-secondary">{node.description}</p>
+        <h3 className={`text-xl font-bold ${nodeContentTextClass(node.titleStatus, "text-cyan")}`}>{node.title}</h3>
+        <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(node.descriptionStatus, "text-text-secondary")}`}>
+          {node.description}
+        </p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
             Player cost limit: <span className="text-cyan">{node.costLimit}</span>

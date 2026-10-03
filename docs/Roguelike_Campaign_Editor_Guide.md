@@ -1,6 +1,6 @@
 # Roguelike Campaign Editor — User Guide
 
-Everything below describes the in-app "Edit Mode" for the roguelike map: node fields, edges, maps, enemy fleets, win effects, campaign-wide settings, and the on-chain content-publish flow. It works identically in Web3 (wallet) and Web2 (Google sign-in) mode, with the differences called out where they matter.
+Everything below describes the in-app "Edit Mode" for the roguelike map: node fields, edges, maps, enemy fleets, win effects, campaign-wide settings, and saving node text on chain. It works identically in Web3 (wallet) and Web2 (Google sign-in) mode, with the differences called out where they matter.
 
 ## Who can edit
 
@@ -10,10 +10,10 @@ Editing is gated behind three separate permissions, each covering a different pi
 |---|---|---|---|
 | Node editor | `RoguelikeNodeMap.isNodeEditor` | Node fields, create/delete edges, campaign settings | Roguelike Settings → Editor access → `[GRANT]` (wallet mode only) |
 | Enemy fleet editor | `AIEncounters.isEncounterEditor` | Editing ship placements on a node's map | Same `[GRANT]` action — see below |
-| Content publisher | `NodeContentRegistry.isNodeEditor` | Publishing title/description on-chain | **No in-app UI yet** — `onlyOwner`-gated `setNodeEditor`, must be called directly against the contract by whoever owns it (script/Etherscan/console) |
+| Content editor | `NodeContentRegistry.isNodeEditor` | Saving title/description (web3) | **No in-app UI yet** — `onlyOwner`-gated `setNodeEditor`, must be called directly against the contract by whoever owns it (script/Etherscan/console) |
 | Web2 admin | Google email in `WEB2_ADMIN_EMAILS` (`app/config/alpha.ts`) | Everything above, at once, for a Google-signed-in session | Add the email to that file (source change, not a UI) |
 
-**"Merged" grant:** the Roguelike Settings modal's `[GRANT]`/`[REVOKE]` buttons set node-editor and enemy-fleet-editor together in one action (two sequential transactions), so a newly-granted wallet editor never hits the "I can edit nodes but not the fleet" gap. They do **not** grant the content-publisher role — that's a separate, contract-owner-only step (see the table above and Known Limitations).
+**"Merged" grant:** the Roguelike Settings modal's `[GRANT]`/`[REVOKE]` buttons set node-editor and enemy-fleet-editor together in one action (two sequential transactions), so a newly-granted wallet editor never hits the "I can edit nodes but not the fleet" gap. They do **not** grant the content-editor role — that's a separate, contract-owner-only step (see the table above and Known Limitations).
 
 A Web2 admin session (Google sign-in, allowlisted email) automatically satisfies all four rows above — no wallet, no separate grants needed.
 
@@ -31,16 +31,16 @@ Both entry points share the same map, the same edit panel, and the same Campaign
 Turn on Edit Mode, then click any node tile to open its edit panel.
 
 **Kind** — `Combat` or `Resupply`. Switching kind changes which fields below are active:
-- *Combat*: Map, Turn Time, Max Score, Creator Goes First, and the enemy-fleet button are all live. A map must be selected before saving.
+- *Combat*: Map, Max Score, Creator Goes First, and the enemy-fleet button are all live. A map must be selected before saving.
 - *Resupply*: those fields are hidden; instead you get **Cost Cap Override** (0 = no change from the campaign default).
 
-**Title / Description** — free text, saved independently of everything else via its own **`[SAVE CONTENT]`** button. This writes to a Postgres-backed overlay table, not directly to the chain — see "Publishing content on-chain" below for how it actually reaches the contract.
+**Title / Description** — free text, saved independently of everything else via its own **`[SAVE CONTENT]`** button. In wallet mode this sends one transaction from your wallet to `NodeContentRegistry.setNodeContentBatch`, and the new text shows once it's mined. Your wallet needs the registry's editor role (see the table above). In Web2 mode it saves to the database instead. There's no built-in fallback text: a node with no title or description shows a red error in its place on the map and in previews until one is saved.
 
 **Map** — click **`[SELECT MAP]`** / **`[MAP #N]`** to open the map picker (thumbnail grid, same picker used everywhere else in the app). Combat nodes only.
 
-**Turn Time / Max Score / Creator Goes First** — the same mechanical fields the underlying match uses; Combat nodes only.
+**Max Score / Creator Goes First** — the same mechanical fields the underlying match uses; Combat nodes only. There's no turn-time field: campaign and roguelike games are always unlimited, so saving keeps the node's stored value (new nodes get a default).
 
-**`[SAVE DETAILS]`** — writes Kind/Map/Turn Time/Max Score/Creator-Goes-First/Cost-Cap-Override on-chain in one transaction. This is separate from `[SAVE CONTENT]` — narrative and mechanics are independent writes.
+**`[SAVE DETAILS]`** — writes Kind/Map/Max Score/Creator-Goes-First/Cost-Cap-Override on-chain in one transaction. This is separate from `[SAVE CONTENT]` — narrative and mechanics are independent writes.
 
 **`[EDIT ENEMY FLEET]`** (Combat nodes only, requires a map to be set) — opens the same ship-placement editor used by the standalone AI Encounters admin panel, scoped to this node's map. If you don't hold enemy-fleet-editor access, this instead opens a read-only fleet preview with a note on how to request access.
 
@@ -83,20 +83,21 @@ Below that is **Win effect configuration** — the *global* numbers behind each 
 - **Heal Above Floor — heals to this % of max HP.**
 - **Grant Ship — variant / tier** of the ship granted.
 
-The **on-chain content publish** panel (below) also lives in this modal — see next section.
+## Exporting missions for a redeploy
 
-## Publishing content on-chain
+*(Added 2026-10-02.)* The contracts repo (`void-tactics-contracts-eth-online-2026`) seeds every mission on a fresh deploy from three files in `ignition/data/`: `singlePlayerStarterContent.json`, `roguelikeStarterContent.json` and `pvpStarterContent.json`. To carry edits made in the app over to the next deploy:
 
-Title/Description edits (`[SAVE CONTENT]`) land in Postgres immediately and show up in-app right away — but they aren't on the chain until you explicitly publish them. The Campaign Settings modal's publish panel shows *"N nodes with unpublished edits"* and offers two actions:
+1. Open the **Maps** tab with a wallet holding any editor role (map admin, enemy-fleet editor or node editor) and scroll to **`[EXPORT MISSION SEED FILES]`**.
+2. Load the contracts repo's current three seed files. They're used to keep existing keys (`m01`, `mainCampaign`, `f06`, …) the same, since the deploy references some of them directly.
+3. Click **`[DOWNLOAD SEED FILES]`** and copy the three downloads over the originals. An unchanged chain produces no diff.
 
-- **`[SYNC FROM CHAIN]`** — pulls whatever is currently published on `NodeContentRegistry` back into Postgres bookkeeping, without touching anything you have mid-edit (a row already marked dirty is skipped, not overwritten).
-- **`[PUBLISH (N)]`** — batches every dirty node in this campaign and writes them to `NodeContentRegistry` in one or more chunked transactions, signed server-side (`NODE_CONTENT_PUBLISHER_PRIVATE_KEY`). If a wallet is connected and you're not on a Web2 admin session, this also asks you to sign a message first — the server verifies that signature against `NodeContentRegistry.isNodeEditor` before it will run the publish.
+The export covers maps (tiles, impassable terrain, deployment zones, names, modes), AI ship configs, enemy placements, both campaign graphs, node titles/descriptions (only text actually set on chain), and roguelike win effects. The deploy seeds the titles into `NodeContentRegistry` and the win effects onto their nodes. Read any warnings the panel shows after exporting: they flag things like items with no on-chain match or a node whose numeric id will change.
 
-If publishing stops partway through a large batch (network hiccup, one bad row), it's retry-safe — re-running `[PUBLISH]` only sends the rows still marked dirty.
+Not exported: campaign-wide numbers that live outside the seed files (win-effect amounts, repair cost, required variants for campaigns other than `mainCampaign`). Web2 mode isn't covered; its export button still produces the older admin snapshot.
 
 ## Known limitations
 
-- **No UI to grant the content-publisher role.** `NodeContentRegistry.setNodeEditor` is `onlyOwner` and nothing in the app calls it — a wallet-only editor who can edit and save content still can't publish it until the contract owner grants that role directly (script, Etherscan, or a console call). A Web2 admin session bypasses this entirely.
+- **No UI to grant the content-editor role.** `NodeContentRegistry.setNodeEditor` is `onlyOwner` and nothing in the app calls it, so a wallet that can edit nodes can't save their text until the registry owner grants that role directly (script, Etherscan, or a console call).
 - **No cycle detection** on roguelike edges — see "Linking nodes" above.
 - **New-node defaults are placeholders**, not tuned game-balance numbers.
-- **This guide covers the roguelike map only.** The original (non-roguelike) campaign has its own, structurally similar editor (`CampaignGraph.tsx` / `CampaignNodeEditPanel.tsx`) — prerequisites instead of children, no Kind/two-way concept, otherwise the same map/fleet/content/publish pattern.
+- **This guide covers the roguelike map only.** The original (non-roguelike) campaign has its own, structurally similar editor (`CampaignGraph.tsx` / `CampaignNodeEditPanel.tsx`) — prerequisites instead of children, no Kind/two-way concept, otherwise the same map/fleet/content pattern.

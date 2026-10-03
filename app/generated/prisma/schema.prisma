@@ -211,6 +211,12 @@ model Map {
   // docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md §1).
   // No map has any yet — admin painting UI is a separate follow-up pass.
   impassableTiles Json     @default("[]")
+  // [{ row, col }] — custom deployment zones per side. Empty means that side
+  // uses the engine default column band (creator 0-3, joiner 13-16). Mirrors
+  // web3's Maps.setCreatorZone/setJoinerZone; enforced on fleet submission by
+  // app/lib/deploymentZoneWeb2.ts.
+  creatorZone     Json     @default("[]")
+  joinerZone      Json     @default("[]")
   // [{ row, col, points, onlyOnce }]
   scoringTiles    Json     @default("[]")
   // 0=PvP, 1=PvE, 2=Both — mirrors web3's Maps.mapMode/MapMode enum. Defaults

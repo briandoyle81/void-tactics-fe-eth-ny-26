@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
 import { requireAuth, requireWeb2Admin } from "../../lib/auth";
+import { parseZoneTiles } from "../../utils/deploymentZone";
 
 // GET /api/maps — list all maps. Web2-mode counterpart to web3's
 // useGetAllPresetMaps (any signed-in user can view; only admins can create).
@@ -18,6 +19,8 @@ export async function GET() {
       blockedTiles: map.blockedTiles,
       impassableTiles: map.impassableTiles,
       scoringTiles: map.scoringTiles,
+      creatorZone: map.creatorZone,
+      joinerZone: map.joinerZone,
       mode: map.mode,
     })),
   );
@@ -35,6 +38,11 @@ export async function POST(req: NextRequest) {
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
+  const creatorZone = parseZoneTiles(body.creatorZone ?? []);
+  const joinerZone = parseZoneTiles(body.joinerZone ?? []);
+  if (!creatorZone || !joinerZone) {
+    return NextResponse.json({ error: "Deployment zones must be lists of on-grid tiles" }, { status: 400 });
+  }
 
   const map = await prisma.map.create({
     data: {
@@ -44,6 +52,8 @@ export async function POST(req: NextRequest) {
       blockedTiles: blockedTiles ?? [],
       impassableTiles: impassableTiles ?? [],
       scoringTiles: scoringTiles ?? [],
+      creatorZone,
+      joinerZone,
       mode: [0, 1, 2].includes(mode) ? mode : undefined,
     },
   });

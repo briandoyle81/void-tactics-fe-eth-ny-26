@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireAuth, requireWeb2Admin } from "../../../lib/auth";
 import { invalidateMapTiles } from "../../../lib/getMapTiles";
+import { parseZoneTiles } from "../../../utils/deploymentZone";
 
 // GET /api/maps/[id] — blocked/scoring tiles for a map. `Web2GameDataView`
 // only stores `mapId`, not the tile data itself (matching how the server
@@ -38,6 +39,8 @@ export async function GET(
     blockedTiles: map.blockedTiles,
     impassableTiles: map.impassableTiles,
     scoringTiles: map.scoringTiles,
+    creatorZone: map.creatorZone,
+    joinerZone: map.joinerZone,
     mode: map.mode,
   });
 }
@@ -57,6 +60,11 @@ export async function PATCH(
 
   const body = await req.json();
   const { name, blockedTiles, impassableTiles, scoringTiles, mode } = body;
+  const creatorZone = body.creatorZone === undefined ? undefined : parseZoneTiles(body.creatorZone);
+  const joinerZone = body.joinerZone === undefined ? undefined : parseZoneTiles(body.joinerZone);
+  if (creatorZone === null || joinerZone === null) {
+    return NextResponse.json({ error: "Deployment zones must be lists of on-grid tiles" }, { status: 400 });
+  }
 
   const map = await prisma.map.update({
     where: { id: mapId },
@@ -65,6 +73,8 @@ export async function PATCH(
       ...(blockedTiles !== undefined ? { blockedTiles } : {}),
       ...(impassableTiles !== undefined ? { impassableTiles } : {}),
       ...(scoringTiles !== undefined ? { scoringTiles } : {}),
+      ...(creatorZone !== undefined ? { creatorZone } : {}),
+      ...(joinerZone !== undefined ? { joinerZone } : {}),
       ...([0, 1, 2].includes(mode) ? { mode } : {}),
     },
   });

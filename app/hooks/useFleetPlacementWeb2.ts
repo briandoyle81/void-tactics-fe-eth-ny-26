@@ -17,12 +17,10 @@ export interface FleetPlacementWeb2Params {
   isCreatorSide: boolean;
   requiredVariant?: number;
   /**
-   * This side's custom deployment-zone tiles, mirroring useFleetPlacement.ts's
-   * `zoneTiles` — web2 has no per-map custom-zone data source yet (its
-   * `Map` model has no equivalent of web3's Maps.getCreatorZonePositions/
-   * getJoinerZonePositions), so no caller can populate this today; kept
-   * here so the two hooks stay field-for-field identical and this only
-   * needs wiring up, not re-deriving, once web2 gets one.
+   * This side's custom deployment-zone tiles (the web2 Map row's
+   * creatorZone/joinerZone, via useMapWeb2), mirroring useFleetPlacement.ts's
+   * `zoneTiles`. Empty/omitted means the map uses the default column band.
+   * The server enforces the same rule on submission (deploymentZoneWeb2.ts).
    */
   zoneTiles?: Array<{ row: number; col: number }>;
 }

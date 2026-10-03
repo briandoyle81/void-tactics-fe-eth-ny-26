@@ -5,13 +5,9 @@ import { toast } from "react-hot-toast";
 import type { RoguelikeCampaignWeb2 } from "../hooks/useRoguelikeWeb2";
 import { useRoguelikeAdminWeb2 } from "../hooks/useRoguelikeAdminWeb2";
 import { useWinEffectsAdminWeb2 } from "../hooks/useWinEffectsAdminWeb2";
-import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
 
 interface RoguelikeSettingsModalWeb2Props {
   campaign: RoguelikeCampaignWeb2;
-  /** Every node id in this campaign — passed straight through to
-   * NodeContentPublishPanel, see its prop doc for why. */
-  nodeIds: number[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -24,7 +20,6 @@ interface RoguelikeSettingsModalWeb2Props {
 // balances, not escrowed).
 export function RoguelikeSettingsModalWeb2({
   campaign,
-  nodeIds,
   onClose,
   onSaved,
 }: RoguelikeSettingsModalWeb2Props) {
@@ -259,8 +254,6 @@ export function RoguelikeSettingsModalWeb2({
               />
             </SettingRow>
           </div>
-
-          <NodeContentPublishPanel graphType="ROGUELIKE" nodeIds={nodeIds} />
         </div>
       </div>
     </div>

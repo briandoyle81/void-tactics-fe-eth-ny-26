@@ -4,17 +4,31 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import type { CampaignGraphNode } from "../hooks/useNodeMap";
 import { useNodeMapAdmin } from "../hooks/useNodeMapAdmin";
-import { useGetAllPresetMaps, useMapNames, mapTitleLabel } from "../hooks/useMapsContract";
-import { useGetAllAIShipConfigs, useGetMapPlacements } from "../hooks/useAIEncountersContract";
+import {
+  useGetAllPresetMaps,
+  useMapModes,
+  useMapNames,
+  useMapsCreatorZonePositions,
+  useMapsImpassablePositions,
+  useMapsJoinerZonePositions,
+  mapTitleLabel,
+} from "../hooks/useMapsContract";
+import { MapMode } from "../types/types";
+import { MapPreviewCard } from "./MapPreviewCard";
+import { MapEditScreen } from "./MapEditScreen";
+import { useAccount } from "wagmi";
+import { MAP_ADMIN_ADDRESS } from "../config/alpha";
+import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
-import { useAllNodeContent, useSaveNodeContent, resolveNodeContent } from "../hooks/useNodeContent";
+import {
+  editableDescription,
+  editableTitle,
+  nodeContentSaveError,
+  useSaveOnChainNodeContent,
+  type ResolvedNodeContent,
+} from "../hooks/useNodeContent";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
-import { EnemyFleetPreview } from "./EnemyFleetPreview";
-import { aiConfigToPreviewShip, ARCHETYPE_LABEL } from "../utils/aiShipConfig";
-import { ShipImage } from "./ShipImage";
-import ShipCard from "./ShipCard";
-import { toShipCardData } from "../utils/toShipCardData";
 
 const DEFAULT_CAMPAIGN_ID = 1n;
 
@@ -26,7 +40,8 @@ const NEW_NODE_DEFAULTS = { costLimit: 100n, turnTime: 120n, maxScore: 1000n };
 interface CampaignNodeEditPanelProps {
   mode: "create" | "edit";
   /** Non-null in edit mode; ignored (but may be null) in create mode. */
-  node: CampaignGraphNode | null;
+  /** The graph passes its node with resolved title/description attached. */
+  node: (CampaignGraphNode & Partial<ResolvedNodeContent>) | null;
   /** True while THIS node is the active connect-mode source (see CampaignGraph.tsx's connectMode state). */
   connectModeActive: boolean;
   onStartConnectMode: (sourceNodeId: bigint) => void;
@@ -56,11 +71,14 @@ export function CampaignNodeEditPanel({
   onCancelCreate,
 }: CampaignNodeEditPanelProps) {
   const admin = useNodeMapAdmin();
-  const { data: allMapsData } = useGetAllPresetMaps();
+  const { data: allMapsData, refetch: refetchAllMaps } = useGetAllPresetMaps();
+  const { address } = useAccount();
+  const isMapAdmin = address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase();
+  const [showMapEditor, setShowMapEditor] = React.useState(false);
   const { data: allConfigs } = useGetAllAIShipConfigs();
-  const { isEditor: isEncounterEditor } = useIsEncounterEditor();
-  const { contentById, refetch: refetchContent } = useAllNodeContent("CAMPAIGN");
-  const saveContent = useSaveNodeContent();
+  const { isEditor: isEncounterEditor, isLoading: isEncounterEditorLoading } =
+    useIsEncounterEditor();
+  const saveContent = useSaveOnChainNodeContent();
 
   const [mapId, setMapId] = React.useState<bigint>(node?.mapId ?? 0n);
   const [costLimit, setCostLimit] = React.useState(node?.costLimit ?? NEW_NODE_DEFAULTS.costLimit);
@@ -71,9 +89,8 @@ export function CampaignNodeEditPanel({
   const [showFleetEditor, setShowFleetEditor] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const resolvedContent = node ? resolveNodeContent("CAMPAIGN", contentById, node.id) : null;
-  const [title, setTitle] = React.useState(resolvedContent?.title ?? "");
-  const [description, setDescription] = React.useState(resolvedContent?.description ?? "");
+  const [title, setTitle] = React.useState(editableTitle(node));
+  const [description, setDescription] = React.useState(editableDescription(node));
 
   // Re-seed local field state when switching to a different selected node
   // (this component stays mounted across selection changes — CampaignGraph
@@ -88,12 +105,10 @@ export function CampaignNodeEditPanel({
     setTurnTime(node?.turnTime ?? NEW_NODE_DEFAULTS.turnTime);
     setMaxScore(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
     setCreatorGoesFirst(node?.creatorGoesFirst ?? true);
-    const c = node ? resolveNodeContent("CAMPAIGN", contentById, node.id) : null;
-    setTitle(c?.title ?? "");
-    setDescription(c?.description ?? "");
-    // contentById intentionally excluded — only re-seed on node change, not
-    // on every content refetch (would clobber an in-progress edit).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-seed on node change, not when this node's content refetches
+    // (would clobber an in-progress edit).
+    setTitle(editableTitle(node));
+    setDescription(editableDescription(node));
   }, [node]);
 
   const allMapIds = React.useMemo(() => {
@@ -102,6 +117,10 @@ export function CampaignNodeEditPanel({
     return mapIds.map((id) => Number(id));
   }, [allMapsData]);
   const { nameByMapId } = useMapNames(allMapIds);
+  const { modeByMapId } = useMapModes(allMapIds);
+  const { impassableByMapId } = useMapsImpassablePositions(allMapIds);
+  const { creatorZoneByMapId } = useMapsCreatorZonePositions(allMapIds);
+  const { joinerZoneByMapId } = useMapsJoinerZonePositions(allMapIds);
 
   const maps: MapPickerMap[] = React.useMemo(() => {
     if (!allMapsData) return [];
@@ -111,8 +130,43 @@ export function CampaignNodeEditPanel({
       titleLabel: mapTitleLabel(Number(id), nameByMapId),
       blockedPositions: (blockedArr[i] as MapPickerMap["blockedPositions"]) ?? [],
       scoringPositions: (scoringArr[i] as MapPickerMap["scoringPositions"]) ?? [],
+      impassablePositions: impassableByMapId.get(Number(id)),
+      creatorZonePositions: creatorZoneByMapId.get(Number(id)),
+      joinerZonePositions: joinerZoneByMapId.get(Number(id)),
+      modeLabel: MapMode[modeByMapId.get(Number(id)) ?? MapMode.Both],
     }));
-  }, [allMapsData, nameByMapId]);
+  }, [allMapsData, nameByMapId, impassableByMapId, creatorZoneByMapId, joinerZoneByMapId, modeByMapId]);
+
+  const pickerMaps = React.useMemo(
+    () => maps.filter((m) => (modeByMapId.get(m.id) ?? MapMode.Both) !== MapMode.PvP),
+    [maps, modeByMapId],
+  );
+  const selectedMapPreview = React.useMemo(
+    () => (mapId === 0n ? undefined : maps.find((m) => m.id === Number(mapId))),
+    [maps, mapId],
+  );
+
+  const handleEditEnemyFleet = () => {
+    if (mapId === 0n) {
+      toast.error("Select a map before editing the enemy fleet.");
+      return;
+    }
+    if (!address) {
+      toast.error("Connect the Enemy Fleet Editor wallet to edit placements.");
+      return;
+    }
+    if (isEncounterEditorLoading) {
+      toast.error("Checking Enemy Fleet Editor permission...");
+      return;
+    }
+    if (!isEncounterEditor) {
+      toast.error(
+        "This wallet is not an Enemy Fleet Editor. Ask an admin to grant isEncounterEditor.",
+      );
+      return;
+    }
+    setShowFleetEditor(true);
+  };
 
   const handleSaveDetails = async () => {
     if (mapId === 0n) {
@@ -160,15 +214,14 @@ export function CampaignNodeEditPanel({
   };
 
   const handleSaveContent = async () => {
-    const targetId = node?.id;
-    if (targetId == null) return;
+    if (node == null) return;
     try {
-      await saveContent("CAMPAIGN", Number(targetId), { title, description });
-      await refetchContent();
-      toast.success("Node content saved.");
+      const hash = await saveContent("CAMPAIGN", node.id, { title, description });
+      toast.success(`Node content saved on chain. (tx: ${hash.slice(0, 10)}…)`);
+      onSaved();
     } catch (error) {
       console.error("Failed to save node content:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save node content");
+      toast.error(nodeContentSaveError(error));
     }
   };
 
@@ -246,8 +299,13 @@ export function CampaignNodeEditPanel({
             className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
             style={{ borderRadius: 0 }}
           >
-            {mapId === 0n ? "[SELECT MAP]" : `[MAP #${mapId.toString()}]`}
+            {mapId === 0n
+              ? "[SELECT MAP]"
+              : `[CHANGE MAP] ${mapTitleLabel(Number(mapId), nameByMapId)}`}
           </button>
+          <span className="text-[10px] text-text-muted">
+            Draft until you Save Details.
+          </span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">
@@ -257,16 +315,6 @@ export function CampaignNodeEditPanel({
               type="number"
               value={costLimit.toString()}
               onChange={(e) => setCostLimit(BigInt(Math.max(0, Number(e.target.value) || 0)))}
-              className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-              style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-text-muted">
-            Turn Time (s)
-            <input
-              type="number"
-              value={turnTime.toString()}
-              onChange={(e) => setTurnTime(BigInt(Math.max(0, Number(e.target.value) || 0)))}
               className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
               style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
             />
@@ -303,14 +351,23 @@ export function CampaignNodeEditPanel({
 
         <button
           type="button"
-          disabled={mapId === 0n}
-          onClick={() => setShowFleetEditor(true)}
-          title={mapId === 0n ? "Set a map before editing the enemy fleet." : undefined}
-          className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={handleEditEnemyFleet}
+          className="self-start border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red hover:bg-warning-red/10"
           style={{ borderRadius: 0 }}
         >
           [EDIT ENEMY FLEET]
         </button>
+
+        {selectedMapPreview && (
+          <div className="mt-2 border-t border-steel pt-4">
+            <MapPreviewCard
+              map={selectedMapPreview}
+              modeLabel={selectedMapPreview.modeLabel}
+              onSelect={() => setShowMapPicker(true)}
+              onEdit={isMapAdmin ? () => setShowMapEditor(true) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       {mode === "edit" && node && (
@@ -361,7 +418,7 @@ export function CampaignNodeEditPanel({
 
       {showMapPicker && (
         <MapPickerModal
-          maps={maps}
+          maps={pickerMaps}
           selectedMapId={mapId === 0n ? null : Number(mapId)}
           onSelect={(id) => {
             setMapId(BigInt(id));
@@ -371,108 +428,31 @@ export function CampaignNodeEditPanel({
         />
       )}
 
-      {showFleetEditor && mapId !== 0n && (
-        <div className="fixed inset-0 z-[450]">
-          {isEncounterEditor ? (
-            <MapPlacementsEditor mapId={mapId} configs={allConfigs ?? []} />
-          ) : (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
-              <div
-                className="bg-near-black border-2 p-6 max-w-2xl w-full rounded-none font-mono"
-                style={{ borderColor: "var(--color-cyan)" }}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-lg font-bold text-cyan">[ENEMY FLEET — VIEW ONLY]</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowFleetEditor(false)}
-                    className="text-cyan text-2xl font-bold leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-                <p className="text-xs text-text-muted mb-3">
-                  You don&apos;t have the Enemy Fleet Editor role (isEncounterEditor) — ask an admin
-                  to grant it from Campaign Settings to edit placements.
-                </p>
-                <EnemyFleetPreviewFor mapId={mapId} configs={allConfigs ?? []} />
-              </div>
-            </div>
-          )}
-          {isEncounterEditor && (
-            <button
-              type="button"
-              onClick={() => setShowFleetEditor(false)}
-              className="fixed top-4 right-4 z-[460] px-3 py-1 text-sm font-bold text-text-muted border border-gunmetal bg-near-black hover:text-text-secondary hover:border-steel"
-            >
-              ✕
-            </button>
-          )}
+      {showMapEditor && selectedMapPreview && (
+        <div className="fixed inset-0 z-[600] overflow-y-auto bg-near-black/95 p-4">
+          <div className="mx-auto max-w-5xl">
+            <MapEditScreen
+              mapId={selectedMapPreview.id}
+              initialBlockedPositions={selectedMapPreview.blockedPositions}
+              initialScoringPositions={selectedMapPreview.scoringPositions}
+              onSaved={() => {
+                setShowMapEditor(false);
+                void refetchAllMaps();
+              }}
+              onCancel={() => setShowMapEditor(false)}
+            />
+          </div>
         </div>
       )}
+
+      {showFleetEditor && mapId !== 0n && isEncounterEditor && (
+        <MapPlacementsEditor
+          mapId={mapId}
+          configs={allConfigs ?? []}
+          startOpen
+          onClose={() => setShowFleetEditor(false)}
+        />
+      )}
     </div>
-  );
-}
-
-// Small adapter so the read-only fallback can reuse EnemyFleetPreview
-// (already chain-agnostic) without duplicating AIEncounters placement
-// reads here — mirrors how RoguelikeGraph.tsx builds its own fleetShips.
-function EnemyFleetPreviewFor({
-  mapId,
-  configs,
-}: {
-  mapId: bigint;
-  configs: ReturnType<typeof useGetAllAIShipConfigs>["data"];
-}) {
-  const placementsQuery = useGetMapPlacements(mapId);
-  const configById = React.useMemo(() => {
-    const map = new Map<string, NonNullable<typeof configs>[number]>();
-    (configs ?? []).forEach((c) => map.set(c.id.toString(), c));
-    return map;
-  }, [configs]);
-
-  const ships = React.useMemo(() => {
-    if (!placementsQuery.data) return [];
-    return placementsQuery.data.configIds.flatMap((configId, i) => {
-      const config = configById.get(configId.toString());
-      if (!config) return [];
-      const previewShip = aiConfigToPreviewShip(config, BigInt(i));
-      return [
-        {
-          key: `${configId.toString()}-${i}`,
-          name: config.name || ARCHETYPE_LABEL[config.archetype],
-          renderImage: () => (
-            <ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
-          ),
-          renderHoverCard: () => (
-            <ShipCard
-              ship={toShipCardData(previewShip)}
-              shipImage={<ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} />}
-              isStarred={false}
-              onToggleStar={() => {}}
-              isSelected={false}
-              onToggleSelection={() => {}}
-              onRecycleClick={() => {}}
-              showInGameProperties={false}
-              hideRecycle
-              hideCheckbox
-              tooltipMode
-            />
-          ),
-        },
-      ];
-    });
-  }, [placementsQuery.data, configById]);
-
-  const totalCost = React.useMemo(() => {
-    if (!placementsQuery.data) return 0;
-    return placementsQuery.data.configIds.reduce((sum: number, configId: bigint) => {
-      const config = configById.get(configId.toString());
-      return config ? sum + aiConfigToPreviewShip(config).shipData.cost : sum;
-    }, 0);
-  }, [placementsQuery.data, configById]);
-
-  return (
-    <EnemyFleetPreview ships={ships} totalCost={totalCost} isLoading={placementsQuery.isLoading} />
   );
 }

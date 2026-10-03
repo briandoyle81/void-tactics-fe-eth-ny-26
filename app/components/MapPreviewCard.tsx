@@ -2,6 +2,14 @@
 
 import type { MapPosition, ScoringPosition } from "../types/types";
 import { GRID_DIMENSIONS } from "../types/types";
+import {
+  COMPACT_TILE_STYLE,
+  MapTileContents,
+  MapTileLegend,
+  mapTileClass,
+  type MapTileLook,
+} from "./MapTileVisual";
+import { isDeploymentTile } from "../utils/deploymentZone";
 
 // Shared between Maps.tsx (web3) and MapsWeb2.tsx (web2) — the map list
 // preview card, ported verbatim from Maps.tsx. `titleLabel` is
@@ -40,6 +48,34 @@ interface MapPreviewCardProps {
 
 export function MapPreviewCard({ map, onEdit, onSelect, modeLabel }: MapPreviewCardProps) {
   const clickable = Boolean(onSelect);
+  const hasZoneData =
+    map.creatorZonePositions !== undefined || map.joinerZonePositions !== undefined;
+  const creatorZone = map.creatorZonePositions ?? [];
+  const joinerZone = map.joinerZonePositions ?? [];
+  const has = (list: readonly MapPosition[], row: number, col: number) =>
+    list.some((p) => Number(p.row) === row && Number(p.col) === col);
+
+  // Same tile format and key as the map editor (see MapTileVisual.tsx).
+  const lookAt = (row: number, col: number): MapTileLook => {
+    const scoring = map.scoringPositions.find((p) => Number(p.row) === row && Number(p.col) === col);
+    const look: MapTileLook = {
+      blocked: has(map.blockedPositions, row, col),
+      impassable: has(map.impassablePositions ?? [], row, col),
+      score: scoring ? Number(scoring.points) : 0,
+      onlyOnce: scoring?.onlyOnce ?? false,
+    };
+    if (hasZoneData) {
+      if (creatorZone.length > 0 ? has(creatorZone, row, col) : isDeploymentTile(row, col, true, [])) {
+        look.zone = { side: "creatorZone", isDefault: creatorZone.length === 0 };
+      } else if (joinerZone.length > 0 ? has(joinerZone, row, col) : isDeploymentTile(row, col, false, [])) {
+        look.zone = { side: "joinerZone", isDefault: joinerZone.length === 0 };
+      }
+    }
+    return look;
+  };
+
+  const onlyOnceCount = map.scoringPositions.filter((p) => p.onlyOnce).length;
+  const zoneCount = (zone: MapPosition[]) => (zone.length > 0 ? `${zone.length} tiles` : "default");
   return (
     <div
       className={`bg-steel rounded-none p-4 border border-gunmetal${clickable ? " cursor-pointer" : ""}`}
@@ -83,42 +119,18 @@ export function MapPreviewCard({ map, onEdit, onSelect, modeLabel }: MapPreviewC
       </div>
 
       <div className="space-y-2 text-sm text-text-secondary">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-purple border border-gunmetal"></div>
-          <span>Blocked tiles: {map.blockedPositions.length}</span>
-        </div>
-        {map.impassablePositions && (
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-cyan border border-gunmetal"></div>
-            <span>Impassable tiles: {map.impassablePositions.length}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-phosphor-green border border-gunmetal"></div>
-          <span>Scoring tiles: {map.scoringPositions.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-amber border border-gunmetal"></div>
-          <span>
-            Once-only tiles:{" "}
-            {map.scoringPositions.filter((p) => p.onlyOnce).length}
-          </span>
-        </div>
-        {(map.creatorZonePositions !== undefined || map.joinerZonePositions !== undefined) && (
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-text-muted border border-gunmetal"></div>
-            <span>
-              Deployment zones: creator{" "}
-              {map.creatorZonePositions && map.creatorZonePositions.length > 0
-                ? `${map.creatorZonePositions.length} tiles`
-                : "default"}
-              , joiner{" "}
-              {map.joinerZonePositions && map.joinerZonePositions.length > 0
-                ? `${map.joinerZonePositions.length} tiles`
-                : "default"}
-            </span>
-          </div>
-        )}
+        <MapTileLegend
+          showZones={hasZoneData}
+          hide={map.impassablePositions === undefined ? ["impassable"] : undefined}
+          counts={{
+            blocked: map.blockedPositions.length,
+            impassable: map.impassablePositions?.length ?? 0,
+            scoring: map.scoringPositions.length - onlyOnceCount,
+            onlyOnce: onlyOnceCount,
+            creatorZone: zoneCount(creatorZone),
+            joinerZone: zoneCount(joinerZone),
+          }}
+        />
       </div>
 
       {/* Mini preview */}
@@ -127,40 +139,24 @@ export function MapPreviewCard({ map, onEdit, onSelect, modeLabel }: MapPreviewC
           Preview ({GRID_DIMENSIONS.WIDTH}x{GRID_DIMENSIONS.HEIGHT}):
         </div>
         <div
-          className="grid gap-px w-full"
+          className="grid gap-0 w-full"
           style={{
             gridTemplateColumns: `repeat(${GRID_DIMENSIONS.WIDTH}, 1fr)`,
           }}
         >
           {Array.from({ length: GRID_DIMENSIONS.HEIGHT }, (_, row) =>
             Array.from({ length: GRID_DIMENSIONS.WIDTH }, (_, col) => {
-              const isBlocked = map.blockedPositions.some(
-                (p) => p.row === row && p.col === col
+              const look = lookAt(row, col);
+              return (
+                <div
+                  key={`${row}-${col}`}
+                  className={`aspect-square ${mapTileClass(look)}`}
+                  style={COMPACT_TILE_STYLE}
+                >
+                  <MapTileContents look={look} compact />
+                </div>
               );
-              const isImpassable = (map.impassablePositions ?? []).some(
-                (p) => p.row === row && p.col === col
-              );
-              const scoringPos = map.scoringPositions.find(
-                (p) => p.row === row && p.col === col
-              );
-              const isScoring = scoringPos !== undefined;
-              const isOnlyOnce = scoringPos?.onlyOnce || false;
-
-              let className = "aspect-square border border-gunmetal";
-              if (isBlocked && isScoring) {
-                className += " bg-warning-red";
-              } else if (isImpassable) {
-                className += " bg-cyan";
-              } else if (isBlocked) {
-                className += " bg-purple";
-              } else if (isScoring) {
-                className += isOnlyOnce ? " bg-amber" : " bg-phosphor-green";
-              } else {
-                className += " bg-near-black";
-              }
-
-              return <div key={`${row}-${col}`} className={className} />;
-            })
+            }),
           )}
         </div>
       </div>

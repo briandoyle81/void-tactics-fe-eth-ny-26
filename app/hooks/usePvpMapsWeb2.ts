@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { apiFetch } from "../lib/apiFetch";
 import { MapMode, type MapPosition, type ScoringPosition } from "../types/types";
 import type { MapPickerMap } from "../components/MapPickerModal";
+import { parseZoneTiles } from "../utils/deploymentZone";
 
 interface Web2MapListItem {
   id: number;
@@ -14,14 +15,14 @@ interface Web2MapListItem {
   blockedTiles: MapPosition[];
   impassableTiles: MapPosition[];
   scoringTiles: ScoringPosition[];
+  creatorZone?: unknown;
+  joinerZone?: unknown;
 }
 
 // Web2 counterpart to Lobbies.tsx's pvpEligibleMapIds/pvpMapPickerMaps — the
 // full preset map list filtered down to PvP-eligible maps (PvP or Both),
 // same shared query key as MapsWeb2.tsx so the cache is reused rather than
-// double-fetched. No deployment-zone data source in web2 yet (see
-// MapPreviewCard.tsx's doc comment) — creatorZonePositions/
-// joinerZonePositions stay omitted.
+// double-fetched.
 export function usePvpMapsWeb2() {
   const { status } = useSession();
   const { data, isLoading, error } = useQuery({
@@ -43,6 +44,8 @@ export function usePvpMapsWeb2() {
         blockedPositions: m.blockedTiles,
         scoringPositions: m.scoringTiles,
         impassablePositions: m.impassableTiles,
+        creatorZonePositions: parseZoneTiles(m.creatorZone) ?? [],
+        joinerZonePositions: parseZoneTiles(m.joinerZone) ?? [],
         modeLabel: MapMode[m.mode],
       })),
     [pvpEligibleMaps],

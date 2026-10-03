@@ -1,7 +1,7 @@
 "use client";
 
 import { RoguelikeNodeKind } from "../types/roguelike";
-import { getRoguelikeNodeContent } from "../config/roguelikeNodes";
+import { nodeContentTextClass, type NodeContentStatus } from "../hooks/useNodeContent";
 import { CAMPAIGN_NODE_WIDTH, CAMPAIGN_NODE_HEIGHT } from "./CampaignNodeCard";
 
 // Roguelike counterpart to CampaignNodeCard — same "star-chart node" visual
@@ -27,10 +27,10 @@ interface RoguelikeNodeCardProps {
   node: RoguelikeNodeCardNode;
   isSelected: boolean;
   onSelect: () => void;
-  /** Overrides roguelikeNodes.ts's static getRoguelikeNodeContent(id) lookup
-   * — pass the DB-merged title (see useNodeContent.ts) so an admin's edit
-   * shows up on the map immediately. */
-  title?: string;
+  /** Resolved title (see useNodeContent.ts's resolveNodeContent). */
+  title: string;
+  /** Whether `title` is real content, a loading placeholder, or an error. */
+  titleStatus: NodeContentStatus;
   /** Shows a small edit-mode badge — set by the caller only while its own
    * Edit Mode toggle is on. */
   editMode?: boolean;
@@ -45,6 +45,7 @@ export function RoguelikeNodeCard({
   isSelected,
   onSelect,
   title,
+  titleStatus,
   editMode,
   connectHighlight,
 }: RoguelikeNodeCardProps) {
@@ -61,7 +62,6 @@ export function RoguelikeNodeCard({
         ? "var(--color-cyan)"
         : "var(--color-text-secondary)";
 
-  const resolvedTitle = title ?? getRoguelikeNodeContent(node.id).title;
 
   return (
     <button
@@ -122,10 +122,10 @@ export function RoguelikeNodeCard({
       />
 
       <span
-        className="line-clamp-2 w-full break-words text-center text-[10px] uppercase tracking-wider"
-        style={{ color: "var(--color-text-primary)" }}
+        className={`line-clamp-2 w-full break-words text-center text-[10px] uppercase tracking-wider ${nodeContentTextClass(titleStatus, "")}`}
+        style={titleStatus === "ok" ? { color: "var(--color-text-primary)" } : undefined}
       >
-        {resolvedTitle}
+        {title}
       </span>
     </button>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import type { NodeContentStatus } from "../hooks/useNodeContent";
 import { useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -164,6 +165,7 @@ export function CampaignGraph() {
     completed: boolean;
     unlocked: boolean;
     title: string;
+    titleStatus: NodeContentStatus;
     editMode: boolean;
     connectHighlight: "source" | "candidate" | "invalid" | undefined;
   }
@@ -178,6 +180,7 @@ export function CampaignGraph() {
       completed: n.completed,
       unlocked: n.unlocked,
       title: n.title,
+      titleStatus: n.titleStatus,
       editMode,
       connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
     };
@@ -189,6 +192,7 @@ export function CampaignGraph() {
       completed: false,
       unlocked: true,
       title: "+ ADD NODE",
+      titleStatus: "ok",
       editMode: true,
       connectHighlight: connectMode ? "invalid" : undefined,
     });
@@ -263,6 +267,7 @@ export function CampaignGraph() {
             isSelected={isSelected}
             onSelect={onSelect}
             title={canvasNode.title}
+            titleStatus={canvasNode.titleStatus}
             editMode={canvasNode.editMode}
             connectHighlight={canvasNode.connectHighlight}
           />
@@ -306,7 +311,6 @@ export function CampaignGraph() {
 
       {showSettings && (
         <CampaignSettingsModal
-          nodeIds={nodes.map((n) => Number(n.id))}
           onClose={() => setShowSettings(false)}
         />
       )}

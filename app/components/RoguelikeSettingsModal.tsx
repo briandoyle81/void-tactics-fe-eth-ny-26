@@ -11,7 +11,6 @@ import {
 } from "../hooks/useRoguelikeNodeMap";
 import { useRoguelikeNodeMapAdmin } from "../hooks/useRoguelikeNodeMapAdmin";
 import { useAIEncountersAdmin } from "../hooks/useAIEncountersAdmin";
-import { NodeContentPublishPanel } from "./NodeContentPublishPanel";
 import {
   useDECBonusAmount,
   useHealAboveFloorPercent,
@@ -21,9 +20,6 @@ import { useWinEffectsAdmin } from "../hooks/useWinEffectsAdmin";
 
 interface RoguelikeSettingsModalProps {
   campaignId: bigint;
-  /** Every node id in this campaign — passed straight through to
-   * NodeContentPublishPanel, see its prop doc for why. */
-  nodeIds: number[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -35,7 +31,6 @@ interface RoguelikeSettingsModalProps {
 // CampaignSettingsModal.tsx), and Resupply repair-cost/withdraw.
 export function RoguelikeSettingsModal({
   campaignId,
-  nodeIds,
   onClose,
   onSaved,
 }: RoguelikeSettingsModalProps) {
@@ -360,8 +355,6 @@ export function RoguelikeSettingsModal({
               />
             </SettingRow>
           </div>
-
-          <NodeContentPublishPanel graphType="ROGUELIKE" nodeIds={nodeIds} />
         </div>
       </div>
     </div>

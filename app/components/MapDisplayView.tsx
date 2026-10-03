@@ -667,12 +667,6 @@ export function MapDisplayView({
             <span>Scoring (once only)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative h-5 w-5 shrink-0 overflow-hidden border border-gunmetal bg-cyan">
-              <Image src="/img/nebula-tile.png" alt="" fill className="object-cover opacity-30" sizes="20px" />
-            </div>
-            <span>Blocked + Scoring</span>
-          </div>
-          <div className="flex items-center gap-2">
             <div className="w-[20px] h-[20px] bg-near-black border border-gunmetal"></div>
             <span>Empty</span>
           </div>
