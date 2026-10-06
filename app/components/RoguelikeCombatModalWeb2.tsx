@@ -4,6 +4,9 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { waitForPlayerGameWeb2 } from "../utils/waitForPlayerGame";
+import { navigateToGameWeb2 } from "../utils/navigateToGame";
 import { FleetSelectionModal } from "./FleetSelectionModal";
 import { MapDisplayWeb2 } from "./MapDisplayWeb2";
 import { useFleetPlacementWeb2 } from "../hooks/useFleetPlacementWeb2";
@@ -46,6 +49,8 @@ export function RoguelikeCombatModalWeb2({
   const { enterCombatNode } = useRoguelikeMatchWeb2();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isWarping, setIsWarping] = React.useState(false);
+  const { userId } = useCurrentUser();
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
   const seededRef = React.useRef(false);
@@ -54,8 +59,12 @@ export function RoguelikeCombatModalWeb2({
 
   // The player is the creator side in single-player.
   const { creatorZone } = useMapWeb2(targetNode.mapId ?? 0, GRID_DIMENSIONS.WIDTH, GRID_DIMENSIONS.HEIGHT);
+  // A run's roster is a single faction; lock placement to it (the hook
+  // otherwise defaults to faction 1 and would skip a faction-2 roster).
+  const rosterVariant = rosterShips[0]?.traits.variant;
   const fleet = useFleetPlacementWeb2({
     ships: rosterShips,
+    requiredVariant: rosterVariant,
     costLimit: Number.MAX_SAFE_INTEGER,
     costsVersion: null,
     isCreatorSide: true,
@@ -64,10 +73,12 @@ export function RoguelikeCombatModalWeb2({
 
   React.useEffect(() => {
     if (seededRef.current || rosterShips.length === 0) return;
+    // Wait for the hook to pick up the roster's faction lock first.
+    if (fleet.selectedVariant !== rosterVariant) return;
     seededRef.current = true;
-    rosterShips.forEach((s) => fleet.addShip(s.id));
+    fleet.addShips(rosterShips.map((s) => s.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterShips]);
+  }, [rosterShips, rosterVariant, fleet.selectedVariant]);
 
   const { data: placements } = useQuery({
     queryKey: ["ai-map-placements", targetNode.mapId],
@@ -94,9 +105,24 @@ export function RoguelikeCombatModalWeb2({
     if (fleet.selectedShips.length === 0 || !fleet.hasMovedShip) return;
     setIsSubmitting(true);
     try {
-      const startingPositions = fleet.shipPositions.map((p) => ({ row: p.row, col: p.col }));
-      await enterCombatNode(targetNode.id, startingPositions);
-      await queryClient.invalidateQueries();
+      // The enter-combat route pairs startingPositions[i] with run.roster[i],
+      // so send them in roster order, not the order ships were placed.
+      const positionByShipId = new Map(
+        fleet.shipPositions.map((p) => [p.shipId, { row: p.row, col: p.col }]),
+      );
+      const positions = run.roster.map((r) => positionByShipId.get(r.shipId));
+      if (positions.some((p) => !p)) {
+        toast.error("Every roster ship needs a starting position.");
+        return;
+      }
+      const startingPositions = positions as Array<{ row: number; col: number }>;
+      const { gameId } = await enterCombatNode(targetNode.id, startingPositions);
+      // Open the new game directly, once the Games tab's cached list has it
+      // (mirrors the web3 launch modals' waitForPlayerGame).
+      setIsWarping(true);
+      const found = await waitForPlayerGameWeb2({ queryClient, gameId });
+      if (!found) toast("Mission started. Still syncing your games list…");
+      navigateToGameWeb2(userId, gameId);
       toast.success("Mission launched!");
       onLaunched();
     } catch (error) {
@@ -115,6 +141,7 @@ export function RoguelikeCombatModalWeb2({
       }
     } finally {
       setIsSubmitting(false);
+      setIsWarping(false);
     }
   };
 
@@ -189,7 +216,7 @@ export function RoguelikeCombatModalWeb2({
       onGoToGames={onLaunched}
       createButtonState={{
         isBusy: isSubmitting,
-        busyLabel: "LAUNCHING...",
+        busyLabel: isWarping ? "WARPING..." : "LAUNCHING...",
         selectedCount: fleet.selectedShips.length,
         maxShips: rosterShips.length,
         isOverLimit: false,

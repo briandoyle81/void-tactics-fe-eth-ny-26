@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { baseSepolia } from "viem/chains";
 import posthog from "posthog-js";
 import {
@@ -49,6 +50,12 @@ import { resolveNodeContent, useOnChainNodeContent } from "../hooks/useNodeConte
 import { inferVictoryReason } from "../utils/victoryReason";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
+import { useMissionDialog } from "../hooks/useMissionDialog";
+import { resetRoguelikeRunQueries, useGetRoguelikeRun } from "../hooks/useRoguelikeRun";
+import { invalidateShipsReads } from "../hooks/useShipsContract";
+import { DialogLineCard, MissionDialogPanel } from "./MissionDialogPanel";
+import { buildDialogSnapshot } from "../utils/missionDialog";
+import type { DialogMission } from "../types/dialog";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
 import { useRoguelikeAITurnLoop } from "../hooks/useRoguelikeAITurnLoop";
 import { TransactionButton } from "./TransactionButton";
@@ -184,6 +191,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   // Tooltip disable toggle
   const [disableTooltips, setDisableTooltips] = React.useState(false);
   const { address } = useAccount();
+  const queryClient = useQueryClient();
   const appChainId = useSelectedChainId();
   // Pinned to Base Sepolia — Game is currently only deployed there while
   // multi-chain support is temporarily disabled (see networks.ts). Without
@@ -765,7 +773,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     React.useState(false);
   const isMyTurnEffective = isMyTurn && !awaitingTurnSyncAfterSubmit;
   const canActInGame = !readOnly && isMyTurnEffective;
-  const gameWinnerResult = toGameWinnerResult(game.metadata.winner, address);
+  // Set once this player's flee/retreat tx has a receipt. That receipt
+  // already means a loss, so the result screen shows straight away instead
+  // of the board reappearing until a refetch catches up; it also lets the
+  // result screen say "you retreated" (a forfeit isn't distinguishable from
+  // other losses on chain).
+  const [didFlee, setDidFlee] = useState(false);
+  const chainWinnerResult = toGameWinnerResult(game.metadata.winner, address);
+  const gameWinnerResult = chainWinnerResult ?? (didFlee ? "opponent" : null);
   const isGameOver = gameWinnerResult !== null;
   const moveShipTxId = `move-ship-${selectedShipId}-${game.metadata.gameId}`;
   const isSubmittingMove =
@@ -787,6 +802,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     game.metadata.orchestrator?.toLowerCase() ===
     ROGUELIKE_MATCH_ADDRESS.toLowerCase();
   const isVsAIGame = isSinglePlayerGame || isRoguelikeGame;
+  // Fleeing: PvP via PvPMatch.flee; roguelike via RoguelikeMatch.retreatRun,
+  // which ends the whole run. The original campaign has no flee.
+  const canFlee = !isVsAIGame || isRoguelikeGame;
+  const fleeConsequence = isRoguelikeGame
+    ? (
+        <>
+          This action is irreversible. The engagement will be recorded as a loss and{" "}
+          <span className="text-warning-red">your run will end</span>.
+        </>
+      )
+    : undefined;
   const aiOrchestratorAddress = isRoguelikeGame
     ? ROGUELIKE_MATCH_ADDRESS
     : SINGLE_PLAYER_MATCH_ADDRESS;
@@ -813,6 +839,28 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     nodeIdForGame != null && nodeIdForGame > 0n
       ? resolveNodeContent(missionContentById, nodeIdForGame, missionContentLoading)
       : undefined;
+
+  // Roguelike combat runs at the run's current node; read only for
+  // roguelike games. Used for the mission title and mission dialog.
+  const { data: roguelikeRunForGame } = useGetRoguelikeRun(
+    address as `0x${string}` | undefined,
+    isRoguelikeGame,
+  );
+  const roguelikeNodeIdForGame =
+    isRoguelikeGame && roguelikeRunForGame ? Number(roguelikeRunForGame.currentNodeId) : 0;
+  const roguelikeMissionNodeIds = React.useMemo(
+    () => (roguelikeNodeIdForGame > 0 ? [BigInt(roguelikeNodeIdForGame)] : []),
+    [roguelikeNodeIdForGame],
+  );
+  const { contentById: roguelikeContentById, isLoading: roguelikeContentLoading } =
+    useOnChainNodeContent("ROGUELIKE", roguelikeMissionNodeIds);
+  // Campaign and roguelike missions show their title instead of the game
+  // number (loading/missing placeholders come from resolveNodeContent).
+  const gameTitleLabel = missionNodeContent
+    ? missionNodeContent.title
+    : roguelikeNodeIdForGame > 0
+      ? resolveNodeContent(roguelikeContentById, roguelikeNodeIdForGame, roguelikeContentLoading).title
+      : `Game ${game.metadata.gameId.toString()}`;
   const [isGameResultDismissed, setIsGameResultDismissed] = React.useState(false);
 
   const { recordPlayerMove } = useGamePolling({
@@ -1501,6 +1549,80 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       };
     },
   );
+
+  // In-mission dialog (useMissionDialog). Campaign missions use the node id
+  // looked up above; roguelike combat uses the run's current node.
+  const roguelikeDialogNodeId = roguelikeNodeIdForGame;
+  const dialogMission: DialogMission | null = React.useMemo(() => {
+    if (isSinglePlayerGame && nodeIdForGame != null && nodeIdForGame > 0n) {
+      return { kind: "campaign", nodeId: Number(nodeIdForGame) };
+    }
+    if (roguelikeDialogNodeId > 0) return { kind: "roguelike", nodeId: roguelikeDialogNodeId };
+    return null;
+  }, [isSinglePlayerGame, nodeIdForGame, roguelikeDialogNodeId]);
+  const dialogSnapshot = React.useMemo(() => {
+    const isCreatorNow = game.metadata.creator === address;
+    return buildDialogSnapshot({
+      round: Number(game.turnState.currentRound),
+      myScore: Number(isCreatorNow ? game.creatorScore : game.joinerScore),
+      enemyScore: Number(isCreatorNow ? game.joinerScore : game.creatorScore),
+      ships: game.shipPositions.map((p) => {
+        const index = game.shipIds?.findIndex((id) => id === p.shipId) ?? -1;
+        return {
+          isMine: p.isCreator === isCreatorNow,
+          status: p.status,
+          hullPoints: index >= 0 ? (game.shipAttributes?.[index]?.hullPoints ?? null) : null,
+        };
+      }),
+      // Victory/defeat triggers; a draw is neither.
+      outcome:
+        gameWinnerResult === "me" ? "victory" : gameWinnerResult === "opponent" ? "defeat" : null,
+    });
+  }, [
+    game.metadata.creator,
+    address,
+    game.turnState.currentRound,
+    game.creatorScore,
+    game.joinerScore,
+    game.shipPositions,
+    game.shipIds,
+    game.shipAttributes,
+    gameWinnerResult,
+  ]);
+  const missionDialog = useMissionDialog({
+    gameId: game.metadata.gameId.toString(),
+    mission: dialogMission,
+    snapshot: dialogSnapshot,
+    // Stays on after the game ends so victory/defeat lines can play.
+    enabled: !readOnly && !isReplaying,
+    paused: roundStartInfo != null && !isGameOver,
+  });
+  // On the board while the game runs (and after the result screen is
+  // dismissed); while the result screen is up, lines play inside it instead
+  // (missionDebriefNode) since it covers the board.
+  const missionDialogOverlay =
+    (!isGameOver || isGameResultDismissed) &&
+    (missionDialog.current || missionDialog.log.length > 0) ? (
+      <MissionDialogPanel
+        line={missionDialog.current}
+        log={missionDialog.log}
+        position={missionDialog.position}
+        total={missionDialog.total}
+        onAdvance={missionDialog.advance}
+        onDismiss={missionDialog.dismissAll}
+        compact={isLandscapeMobile}
+      />
+    ) : null;
+  const missionDebriefNode = missionDialog.current ? (
+    <DialogLineCard
+      line={missionDialog.current}
+      position={missionDialog.position}
+      total={missionDialog.total}
+      onAdvance={missionDialog.advance}
+      onDismiss={missionDialog.dismissAll}
+      compact={false}
+    />
+  ) : null;
 
   // Play alert sound when it becomes the player's turn
   useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
@@ -2223,7 +2345,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               ←
             </button>
             <h1 className="text-2xl font-mono text-white flex items-center gap-3">
-              <span>Game {game.metadata.gameId.toString()}</span>
+              <span>{gameTitleLabel}</span>
               <span className="text-text-muted text-base">
                 Round {game.turnState.currentRound.toString()}
               </span>
@@ -2465,18 +2587,44 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Best-effort loss explanation for GameResultModal's mission copy — only
   // meaningful for single-player, since PvP defeats just show the score
-  // (see GameResultModal.tsx's MissionLossReason doc). "fled" is omitted
-  // here: single-player has no whole-match flee (FleeSafetySwitch is never
-  // shown for it below), only the reliably-inferrable "enemyScore" (they
+  // (see GameResultModal.tsx's MissionLossReason doc). "fled" only when this
+  // player confirmed a flee here (roguelike; the campaign has no flee).
+  // Otherwise the reliably-inferrable "enemyScore" (they
   // hit the target first) vs. the fallback "fleetDestroyed" (covers both
   // genuine combat losses and the rare all-ships-retreated-individually
   // case — no on-chain field distinguishes the two).
   const missionLossReason: MissionLossReason | undefined =
     isVsAIGame && gameWinnerResult === "opponent"
-      ? opponentScore >= maxScore
+      ? didFlee
+        ? "fled"
+        : opponentScore >= maxScore
         ? "enemyScore"
         : "fleetDestroyed"
       : undefined;
+  // Roguelike: a win returns to the run map; any loss has already ended the
+  // run on chain, so "Quit" drops the cached run and lands on the Mission
+  // tab's start-a-run screen.
+  const resultPrimaryActionLabel = isRoguelikeGame
+    ? gameWinnerResult === "me"
+      ? "Return to Run"
+      : "Quit"
+    : isSinglePlayerGame
+      ? "Return to Campaign"
+      : "Back to Games";
+  const handleResultPrimaryAction = () => {
+    if (isRoguelikeGame) {
+      // A loss ended the run; a win on the final node also releases the
+      // roster. Either way the cached ship list needs its inFleet refreshed.
+      if (gameWinnerResult !== "me") resetRoguelikeRunQueries(queryClient);
+      else void invalidateShipsReads(queryClient);
+      window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+      document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
+    } else if (isSinglePlayerGame) {
+      window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+      document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
+    }
+    onBack();
+  };
   const iAmCreator = game.metadata.creator === address;
   const victoryReason =
     gameWinnerResult === "me"
@@ -2643,7 +2791,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 </button>
                 <div className="min-w-0 flex-1 text-center">
                   <p className="truncate text-[10px] uppercase tracking-wider text-text-secondary">
-                    Game {game.metadata.gameId.toString()} | Round{" "}
+                    {gameTitleLabel} | Round{" "}
                     {game.turnState.currentRound.toString()}
                   </p>
                   <p
@@ -2921,6 +3069,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
                 containerRef={gridContainerRef}
                 onBoardChromeMouseDown={handleCancelMove}
+                overlay={missionDialogOverlay}
               >
                 <div
                   className="relative h-full [contain:layout]"
@@ -2996,7 +3145,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       renderShipCard={renderShipCard}
                     />
                   </div>
-                {!isVsAIGame &&
+                {canFlee &&
                 game.metadata.winner === "0x0000000000000000000000000000000000000000" ? (
                   <div
                     className={`pointer-events-none absolute top-1 z-[230] ${
@@ -3031,14 +3180,18 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                           <FleeSafetySwitch
                             onFlee={async () => {
                               toast.success("You have fled the battle!");
+                              setDidFlee(true);
                               setIsMobileFleeOpen(false);
-                              await Promise.resolve(refetchGame());
-                              await Promise.resolve(refetch?.());
+                              // Background sync only — the result screen is already showing.
+                              void Promise.resolve(refetchGame());
+                              void Promise.resolve(refetch?.());
                             }}
+                            consequence={fleeConsequence}
                             renderConfirmButton={(onSuccess) => (
                               <FleeConfirmButtonWeb3
                                 gameId={game.metadata.gameId}
                                 onSuccess={onSuccess}
+                                isRoguelike={isRoguelikeGame}
                               />
                             )}
                           />
@@ -3130,24 +3283,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 : undefined
             }
             nodeContent={missionNodeContent}
+            comms={missionDebriefNode}
             onClose={() => setIsGameResultDismissed(true)}
-            primaryActionLabel={
-              isRoguelikeGame
-                ? "Return to Run"
-                : isSinglePlayerGame
-                  ? "Return to Campaign"
-                  : "Back to Games"
-            }
-            onPrimaryAction={() => {
-              if (isRoguelikeGame) {
-                window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
-                document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
-              } else if (isSinglePlayerGame) {
-                window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
-                document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
-              }
-              onBack();
-            }}
+            primaryActionLabel={resultPrimaryActionLabel}
+            onPrimaryAction={handleResultPrimaryAction}
           />
         )}
         {roundStartInfo && !isGameOver && (
@@ -3221,7 +3360,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               </button>
               <div className="min-w-0 text-center">
                 <p className="truncate text-[11px] uppercase tracking-wider text-text-secondary">
-                  Game {game.metadata.gameId.toString()} | Round{" "}
+                  {gameTitleLabel} | Round{" "}
                   {game.turnState.currentRound.toString()}
                 </p>
                 <p
@@ -3326,17 +3465,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           </button>
               </div>
               <div className="flex min-h-0 w-4/5 min-w-0 flex-col justify-center">
-                {gameWinnerResult === null && !isVsAIGame && (
+                {gameWinnerResult === null && canFlee && (
                   <FleeSafetySwitch
                     onFlee={async () => {
                       toast.success("You have fled the battle!");
-                      await Promise.resolve(refetchGame());
-                      await Promise.resolve(refetch?.());
+                      setDidFlee(true);
+                      // Background sync only — the result screen is already showing.
+                      void Promise.resolve(refetchGame());
+                      void Promise.resolve(refetch?.());
                     }}
+                    consequence={fleeConsequence}
                     renderConfirmButton={(onSuccess) => (
                       <FleeConfirmButtonWeb3
                         gameId={game.metadata.gameId}
                         onSuccess={onSuccess}
+                        isRoguelike={isRoguelikeGame}
                       />
                     )}
                   />
@@ -3372,7 +3515,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           >
           <div className="flex flex-col">
             <h1 className="text-2xl font-mono text-white flex items-center gap-3">
-              <span>Game {game.metadata.gameId.toString()}</span>
+              <span>{gameTitleLabel}</span>
               <span className="text-text-muted text-base">
                 Round {game.turnState.currentRound.toString()}
               </span>
@@ -3533,6 +3676,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           isCurrentPlayerTurn={!readOnly && isMyTurnEffective}
           containerRef={gridContainerRef}
           onBoardChromeMouseDown={handleCancelMove}
+          overlay={missionDialogOverlay}
         >
           <div
             className="relative w-full [contain:layout]"
@@ -3618,9 +3762,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               label={replayStep < 0 ? "Replay · Start" : `Replay · Move ${replayStep + 1}/${replayTurns.length}`}
             />
           )}
-          {/* Replay controls (bottom-left) */}
-          <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
-            <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+          {/* Replay controls (top-left, below the replay banner while it's
+              showing). The bottom-left corner belongs to the comms panel. */}
+          <div
+            className={`absolute left-0 z-[225] pointer-events-none flex items-start ${
+              isReplaying ? "top-7" : "top-0"
+            }`}
+          >
+            <div className="pointer-events-auto flex items-start gap-2 pt-1 pl-1">
               {!isReplaying && !replayNotFound && (
                 <button
                   onClick={fetchAndStartReplay}
@@ -3673,6 +3822,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   onExit={exitReplay}
                 />
               )}
+            </div>
+          </div>
+          {/* Debug panel (dev only, top-right). */}
+          <div className="absolute right-0 top-0 z-[225] pointer-events-none flex items-start justify-end">
+            <div className="pointer-events-auto flex flex-col items-end pt-1 pr-1">
               {game.metadata.winner ===
                 "0x0000000000000000000000000000000000000000" &&
                 process.env.NODE_ENV === "development" &&
@@ -3884,19 +4038,23 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     : "Opponent turn"}{" "}
                 | <TurnCountdownText />
               </div>
-              {!isVsAIGame &&
+              {canFlee &&
               game.metadata.winner ===
                 "0x0000000000000000000000000000000000000000" ? (
                 <FleeSafetySwitch
                   onFlee={async () => {
                     toast.success("You have fled the battle!");
-                    await Promise.resolve(refetchGame());
-                    await Promise.resolve(refetch?.());
+                    setDidFlee(true);
+                    // Background sync only — the result screen is already showing.
+                    void Promise.resolve(refetchGame());
+                    void Promise.resolve(refetch?.());
                   }}
+                  consequence={fleeConsequence}
                   renderConfirmButton={(onSuccess) => (
                     <FleeConfirmButtonWeb3
                       gameId={game.metadata.gameId}
                       onSuccess={onSuccess}
+                      isRoguelike={isRoguelikeGame}
                     />
                   )}
                 />
@@ -4053,24 +4211,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
               : undefined
           }
           nodeContent={missionNodeContent}
+          comms={missionDebriefNode}
           onClose={() => setIsGameResultDismissed(true)}
-          primaryActionLabel={
-            isRoguelikeGame
-              ? "Return to Run"
-              : isSinglePlayerGame
-                ? "Return to Campaign"
-                : "Back to Games"
-          }
-          onPrimaryAction={() => {
-            if (isRoguelikeGame) {
-              window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
-              document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
-            } else if (isSinglePlayerGame) {
-              window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
-              document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-campaign"));
-            }
-            onBack();
-          }}
+          primaryActionLabel={resultPrimaryActionLabel}
+          onPrimaryAction={handleResultPrimaryAction}
         />
       )}
       {roundStartInfo && !isGameOver && (

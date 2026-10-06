@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
 import type { Web2Ship } from "../types/web2Ship";
@@ -43,10 +43,23 @@ export interface RoguelikeRunWeb2 {
 
 const RUN_QUERY_KEY = ["roguelike", "run", "web2"];
 
-export function useRoguelikeRunWeb2() {
+// Same key as useOwnedShipsWeb2's query.
+const OWNED_SHIPS_QUERY_KEY = ["ships", "owned", "web2"];
+
+/**
+ * Web2 counterpart to resetRoguelikeRunQueries: drops the cached run and
+ * refreshes owned ships so the released roster no longer shows in a fleet.
+ */
+export function resetRoguelikeRunQueriesWeb2(queryClient: QueryClient): void {
+  queryClient.removeQueries({ queryKey: RUN_QUERY_KEY });
+  void queryClient.invalidateQueries({ queryKey: OWNED_SHIPS_QUERY_KEY });
+}
+
+export function useRoguelikeRunWeb2(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: RUN_QUERY_KEY,
     queryFn: () => apiFetch<{ run: RoguelikeRunWeb2 | null }>("/api/roguelike/run"),
+    enabled,
   });
 
   return {
@@ -114,7 +127,13 @@ export function useRoguelikeCampaignNodesWeb2WithContent(campaignId: number | un
 
 export function useRoguelikeMatchWeb2() {
   const queryClient = useQueryClient();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: RUN_QUERY_KEY });
+  // Run changes reserve/release roster ships (inFleet), so refresh the owned
+  // ship list alongside the run — mirrors useRoguelikeMatch.ts.
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: RUN_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: OWNED_SHIPS_QUERY_KEY }),
+    ]);
 
   const startRun = async (campaignId: number, shipIds: number[]) => {
     const result = await apiMutate<{ run: RoguelikeRunWeb2 }>("/api/roguelike/run/start", "POST", {

@@ -9,6 +9,8 @@ interface GameBoardLayoutProps {
   containerRef?: React.Ref<HTMLDivElement>;
   /** Fires on left-click directly on the board frame (e.g. padding), not on the grid or controls. */
   onBoardChromeMouseDown?: () => void;
+  /** Drawn over the bottom-left of the board without blocking it (e.g. MissionDialogPanel). */
+  overlay?: React.ReactNode;
 }
 
 export const GameBoardLayout: React.FC<GameBoardLayoutProps> = ({
@@ -17,11 +19,12 @@ export const GameBoardLayout: React.FC<GameBoardLayoutProps> = ({
   rightControls,
   containerRef,
   onBoardChromeMouseDown,
+  overlay,
 }) => {
   return (
     <div
       ref={containerRef}
-      className="w-full border border-solid p-0 lg:p-2"
+      className="relative w-full border border-solid p-0 lg:p-2"
       onMouseDown={(e) => {
         if (e.button !== 0) return;
         if (e.target !== e.currentTarget) return;
@@ -42,6 +45,12 @@ export const GameBoardLayout: React.FC<GameBoardLayoutProps> = ({
       }}
     >
       {children}
+
+      {overlay ? (
+        <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-[70] flex lg:bottom-4 lg:left-4">
+          {overlay}
+        </div>
+      ) : null}
 
       {rightControls ? (
         <div className="mt-4 flex justify-end text-sm">{rightControls}</div>

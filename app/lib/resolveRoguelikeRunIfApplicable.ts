@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { AI_USER_ID } from "./aiUser";
-import { applyWinEffects } from "./winEffectsWeb2";
+import { applyWinEffects, getWinEffectsSettings } from "./winEffectsWeb2";
+import { hullAfterRoguelikeWin } from "./roguelikeHeal";
 import type { Web2GameDataView } from "../types/web2Game";
 
 // Web2 counterpart to RoguelikeMatch.onGameEnded — called from every path
@@ -8,10 +9,17 @@ import type { Web2GameDataView } from "../types/web2Game";
 // resolveTournamentMatchIfApplicable/resolveCampaignNodeIfApplicable.
 //
 // On a human win: persists each surviving roster ship's final damage back
-// onto RoguelikeRosterShip.hp (0 = undamaged, matching the on-chain
-// getShipHP convention — see the field's doc-comment in schema.prisma),
-// applies the campaign's autoHealPercent on top, and records the node as
-// defeated (gates re-entry via a twoWay back-edge). A ship whose hullPoints
+// onto RoguelikeRosterShip.hp (stored as damage taken, 0 = undamaged — see
+// the field's doc-comment in schema.prisma), applies the heal floors, and
+// records the node as defeated (gates re-entry via a twoWay back-edge).
+//
+// Heal floors match the contracts exactly (RoguelikeMatch.onGameEnded and
+// HealAboveFloorWinEffect.onWin): each ship is raised to at least
+// floor(maxHull * percent / 100) and never lowered; a ship left at 0 hull
+// carries forward at 1. The campaign's autoHealPercent always applies, then
+// the node's Heal Above Floor win effect (if assigned) raises the floor to
+// its own percent. One difference: the contract pins autoHealPercent when
+// the node is entered; web2 reads the live campaign value. A ship whose hullPoints
 // reached 0 this mission is treated as maximally damaged rather than
 // permanently removed from the roster — a deliberate simplification versus
 // full on-chain permadeath semantics (see the "deliberately simpler first
@@ -58,16 +66,33 @@ export async function resolveRoguelikeRunIfApplicable(
     if (attrs) finalHullByShipId.set(shipId, attrs);
   });
 
+  const node = await prisma.roguelikeNode.findUnique({
+    where: { id: run.currentNodeId },
+    select: { winEffects: true },
+  });
+  const winEffects = node?.winEffects ?? [];
+  const healAboveFloorPercent = winEffects.includes("HEAL_ABOVE_FLOOR_WIN_EFFECT")
+    ? (await getWinEffectsSettings()).healAboveFloorPercent
+    : 0;
   const autoHeal = run.campaign.autoHealPercent;
+
   await prisma.$transaction([
-    ...run.roster.map((entry) => {
+    ...run.roster.flatMap((entry) => {
       const finalHull = finalHullByShipId.get(entry.shipId);
-      const damage = finalHull ? Math.max(0, finalHull.maxHullPoints - finalHull.hullPoints) : entry.hp;
-      const healed = autoHeal > 0 ? Math.round(damage * (1 - autoHeal / 100)) : damage;
-      return prisma.roguelikeRosterShip.update({
-        where: { id: entry.id },
-        data: { hp: Math.max(0, healed) },
+      // No final attributes for this ship: keep its stored damage untouched.
+      if (!finalHull) return [];
+      const hull = hullAfterRoguelikeWin({
+        hullPoints: finalHull.hullPoints,
+        maxHullPoints: finalHull.maxHullPoints,
+        autoHealPercent: autoHeal,
+        healAboveFloorPercent,
       });
+      return [
+        prisma.roguelikeRosterShip.update({
+          where: { id: entry.id },
+          data: { hp: finalHull.maxHullPoints - hull },
+        }),
+      ];
     }),
     prisma.roguelikeNodeDefeat.upsert({
       where: { runId_nodeId: { runId: run.id, nodeId: run.currentNodeId } },
@@ -80,9 +105,6 @@ export async function resolveRoguelikeRunIfApplicable(
     }),
   ]);
 
-  const node = await prisma.roguelikeNode.findUnique({
-    where: { id: run.currentNodeId },
-    select: { winEffects: true },
-  });
-  await applyWinEffects(node?.winEffects ?? [], winnerId);
+  // Heal Above Floor was applied above; applyWinEffects handles the rest.
+  await applyWinEffects(winEffects, winnerId);
 }

@@ -46,6 +46,9 @@ export function useGetGame(gameId: number) {
   return { data, isLoading, error, refetch };
 }
 
+/** Cache key for the player's web2 game list (also used by waitForPlayerGameWeb2). */
+export const GAMES_WEB2_PLAYER_QUERY_KEY = ["gamesWeb2", "player"] as const;
+
 export function useGetGamesForPlayer(options?: {
   refetchInterval?: number | false;
   refetchOnWindowFocus?: boolean;
@@ -53,7 +56,7 @@ export function useGetGamesForPlayer(options?: {
   const { status } = useSession();
   const appMode = useAppMode();
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["gamesWeb2", "player"],
+    queryKey: GAMES_WEB2_PLAYER_QUERY_KEY,
     queryFn: () => apiFetch<Web2GameDataView[]>("/api/games"),
     enabled: status === "authenticated" && appMode === "web2",
     refetchInterval: options?.refetchInterval ?? 20000,

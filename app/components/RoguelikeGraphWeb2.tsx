@@ -1,7 +1,14 @@
 "use client";
 
 import React from "react";
-import { nodeContentTextClass } from "../hooks/useNodeContent";
+import { MissionBriefing } from "./MissionBriefing";
+import { MissionNodePanel } from "./MissionNodePanel";
+import { MissionDossier } from "./MissionDossier";
+import { useRoguelikeVictoryEffectsWeb2 } from "../hooks/useRoguelikeVictoryEffects";
+import {
+  roguelikeCombatDossierRows,
+  roguelikeResupplyDossierRows,
+} from "../utils/missionDossierRows";
 import type { NodeContentStatus } from "../hooks/useNodeContent";
 import { toast } from "react-hot-toast";
 import { RoguelikeNodeKind } from "../types/roguelike";
@@ -15,9 +22,6 @@ import {
 import { useRoguelikeAdminWeb2 } from "../hooks/useRoguelikeAdminWeb2";
 import { useWeb2Admin } from "../hooks/useWeb2Admin";
 import { useMapEnemyThreatWeb2 } from "../hooks/useMapEnemyThreatWeb2";
-import { ARCHETYPE_LABEL } from "../utils/aiShipConfig";
-import { aiConfigToPreviewShipWeb2 } from "../utils/aiShipConfigWeb2";
-import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { buildRoguelikePrerequisites } from "../utils/roguelikeGraphLayout";
 import { CampaignGraphCanvas } from "./CampaignGraphCanvas";
 import { RoguelikeNodeCard, type RoguelikeNodeCardNode } from "./RoguelikeNodeCard";
@@ -26,9 +30,6 @@ import { RoguelikeResupplyPanelWeb2 } from "./RoguelikeResupplyPanelWeb2";
 import { RoguelikeNodeEditPanelWeb2 } from "./RoguelikeNodeEditPanelWeb2";
 import { RoguelikeSettingsModalWeb2 } from "./RoguelikeSettingsModalWeb2";
 import { CampaignEditModeToggle } from "./CampaignEditModeToggle";
-import { EnemyFleetPreview } from "./EnemyFleetPreview";
-import { ShipImageWeb2 } from "./ShipImageWeb2";
-import ShipCard from "./ShipCard";
 
 const DEFAULT_ROGUELIKE_CAMPAIGN_ID = 1;
 const ADD_NODE_SENTINEL_ID = Number.MAX_SAFE_INTEGER;
@@ -181,38 +182,11 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
   const isSelectedNodeDefeated = !!selectedNode && defeatedSet.has(selectedNode.id);
 
   const isSelectedCombatNode = selectedNode?.kind === RoguelikeNodeKind.Combat;
+  const selectedVictoryEffects = useRoguelikeVictoryEffectsWeb2(
+    isSelectedCombatNode ? selectedNode.winEffects : undefined,
+  );
   const { totalThreat: selectedNodeThreat, placements, isLoading: placementsLoading } =
     useMapEnemyThreatWeb2(isSelectedCombatNode ? selectedNode.mapId : undefined);
-
-  const fleetShips = React.useMemo(
-    () =>
-      placements.map((p, i) => {
-        const previewShip = aiConfigToPreviewShipWeb2(p.config, i);
-        return {
-          key: `${p.config.id}-${i}`,
-          name: p.config.name || ARCHETYPE_LABEL[p.config.archetype],
-          renderImage: () => (
-            <ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
-          ),
-          renderHoverCard: () => (
-            <ShipCard
-              ship={toShipCardDataWeb2(previewShip)}
-              shipImage={<ShipImageWeb2 ship={previewShip} className="h-full w-full" showLoadingState={false} />}
-              isStarred={false}
-              onToggleStar={() => {}}
-              isSelected={false}
-              onToggleSelection={() => {}}
-              onRecycleClick={() => {}}
-              showInGameProperties={false}
-              hideRecycle
-              hideCheckbox
-              tooltipMode
-            />
-          ),
-        };
-      }),
-    [placements],
-  );
 
   const combatTargetNode = combatTargetNodeId != null ? byId.get(combatTargetNodeId) : undefined;
 
@@ -392,81 +366,97 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
           />
         ) : (
           selectedNode && (
-            <div
-              className="grid grid-cols-1 gap-8 border-2 border-cyan p-6 font-mono md:grid-cols-2"
-              style={{ borderRadius: 0 }}
-            >
-              <div className="flex flex-col">
-                <h4 className={`text-lg font-bold ${nodeContentTextClass(selectedNode.titleStatus, "text-cyan")}`}>
-                  {selectedNode.title}
-                </h4>
-                <p className="mt-1 text-xs uppercase tracking-wider text-text-muted">
+            <MissionNodePanel
+              title={selectedNode.title}
+              titleStatus={selectedNode.titleStatus}
+              meta={
+                <>
                   {selectedNode.kind === RoguelikeNodeKind.Combat ? "Combat" : "Resupply"} · Node #
                   {selectedNode.id}
-                </p>
-                <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(selectedNode.descriptionStatus, "text-text-secondary")}`}>
-                  {selectedNode.description}
-                </p>
-                {isSelectedCombatNode && isSelectedNodeDefeated && !isSelectedCurrentNode && (
-                  <p className="mt-2 text-sm text-phosphor-green">Cleared.</p>
-                )}
-
-                <div className="mt-4">
-                  {isBrowseMode ? (
-                    <p className="text-sm text-text-muted">Start a run to enter this node.</p>
-                  ) : isSelectedCurrentNode ? (
-                    isSelectedNodeDefeated ? (
-                      <p className="text-sm text-phosphor-green">
-                        This node is cleared — pick where to go next above.
-                      </p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setCombatTargetNodeId(selectedNode.id)}
-                        className="self-start border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10"
-                        style={{ borderRadius: 0 }}
-                      >
-                        [FIGHT THIS NODE]
-                      </button>
-                    )
-                  ) : isSelectedReachableChild ? (
-                    selectedNode.kind === RoguelikeNodeKind.Combat ? (
-                      <button
-                        type="button"
-                        disabled={isSelectedNodeDefeated}
-                        onClick={() => setCombatTargetNodeId(selectedNode.id)}
-                        className="self-start border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{ borderRadius: 0 }}
-                      >
-                        {isSelectedNodeDefeated ? "[ALREADY CLEARED]" : "[ENTER COMBAT]"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={enteringResupply === selectedNode.id}
-                        onClick={() => void handleEnterResupply(selectedNode.id)}
-                        className="self-start border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{ borderRadius: 0 }}
-                      >
-                        {enteringResupply === selectedNode.id ? "[ENTERING...]" : "[ENTER RESUPPLY]"}
-                      </button>
-                    )
-                  ) : (
-                    <p className="text-sm text-text-muted">
-                      Not reachable from your current position.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {isSelectedCombatNode && (
-                <EnemyFleetPreview
-                  ships={fleetShips}
-                  totalCost={selectedNodeThreat}
-                  isLoading={placementsLoading}
+                </>
+              }
+              briefing={
+                <MissionBriefing
+                  mission={{ kind: "roguelike", nodeId: selectedNode.id }}
+                  text={selectedNode.description}
+                  status={selectedNode.descriptionStatus}
                 />
-              )}
-            </div>
+              }
+              dossier={
+                <MissionDossier
+                  forces={
+                    isSelectedCombatNode
+                      ? {
+                          enemyShips: placementsLoading ? null : placements.length,
+                          enemy: placementsLoading ? null : selectedNodeThreat,
+                          yours: isBrowseMode ? null : run.currentCostCap,
+                          yoursLabel: "Your cost cap",
+                        }
+                      : undefined
+                  }
+                  rows={
+                    isSelectedCombatNode
+                      ? roguelikeCombatDossierRows({
+                          maxScore: selectedNode.maxScore ?? 0,
+                          creatorGoesFirst: selectedNode.creatorGoesFirst ?? true,
+                          turnTimeSeconds: selectedNode.turnTimeSeconds ?? 0,
+                          autoHealPercent: campaign?.autoHealPercent ?? 0,
+                          victoryEffects: selectedVictoryEffects,
+                          isCleared: isSelectedNodeDefeated,
+                        })
+                      : roguelikeResupplyDossierRows({ costCapOverride: selectedNode.costCapOverride ?? 0 })
+                  }
+                  action={
+                    <>
+                      {isBrowseMode ? (
+                        <p className="text-sm text-text-muted">Start a run to enter this node.</p>
+                      ) : isSelectedCurrentNode ? (
+                        isSelectedNodeDefeated ? (
+                          <p className="text-sm text-phosphor-green">
+                            This node is cleared — pick where to go next above.
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setCombatTargetNodeId(selectedNode.id)}
+                            className="border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10"
+                            style={{ borderRadius: 0 }}
+                          >
+                            [WARP TO MISSION]
+                          </button>
+                        )
+                      ) : isSelectedReachableChild ? (
+                        selectedNode.kind === RoguelikeNodeKind.Combat ? (
+                          <button
+                            type="button"
+                            disabled={isSelectedNodeDefeated}
+                            onClick={() => setCombatTargetNodeId(selectedNode.id)}
+                            className="border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{ borderRadius: 0 }}
+                          >
+                            {isSelectedNodeDefeated ? "[ALREADY CLEARED]" : "[ENTER COMBAT]"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={enteringResupply === selectedNode.id}
+                            onClick={() => void handleEnterResupply(selectedNode.id)}
+                            className="border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{ borderRadius: 0 }}
+                          >
+                            {enteringResupply === selectedNode.id ? "[ENTERING...]" : "[ENTER RESUPPLY]"}
+                          </button>
+                        )
+                      ) : (
+                        <p className="text-sm text-text-muted">
+                          Not reachable from your current position.
+                        </p>
+                      )}
+                    </>
+                  }
+                />
+              }
+            />
           )
         )}
       </CampaignGraphCanvas>

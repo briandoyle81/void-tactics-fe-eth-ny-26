@@ -17,11 +17,12 @@ export const WIN_EFFECT_LABELS: Record<WinEffectKey, string> = {
   SHIP_GRANT_WIN_EFFECT: "Grant Ship",
 };
 
-// HEAL_ABOVE_FLOOR_WIN_EFFECT is defined above for config/UI parity only —
-// applyWinEffects() (winEffectsWeb2.ts) does not act on it yet. See that
-// file's module doc for why.
+// All three are implemented in web2. HEAL_ABOVE_FLOOR_WIN_EFFECT only does
+// anything on roguelike nodes (applied in resolveRoguelikeRunIfApplicable),
+// the same as on chain.
 export const IMPLEMENTED_WIN_EFFECT_KEYS: readonly WinEffectKey[] = [
   "DEC_BONUS_WIN_EFFECT",
+  "HEAL_ABOVE_FLOOR_WIN_EFFECT",
   "SHIP_GRANT_WIN_EFFECT",
 ];
 

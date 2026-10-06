@@ -4,7 +4,8 @@ import React from "react";
 import { useAccount } from "wagmi";
 import { useGetRoguelikeRun, useHasActiveRoguelikeRun } from "../hooks/useRoguelikeRun";
 import { useIsRoguelikeNodeEditor } from "../hooks/useRoguelikeNodeMap";
-import { RunStatus } from "../types/roguelike";
+import { toast } from "react-hot-toast";
+import { RunStatus, type RoguelikeRun } from "../types/roguelike";
 import { RoguelikeRunStart } from "./RoguelikeRunStart";
 import { RoguelikeGraph } from "./RoguelikeGraph";
 
@@ -39,6 +40,19 @@ export function RoguelikeCampaign() {
 
   const refetchAll = React.useCallback(async () => {
     await Promise.all([refetchHasActiveRun(), refetchRun()]);
+  }, [refetchHasActiveRun, refetchRun]);
+
+  // After startRun is mined, a load-balanced RPC node can still be a block
+  // behind and report no active run — which left the player on the roster
+  // screen. Poll until the run reads back as Active (or give up after ~10s).
+  const refetchUntilRunActive = React.useCallback(async () => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const [hasRunResult, runResult] = await Promise.all([refetchHasActiveRun(), refetchRun()]);
+      const fetchedRun = runResult.data as RoguelikeRun | undefined;
+      if (hasRunResult.data && fetchedRun?.status === RunStatus.Active) return;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    toast.error("Run started, but the network hasn't caught up yet. Refresh in a moment.");
   }, [refetchHasActiveRun, refetchRun]);
 
   if (!isConnected) {
@@ -80,7 +94,7 @@ export function RoguelikeCampaign() {
             [EDIT CAMPAIGN MAP]
           </button>
         )}
-        <RoguelikeRunStart onRunStarted={refetchAll} />
+        <RoguelikeRunStart onRunStarted={refetchUntilRunActive} />
       </div>
     );
   }

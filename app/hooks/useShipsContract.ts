@@ -1,6 +1,11 @@
 import { useReadContract, useWriteContract } from "wagmi";
-import { CONTRACT_ABIS, getContractAddresses } from "../config/contracts";
+import {
+  CONTRACT_ABIS,
+  CONTRACT_ADDRESSES_BY_CHAIN_ID,
+  getContractAddresses,
+} from "../config/contracts";
 import type { Abi } from "viem";
+import type { QueryClient } from "@tanstack/react-query";
 import { useSelectedChainId } from "./useSelectedChainId";
 
 // Hook for reading contract data
@@ -71,3 +76,24 @@ export type ShipsWriteFunction =
   | "syncShipCosts"
   /** Owner or game only; players should use syncShipCosts. */
   | "setCostOfShip";
+
+const SHIPS_ADDRESSES = new Set(
+  Object.values(CONTRACT_ADDRESSES_BY_CHAIN_ID)
+    .map((addresses) => (addresses as { SHIPS?: string }).SHIPS?.toLowerCase())
+    .filter((address): address is string => !!address),
+);
+
+/**
+ * Refetches every cached Ships contract read. useShipsRead caches with
+ * staleTime: Infinity, so state that changes outside an explicit refetch —
+ * e.g. a roguelike run ending and releasing its roster (inFleet → false) —
+ * stays stale until this (or a page reload) runs.
+ */
+export function invalidateShipsReads(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({
+    predicate: (query) => {
+      const [kind, params] = query.queryKey as [unknown, { address?: string } | undefined];
+      return kind === "readContract" && !!params?.address && SHIPS_ADDRESSES.has(params.address.toLowerCase());
+    },
+  });
+}

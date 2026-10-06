@@ -4,6 +4,9 @@ import React from "react";
 import { toast } from "react-hot-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { waitForPlayerGameWeb2 } from "../utils/waitForPlayerGame";
+import { navigateToGameWeb2 } from "../utils/navigateToGame";
 import { FleetSelectionModal } from "./FleetSelectionModal";
 import { MapDisplayWeb2 } from "./MapDisplayWeb2";
 import { useNodeFleetSelectionWeb2 } from "../hooks/useNodeFleetSelectionWeb2";
@@ -47,6 +50,8 @@ export function NodeMatchModalWeb2({
   const { startNode } = useStartCampaignNodeWeb2();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isWarping, setIsWarping] = React.useState(false);
+  const { userId } = useCurrentUser();
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
 
@@ -77,8 +82,15 @@ export function NodeMatchModalWeb2({
     setIsSubmitting(true);
     try {
       const startingPositions = fleet.shipPositions.map((p) => ({ row: p.row, col: p.col }));
-      await startNode(node.id, fleet.selectedShips, startingPositions);
-      await queryClient.invalidateQueries();
+      const { gameId } = await startNode(node.id, fleet.selectedShips, startingPositions);
+      // Campaign entry reserves the chosen ships (inFleet).
+      void queryClient.invalidateQueries({ queryKey: ["ships", "owned", "web2"] });
+      // Open the new game directly, once the Games tab's cached list has it
+      // (mirrors the web3 launch modals' waitForPlayerGame).
+      setIsWarping(true);
+      const found = await waitForPlayerGameWeb2({ queryClient, gameId });
+      if (!found) toast("Mission started. Still syncing your games list…");
+      navigateToGameWeb2(userId, gameId);
       toast.success("Mission launched!");
       fleet.clearSelection();
       onLaunched();
@@ -87,6 +99,7 @@ export function NodeMatchModalWeb2({
       toast.error(error instanceof Error ? error.message : "Failed to launch mission");
     } finally {
       setIsSubmitting(false);
+      setIsWarping(false);
     }
   };
 
@@ -172,7 +185,7 @@ export function NodeMatchModalWeb2({
       onGoToGames={onLaunched}
       createButtonState={{
         isBusy: isSubmitting,
-        busyLabel: "LAUNCHING...",
+        busyLabel: isWarping ? "WARPING..." : "LAUNCHING...",
         selectedCount: fleet.selectedShips.length,
         maxShips: fleet.maxShips,
         isOverLimit: fleet.isOverLimit,

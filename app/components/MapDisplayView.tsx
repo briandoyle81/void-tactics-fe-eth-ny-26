@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import Image from "next/image";
 import { GRID_DIMENSIONS, Attributes } from "../types/types";
 import ShipCard from "./ShipCard";
+import { SHIP_TOOLTIP_HOVER_DELAY_MS } from "./HoverShipCardTooltip";
 import type { ShipCardData } from "../types/shipCardData";
 
 // Shared between MapDisplay.tsx (web3) and MapDisplayWeb2.tsx (web2) — the
@@ -188,6 +189,18 @@ export function MapDisplayView({
     // actually in flippedShipIds.
     isFlipped: boolean;
   } | null>(null);
+
+  // Same hover delay as every other ship tooltip (HoverShipCardTooltip), so
+  // sweeping the cursor across the fleet doesn't flash cards. Restarts
+  // whenever the hovered ship changes.
+  const hoveredShipId = hoveredCell?.shipId ?? null;
+  const [isTooltipDelayElapsed, setIsTooltipDelayElapsed] = useState(false);
+  useEffect(() => {
+    setIsTooltipDelayElapsed(false);
+    if (!hoveredShipId) return;
+    const timer = setTimeout(() => setIsTooltipDelayElapsed(true), SHIP_TOOLTIP_HOVER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [hoveredShipId]);
 
   const handleCellEnter = (row: number, col: number, e: React.MouseEvent<HTMLDivElement>) => {
     const shipId = getShipIdAtPosition(row, col);
@@ -520,6 +533,7 @@ export function MapDisplayView({
 
           {/* Ship tooltip: absolute in map grid so it tracks aspect / resize */}
           {hoveredCell &&
+            isTooltipDelayElapsed &&
             (() => {
               const shipCardData = shipCardDataMap.get(hoveredCell.shipId);
               if (!shipCardData) return null;

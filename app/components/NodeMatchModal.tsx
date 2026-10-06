@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { useAccount, usePublicClient } from "wagmi";
+import { useAccount, useConfig, usePublicClient } from "wagmi";
+import { waitForPlayerGame } from "../utils/waitForPlayerGame";
 import { useQueryClient } from "@tanstack/react-query";
 import { baseSepolia } from "viem/chains";
 import { parseEventLogs, type Abi } from "viem";
@@ -52,6 +53,10 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  // "warping" = tx confirmed, waiting for the Games tab's list to have the
+  // new game so navigation opens it directly.
+  const [isWarping, setIsWarping] = React.useState(false);
+  const wagmiConfig = useConfig();
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
 
@@ -119,17 +124,11 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
         if (!gameId) {
           console.error("NodeMatchStarted event not found in receipt", receipt);
         } else {
-          // The tx receipt above already confirms the game exists on-chain —
-          // what's stale here is purely client-side: Games.tsx's
-          // usePlayerGames() read is cached by TanStack Query and won't know
-          // to refetch just because the active tab changed. Without this,
-          // Games.tsx's restore-selected-game effect can't find the new
-          // gameId in its (stale) list, silently drops the pending
-          // navigation, and falls back to the plain list view — exactly the
-          // "goes to Games but doesn't show the new game" symptom. Awaiting
-          // the invalidation (not just firing it) closes the race for the
-          // common case where Games.tsx is already mounted behind this tab.
-          await queryClient.invalidateQueries();
+          setIsWarping(true);
+          const found = address
+            ? await waitForPlayerGame({ config: wagmiConfig, queryClient, playerAddress: address, gameId })
+            : false;
+          if (!found) toast("Mission started. Still syncing your games list…");
           navigateToGame(address, gameId);
         }
       }
@@ -160,6 +159,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
       }
     } finally {
       setIsSubmitting(false);
+      setIsWarping(false);
     }
   };
 
@@ -258,7 +258,7 @@ export function NodeMatchModal({ node, onClose, onLaunched }: NodeMatchModalProp
       onGoToGames={onLaunched}
       createButtonState={{
         isBusy: isSubmitting,
-        busyLabel: "LAUNCHING...",
+        busyLabel: isWarping ? "WARPING..." : "LAUNCHING...",
         selectedCount: fleet.selectedShips.length,
         maxShips: fleet.maxShips,
         isOverLimit: fleet.isOverLimit,

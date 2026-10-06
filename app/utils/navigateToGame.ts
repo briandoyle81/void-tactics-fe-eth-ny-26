@@ -16,3 +16,19 @@ export function navigateToGame(address: string | undefined, gameId: bigint): voi
   window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
   document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
 }
+
+/**
+ * Web2 counterpart: same tab switch, pre-seeding the keys GamesWeb2.tsx's
+ * restore-on-mount effect reads (selectedGameIdWeb2-/gamesViewModeWeb2-).
+ */
+export function navigateToGameWeb2(userId: string | null | undefined, gameId: number | string): void {
+  if (typeof window === "undefined") return;
+  if (userId) {
+    localStorage.setItem(`selectedGameIdWeb2-${userId}`, String(gameId));
+    localStorage.setItem(`gamesViewModeWeb2-${userId}`, "detail");
+  }
+  localStorage.setItem("void-tactics-active-tab", "Games");
+  localStorage.setItem("void-tactics-force-games-tab", "true");
+  window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
+  document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
+}

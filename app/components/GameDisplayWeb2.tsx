@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import posthog from "posthog-js";
 import {
@@ -71,6 +72,11 @@ import { toGameScoreDataWeb2, toGameWinnerResultWeb2 } from "../utils/gameDispla
 import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
 import { STYLE_LABEL } from "../styles/fontStyles";
+import { useMissionDialog } from "../hooks/useMissionDialog";
+import { resetRoguelikeRunQueriesWeb2, useRoguelikeRunWeb2 } from "../hooks/useRoguelikeWeb2";
+import { DialogLineCard, MissionDialogPanel } from "./MissionDialogPanel";
+import { buildDialogSnapshot } from "../utils/missionDialog";
+import type { DialogMission } from "../types/dialog";
 
 // Web2-mode counterpart to `GameDisplay.tsx`. Genuinely playable (grid
 // interaction via the shared <GameGrid> and useGameplayInteraction hook,
@@ -101,6 +107,7 @@ function GameDisplayWeb2({
   readOnly = false,
 }: GameDisplayWeb2Props) {
   const { userId } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
@@ -274,7 +281,11 @@ function GameDisplayWeb2({
   );
 
   const isCurrentPlayerTurn = !readOnly && game.turnState.currentTurn === userId;
-  const gameWinnerResult = toGameWinnerResultWeb2(game.metadata.winner, userId);
+  // Mirrors GameDisplay.tsx: once the flee request succeeds the game is a
+  // loss, so the result screen shows straight away instead of the board.
+  const [didFlee, setDidFlee] = useState(false);
+  const serverWinnerResult = toGameWinnerResultWeb2(game.metadata.winner, userId);
+  const gameWinnerResult = serverWinnerResult ?? (didFlee ? "opponent" : null);
   const isGameOver = gameWinnerResult !== null;
 
   // Vs-AI games are regular Game rows where the joiner is the AI sentinel
@@ -290,6 +301,17 @@ function GameDisplayWeb2({
   // used to route GameResultModal's "Return to X" CTA and mission copy.
   const isSinglePlayerGame = isVsAIGame && game.metadata.campaignNodeId != null;
   const isRoguelikeGame = isVsAIGame && game.metadata.roguelikeRunId != null;
+  // Mirrors GameDisplay.tsx: PvP and roguelike can flee (a roguelike flee
+  // ends the whole run); the campaign has no flee.
+  const canFlee = !isVsAIGame || isRoguelikeGame;
+  const fleeConsequence = isRoguelikeGame
+    ? (
+        <>
+          This action is irreversible. The engagement will be recorded as a loss and{" "}
+          <span className="text-warning-red">your run will end</span>.
+        </>
+      )
+    : undefined;
 
   const aiTurnLoop = useAITurnLoopWeb2({
     gameId,
@@ -373,6 +395,84 @@ function GameDisplayWeb2({
       };
     },
   );
+
+  const [isGameResultDismissed, setIsGameResultDismissed] = useState(false);
+
+  // In-mission dialog — mirrors GameDisplay.tsx. Campaign missions come from
+  // the game's lobby tag; roguelike combat uses the run's current node, read
+  // only for roguelike games.
+  const { run: roguelikeRunForDialog } = useRoguelikeRunWeb2(isRoguelikeGame);
+  const roguelikeDialogNodeId =
+    isRoguelikeGame && roguelikeRunForDialog ? roguelikeRunForDialog.currentNodeId : 0;
+  const campaignDialogNodeId = isSinglePlayerGame ? (game.metadata.campaignNodeId ?? 0) : 0;
+  const dialogMission: DialogMission | null = useMemo(() => {
+    if (campaignDialogNodeId > 0) return { kind: "campaign", nodeId: campaignDialogNodeId };
+    if (roguelikeDialogNodeId > 0) return { kind: "roguelike", nodeId: roguelikeDialogNodeId };
+    return null;
+  }, [campaignDialogNodeId, roguelikeDialogNodeId]);
+  const dialogSnapshot = useMemo(() => {
+    const isCreatorNow = game.metadata.creator === userId;
+    return buildDialogSnapshot({
+      round: game.turnState.currentRound,
+      myScore: isCreatorNow ? game.creatorScore : game.joinerScore,
+      enemyScore: isCreatorNow ? game.joinerScore : game.creatorScore,
+      ships: game.shipPositions.map((p) => {
+        const index = game.shipIds?.findIndex((id) => id === p.shipId) ?? -1;
+        return {
+          isMine: p.isCreator === isCreatorNow,
+          status: p.status,
+          hullPoints: index >= 0 ? (game.shipAttributes?.[index]?.hullPoints ?? null) : null,
+        };
+      }),
+      // Victory/defeat triggers; a draw is neither.
+      outcome:
+        gameWinnerResult === "me" ? "victory" : gameWinnerResult === "opponent" ? "defeat" : null,
+    });
+  }, [
+    game.metadata.creator,
+    userId,
+    game.turnState.currentRound,
+    game.creatorScore,
+    game.joinerScore,
+    game.shipPositions,
+    game.shipIds,
+    game.shipAttributes,
+    gameWinnerResult,
+  ]);
+  const missionDialog = useMissionDialog({
+    gameId: String(gameId),
+    mission: dialogMission,
+    snapshot: dialogSnapshot,
+    // Stays on after the game ends so victory/defeat lines can play.
+    enabled: !readOnly && !isReplaying,
+    paused: roundStartInfo != null && !isGameOver,
+  });
+  // On the board while the game runs (and after the result screen is
+  // dismissed); while the result screen is up, lines play inside it instead
+  // (missionDebriefNode) since it covers the board.
+  const missionDialogOverlay =
+    (!isGameOver || isGameResultDismissed) &&
+    (missionDialog.current || missionDialog.log.length > 0) ? (
+      <MissionDialogPanel
+        line={missionDialog.current}
+        log={missionDialog.log}
+        position={missionDialog.position}
+        total={missionDialog.total}
+        onAdvance={missionDialog.advance}
+        onDismiss={missionDialog.dismissAll}
+        compact={isLandscapeMobile}
+      />
+    ) : null;
+  const missionDebriefNode = missionDialog.current ? (
+    <DialogLineCard
+      line={missionDialog.current}
+      position={missionDialog.position}
+      total={missionDialog.total}
+      onAdvance={missionDialog.advance}
+      onDismiss={missionDialog.dismissAll}
+      compact={false}
+    />
+  ) : null;
 
   // Pre-resolved special range/data for the selected/dragged ship's equipped
   // special — a plain object lookup for web2 (no real contract-read hook
@@ -728,12 +828,13 @@ function GameDisplayWeb2({
   // own isGameResultDismissed/missionLossReason/nodeId routing (isSinglePlayerGame/
   // isRoguelikeGame above). Also covers web2's tie outcome (WEB2_TIE_SENTINEL),
   // which web3's Game.sol can't produce at all.
-  const [isGameResultDismissed, setIsGameResultDismissed] = useState(false);
   const { contentById: missionContentById, isLoading: missionContentLoading } =
     useNodeContentWeb2("CAMPAIGN");
   const missionLossReason: MissionLossReason | undefined =
     isVsAIGame && gameWinnerResult === "opponent"
-      ? opponentScore >= maxScore
+      ? didFlee
+        ? "fled"
+        : opponentScore >= maxScore
         ? "enemyScore"
         : "fleetDestroyed"
       : undefined;
@@ -756,6 +857,15 @@ function GameDisplayWeb2({
     nodeIdForGame != null && nodeIdForGame > 0
       ? resolveNodeContent(missionContentById, nodeIdForGame, missionContentLoading)
       : undefined;
+  const { contentById: roguelikeContentById, isLoading: roguelikeContentLoading } =
+    useNodeContentWeb2("ROGUELIKE", roguelikeDialogNodeId > 0);
+  // Campaign and roguelike missions show their title instead of the game
+  // number — mirrors GameDisplay.tsx's gameTitleLabel.
+  const gameTitleLabel = missionNodeContent
+    ? missionNodeContent.title
+    : roguelikeDialogNodeId > 0
+      ? resolveNodeContent(roguelikeContentById, roguelikeDialogNodeId, roguelikeContentLoading).title
+      : `Game ${game.metadata.gameId}`;
   const gameResultModalNode = isGameOver && !isGameResultDismissed && (
     <GameResultModal
       isVictory={gameWinnerResult === "me"}
@@ -771,12 +881,23 @@ function GameDisplayWeb2({
           : undefined
       }
       nodeContent={missionNodeContent}
+      comms={missionDebriefNode}
       onClose={() => setIsGameResultDismissed(true)}
       primaryActionLabel={
-        isRoguelikeGame ? "Return to Run" : isSinglePlayerGame ? "Return to Campaign" : "Back to Games"
+        isRoguelikeGame
+          ? gameWinnerResult === "me"
+            ? "Return to Run"
+            : "Quit"
+          : isSinglePlayerGame
+            ? "Return to Campaign"
+            : "Back to Games"
       }
       onPrimaryAction={() => {
         if (isRoguelikeGame) {
+          // Any loss already ended the run; drop the cached run so the
+          // Mission tab opens on the start-a-run screen.
+          if (gameWinnerResult !== "me") resetRoguelikeRunQueriesWeb2(queryClient);
+          else void queryClient.invalidateQueries({ queryKey: ["ships", "owned", "web2"] });
           window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
           document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
         } else if (isSinglePlayerGame) {
@@ -943,7 +1064,7 @@ function GameDisplayWeb2({
   // in landscape-mobile (no side header rail there to hold the flee switch)
   // and only when stacked/portrait in the main render (desktop side layout
   // already has FleeSafetySwitch in the header rail instead).
-  const fleeMenuNode = !readOnly && !gameWinnerResult && (
+  const fleeMenuNode = !readOnly && !gameWinnerResult && canFlee && (
     <div className="pointer-events-none absolute right-1 top-1 z-[230]">
       <div className="pointer-events-auto relative">
         <button
@@ -971,10 +1092,13 @@ function GameDisplayWeb2({
             }}
           >
             <FleeSafetySwitch
+              consequence={fleeConsequence}
               onFlee={async () => {
+                setDidFlee(true);
                 setIsMobileFleeOpen(false);
-                await Promise.resolve(refetchGame());
-                await Promise.resolve(refetch?.());
+                // Background sync only — the result screen is already showing.
+                void Promise.resolve(refetchGame());
+                void Promise.resolve(refetch?.());
               }}
               renderConfirmButton={(onSuccess) => (
                 <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
@@ -1134,7 +1258,7 @@ function GameDisplayWeb2({
                   </button>
                   <div className="min-w-0 flex-1 text-center">
                     <p className="truncate text-[10px] uppercase tracking-wider text-text-secondary">
-                      Game {game.metadata.gameId} | Round {game.turnState.currentRound}
+                      {gameTitleLabel} | Round {game.turnState.currentRound}
                     </p>
                     <p
                       className="truncate text-[10px] uppercase tracking-wider"
@@ -1248,7 +1372,7 @@ function GameDisplayWeb2({
             style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}`, paddingRight: "2px", paddingTop: "2px" }}
           >
             <div className="h-full max-h-full" style={{ height: "calc(100% - 2px)", width: "auto", aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
-              <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove}>
+              <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove} overlay={missionDialogOverlay}>
                 <div className="relative h-full [contain:layout]" style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
                   <div className="absolute inset-0 min-h-0 overflow-hidden">
                     {gameGridNode}
@@ -1302,7 +1426,7 @@ function GameDisplayWeb2({
               ← Back
             </button>
             <h1 className="text-2xl font-mono text-white flex items-center gap-3">
-              <span>Game {game.metadata.gameId}</span>
+              <span>{gameTitleLabel}</span>
               <span className="text-text-muted text-base">Round {game.turnState.currentRound}</span>
             </h1>
             {!isGameOver && (() => {
@@ -1347,11 +1471,15 @@ function GameDisplayWeb2({
                 {gameWinnerResult === "tie" ? "TIE" : gameWinnerResult === "me" ? "VICTORY" : "DEFEAT"}
               </div>
             ) : (
-              !readOnly && (
+              !readOnly &&
+              canFlee && (
                 <FleeSafetySwitch
+                  consequence={fleeConsequence}
                   onFlee={async () => {
-                    await Promise.resolve(refetchGame());
-                    await Promise.resolve(refetch?.());
+                    setDidFlee(true);
+                    // Background sync only — the result screen is already showing.
+                    void Promise.resolve(refetchGame());
+                    void Promise.resolve(refetch?.());
                   }}
                   renderConfirmButton={(onSuccess) => (
                     <FleeConfirmButtonWeb2 gameId={gameId} onSuccess={onSuccess} />
@@ -1421,7 +1549,7 @@ function GameDisplayWeb2({
 
         {/* Game grid */}
         <div className="relative min-h-0 min-w-0 flex-1">
-          <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove}>
+          <GameBoardLayout isCurrentPlayerTurn={isCurrentPlayerTurn} containerRef={gridContainerRef} onBoardChromeMouseDown={handleCancelMove} overlay={missionDialogOverlay}>
             <div className="relative w-full [contain:layout]" style={{ aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}` }}>
               <div className="absolute inset-0 min-h-0 overflow-hidden">
                 {gameGridNode}
@@ -1443,9 +1571,15 @@ function GameDisplayWeb2({
               label={replayStep! < 0 ? "Replay · Start" : `Replay · Move ${replayStep! + 1}/${replayData!.turns.length}`}
             />
           )}
-          {/* Replay controls (bottom-left). Same single entry as GameDisplay.tsx. */}
-          <div className="absolute bottom-0 left-0 z-[225] pointer-events-none flex items-end">
-            <div className="pointer-events-auto flex items-end gap-2 pb-1 pl-1">
+          {/* Replay controls (top-left, below the replay banner while it's
+              showing). Same placement as GameDisplay.tsx; the bottom-left
+              corner belongs to the comms panel. */}
+          <div
+            className={`absolute left-0 z-[225] pointer-events-none flex items-start ${
+              showReplay ? "top-7" : "top-0"
+            }`}
+          >
+            <div className="pointer-events-auto flex items-start gap-2 pt-1 pl-1">
               {!showReplay && (
                 <button
                   type="button"

@@ -9,6 +9,19 @@ import { GameLogCard } from "./GameLogCard";
 import { GamesListShell } from "./GamesListShell";
 import { GameDataView } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
+import { SINGLE_PLAYER_MATCH_ADDRESS } from "../hooks/useSinglePlayerMatch";
+import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
+import { useShowPveGames } from "../hooks/useShowPveGames";
+
+// PvE = a campaign or roguelike mission, i.e. a game orchestrated by
+// SinglePlayerMatch or RoguelikeMatch (same test as GameDisplay.tsx).
+function isPveGame(game: GameDataView): boolean {
+  const orchestrator = game.metadata.orchestrator?.toLowerCase();
+  return (
+    orchestrator === SINGLE_PLAYER_MATCH_ADDRESS.toLowerCase() ||
+    orchestrator === ROGUELIKE_MATCH_ADDRESS.toLowerCase()
+  );
+}
 
 const Games: React.FC = () => {
   const { address, isConnected } = useAccount();
@@ -75,6 +88,12 @@ const Games: React.FC = () => {
     });
     return copy;
   }, [games]);
+
+  const [showPve, setShowPve] = useShowPveGames();
+  const visibleGames = useMemo(
+    () => (showPve ? sortedGames : sortedGames.filter((g) => !isPveGame(g))),
+    [sortedGames, showPve],
+  );
 
   // Persist selectedGame to localStorage
   const storageKey = useMemo(
@@ -303,9 +322,12 @@ const Games: React.FC = () => {
         authRequiredMessage="Please connect your wallet to view your games."
         isLoading={showGamesLoading}
         error={error}
-        count={sortedGames.length}
+        count={visibleGames.length}
+        showPve={showPve}
+        onShowPveChange={setShowPve}
+        hiddenPveCount={sortedGames.length - visibleGames.length}
       >
-        {sortedGames.map((game) => {
+        {visibleGames.map((game) => {
         const isFinished = game.metadata.winner !== ZERO_ADDRESS;
         const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
         const isVictory = isFinished && !isDraw && game.metadata.winner === address;

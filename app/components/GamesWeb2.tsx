@@ -9,6 +9,8 @@ import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import GameDisplayWeb2 from "./GameDisplayWeb2";
 import { GameLogCard } from "./GameLogCard";
 import { GamesListShell } from "./GamesListShell";
+import { AI_USER_ID } from "../config/aiUser";
+import { useShowPveGames } from "../hooks/useShowPveGames";
 
 // Web2-mode counterpart to `Games.tsx` — same list/detail navigation pattern
 // and card layout, backed by `usePlayerGamesWeb2`/session user id instead of
@@ -52,6 +54,14 @@ const GamesWeb2: React.FC = () => {
     });
     return copy;
   }, [games]);
+
+  // PvE = vs-AI games (campaign and roguelike missions), same test as
+  // GameDisplayWeb2.tsx's isVsAIGame. Hidden unless toggled on.
+  const [showPve, setShowPve] = useShowPveGames();
+  const visibleGames = useMemo(
+    () => (showPve ? sortedGames : sortedGames.filter((g) => g.metadata.joiner !== AI_USER_ID)),
+    [sortedGames, showPve],
+  );
 
   const storageKey = useMemo(() => `selectedGameIdWeb2-${userId || "anonymous"}`, [userId]);
   const viewModeKey = useMemo(() => `gamesViewModeWeb2-${userId || "anonymous"}`, [userId]);
@@ -146,9 +156,12 @@ const GamesWeb2: React.FC = () => {
       authRequiredMessage="Please sign in to view your games."
       isLoading={isLoading}
       error={error}
-      count={sortedGames.length}
+      count={visibleGames.length}
+      showPve={showPve}
+      onShowPveChange={setShowPve}
+      hiddenPveCount={sortedGames.length - visibleGames.length}
     >
-      {sortedGames.map((game) => (
+      {visibleGames.map((game) => (
         <GameCardWeb2
           key={game.metadata.gameId}
           game={game}

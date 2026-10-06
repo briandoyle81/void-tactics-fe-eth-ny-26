@@ -3,6 +3,8 @@
 import { useCallback } from "react";
 import { useConfig, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateShipsReads } from "./useShipsContract";
 import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
@@ -36,6 +38,7 @@ export function useRoguelikeMatchContract() {
 export function useRoguelikeMatch() {
   const { writeContractAsync } = useWriteContract();
   const config = useConfig();
+  const queryClient = useQueryClient();
 
   // Callers refetch run/node state right after these resolve, so each write
   // waits for its receipt here rather than just returning the submitted
@@ -51,10 +54,18 @@ export function useRoguelikeMatch() {
         chainId: CHAIN_ID,
         ...(gas != null ? { gas } : {}),
       });
-      await waitForTransactionReceipt(config, { hash, chainId: CHAIN_ID });
+      const receipt = await waitForTransactionReceipt(config, { hash, chainId: CHAIN_ID });
+      // A mined-but-reverted tx resolves here too; surface it as a failure
+      // instead of letting callers report success.
+      if (receipt.status === "reverted") {
+        throw new Error(`Transaction reverted (${functionName})`);
+      }
+      // Starting, advancing or ending a run reserves/releases roster ships
+      // (inFleet), which the staleTime: Infinity Ships reads won't notice.
+      void invalidateShipsReads(queryClient);
       return hash;
     },
-    [writeContractAsync, config],
+    [writeContractAsync, config, queryClient],
   );
 
   const startRun = useCallback(

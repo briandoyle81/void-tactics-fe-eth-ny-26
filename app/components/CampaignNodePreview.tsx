@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import { nodeContentTextClass } from "../hooks/useNodeContent";
+import { MissionBriefing } from "./MissionBriefing";
+import { MissionNodePanel } from "./MissionNodePanel";
+import { MissionDossier } from "./MissionDossier";
+import { campaignDossierRows } from "../utils/missionDossierRows";
 import { useAccount } from "wagmi";
 import { useCampaignRequiredVariant, type CampaignGraphNodeWithContent } from "../hooks/useNodeMap";
 import {
@@ -9,14 +12,10 @@ import {
   useGetMapPlacements,
 } from "../hooks/useAIEncountersContract";
 import type { AIShipConfig } from "../types/types";
-import { ShipImage } from "./ShipImage";
-import ShipCard from "./ShipCard";
-import { toShipCardData } from "../utils/toShipCardData";
-import { ARCHETYPE_LABEL, aiConfigToPreviewShip } from "../utils/aiShipConfig";
+import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { NodeMatchModal } from "./NodeMatchModal";
 import { useNodeGameStatus } from "../hooks/useNodeGameStatus";
 import { navigateToGame } from "../utils/navigateToGame";
-import { EnemyFleetPreview } from "./EnemyFleetPreview";
 
 interface CampaignNodePreviewProps {
   node: CampaignGraphNodeWithContent;
@@ -47,39 +46,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
     return placements.configIds.map((configId) => configById.get(configId.toString()));
   }, [placements, configById]);
 
-  const fleetShips = React.useMemo(
-    () =>
-      enemyShips.flatMap((config, i) => {
-        if (!config) return [];
-        const previewShip = aiConfigToPreviewShip(config);
-        return [
-          {
-            key: `${config.id.toString()}-${i}`,
-            name: config.name || ARCHETYPE_LABEL[config.archetype],
-            renderImage: () => (
-              <ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} hideRankStars />
-            ),
-            renderHoverCard: () => (
-              <ShipCard
-                ship={toShipCardData(previewShip)}
-                shipImage={<ShipImage ship={previewShip} className="h-full w-full" showLoadingState={false} />}
-                isStarred={false}
-                onToggleStar={() => {}}
-                isSelected={false}
-                onToggleSelection={() => {}}
-                onRecycleClick={() => {}}
-                showInGameProperties={false}
-                hideRecycle
-                hideCheckbox
-                tooltipMode
-              />
-            ),
-          },
-        ];
-      }),
-    [enemyShips],
-  );
-
   const totalEnemyThreat = React.useMemo(
     () =>
       enemyShips.reduce(
@@ -90,63 +56,68 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
   );
 
   return (
-    <div
-      className="relative grid grid-cols-1 gap-8 border-2 border-cyan p-6 font-mono md:grid-cols-2"
-      style={{ borderRadius: 0 }}
-    >
-      <div className="flex flex-col">
-        <h3 className={`text-xl font-bold ${nodeContentTextClass(node.titleStatus, "text-cyan")}`}>{node.title}</h3>
-        <p className={`mt-2 whitespace-pre-line text-sm ${nodeContentTextClass(node.descriptionStatus, "text-text-secondary")}`}>
-          {node.description}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-          <span>
-            Player cost limit: <span className="text-cyan">{node.costLimit.toString()}</span>
-          </span>
-        </div>
-        {!!requiredVariant && (
-          <div className="mt-2 inline-flex w-fit items-center gap-1.5 border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] uppercase tracking-wider text-amber">
-            Requires Faction {requiredVariant} fleet
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            if (activeGameId != null) {
-              navigateToGame(address, activeGameId);
-            } else {
-              setShowFleetModal(true);
-            }
+    <MissionNodePanel
+      title={node.title}
+      titleStatus={node.titleStatus}
+      meta={<>Mission · Node #{node.id.toString()}</>}
+      briefing={
+        <MissionBriefing
+          mission={{ kind: "campaign", nodeId: Number(node.id) }}
+          text={node.description}
+          status={node.descriptionStatus}
+        />
+      }
+      dossier={
+        <MissionDossier
+          forces={{
+            enemyShips: placementsLoading || configsLoading ? null : enemyShips.filter(Boolean).length,
+            enemy: placementsLoading || configsLoading ? null : totalEnemyThreat,
+            yours: Number(node.costLimit),
+            yoursLabel: "Your fleet limit",
           }}
-          disabled={!node.unlocked || !isConnected}
-          className={`mt-6 self-start border-2 px-4 py-2 text-sm font-bold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-            activeGameId != null
-              ? "border-warning-red text-warning-red hover:bg-warning-red/10"
-              : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
-          }`}
-          style={{ borderRadius: 0 }}
-          title={
-            !isConnected
-              ? "Connect a wallet to launch"
-              : !node.unlocked
-                ? "Not unlocked yet"
-                : undefined
+          rows={campaignDossierRows({
+            maxScore: Number(node.maxScore),
+            creatorGoesFirst: node.creatorGoesFirst,
+            turnTimeSeconds: Number(node.turnTime),
+            requiredVariant: requiredVariant ?? 0,
+            unlocked: node.unlocked,
+            completed: node.completed,
+          })}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                if (activeGameId != null) {
+                  navigateToGame(address, activeGameId);
+                } else {
+                  setShowFleetModal(true);
+                }
+              }}
+              disabled={!node.unlocked || !isConnected}
+              className={`border-2 px-4 py-2 text-sm font-bold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeGameId != null
+                  ? "border-warning-red text-warning-red hover:bg-warning-red/10"
+                  : "border-phosphor-green text-phosphor-green hover:bg-phosphor-green/10"
+              }`}
+              style={{ borderRadius: 0 }}
+              title={
+                !isConnected
+                  ? "Connect a wallet to launch"
+                  : !node.unlocked
+                    ? "Not unlocked yet"
+                    : undefined
+              }
+            >
+              {activeGameId != null
+                ? "[ENTER COMBAT]"
+                : node.completed
+                  ? "[REPLAY MISSION]"
+                  : "[LAUNCH MISSION]"}
+            </button>
           }
-        >
-          {activeGameId != null
-            ? "[ENTER COMBAT]"
-            : node.completed
-              ? "[REPLAY MISSION]"
-              : "[LAUNCH MISSION]"}
-        </button>
-      </div>
-
-      <EnemyFleetPreview
-        ships={fleetShips}
-        totalCost={totalEnemyThreat}
-        isLoading={placementsLoading || configsLoading}
-      />
-
+        />
+      }
+    >
       {showFleetModal && (
         <NodeMatchModal
           node={node}
@@ -154,6 +125,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
           onLaunched={() => setShowFleetModal(false)}
         />
       )}
-    </div>
+    </MissionNodePanel>
   );
 }

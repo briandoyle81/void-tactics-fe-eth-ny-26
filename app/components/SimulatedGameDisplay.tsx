@@ -47,6 +47,10 @@ import {
 } from "../utils/toGridDisplay";
 import { TutorialGridTaskPanel } from "./TutorialGridTaskPanel";
 import { GameBoardLayout } from "./GameBoardLayout";
+import { MissionDialogPanel } from "./MissionDialogPanel";
+import { useMissionDialog } from "../hooks/useMissionDialog";
+import { buildDialogSnapshot } from "../utils/missionDialog";
+import type { DialogMission } from "../types/dialog";
 import {
   GameEvents,
   type GameEventsLastMove,
@@ -110,6 +114,8 @@ import {
   TUTORIAL_COMPLETION_RETREAT_PRIMARY_CTA_SUPPORTING,
   type TutorialGridPanelConfig,
 } from "./TutorialGridPanelConfigs";
+
+const TUTORIAL_DIALOG_MISSION: DialogMission = { kind: "tutorial" };
 
 interface SimulatedGameDisplayProps {
   tutorialContext: TutorialContextValue;
@@ -3003,6 +3009,64 @@ export function SimulatedGameDisplay({
       : selectedShip
         ? getMainWeaponName(selectedShip.equipment.mainWeapon, selectedShipVariant)
         : "Weapon";
+  const tutorialTaskPanelAnchor: "left" | "right" =
+    currentStep?.id === "rescue" ||
+    currentStep?.id === "goals" ||
+    currentStep?.id === "view-enemy" ||
+    currentStep?.id === "move-ship" ||
+    currentStep?.id === "score-points" ||
+    currentStep?.id === "special-emp"
+      ? "left"
+      : "right";
+
+  // In-mission dialog — same hook and panel as GameDisplay.tsx. Tutorial-only
+  // difference: the panel moves to the side away from the task panel, and
+  // state isn't persisted (the tutorial starts over on every visit).
+  const dialogSnapshot = useMemo(() => {
+    const isCreatorNow =
+      gameState.metadata.creator.toLowerCase() === TUTORIAL_PLAYER_ADDRESS.toLowerCase();
+    return buildDialogSnapshot({
+      round: Number(gameState.turnState.currentRound),
+      myScore: Number(isCreatorNow ? gameState.creatorScore : gameState.joinerScore),
+      enemyScore: Number(isCreatorNow ? gameState.joinerScore : gameState.creatorScore),
+      ships: gameState.shipPositions.map((p) => ({
+        isMine: p.isCreator === isCreatorNow,
+        status: p.status,
+        hullPoints: getShipAttributes(p.shipId)?.hullPoints ?? null,
+      })),
+    });
+  }, [
+    gameState.metadata.creator,
+    gameState.turnState.currentRound,
+    gameState.creatorScore,
+    gameState.joinerScore,
+    gameState.shipPositions,
+    getShipAttributes,
+  ]);
+  const missionDialog = useMissionDialog({
+    gameId: "tutorial",
+    mission: TUTORIAL_DIALOG_MISSION,
+    snapshot: dialogSnapshot,
+    enabled: true,
+    paused: roundStartInfo != null,
+    persist: false,
+  });
+  const missionDialogOverlay =
+    missionDialog.current || missionDialog.log.length > 0 ? (
+      <MissionDialogPanel
+        line={missionDialog.current}
+        log={missionDialog.log}
+        position={missionDialog.position}
+        total={missionDialog.total}
+        onAdvance={missionDialog.advance}
+        onDismiss={missionDialog.dismissAll}
+        compact={isLandscapeMobile}
+        className={
+          tutorialGridPanelConfig && tutorialTaskPanelAnchor === "left" ? "ml-auto" : ""
+        }
+      />
+    ) : null;
+
   const tutorialDefaultLabel = isLandscapeMobile ? "Tap here" : "Click here";
 
   // ── GameGrid boundary adapter ───────────────────────────────────────────
@@ -3908,6 +3972,7 @@ export function SimulatedGameDisplay({
                 isCurrentPlayerTurn={isMyTurn}
                 containerRef={gridContainerRef}
                 onBoardChromeMouseDown={handleBoardChromeMouseDown}
+                overlay={missionDialogOverlay}
               >
                 <div
                   className="relative h-full [contain:layout]"
@@ -4742,6 +4807,7 @@ export function SimulatedGameDisplay({
             isCurrentPlayerTurn={isMyTurn}
             containerRef={gridContainerRef}
             onBoardChromeMouseDown={handleBoardChromeMouseDown}
+            overlay={missionDialogOverlay}
           >
             {/* Fixed 17×11 aspect so the board does not resize between tutorial steps
               while state hydrates; overlay blocks interaction until ready. */}
@@ -4871,16 +4937,7 @@ export function SimulatedGameDisplay({
                   tasks={tutorialGridPanelConfig.tasks}
                   tasksSectionLabel={tutorialGridPanelConfig.tasksSectionLabel}
                   primaryCta={tutorialGridPanelConfig.primaryCta}
-                  panelAnchor={
-                    currentStep?.id === "rescue" ||
-                    currentStep?.id === "goals" ||
-                    currentStep?.id === "view-enemy" ||
-                    currentStep?.id === "move-ship" ||
-                    currentStep?.id === "score-points" ||
-                    currentStep?.id === "special-emp"
-                      ? "left"
-                      : "right"
-                  }
+                  panelAnchor={tutorialTaskPanelAnchor}
                   panelVerticalAnchor={
                     currentStep?.id === "rescue" ? "bottom" : "top"
                   }

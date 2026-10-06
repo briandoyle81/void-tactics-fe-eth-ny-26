@@ -11,6 +11,16 @@ export interface VictoryReasonEnemyShip {
 }
 
 /**
+ * True when a ship is out of the fight by damage: marked destroyed, or still
+ * marked active but at 0 hull (disabled). Fled ships and ships with unknown
+ * attributes are not counted. Shared with the mission dialog triggers
+ * (missionDialog.ts) so "destroyed" means the same thing in both places.
+ */
+export function isShipKnockedOut(ship: VictoryReasonEnemyShip): boolean {
+  return ship.status === 1 || ((ship.status ?? 0) === 0 && (ship.hullPoints ?? 1) <= 0);
+}
+
+/**
  * Why the player won, inferred from final game state:
  * - reached the score target -> site control
  * - enemy still had flyable ships -> the match ended early (enemy fled the
@@ -34,8 +44,6 @@ export function inferVictoryReason({
     (s.status ?? 0) === 0 && (s.hullPoints ?? 1) > 0;
   if (enemyShips.some(isFlying)) return "enemyFled";
 
-  const anyKnockedOut = enemyShips.some(
-    (s) => s.status === 1 || ((s.status ?? 0) === 0 && (s.hullPoints ?? 1) <= 0),
-  );
+  const anyKnockedOut = enemyShips.some(isShipKnockedOut);
   return anyKnockedOut || enemyShips.length === 0 ? "fleetDestroyed" : "enemyFled";
 }

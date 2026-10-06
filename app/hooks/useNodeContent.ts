@@ -125,10 +125,11 @@ interface NodeContentRow {
 const WEB2_QUERY_KEY = (graphType: NodeGraphType) => ["node-content", graphType];
 
 /** Web2 node text from the NodeContent table. */
-export function useNodeContentWeb2(graphType: NodeGraphType) {
+export function useNodeContentWeb2(graphType: NodeGraphType, enabled = true) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: WEB2_QUERY_KEY(graphType),
     queryFn: () => apiFetch<NodeContentRow[]>(`/api/node-content?graphType=${graphType}`),
+    enabled,
   });
 
   const contentById = useMemo(() => {

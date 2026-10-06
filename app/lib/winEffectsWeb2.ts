@@ -21,12 +21,11 @@ import {
 // in winEffectsCatalog.ts (re-exported below) since this file imports
 // prisma and can't be pulled into a client bundle.
 //
-// HEAL_ABOVE_FLOOR_WIN_EFFECT is defined in the catalog for config/UI
-// parity only — applyWinEffects() does not act on it yet. The on-chain
-// onWin()'s second argument (whether it targets one ship or the whole
-// winning fleet) needs confirming against the Solidity source (not in this
-// repo) before its targeting can be replicated correctly; wiring it in now
-// would guess at game-balance-affecting behavior.
+// HEAL_ABOVE_FLOOR_WIN_EFFECT isn't handled by applyWinEffects(): like the
+// on-chain HealAboveFloorWinEffect it raises every surviving roguelike
+// roster ship to healAboveFloorPercent of max hull, so it's applied inside
+// resolveRoguelikeRunIfApplicable alongside the campaign auto-heal floor.
+// Outside roguelike (PvP/tournament) it's a no-op, same as on chain.
 export { WIN_EFFECT_KEYS, WIN_EFFECT_LABELS, IMPLEMENTED_WIN_EFFECT_KEYS, isWinEffectKey };
 export type { WinEffectKey };
 
@@ -34,7 +33,7 @@ export interface WinEffectsSettings {
   decBonusAmount: number;
   shipGrantVariant: number; // 0-2, matches Web2ShipTraits.variant's roll range
   shipGrantTier: number; // 0-3, minimum equipment level the grant guarantees
-  healAboveFloorPercent: number; // stored for parity; not yet applied, see module doc
+  healAboveFloorPercent: number; // applied in resolveRoguelikeRunIfApplicable, see module doc
   healCapPercent: number; // 100 = uncapped — caps every heal effect (Repair special, win-effect heals) at this % of max HP
   pvpWinEffects: WinEffectKey[];
   tournamentWinEffects: WinEffectKey[];
@@ -106,8 +105,8 @@ async function grantShip(ownerId: string, variant: number, tier: number): Promis
 /**
  * Applies the given subset of effect keys (already filtered to whichever
  * list is relevant — a node's own winEffects, or the global pvp/tournament
- * list) to `winnerId`. Silently skips HEAL_ABOVE_FLOOR_WIN_EFFECT — see
- * module doc.
+ * list) to `winnerId`. Skips HEAL_ABOVE_FLOOR_WIN_EFFECT, which the
+ * roguelike resolver applies itself — see module doc.
  */
 export async function applyWinEffects(effects: readonly string[], winnerId: string): Promise<void> {
   if (effects.length === 0) return;

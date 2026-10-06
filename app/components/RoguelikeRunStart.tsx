@@ -33,7 +33,8 @@ const SHIPS_PER_PAGE = 100;
 const DEFAULT_ROGUELIKE_CAMPAIGN_ID = 1n;
 
 interface RoguelikeRunStartProps {
-  onRunStarted: () => void;
+  /** Awaited so the button keeps showing "starting" until the run is readable. */
+  onRunStarted: () => void | Promise<void>;
 }
 
 // "No active run" landing state: pick a roster (single variant, no per-
@@ -150,7 +151,7 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
     try {
       await startRun(DEFAULT_ROGUELIKE_CAMPAIGN_ID, fleet.selectedShips);
       toast.success("Run started!");
-      onRunStarted();
+      await onRunStarted();
     } catch (error) {
       console.error("Failed to start run:", error);
       const message = error instanceof Error ? error.message : String(error);

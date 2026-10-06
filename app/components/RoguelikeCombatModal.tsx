@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { useAccount, usePublicClient } from "wagmi";
+import { useAccount, useConfig, usePublicClient } from "wagmi";
+import { waitForPlayerGame } from "../utils/waitForPlayerGame";
 import { useQueryClient } from "@tanstack/react-query";
 import { baseSepolia } from "viem/chains";
 import { parseEventLogs, type Abi } from "viem";
@@ -52,6 +53,10 @@ export function RoguelikeCombatModal({
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  // "warping" = tx confirmed, waiting for the Games tab's list to have the
+  // new game so navigation opens it directly.
+  const [isWarping, setIsWarping] = React.useState(false);
+  const wagmiConfig = useConfig();
   const [filtersExpanded, setFiltersExpanded] = React.useState(false);
   const [showInGameProperties, setShowInGameProperties] = React.useState(true);
   const seededRef = React.useRef(false);
@@ -71,8 +76,12 @@ export function RoguelikeCombatModal({
   // No cost-cap check here — the roster was already validated against the
   // run's cost cap when it was assembled (startRun / resupplyModifyRoster);
   // combat entry only needs positioning.
+  // A run's roster is a single faction; lock placement to it (the hook
+  // otherwise defaults to faction 1 and would skip a faction-2 roster).
+  const rosterVariant = rosterShips[0]?.traits.variant;
   const fleet = useFleetPlacement({
     ships: rosterShips,
+    requiredVariant: rosterVariant,
     costLimit: Number.MAX_SAFE_INTEGER,
     costsVersion: null,
     isCreatorSide: true,
@@ -83,10 +92,12 @@ export function RoguelikeCombatModal({
   // is no ship-selection step here, only placement.
   React.useEffect(() => {
     if (seededRef.current || rosterShips.length === 0) return;
+    // Wait for the hook to pick up the roster's faction lock first.
+    if (fleet.selectedVariant !== rosterVariant) return;
     seededRef.current = true;
-    rosterShips.forEach((s) => fleet.addShip(s.id));
+    fleet.addShips(rosterShips.map((s) => s.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterShips]);
+  }, [rosterShips, rosterVariant, fleet.selectedVariant]);
 
   const { data: enemyPlacements } = useGetMapPlacements(targetNode.mapId);
   const { data: allEnemyConfigs } = useGetAllAIShipConfigs();
@@ -124,8 +135,18 @@ export function RoguelikeCombatModal({
     if (fleet.selectedShips.length === 0 || !fleet.hasMovedShip) return;
     setIsSubmitting(true);
     try {
-      const positions = fleet.shipPositions.map((p) => ({ row: p.row, col: p.col }));
-      const hash = await enterCombatNode(targetNode.id, positions);
+      // enterCombatNode pairs positions[i] with run.rosterShipIds[i], so send
+      // them in roster order, not the order ships were placed.
+      const positionByShipId = new Map(
+        fleet.shipPositions.map((p) => [p.shipId.toString(), { row: p.row, col: p.col }]),
+      );
+      const positions = run.rosterShipIds.map((id) => positionByShipId.get(id.toString()));
+      if (positions.some((p) => !p)) {
+        toast.error("Every roster ship needs a starting position.");
+        return;
+      }
+      const orderedPositions = positions as Array<{ row: number; col: number }>;
+      const hash = await enterCombatNode(targetNode.id, orderedPositions);
       if (publicClient) {
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
         const logs = parseEventLogs({
@@ -137,7 +158,11 @@ export function RoguelikeCombatModal({
         if (!gameId) {
           console.error("CombatNodeEntered event not found in receipt", receipt);
         } else {
-          await queryClient.invalidateQueries();
+          setIsWarping(true);
+          const found = address
+            ? await waitForPlayerGame({ config: wagmiConfig, queryClient, playerAddress: address, gameId })
+            : false;
+          if (!found) toast("Mission started. Still syncing your games list…");
           navigateToGame(address, gameId);
         }
       }
@@ -163,6 +188,7 @@ export function RoguelikeCombatModal({
       }
     } finally {
       setIsSubmitting(false);
+      setIsWarping(false);
     }
   };
 
@@ -241,7 +267,7 @@ export function RoguelikeCombatModal({
       onGoToGames={onLaunched}
       createButtonState={{
         isBusy: isSubmitting,
-        busyLabel: "LAUNCHING...",
+        busyLabel: isWarping ? "WARPING..." : "LAUNCHING...",
         selectedCount: fleet.selectedShips.length,
         maxShips: rosterShips.length,
         isOverLimit: false,

@@ -3,25 +3,36 @@
 import React from "react";
 import { TransactionButton, type TransactionFollowUp } from "./TransactionButton";
 import { usePvPMatchContract } from "../hooks/useGameContract";
+import { useRoguelikeMatchContract } from "../hooks/useRoguelikeMatch";
 import { toast } from "react-hot-toast";
 
 // The web3-specific CONFIRM button for FleeSafetySwitch.tsx's retreat
-// modal — wraps the contract `flee` call. Pass to `renderConfirmButton`.
-// `flee` lives on PvPMatch (not Game) — see usePvPMatchContract.
+// modal. Pass to `renderConfirmButton`.
+// - PvP: `PvPMatch.flee(gameId)` (flee lives on PvPMatch, not Game).
+// - Roguelike: `RoguelikeMatch.retreatRun(gameId)`, which forfeits the
+//   match as a loss and ends the run (the contract has no mission-only
+//   retreat).
 interface FleeConfirmButtonWeb3Props {
   gameId: bigint;
   onSuccess: TransactionFollowUp;
+  isRoguelike?: boolean;
 }
 
-export function FleeConfirmButtonWeb3({ gameId, onSuccess }: FleeConfirmButtonWeb3Props) {
+export function FleeConfirmButtonWeb3({
+  gameId,
+  onSuccess,
+  isRoguelike = false,
+}: FleeConfirmButtonWeb3Props) {
   const pvpMatchContract = usePvPMatchContract();
+  const roguelikeMatchContract = useRoguelikeMatchContract();
+  const contract = isRoguelike ? roguelikeMatchContract : pvpMatchContract;
 
   return (
     <TransactionButton
       transactionId={`flee-game-${gameId}`}
-      contractAddress={pvpMatchContract.address}
-      abi={pvpMatchContract.abi}
-      functionName="flee"
+      contractAddress={contract.address}
+      abi={contract.abi}
+      functionName={isRoguelike ? "retreatRun" : "flee"}
       args={[gameId]}
       onSuccess={async () => {
         toast.success("Disengaged from battle.");

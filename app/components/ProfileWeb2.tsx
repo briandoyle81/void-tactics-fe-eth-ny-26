@@ -6,6 +6,7 @@ import { usePlayerGamesWeb2 } from "../hooks/usePlayerGamesWeb2";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import { PlayerStatsPanel } from "./PlayerStatsPanel";
 import { GameHistoryList, type GameHistoryRowData } from "./GameHistoryList";
+import { navigateToGameWeb2 } from "../utils/navigateToGame";
 
 // Web2-mode counterpart to `Profile.tsx` — same layout/copy, backed by
 // `usePlayerGamesWeb2`/session user id instead of `usePlayerGames`/wallet
@@ -92,9 +93,7 @@ const ProfileWeb2: React.FC = () => {
 
   const navigateToGame = (gameId: string) => {
     if (!userId) return;
-    localStorage.setItem(`selectedGameIdWeb2-${userId}`, gameId);
-    localStorage.setItem(`gamesViewModeWeb2-${userId}`, "detail");
-    window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-games"));
+    navigateToGameWeb2(userId, gameId);
   };
 
   return (

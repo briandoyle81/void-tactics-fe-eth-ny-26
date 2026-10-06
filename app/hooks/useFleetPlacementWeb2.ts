@@ -130,22 +130,32 @@ export function useFleetPlacementWeb2({
   const lockedVariant = selectedVariant;
   const variantLocked = required != null;
 
-  const addShip = useCallback(
-    (shipId: number) => {
-      const ship = ships.find((s) => s.id === shipId);
-      if (lockedVariant != null && ship && ship.traits.variant !== lockedVariant) {
-        return;
+  // Places several ships in one go, each against the positions already
+  // taken by the ones before it. Calling addShip in a loop instead reads the
+  // same render's shipPositions every time, so every ship got the same
+  // "next free" tile (roguelike combat seeds its whole roster this way).
+  const addShips = useCallback(
+    (shipIds: number[]) => {
+      const placed = [...shipPositions];
+      const added: Array<{ shipId: number; row: number; col: number }> = [];
+      for (const shipId of shipIds) {
+        if (placed.some((p) => p.shipId === shipId)) continue;
+        const ship = ships.find((s) => s.id === shipId);
+        if (lockedVariant != null && ship && ship.traits.variant !== lockedVariant) continue;
+        const position = findNextPosition(placed);
+        if (!position) break;
+        const entry = { shipId, row: position.row, col: position.col };
+        placed.push(entry);
+        added.push(entry);
       }
-      const position = findNextPosition(shipPositions);
-      if (!position) return;
-      setSelectedShips((prev) => [...prev, shipId]);
-      setShipPositions((prev) => [
-        ...prev,
-        { shipId, row: position.row, col: position.col },
-      ]);
+      if (added.length === 0) return;
+      setSelectedShips((prev) => [...prev, ...added.map((a) => a.shipId)]);
+      setShipPositions((prev) => [...prev, ...added]);
     },
     [shipPositions, findNextPosition, ships, lockedVariant],
   );
+
+  const addShip = useCallback((shipId: number) => addShips([shipId]), [addShips]);
 
   const removeShip = useCallback((shipId: number) => {
     setSelectedShips((prev) => prev.filter((id) => id !== shipId));
@@ -258,6 +268,7 @@ export function useFleetPlacementWeb2({
     dragOverPosition,
     setDragOverPosition,
     addShip,
+    addShips,
     removeShip,
     moveShip,
     findNextPosition,

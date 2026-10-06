@@ -50,6 +50,12 @@ interface GameResultModalProps {
    * copy/color with neutral "Draw" framing; never set for a mission
    * (single-player has no web2 equivalent). */
   isTie?: boolean;
+  /**
+   * Mission comms debrief (victory/defeat dialog from useMissionDialog),
+   * shown above the actions while lines are queued. Usually a
+   * DialogLineCard.
+   */
+  comms?: React.ReactNode;
 }
 
 // End-of-game overlay for both PvP and single-player — one shared screen,
@@ -72,6 +78,7 @@ export function GameResultModal({
   missionLossReason,
   victoryReason,
   isTie = false,
+  comms,
 }: GameResultModalProps) {
   const accentColor = isTie
     ? "var(--color-amber)"
@@ -156,6 +163,8 @@ export function GameResultModal({
               : "This mission is not marked complete. You can try again any time."}
           </p>
         )}
+
+        {comms && <div className="mt-5">{comms}</div>}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <button

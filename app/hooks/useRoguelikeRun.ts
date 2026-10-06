@@ -1,6 +1,8 @@
 "use client";
 
 import { useReadContract, useReadContracts } from "wagmi";
+import type { QueryClient } from "@tanstack/react-query";
+import { invalidateShipsReads } from "./useShipsContract";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
@@ -12,6 +14,24 @@ export const ROGUELIKE_RUN_ADDRESS = CONTRACT_ADDRESSES_BY_CHAIN_ID[
   CHAIN_ID
 ].ROGUELIKE_RUN as `0x${string}`;
 
+/**
+ * Drops every cached RoguelikeRun read (getRun, hasActiveRun, node locks,
+ * roster HP, ...) so the Mission tab loads the run fresh instead of briefly
+ * showing a run that just ended, and refetches owned ships so the released
+ * roster no longer shows as in a fleet. Used when quitting after a lost
+ * mission.
+ */
+export function resetRoguelikeRunQueries(queryClient: QueryClient): void {
+  void invalidateShipsReads(queryClient);
+  const runAddress = ROGUELIKE_RUN_ADDRESS.toLowerCase();
+  queryClient.removeQueries({
+    predicate: (query) => {
+      const [kind, params] = query.queryKey as [unknown, { address?: string } | undefined];
+      return kind === "readContract" && params?.address?.toLowerCase() === runAddress;
+    },
+  });
+}
+
 export function useRoguelikeRunContract() {
   return {
     address: ROGUELIKE_RUN_ADDRESS,
@@ -20,14 +40,14 @@ export function useRoguelikeRunContract() {
   };
 }
 
-export function useGetRoguelikeRun(playerAddress: Address | undefined) {
+export function useGetRoguelikeRun(playerAddress: Address | undefined, enabled = true) {
   const result = useReadContract({
     address: ROGUELIKE_RUN_ADDRESS,
     abi: ROGUELIKE_RUN_ABI,
     chainId: CHAIN_ID,
     functionName: "getRun",
     args: playerAddress ? [playerAddress] : undefined,
-    query: { enabled: !!playerAddress },
+    query: { enabled: enabled && !!playerAddress },
   });
   return { ...result, data: result.data as RoguelikeRun | undefined };
 }

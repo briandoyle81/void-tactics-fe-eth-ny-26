@@ -13,12 +13,15 @@ interface FleeSafetySwitchProps {
    */
   renderConfirmButton: (onSuccess: () => void | Promise<void>) => React.ReactNode;
   onFlee?: () => void | Promise<void>;
+  /** Consequence line in the confirm modal. Defaults to a plain recorded loss. */
+  consequence?: React.ReactNode;
 }
 
 export function FleeSafetySwitch({
   locked = false,
   renderConfirmButton,
   onFlee,
+  consequence = "This action is irreversible. The engagement will be recorded as a loss.",
 }: FleeSafetySwitchProps) {
   const [isLeverOpen, setIsLeverOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -111,7 +114,7 @@ export function FleeSafetySwitch({
                   Tactical withdrawal from active engagement.
                 </p>
                 <p className="text-text-muted font-mono text-xs mb-6 text-center">
-                  This action is irreversible. The engagement will be recorded as a loss.
+                  {consequence}
                 </p>
 
                 <div className="flex space-x-4">
