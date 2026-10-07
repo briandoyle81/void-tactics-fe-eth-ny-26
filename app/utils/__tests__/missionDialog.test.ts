@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildDialogSnapshot,
   isOpeningSnapshot,
+  mergeDisabledShips,
   selectDialogLines,
   triggerOccurrences,
   type DialogSnapshot,
@@ -14,6 +15,8 @@ const START: DialogSnapshot = {
   enemyScore: 0,
   myShipsDestroyed: 0,
   enemyShipsDestroyed: 0,
+  myShipsDisabled: 0,
+  enemyShipsDisabled: 0,
   outcome: null,
 };
 const snap = (over: Partial<DialogSnapshot>): DialogSnapshot => ({ ...START, ...over });
@@ -31,21 +34,36 @@ function select(
 }
 
 describe("buildDialogSnapshot", () => {
-  it("counts destroyed and disabled ships per side, not fled or unknown ones", () => {
+  it("separates destroyed ships from disabled ones, ignoring fled and unknown ships", () => {
     const s = buildDialogSnapshot({
       round: 2,
       myScore: 5,
       enemyScore: 0,
       ships: [
-        { isMine: true, status: 1, hullPoints: null },
-        { isMine: true, status: 2, hullPoints: 0 },
-        { isMine: false, status: 0, hullPoints: 0 },
-        { isMine: false, status: 0, hullPoints: null },
-        { isMine: false, status: 0, hullPoints: 40 },
+        { id: "1", isMine: true, status: 1, hullPoints: null }, // destroyed
+        { id: "2", isMine: true, status: 2, hullPoints: 0 }, // fled
+        { id: "3", isMine: false, status: 0, hullPoints: 0 }, // disabled
+        { id: "4", isMine: false, status: 0, hullPoints: null }, // unknown
+        { id: "5", isMine: false, status: 0, hullPoints: 40 }, // flying
       ],
     });
     expect(s.myShipsDestroyed).toBe(1);
-    expect(s.enemyShipsDestroyed).toBe(1);
+    expect(s.enemyShipsDestroyed).toBe(0);
+    expect(s.myDisabledShipIds).toEqual([]);
+    expect(s.enemyDisabledShipIds).toEqual(["3"]);
+  });
+
+  it("accumulates disabled ships across observations, counting each ship once", () => {
+    const base = buildDialogSnapshot({ round: 1, myScore: 0, enemyScore: 0, ships: [] });
+    const first = mergeDisabledShips({ ...base, enemyDisabledShipIds: ["3"] }, null);
+    expect(first.snapshot.enemyShipsDisabled).toBe(1);
+    // Repaired: no longer disabled, but still counted.
+    const repaired = mergeDisabledShips(base, first.everDisabled);
+    expect(repaired.snapshot.enemyShipsDisabled).toBe(1);
+    // Same ship disabled again, plus a new one.
+    const again = mergeDisabledShips({ ...base, enemyDisabledShipIds: ["3", "8"] }, repaired.everDisabled);
+    expect(again.snapshot.enemyShipsDisabled).toBe(2);
+    expect(again.everDisabled.enemy).toEqual(["3", "8"]);
   });
 
   it("recognizes the opening state", () => {
@@ -74,6 +92,17 @@ describe("triggerOccurrences", () => {
     ]);
     expect(triggerOccurrences({ type: "roundStart", round: 4 }, prev, next)).toHaveLength(1);
     expect(triggerOccurrences({ type: "roundStart", round: 2 }, prev, next)).toHaveLength(0);
+  });
+
+  it("fires disabled and destroyed triggers from their own counts", () => {
+    const disabled = { type: "shipsDisabled", side: "enemy", count: 1 } as const;
+    const destroyed = { type: "shipsDestroyed", side: "enemy", count: 1 } as const;
+    const knockedDown = snap({ enemyShipsDisabled: 1 });
+    expect(triggerOccurrences(disabled, START, knockedDown)).toHaveLength(1);
+    expect(triggerOccurrences(destroyed, START, knockedDown)).toHaveLength(0);
+    const finishedOff = snap({ enemyShipsDisabled: 1, enemyShipsDestroyed: 1 });
+    expect(triggerOccurrences(disabled, knockedDown, finishedOff)).toHaveLength(0);
+    expect(triggerOccurrences(destroyed, knockedDown, finishedOff)).toHaveLength(1);
   });
 
   it("fires thresholds only when crossed", () => {

@@ -11,6 +11,7 @@ import type { DialogCharacterId } from "./characters";
 //                     { type: "missionStart" }
 //                     { type: "roundStart", round: 3 }   omit round = every round
 //                     { type: "roundEnd", round: 2 }     omit round = every round
+//                     { type: "shipsDisabled", side: "enemy", count: 1 }
 //                     { type: "shipsDestroyed", side: "enemy", count: 1 }
 //                     { type: "pointsScored", side: "player", points: 10 }
 //                     { type: "missionVictory" }   when the player wins

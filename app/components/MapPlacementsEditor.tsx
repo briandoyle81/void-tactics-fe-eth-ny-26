@@ -11,6 +11,7 @@ import ShipCard from "./ShipCard";
 import { toShipCardData } from "../utils/toShipCardData";
 import { FleetShipListPanel, type FleetShipListItemData } from "./FleetShipListPanel";
 import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
+import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
 
 interface WorkingPlacement {
   /** Synthetic, rendering-only id (never sent on-chain — only row/col/configId are) so MapDisplay can key/select each placed ship even when the same config appears more than once on a map. */
@@ -207,6 +208,21 @@ export function MapPlacementsEditor({
     [configs, rosterVariantFilter],
   );
 
+  // Same in-game stats regular fleet selection shows, computed locally from
+  // each config's equipment/traits (AI configs aren't real ships, so there's
+  // no on-chain attributes read for them — same approach as tutorial ships).
+  const [showInGameProperties, setShowInGameProperties] = useState(true);
+  const rosterPreviews = useMemo(
+    () =>
+      new Map(
+        filteredConfigs.map((c) => {
+          const ship = aiConfigToPreviewShip(c);
+          return [c.id.toString(), { ship, attributes: calculateAttributesFromContracts(ship) }] as const;
+        }),
+      ),
+    [filteredConfigs],
+  );
+
   const rosterItems: FleetShipListItemData[] = filteredConfigs.map((c) => ({
     key: c.id.toString(),
     canSelect: true,
@@ -216,14 +232,15 @@ export function MapPlacementsEditor({
     onDragEnd: () => setDraggedConfigId(null),
     card: (
       <ShipCard
-        ship={toShipCardData(aiConfigToPreviewShip(c))}
-        shipImage={<ShipImage ship={aiConfigToPreviewShip(c)} className="h-full w-full" showLoadingState={false} />}
+        ship={toShipCardData(rosterPreviews.get(c.id.toString())!.ship)}
+        shipImage={<ShipImage ship={rosterPreviews.get(c.id.toString())!.ship} className="h-full w-full" showLoadingState={false} />}
         isStarred={false}
         onToggleStar={() => {}}
         isSelected={false}
         onToggleSelection={() => armRosterForTapToPlace(c.id)}
         onRecycleClick={() => {}}
-        showInGameProperties={false}
+        showInGameProperties={showInGameProperties}
+        inGameAttributes={rosterPreviews.get(c.id.toString())!.attributes}
         selectionMode
         hideRecycle
         hideCheckbox
@@ -324,6 +341,14 @@ export function MapPlacementsEditor({
                   <option value={1}>Faction 1</option>
                   <option value={2}>Faction 2</option>
                 </select>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={showInGameProperties}
+                    onChange={(e) => setShowInGameProperties(e.target.checked)}
+                  />
+                  Show in-game stats
+                </label>
                 <FleetShipListPanel widthClass="w-full" items={rosterItems} />
               </div>
               <div className="w-3/4 h-full flex items-center justify-center">

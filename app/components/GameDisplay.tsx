@@ -1569,6 +1569,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
       ships: game.shipPositions.map((p) => {
         const index = game.shipIds?.findIndex((id) => id === p.shipId) ?? -1;
         return {
+          id: p.shipId.toString(),
           isMine: p.isCreator === isCreatorNow,
           status: p.status,
           hullPoints: index >= 0 ? (game.shipAttributes?.[index]?.hullPoints ?? null) : null,
@@ -1774,6 +1775,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           toOnChainActionType(computedActionType),
           computedActionType === ActionType.Pass ? 0n : targetShipId || 0n,
         ]}
+        allowWhenOtherPending
         className="flex-[2] px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors duration-100"
         style={{
           ...STYLE_LABEL,
@@ -1852,8 +1854,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           toast.success("Move submitted successfully!");
           recordPlayerMove();
           handleCancelMove();
-          await Promise.resolve(refetchGame());
-          await Promise.resolve(refetch?.());
+          void Promise.resolve(refetchGame());
+          void Promise.resolve(refetch?.());
         }}
         onError={handleMoveSubmitError}
       >
@@ -1932,6 +1934,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                       ? 0n
                       : targetShipId || 0n,
                   ]}
+                  allowWhenOtherPending
                   style={submitMoveButtonStyle}
                   className={`px-4 py-1.5 text-sm uppercase font-semibold tracking-wider transition-colors duration-150 ${
                     isRail ? "min-w-0 flex-[2] h-full w-full" : ""
@@ -2023,8 +2026,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                     toast.success("Move submitted successfully!");
                     recordPlayerMove();
                     handleCancelMove();
-                    await Promise.resolve(refetchGame());
-                    await Promise.resolve(refetch?.());
+                    void Promise.resolve(refetchGame());
+                    void Promise.resolve(refetch?.());
                     // Retire the proposed-move UI (confirm/submit button)
                     // now that the move is confirmed successful, instead of
                     // waiting for the later chain-sync effect to notice
@@ -2802,7 +2805,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                         : "var(--color-warning-red)",
                     }}
                   >
-                    {mobileTurnLabel} | <TurnCountdownText />
+                    {mobileTurnLabel}
+                    {!isVsAIGame && (
+                      <>
+                        {" | "}
+                        <TurnCountdownText />
+                      </>
+                    )}
                   </p>
                 </div>
                 <button
@@ -2822,9 +2831,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                   Sync
                 </button>
               </div>
-              <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-                <TurnCountdownBar />
-              </div>
+              {!isVsAIGame && (
+                <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+                  <TurnCountdownBar />
+                </div>
+              )}
             </div>
 
             <div className="mb-2 grid grid-cols-4 gap-1">
@@ -3400,13 +3411,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 <span className="text-text-muted">Opp </span>
                 <span className="font-mono text-white">{opponentScore}/{maxScore}</span>
               </div>
-              <div className="ml-auto text-[11px] font-mono" style={{ color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
-                <TurnCountdownText />
+              {!isVsAIGame && (
+                <div className="ml-auto text-[11px] font-mono" style={{ color: isMyTurnEffective ? "var(--color-cyan)" : "var(--color-warning-red)" }}>
+                  <TurnCountdownText />
+                </div>
+              )}
+            </div>
+            {!isVsAIGame && (
+              <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+                <TurnCountdownBar />
               </div>
-            </div>
-            <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-              <TurnCountdownBar />
-            </div>
+            )}
           </div>
         </>
       )}
@@ -3542,6 +3557,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
                 return (
                   <GameTurnTimerPanel
                     timeoutEnabled={timeoutEnabled}
+                    showCountdown={!isVsAIGame}
                     isMyTurn={isMyTurnEffective}
                     onResync={() => refetchGame()}
                     claimTimeoutButton={
@@ -4019,25 +4035,25 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
           ) : null}
           {mobileActivePanel === "status" ? (
             <div className="space-y-3">
-              <div className="text-xs uppercase tracking-wider text-text-muted">
-                Turn Timer
-              </div>
-              <div
-                className="text-base uppercase font-semibold tracking-wider"
-                style={{
-                  ...STYLE_LABEL,
-                  color: isMyTurnEffective
-                    ? "var(--color-cyan)"
-                    : "var(--color-warning-red)",
-                }}
-              >
-                {isMyTurnEffective
-                  ? "Your turn"
-                  : isVsAIGame
-                    ? "AI's turn"
-                    : "Opponent turn"}{" "}
-                | <TurnCountdownText />
-              </div>
+              {!isVsAIGame && (
+                <>
+                  <div className="text-xs uppercase tracking-wider text-text-muted">
+                    Turn Timer
+                  </div>
+                  <div
+                    className="text-base uppercase font-semibold tracking-wider"
+                    style={{
+                      ...STYLE_LABEL,
+                      color: isMyTurnEffective
+                        ? "var(--color-cyan)"
+                        : "var(--color-warning-red)",
+                    }}
+                  >
+                    {isMyTurnEffective ? "Your turn" : "Opponent turn"}{" "}
+                    | <TurnCountdownText />
+                  </div>
+                </>
+              )}
               {canFlee &&
               game.metadata.winner ===
                 "0x0000000000000000000000000000000000000000" ? (

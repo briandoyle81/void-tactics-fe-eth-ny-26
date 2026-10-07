@@ -7,8 +7,8 @@ import type { DialogCharacterId } from "./characters";
 //   id           — unique id, e.g. "roguelike-3-first-kill". Marks the line
 //                  as played for a game; renaming it makes it play again.
 //   characterId  — who speaks (a key of DIALOG_CHARACTERS in characters.ts).
-//   text         — what they say. A sentence or two: the comms panel shows
-//                  it for 4–9 s depending on length (click to advance).
+//   text         — what they say. Short is best: the comms panel is small.
+//                  It stays up until the player presses NEXT/OK.
 //   mission      — which mission:
 //                    { kind: "campaign", nodeId: 5 }   campaign node 5
 //                    { kind: "roguelike", nodeId: 5 }  roguelike node 5
@@ -18,13 +18,18 @@ import type { DialogCharacterId } from "./characters";
 //                    { type: "missionStart" }
 //                    { type: "roundStart", round: 3 }   omit round = every round
 //                    { type: "roundEnd", round: 2 }     omit round = every round
+//                    { type: "shipsDisabled", side: "enemy", count: 1 }
 //                    { type: "shipsDestroyed", side: "enemy", count: 1 }
 //                    { type: "pointsScored", side: "player", points: 10 }
 //                    { type: "missionVictory" }   when the player wins
 //                    { type: "missionDefeat" }    when the player loses (incl. retreat)
 //                  side is "player" (you) or "enemy" (the AI). Ship and point
 //                  triggers fire once, when the running total reaches the
-//                  number. Destroyed counts disabled ships, not retreats.
+//                  number.
+//                  Disabled = knocked to 0 hull but still on the board (can
+//                  be repaired or finished off); counts distinct ships over
+//                  the game. Destroyed = removed from the game. A ship that's
+//                  disabled then finished off fires both. Retreats are neither.
 //                  Victory/defeat lines (and their responses) play as a
 //                  debrief inside the result screen, after any final
 //                  kill/score lines. A draw triggers neither.
@@ -35,7 +40,7 @@ import type { DialogCharacterId } from "./characters";
 //                      { characterId: "adjutant", text: "Aye, Admiral." },
 //                    ]
 //                  Each reply is its own comms message; the player reads
-//                  them one by one with NEXT (or they auto-advance).
+//                  them one by one with NEXT.
 //
 // Rules:
 // - Several lines with the same mission and trigger play one after another,
@@ -49,27 +54,6 @@ import type { DialogCharacterId } from "./characters";
 // - The mission's description (the briefing in the node preview) isn't
 //   written here; its speaker is assigned in briefings.ts.
 export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
-  {
-    id: "campaign-1-start-1",
-    characterId: "commander",
-    text: "Drone signatures on the scope. This is your first command, pilot. Make it count.",
-    mission: { kind: "campaign", nodeId: 1 },
-    trigger: { type: "missionStart" },
-  },
-  {
-    id: "campaign-1-start-2",
-    characterId: "adjutant",
-    text: "Scoring beacons are marked. Hold them and the hive can't win on points.",
-    mission: { kind: "campaign", nodeId: 1 },
-    trigger: { type: "missionStart" },
-  },
-  {
-    id: "campaign-1-first-kill",
-    characterId: "commander",
-    text: "Good hit. They bleed like anything else.",
-    mission: { kind: "campaign", nodeId: 1 },
-    trigger: { type: "shipsDestroyed", side: "enemy", count: 1 },
-  },
   {
     id: "roguelike-1-start",
     characterId: "adjutant",
@@ -121,7 +105,7 @@ export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
     responses: [
       {
         characterId: "adjutant",
-        text: "You aren't making any sense. We claim this site under Section X, Addendum 3. Leave, or be destroyed.",
+        text: "You aren't making any sense. We claim this site under Section 10, Addendum 3. Leave, or be destroyed.",
       },
     ],
   },
@@ -150,12 +134,5 @@ export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
         text: "Whatever is going on here, someone else will have to figure it out.",
       },
     ],
-  },
-  {
-    id: "tutorial-start",
-    characterId: "commander",
-    text: "Simulation online. Nothing out here can hurt you yet.",
-    mission: { kind: "tutorial" },
-    trigger: { type: "missionStart" },
   },
 ];

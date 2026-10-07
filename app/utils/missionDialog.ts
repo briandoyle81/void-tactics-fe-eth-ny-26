@@ -8,7 +8,7 @@ import type {
 } from "../types/dialog";
 import { MISSION_DIALOG_LINES } from "../data/dialog/missionDialog";
 import { GENERIC_DIALOG_LINES } from "../data/dialog/genericDialog";
-import { isShipKnockedOut, type VictoryReasonEnemyShip } from "./victoryReason";
+import type { VictoryReasonEnemyShip } from "./victoryReason";
 
 // Pure trigger engine for in-mission dialog. Shared by GameDisplay.tsx,
 // GameDisplayWeb2.tsx and SimulatedGameDisplay.tsx (via useMissionDialog).
@@ -19,17 +19,48 @@ export interface DialogSnapshot {
   round: number;
   myScore: number;
   enemyScore: number;
+  /** Ships removed from the game (status destroyed). */
   myShipsDestroyed: number;
   enemyShipsDestroyed: number;
+  /**
+   * Distinct ships that have been disabled (0 hull, still on the board) at
+   * any point this game — a repaired-then-disabled-again ship counts once,
+   * and a disabled ship that's later destroyed still counts. Built from
+   * DialogObservation by mergeDisabledShips.
+   */
+  myShipsDisabled: number;
+  enemyShipsDisabled: number;
   /** How the game ended for the local player; null while it's still running (or a draw). */
   outcome: DialogOutcome;
 }
 
 export type DialogOutcome = "victory" | "defeat" | null;
 
+/**
+ * What a view sees right now. Disabled ships are given by id (only the
+ * ones disabled at this moment); the hook folds them into the per-game
+ * "ever disabled" set to get DialogSnapshot's cumulative counts.
+ */
+export type DialogObservation = Omit<DialogSnapshot, "myShipsDisabled" | "enemyShipsDisabled"> & {
+  myDisabledShipIds: string[];
+  enemyDisabledShipIds: string[];
+};
+
+/** Ids of every ship disabled so far this game, per side. */
+export interface EverDisabledShips {
+  player: string[];
+  enemy: string[];
+}
+
 export interface DialogShip extends VictoryReasonEnemyShip {
+  /** Ship id, as a string (bigint/number ids converted by the view). */
+  id: string;
   isMine: boolean;
 }
+
+/** Ship status values (ShipPosition.status). */
+const STATUS_ACTIVE = 0;
+const STATUS_DESTROYED = 1;
 
 export function buildDialogSnapshot({
   round,
@@ -43,15 +74,59 @@ export function buildDialogSnapshot({
   enemyScore: number;
   ships: readonly DialogShip[];
   outcome?: DialogOutcome;
-}): DialogSnapshot {
+}): DialogObservation {
   let myShipsDestroyed = 0;
   let enemyShipsDestroyed = 0;
+  const myDisabledShipIds: string[] = [];
+  const enemyDisabledShipIds: string[] = [];
   for (const ship of ships) {
-    if (!isShipKnockedOut(ship)) continue;
-    if (ship.isMine) myShipsDestroyed++;
-    else enemyShipsDestroyed++;
+    const status = ship.status ?? STATUS_ACTIVE;
+    if (status === STATUS_DESTROYED) {
+      if (ship.isMine) myShipsDestroyed++;
+      else enemyShipsDestroyed++;
+    } else if (status === STATUS_ACTIVE && ship.hullPoints != null && ship.hullPoints <= 0) {
+      // Disabled: 0 hull but still on the board. Unknown attributes (null)
+      // are treated as flying, same as victoryReason.ts. Retreated ships
+      // (status 2) are neither.
+      (ship.isMine ? myDisabledShipIds : enemyDisabledShipIds).push(ship.id);
+    }
   }
-  return { round, myScore, enemyScore, myShipsDestroyed, enemyShipsDestroyed, outcome };
+  return {
+    round,
+    myScore,
+    enemyScore,
+    myShipsDestroyed,
+    enemyShipsDestroyed,
+    myDisabledShipIds,
+    enemyDisabledShipIds,
+    outcome,
+  };
+}
+
+/**
+ * Folds the ships disabled right now into the game's running "ever
+ * disabled" set and returns the snapshot (with cumulative disabled counts)
+ * plus the updated set to persist.
+ */
+export function mergeDisabledShips(
+  observation: DialogObservation,
+  everDisabled: EverDisabledShips | null | undefined,
+): { snapshot: DialogSnapshot; everDisabled: EverDisabledShips } {
+  const player = [...new Set([...(everDisabled?.player ?? []), ...observation.myDisabledShipIds])];
+  const enemy = [...new Set([...(everDisabled?.enemy ?? []), ...observation.enemyDisabledShipIds])];
+  return {
+    snapshot: {
+      round: observation.round,
+      myScore: observation.myScore,
+      enemyScore: observation.enemyScore,
+      myShipsDestroyed: observation.myShipsDestroyed,
+      enemyShipsDestroyed: observation.enemyShipsDestroyed,
+      myShipsDisabled: player.length,
+      enemyShipsDisabled: enemy.length,
+      outcome: observation.outcome,
+    },
+    everDisabled: { player, enemy },
+  };
 }
 
 /** True when nothing has happened yet: first round, no points, no losses. */
@@ -62,6 +137,8 @@ export function isOpeningSnapshot(s: DialogSnapshot): boolean {
     s.enemyScore === 0 &&
     s.myShipsDestroyed === 0 &&
     s.enemyShipsDestroyed === 0 &&
+    s.myShipsDisabled === 0 &&
+    s.enemyShipsDisabled === 0 &&
     s.outcome === null
   );
 }
@@ -73,6 +150,8 @@ export function snapshotsEqual(a: DialogSnapshot, b: DialogSnapshot): boolean {
     a.enemyScore === b.enemyScore &&
     a.myShipsDestroyed === b.myShipsDestroyed &&
     a.enemyShipsDestroyed === b.enemyShipsDestroyed &&
+    a.myShipsDisabled === b.myShipsDisabled &&
+    a.enemyShipsDisabled === b.enemyShipsDisabled &&
     a.outcome === b.outcome
   );
 }
@@ -82,6 +161,7 @@ export type DialogOccurrence =
   | { type: "missionStart" }
   | { type: "roundEnd"; round: number }
   | { type: "roundStart"; round: number }
+  | { type: "shipsDisabled"; side: DialogSide; count: number }
   | { type: "shipsDestroyed"; side: DialogSide; count: number }
   | { type: "pointsScored"; side: DialogSide; points: number }
   | { type: "missionVictory" }
@@ -96,8 +176,9 @@ export function occurrenceKey(o: DialogOccurrence): string {
     case "roundEnd":
     case "roundStart":
       return `${o.type}:${o.round}`;
+    case "shipsDisabled":
     case "shipsDestroyed":
-      return `shipsDestroyed:${o.side}:${o.count}`;
+      return `${o.type}:${o.side}:${o.count}`;
     case "pointsScored":
       return `pointsScored:${o.side}:${o.points}`;
   }
@@ -107,11 +188,12 @@ const OCCURRENCE_ORDER: Record<DialogOccurrence["type"], number> = {
   missionStart: 0,
   roundEnd: 1,
   roundStart: 2,
-  shipsDestroyed: 3,
-  pointsScored: 4,
+  shipsDisabled: 3,
+  shipsDestroyed: 4,
+  pointsScored: 5,
   // Last, so the final kill/score lines play before the debrief.
-  missionVictory: 5,
-  missionDefeat: 5,
+  missionVictory: 6,
+  missionDefeat: 6,
 };
 
 function occurrenceSortValue(o: DialogOccurrence): number {
@@ -123,6 +205,7 @@ function occurrenceSortValue(o: DialogOccurrence): number {
     case "roundEnd":
     case "roundStart":
       return o.round;
+    case "shipsDisabled":
     case "shipsDestroyed":
       return o.count;
     case "pointsScored":
@@ -157,6 +240,10 @@ function shipsDestroyedFor(s: DialogSnapshot, side: DialogSide): number {
   return side === "player" ? s.myShipsDestroyed : s.enemyShipsDestroyed;
 }
 
+function shipsDisabledFor(s: DialogSnapshot, side: DialogSide): number {
+  return side === "player" ? s.myShipsDisabled : s.enemyShipsDisabled;
+}
+
 function scoreFor(s: DialogSnapshot, side: DialogSide): number {
   return side === "player" ? s.myScore : s.enemyScore;
 }
@@ -186,11 +273,13 @@ export function triggerOccurrences(
         .filter((r) => trigger.round == null || trigger.round === r)
         .map((round) => ({ type: "roundEnd", round }));
     }
+    case "shipsDisabled":
     case "shipsDestroyed": {
-      const before = prev ? shipsDestroyedFor(prev, trigger.side) : 0;
-      const after = shipsDestroyedFor(next, trigger.side);
+      const countFor = trigger.type === "shipsDisabled" ? shipsDisabledFor : shipsDestroyedFor;
+      const before = prev ? countFor(prev, trigger.side) : 0;
+      const after = countFor(next, trigger.side);
       return before < trigger.count && trigger.count <= after
-        ? [{ type: "shipsDestroyed", side: trigger.side, count: trigger.count }]
+        ? [{ type: trigger.type, side: trigger.side, count: trigger.count }]
         : [];
     }
     case "missionVictory":

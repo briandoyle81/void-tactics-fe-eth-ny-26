@@ -35,13 +35,13 @@ export const DIALOG_CHARACTERS = {
   hive: {
     id: "hive",
     name: "Hive Mind",
-    image: "/img/character-art/hive.png",
+    image: "/img/character-art/hive-queen.svg",
     textColor: "var(--color-warning-red)",
   },
   prototypeDrone: {
     id: "prototypeDrone",
-    name: "Prototype Drone",
-    image: "/img/character-art/prototype-drone.png",
+    name: "Unknown Vessel",
+    image: "/img/character-art/prototype-drone.svg",
     textColor: "var(--color-warning-red)",
   },
 } as const satisfies Record<string, DialogCharacter>;

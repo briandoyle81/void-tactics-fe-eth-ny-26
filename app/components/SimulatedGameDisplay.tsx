@@ -2979,8 +2979,6 @@ export function SimulatedGameDisplay({
     : gameState.joinerScore.toString();
   const maxScore = gameState.maxScore.toString();
   const mobileTurnLabel = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
-  const mobileTurnTime = "99:99";
-  const mobileTurnPct = 100;
   const mobileSelectedShipAttributes =
     selectedShip ? getShipAttributes(selectedShip.id) : null;
   const mobileSelectedShipPosition =
@@ -3030,6 +3028,7 @@ export function SimulatedGameDisplay({
       myScore: Number(isCreatorNow ? gameState.creatorScore : gameState.joinerScore),
       enemyScore: Number(isCreatorNow ? gameState.joinerScore : gameState.creatorScore),
       ships: gameState.shipPositions.map((p) => ({
+        id: String(p.shipId),
         isMine: p.isCreator === isCreatorNow,
         status: p.status,
         hullPoints: getShipAttributes(p.shipId)?.hullPoints ?? null,
@@ -3330,7 +3329,7 @@ export function SimulatedGameDisplay({
                           : "var(--color-warning-red)",
                       }}
                     >
-                      {mobileTurnLabel} | {mobileTurnTime}
+                      {mobileTurnLabel}
                     </p>
                   </div>
                   <button
@@ -3347,9 +3346,6 @@ export function SimulatedGameDisplay({
                   >
                     Sync
                   </button>
-                </div>
-                <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-                  <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${mobileTurnPct}%`, backgroundColor: "var(--color-warning-red)" }} />
                 </div>
               </div>
 
@@ -4299,7 +4295,7 @@ export function SimulatedGameDisplay({
                     Round {gameState.turnState.currentRound.toString()}
                   </span>
                 </h1>
-                {/* Turn indicator · 99:99 and static bar (no countdown in tutorial) */}
+                {/* Turn indicator (no countdown in tutorial / PvE) */}
                 <div className="flex flex-col gap-1.5">
                   <div
                     className="text-sm flex items-center gap-2 uppercase font-semibold tracking-wider"
@@ -4317,38 +4313,6 @@ export function SimulatedGameDisplay({
                     >
                       {isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
                     </span>
-                    <span style={{ color: "var(--color-text-muted)" }}>•</span>
-                    <span
-                      className="font-mono"
-                      style={{
-                        ...STYLE_MONO,
-                        color: isMyTurn
-                          ? "var(--color-cyan)"
-                          : "var(--color-warning-red)",
-                      }}
-                    >
-                      99:99
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex-1 h-1.5 overflow-hidden"
-                      style={{
-                        backgroundColor: "var(--color-gunmetal)",
-                        borderRadius: 0,
-                      }}
-                    >
-                      <div
-                        className="h-full"
-                        style={{
-                          width: "100%",
-                          backgroundColor: isMyTurn
-                            ? "var(--color-cyan)"
-                            : "var(--color-warning-red)",
-                          borderRadius: 0,
-                        }}
-                      />
-                    </div>
                   </div>
                 </div>
               </div>

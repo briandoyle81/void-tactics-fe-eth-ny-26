@@ -419,6 +419,7 @@ function GameDisplayWeb2({
       ships: game.shipPositions.map((p) => {
         const index = game.shipIds?.findIndex((id) => id === p.shipId) ?? -1;
         return {
+          id: String(p.shipId),
           isMine: p.isCreator === isCreatorNow,
           status: p.status,
           hullPoints: index >= 0 ? (game.shipAttributes?.[index]?.hullPoints ?? null) : null,
@@ -1264,7 +1265,13 @@ function GameDisplayWeb2({
                       className="truncate text-[10px] uppercase tracking-wider"
                       style={{ color: isCurrentPlayerTurn ? "var(--color-cyan)" : "var(--color-warning-red)" }}
                     >
-                      {mobileTurnLabel} | <TurnCountdownText />
+                      {mobileTurnLabel}
+                      {!isVsAIGame && (
+                        <>
+                          {" | "}
+                          <TurnCountdownText />
+                        </>
+                      )}
                     </p>
                   </div>
                   <button
@@ -1276,9 +1283,11 @@ function GameDisplayWeb2({
                     Sync
                   </button>
                 </div>
-                <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
-                  <TurnCountdownBar />
-                </div>
+                {!isVsAIGame && (
+                  <div className="mt-1 h-1 w-full overflow-hidden" style={{ backgroundColor: "var(--color-gunmetal)" }}>
+                    <TurnCountdownBar />
+                  </div>
+                )}
               </div>
 
               <div className="mb-2 grid grid-cols-3 gap-1">
@@ -1442,6 +1451,7 @@ function GameDisplayWeb2({
               return (
                 <GameTurnTimerPanel
                   timeoutEnabled={timeoutEnabled}
+                  showCountdown={!isVsAIGame}
                   isMyTurn={isCurrentPlayerTurn}
                   onResync={() => refetchGame()}
                   claimTimeoutButton={

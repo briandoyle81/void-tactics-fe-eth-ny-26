@@ -305,6 +305,17 @@ export function TransactionButton({
     };
   }, [isActiveTransaction, transactionId, clearError]);
 
+  // If this button unmounts after the receipt already landed (move confirm
+  // widget calls handleCancelMove inside onSuccess), finish the global
+  // pending lock so the next ship's Fire is clickable.
+  React.useEffect(() => {
+    return () => {
+      if (completedHashRef.current) {
+        completeTransaction(transactionId, true);
+      }
+    };
+  }, [transactionId, completeTransaction]);
+
   // Reset transaction state when transaction ID changes
   React.useEffect(() => {
     // Clear any stale transaction state when the transaction ID changes

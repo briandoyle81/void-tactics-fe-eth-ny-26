@@ -9,14 +9,9 @@ import { MapEditScreenWeb2 } from "./MapEditScreenWeb2";
 import { MapPreviewCard } from "./MapPreviewCard";
 import { MapsListShell } from "./MapsListShell";
 import { MapPosition, ScoringPosition, MapMode } from "../types/types";
-import { AIEncountersAdminPanelWeb2 } from "./AIEncountersAdminPanelWeb2";
-import { LobbyAdminPanelWeb2 } from "./LobbyAdminPanelWeb2";
-import { GameAdminPanelWeb2 } from "./GameAdminPanelWeb2";
-import { PvPMatchAdminPanelWeb2 } from "./PvPMatchAdminPanelWeb2";
-import { AdminSettingsExportWeb2 } from "./AdminSettingsExportWeb2";
 import { parseZoneTiles } from "../utils/deploymentZone";
 
-interface Web2Map {
+export interface Web2Map {
   id: number;
   name: string;
   gridWidth: number;
@@ -113,13 +108,6 @@ export default function MapsWeb2() {
           />
         ))}
       </MapsListShell>
-      <AIEncountersAdminPanelWeb2
-        mapIds={maps.filter((m) => m.mode !== MapMode.PvP).map((m) => m.id)}
-      />
-      <LobbyAdminPanelWeb2 />
-      <GameAdminPanelWeb2 />
-      <PvPMatchAdminPanelWeb2 />
-      <AdminSettingsExportWeb2 maps={maps} />
     </div>
   );
 }

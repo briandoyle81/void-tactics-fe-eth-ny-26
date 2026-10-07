@@ -57,9 +57,14 @@ export type DialogSide = "player" | "enemy";
  *   `round` to fire at the start of every round (including round 1).
  * - `{ type: "roundEnd", round: 2 }` — when round 2 ends. Omit `round` to
  *   fire at the end of every round.
- * - `{ type: "shipsDestroyed", side: "enemy", count: 1 }` — when that side
- *   has lost `count` ships in total (destroyed or disabled; ships that
- *   retreated don't count). `count: 1` is "first kill"/"first loss".
+ * - `{ type: "shipsDisabled", side: "enemy", count: 1 }` — when `count`
+ *   of that side's ships have been disabled (knocked to 0 hull but still on
+ *   the board, where they can be repaired or finished off). Counts distinct
+ *   ships over the whole game: one repaired and disabled again counts once.
+ * - `{ type: "shipsDestroyed", side: "enemy", count: 1 }` — when `count`
+ *   of that side's ships have been destroyed (removed from the game). A ship
+ *   that's disabled and later destroyed fires both. Retreats count as
+ *   neither.
  * - `{ type: "pointsScored", side: "player", points: 10 }` — when that
  *   side's total score reaches `points`.
  * - `{ type: "missionVictory" }` — when the player wins the mission.
@@ -68,8 +73,8 @@ export type DialogSide = "player" | "enemy";
  *   Victory/defeat lines play as a debrief inside the result screen.
  *
  * When several events happen at once they play in this order: mission
- * start, round end, round start, ships destroyed, points scored,
- * victory/defeat.
+ * start, round end, round start, ships disabled, ships destroyed, points
+ * scored, victory/defeat.
  */
 export type DialogTrigger =
   | { type: "missionStart" }
@@ -77,7 +82,9 @@ export type DialogTrigger =
   | { type: "roundStart"; round?: number }
   /** Omit `round` to fire at the end of every round. */
   | { type: "roundEnd"; round?: number }
-  /** Fires once when `side` has lost `count` ships in total. */
+  /** Fires once when `count` of `side`'s ships have been disabled (0 hull, still on the board). */
+  | { type: "shipsDisabled"; side: DialogSide; count: number }
+  /** Fires once when `count` of `side`'s ships have been destroyed (removed from the game). */
   | { type: "shipsDestroyed"; side: DialogSide; count: number }
   /** Fires once when `side`'s total score reaches `points`. */
   | { type: "pointsScored"; side: DialogSide; points: number }
@@ -90,7 +97,7 @@ export type DialogTrigger =
  * A reply that plays right after the line it's attached to, by the same
  * character or anyone else — e.g. the Adjutant reports, the Commander
  * answers. Replies play in order; each is its own comms message (the player
- * presses NEXT or it auto-advances).
+ * presses NEXT to read the next one).
  */
 export interface DialogResponse<C extends string = string> {
   /** Who says it — a key of DIALOG_CHARACTERS. Can be the same speaker. */
@@ -120,8 +127,8 @@ export interface MissionDialogLine<C extends string = string> {
   /** Who says it — a key of DIALOG_CHARACTERS. */
   characterId: C;
   /**
-   * What they say. Keep it to a sentence or two: the comms panel shows it
-   * for 4–9 seconds depending on length (the player can click to advance).
+   * What they say. Short is best: the comms panel is small. Messages never
+   * auto-advance; each stays up until the player presses NEXT/OK.
    */
   text: string;
   /** The mission this line belongs to. See DialogMission. */

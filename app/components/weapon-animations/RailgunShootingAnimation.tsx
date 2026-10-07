@@ -355,7 +355,7 @@ export const RailgunShootingAnimation = React.memo(function RailgunShootingAnima
       const center = cellCenterOnGrid(grid, attackerRowRef.current, attackerColRef.current);
       const { cellWidth, cellHeight } = gridLayoutSize(grid);
       const targetCenter = cellCenterOnGrid(grid, targetRowRef.current, targetColRef.current);
-      const forward = cellWidth * (0.30 + (isLinearAcceleratorRef.current ? 0.14 : 0));
+      const forward = cellWidth * (0.30 + (isLinearAcceleratorRef.current ? 0.09 : 0));
       layout = {
         posKey,
         cellWidth,

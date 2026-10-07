@@ -1155,6 +1155,10 @@ const GameGridBoard = React.memo(function GameGridBoard({
             retreatPrepShipId={retreatPrepShipId}
             setSelectedWeaponType={setSelectedWeaponType}
             setTargetShipId={setTargetShipId}
+            preferredVertical={confirmWidgetVertical}
+            onMoveVertical={setConfirmWidgetVertical}
+            clipRootRef={outerWrapperRef}
+            zoomScale={zoom.scale}
           />
 
           {showConfirmWidget &&

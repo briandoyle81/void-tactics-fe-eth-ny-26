@@ -8,6 +8,7 @@ import { nodeContentTextClass, type NodeContentStatus } from "../hooks/useNodeCo
 import { isSameMission } from "../utils/missionDialog";
 import type { DialogMission } from "../types/dialog";
 import { DialogPortrait } from "./DialogPortrait";
+import { HighlightedText } from "./HighlightedText";
 
 // A mission's description, presented as a transmission from the character
 // assigned in MISSION_BRIEFING_SPEAKERS: portrait with a name plate floated
@@ -32,7 +33,7 @@ export function MissionBriefing({
   if (!character || status !== "ok") {
     return (
       <p className={`whitespace-pre-line text-sm leading-relaxed ${nodeContentTextClass(status, "text-text-secondary")}`}>
-        {text}
+        {status === "ok" ? <HighlightedText text={text} /> : text}
       </p>
     );
   }
@@ -64,7 +65,9 @@ export function MissionBriefing({
       <div className="mb-2 text-[10px] uppercase tracking-[0.2em]" style={{ color }}>
         {"// Incoming transmission"}
       </div>
-      <p className="whitespace-pre-line text-sm leading-relaxed text-text-primary">{text}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-text-primary">
+        <HighlightedText text={text} />
+      </p>
       <div className="clear-both" />
     </div>
   );

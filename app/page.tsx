@@ -29,6 +29,10 @@ import ProfileWeb2 from "./components/ProfileWeb2";
 import Info from "./components/Info";
 import Maps from "./components/Maps";
 import MapsWeb2 from "./components/MapsWeb2";
+import Admin from "./components/Admin";
+import AdminWeb2 from "./components/AdminWeb2";
+import { useIsEncounterEditor } from "./hooks/useIsEncounterEditor";
+import { useIsNodeMapEditor } from "./hooks/useIsNodeMapEditor";
 import ShipAttributes from "./components/ShipAttributes";
 import EligibilityControls from "./components/EligibilityControls";
 import ShipAttributesWeb2 from "./components/ShipAttributesWeb2";
@@ -59,6 +63,7 @@ const KNOWN_TAB_NAMES = new Set<string>([
   "Games",
   "Profile",
   "Maps",
+  "Admin",
   "Ship Attributes",
   "Purchase Prices",
   "Tournaments",
@@ -67,6 +72,10 @@ const KNOWN_TAB_NAMES = new Set<string>([
 export default function Home() {
   const { status, address, isConnected } = useAccount();
   const { isOwner } = useShipAttributesOwner();
+  // Admin tab roles beyond contract ownership: AI fleet and mission editors
+  // (the panels inside gate themselves; this only decides tab visibility).
+  const { isEditor: isEncounterEditor } = useIsEncounterEditor();
+  const { isEditor: isNodeMapEditor } = useIsNodeMapEditor();
   const { canAdminShipPurchasePrices } = useShipPurchasePricesAccess();
   const [isGamesDetailActive, setIsGamesDetailActive] = useState(false);
   const { games: playerGames, refetch: refetchPlayerGames } = usePlayerGames({
@@ -594,6 +603,7 @@ export default function Home() {
         <div
           className={`w-full ${
             activeTab === "Maps" ||
+            activeTab === "Admin" ||
             activeTab === "Games" ||
             isInfoTutorialActive
               ? ""
@@ -629,6 +639,16 @@ export default function Home() {
                   activeTab === "Maps"
                 ) {
                   tabs.push("Maps");
+                }
+                if (
+                  address?.toLowerCase() === MAP_ADMIN_ADDRESS.toLowerCase() ||
+                  isOwner ||
+                  isEncounterEditor ||
+                  isNodeMapEditor ||
+                  isWeb2Admin ||
+                  activeTab === "Admin"
+                ) {
+                  tabs.push("Admin");
                 }
                 if (isOwner || isWeb2Admin || activeTab === "Ship Attributes") {
                   tabs.push("Ship Attributes");
@@ -742,6 +762,20 @@ export default function Home() {
                 }}
               >
                 {appMode === "web2" ? <MapsWeb2 /> : <Maps />}
+              </div>
+            </div>
+          ) : activeTab === "Admin" ? (
+            <div className="w-full">
+              <div
+                className="border border-solid p-1"
+                style={{
+                  backgroundColor: "var(--color-slate)",
+                  borderColor: "var(--color-gunmetal)",
+                  borderTopColor: "var(--color-steel)",
+                  borderLeftColor: "var(--color-steel)",
+                }}
+              >
+                {appMode === "web2" ? <AdminWeb2 /> : <Admin />}
               </div>
             </div>
           ) : activeTab === "Games" ? (

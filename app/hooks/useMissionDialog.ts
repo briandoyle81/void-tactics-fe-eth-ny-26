@@ -7,7 +7,10 @@ import {
   selectDialogLines,
   snapshotsEqual,
   type DialogQueueItem,
+  mergeDisabledShips,
+  type DialogObservation,
   type DialogSnapshot,
+  type EverDisabledShips,
 } from "../utils/missionDialog";
 
 /** A comms message that was shown (or dismissed unread), with the round it arrived in. */
@@ -25,6 +28,8 @@ interface StoredDialogState {
    * `fired` already marks as done.
    */
   pending?: DialogLogEntry[];
+  /** Ids of every ship disabled so far this game (see mergeDisabledShips). */
+  everDisabled?: EverDisabledShips;
 }
 
 function storageKey(gameId: string): string {
@@ -107,7 +112,8 @@ export function useMissionDialog({
 }: {
   gameId: string;
   mission: DialogMission | null;
-  snapshot: DialogSnapshot | null;
+  /** What the view sees right now — from buildDialogSnapshot. */
+  snapshot: DialogObservation | null;
   enabled: boolean;
   paused?: boolean;
   /**
@@ -180,17 +186,22 @@ export function useMissionDialog({
   const myShipsDestroyed = snapshot?.myShipsDestroyed;
   const enemyShipsDestroyed = snapshot?.enemyShipsDestroyed;
   const outcome = snapshot?.outcome ?? null;
+  // Joined so the effect depends on primitives, not fresh arrays.
+  const myDisabledKey = snapshot?.myDisabledShipIds.join(",") ?? "";
+  const enemyDisabledKey = snapshot?.enemyDisabledShipIds.join(",") ?? "";
   const hasSnapshot = snapshot != null;
 
   useEffect(() => {
     const currentMission = missionRef.current;
     if (!enabled || !hasSnapshot || !currentMission || !gameId) return;
-    const next: DialogSnapshot = {
+    const observation: DialogObservation = {
       round: round!,
       myScore: myScore!,
       enemyScore: enemyScore!,
       myShipsDestroyed: myShipsDestroyed!,
       enemyShipsDestroyed: enemyShipsDestroyed!,
+      myDisabledShipIds: myDisabledKey ? myDisabledKey.split(",") : [],
+      enemyDisabledShipIds: enemyDisabledKey ? enemyDisabledKey.split(",") : [],
       outcome,
     };
 
@@ -199,21 +210,32 @@ export function useMissionDialog({
       else memoryStateRef.current = state;
     };
     let stored = persist ? readStored(gameId) : memoryStateRef.current;
-    // Records saved before victory/defeat triggers existed have no outcome;
-    // treat them as already at the current outcome so opening an old,
-    // finished game doesn't suddenly play its debrief.
-    if (stored && stored.last.outcome === undefined) {
-      stored = { ...stored, last: { ...stored.last, outcome: next.outcome } };
+    if (!persist && stored) {
+      // Tutorial restarted: back at the opening state after progressing.
+      const fresh = mergeDisabledShips(observation, null).snapshot;
+      if (isOpeningSnapshot(fresh) && !isOpeningSnapshot(stored.last)) {
+        stored = null;
+        setQueue({ items: [], index: 0 });
+        setLog([]);
+      }
     }
-    if (!persist && stored && isOpeningSnapshot(next) && !isOpeningSnapshot(stored.last)) {
-      stored = null; // tutorial restarted
-      setQueue({ items: [], index: 0 });
-      setLog([]);
+    const merged = mergeDisabledShips(observation, stored?.everDisabled);
+    const next: DialogSnapshot = merged.snapshot;
+    const everDisabled = merged.everDisabled;
+    // Records saved before some triggers existed lack their fields; treat
+    // them as already at the current values so opening an old game doesn't
+    // suddenly play a debrief or disabled-ship lines for past events.
+    if (stored) {
+      const last = { ...stored.last };
+      if (last.outcome === undefined) last.outcome = next.outcome;
+      if (last.myShipsDisabled === undefined) last.myShipsDisabled = next.myShipsDisabled;
+      if (last.enemyShipsDisabled === undefined) last.enemyShipsDisabled = next.enemyShipsDisabled;
+      stored = { ...stored, last };
     }
     if (!stored && next.outcome !== null) {
       // First seen after it already ended (e.g. opening a finished game from
       // the list): nothing to play.
-      save({ last: next, fired: [], pending: [] });
+      save({ last: next, fired: [], pending: [], everDisabled });
       return;
     }
     if (!stored && !isOpeningSnapshot(next)) {
@@ -230,12 +252,13 @@ export function useMissionDialog({
       })
         .filter((item) => item.event === "missionStart")
         .map((item) => ({ ...item, round: next.round }));
-      save({ last: next, fired: entryItems.map((item) => item.key), pending: entryItems });
+      save({ last: next, fired: entryItems.map((item) => item.key), pending: entryItems, everDisabled });
       if (entryItems.length > 0) {
         enqueue(entryItems);
       }
       return;
     }
+    // Equal counts mean the disabled set didn't grow either, so nothing to save.
     if (stored && snapshotsEqual(stored.last, next)) return;
 
     const fired = new Set(stored?.fired ?? []);
@@ -247,7 +270,12 @@ export function useMissionDialog({
       firedKeys: fired,
     }).map((item) => ({ ...item, round: next.round }));
     items.forEach((item) => fired.add(item.key));
-    save({ last: next, fired: [...fired], pending: [...(stored?.pending ?? []), ...items] });
+    save({
+      last: next,
+      fired: [...fired],
+      pending: [...(stored?.pending ?? []), ...items],
+      everDisabled,
+    });
     if (items.length > 0) enqueue(items);
   }, [
     enabled,
@@ -261,6 +289,8 @@ export function useMissionDialog({
     enemyScore,
     myShipsDestroyed,
     enemyShipsDestroyed,
+    myDisabledKey,
+    enemyDisabledKey,
     outcome,
   ]);
 

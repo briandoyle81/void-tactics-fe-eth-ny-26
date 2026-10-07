@@ -37,6 +37,8 @@ interface GameTurnTimerPanelProps {
   isMyTurn: boolean;
   onResync: () => void;
   claimTimeoutButton: React.ReactNode;
+  /** PvP turn clock/bar. Hidden in PvE: vs-AI turns are not enforced. */
+  showCountdown?: boolean;
 }
 
 export function GameTurnTimerPanel({
@@ -44,11 +46,12 @@ export function GameTurnTimerPanel({
   isMyTurn,
   onResync,
   claimTimeoutButton,
+  showCountdown = true,
 }: GameTurnTimerPanelProps) {
   const { turnSecondsLeft, turnPercentRemaining } = useTurnCountdownContext();
   const expired = turnSecondsLeft <= 0;
-  const hasExceededTime = timeoutEnabled && isMyTurn && expired;
-  const canSeizeTurn = timeoutEnabled && !isMyTurn && expired;
+  const hasExceededTime = showCountdown && timeoutEnabled && isMyTurn && expired;
+  const canSeizeTurn = showCountdown && timeoutEnabled && !isMyTurn && expired;
   if (hasExceededTime) {
     return (
       <div className="flex flex-col gap-1.5">
@@ -140,40 +143,57 @@ export function GameTurnTimerPanel({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <GameTurnLabel isMyTurn={isMyTurn} secondsLeft={turnSecondsLeft} />
       <div className="flex items-center gap-2">
-        <div
-          className="flex-1 h-1.5 overflow-hidden"
-          style={{ backgroundColor: "var(--color-gunmetal)", borderRadius: 0 }}
-        >
-          <div
-            className="h-full transition-all duration-1000 ease-linear"
-            style={{
-              width: `${turnPercentRemaining}%`,
-              backgroundColor: "var(--color-warning-red)",
-              borderRadius: 0,
-            }}
-          />
+        <div className="min-w-0 flex-1">
+          <GameTurnLabel isMyTurn={isMyTurn} secondsLeft={turnSecondsLeft} showTime={showCountdown} />
         </div>
-        <button
-          onClick={onResync}
-          className="p-1 text-text-muted hover:text-cyan transition-colors"
-          title="Refresh game state"
-        >
-          <ResyncIcon />
-        </button>
+        {!showCountdown && (
+          <button
+            onClick={onResync}
+            className="p-1 text-text-muted hover:text-cyan transition-colors"
+            title="Refresh game state"
+          >
+            <ResyncIcon />
+          </button>
+        )}
       </div>
-      <p
-        className="text-[10px] uppercase tracking-wider"
-        style={{
-          color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
-          fontFamily: "var(--font-rajdhani), sans-serif",
-        }}
-      >
-        {isMyTurn
-          ? "Opponent may claim victory if timer expires"
-          : "You may claim victory if their timer expires"}
-      </p>
+      {showCountdown && (
+        <>
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 h-1.5 overflow-hidden"
+              style={{ backgroundColor: "var(--color-gunmetal)", borderRadius: 0 }}
+            >
+              <div
+                className="h-full transition-all duration-1000 ease-linear"
+                style={{
+                  width: `${turnPercentRemaining}%`,
+                  backgroundColor: "var(--color-warning-red)",
+                  borderRadius: 0,
+                }}
+              />
+            </div>
+            <button
+              onClick={onResync}
+              className="p-1 text-text-muted hover:text-cyan transition-colors"
+              title="Refresh game state"
+            >
+              <ResyncIcon />
+            </button>
+          </div>
+          <p
+            className="text-[10px] uppercase tracking-wider"
+            style={{
+              color: "color-mix(in srgb, var(--color-text-muted) 70%, transparent)",
+              fontFamily: "var(--font-rajdhani), sans-serif",
+            }}
+          >
+            {isMyTurn
+              ? "Opponent may claim victory if timer expires"
+              : "You may claim victory if their timer expires"}
+          </p>
+        </>
+      )}
     </div>
   );
 }

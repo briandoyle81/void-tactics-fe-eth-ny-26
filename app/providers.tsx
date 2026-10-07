@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT, xaiTestnet } from "./config/networks";
 import MobileAlphaNoticeModal from "./components/MobileAlphaNoticeModal";
 import { PosthogAppChainSync } from "./components/PosthogAppChainSync";
+import { RestoreWalletConnection } from "./components/RestoreWalletConnection";
 import { useRankConfigSync } from "./hooks/useRankConfigSync";
 import { useRankConfigSyncWeb2 } from "./hooks/useRankConfigSyncWeb2";
 
@@ -103,6 +104,7 @@ const AppContent = memo(function AppContent({ children }: { children: ReactNode 
       <RankConfigSync />
       <ContractEventsHost />
       <PosthogAppChainSync />
+      <RestoreWalletConnection />
       <TransactionProvider>
         {children}
         <MobileAlphaNoticeModal />

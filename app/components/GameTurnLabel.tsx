@@ -9,6 +9,7 @@ import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 interface GameTurnLabelProps {
   isMyTurn: boolean;
   secondsLeft: number;
+  showTime?: boolean;
 }
 
 function formatSeconds(total: number): string {
@@ -17,7 +18,7 @@ function formatSeconds(total: number): string {
   return `${m}:${s}`;
 }
 
-export function GameTurnLabel({ isMyTurn, secondsLeft }: GameTurnLabelProps) {
+export function GameTurnLabel({ isMyTurn, secondsLeft, showTime = true }: GameTurnLabelProps) {
   const color = isMyTurn ? "var(--color-cyan)" : "var(--color-warning-red)";
   return (
     <div
@@ -25,10 +26,14 @@ export function GameTurnLabel({ isMyTurn, secondsLeft }: GameTurnLabelProps) {
       style={{ ...STYLE_LABEL, color: "var(--color-text-secondary)" }}
     >
       <span style={{ color }}>{isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}</span>
-      <span style={{ color: "var(--color-text-muted)" }}>•</span>
-      <span className="font-mono" style={{ ...STYLE_MONO, color }}>
-        {formatSeconds(secondsLeft)}
-      </span>
+      {showTime && (
+        <>
+          <span style={{ color: "var(--color-text-muted)" }}>•</span>
+          <span className="font-mono" style={{ ...STYLE_MONO, color }}>
+            {formatSeconds(secondsLeft)}
+          </span>
+        </>
+      )}
     </div>
   );
 }

@@ -69,8 +69,8 @@ function miningLaserOrigin(
   const cy = box.y + box.height / 2;
   const dir = facingRight ? 1 : -1;
   return {
-    x: cx + dir * (box.width * 0.05 + scaleCellPx(box.width, 23)),
-    y: cy + (facingRight ? -box.height * 0.15 : 0) + scaleCellPx(box.height, -2),
+    x: cx + dir * (box.width * -0.15 + scaleCellPx(box.width, 23)),
+    y: cy + (facingRight ? -box.height * 0.15 : 0) - box.height * 0.13 + scaleCellPx(box.height, -2),
   };
 }
 
@@ -371,11 +371,13 @@ function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
   );
 }
 
-function makeTracePath(): TracePoint[] {
-  const start = {
-    x: randIn(-TRACE_X_BAND, TRACE_X_BAND),
-    y: randIn(-TRACE_Y_BAND, TRACE_Y_BAND),
-  };
+function makeTracePath(from?: TracePoint): TracePoint[] {
+  const start = from
+    ? clampTrace(from)
+    : {
+        x: randIn(-TRACE_X_BAND, TRACE_X_BAND),
+        y: randIn(-TRACE_Y_BAND, TRACE_Y_BAND),
+      };
   let end = {
     x: randIn(-TRACE_X_BAND, TRACE_X_BAND),
     y: randIn(-TRACE_Y_BAND, TRACE_Y_BAND),
@@ -551,8 +553,9 @@ const MiningLaserAnimation = React.memo(function MiningLaserAnimation({
       const cy = box.y + box.height / 2;
       const t = ((now - startedAtRef.current) / LASER_TRACE_PERIOD_MS) % 1;
       if (t < lastTraceTRef.current) {
-        trailLocalsRef.current = [];
-        tracePath = makeTracePath();
+        const trail = trailLocalsRef.current;
+        const last = trail[trail.length - 1] ?? sampleTracePath(tracePath, 1);
+        tracePath = makeTracePath(last);
       }
       lastTraceTRef.current = t;
       const local = sampleTracePath(tracePath, t);

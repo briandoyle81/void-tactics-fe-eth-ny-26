@@ -24,14 +24,16 @@ vi.mock("../../data/dialog/missionDialog", () => ({
   ],
 }));
 vi.mock("../../data/dialog/genericDialog", () => ({ GENERIC_DIALOG_LINES: [] }));
-import type { DialogSnapshot } from "../../utils/missionDialog";
+import type { DialogObservation } from "../../utils/missionDialog";
 
-const OPENING: DialogSnapshot = {
+const OPENING: DialogObservation = {
   round: 1,
   myScore: 0,
   enemyScore: 0,
   myShipsDestroyed: 0,
   enemyShipsDestroyed: 0,
+  myDisabledShipIds: [],
+  enemyDisabledShipIds: [],
   outcome: null,
 };
 
@@ -125,5 +127,25 @@ describe("useMissionDialog", () => {
       }),
     );
     expect(result.current.current).toBeNull();
+  });
+
+  it("counts a disabled ship once even after it's repaired and disabled again", () => {
+    const { result, rerender } = renderHook(
+      ({ disabled }: { disabled: string[] }) =>
+        useMissionDialog({
+          gameId: "disabled-1",
+          mission: { kind: "roguelike", nodeId: 1 },
+          snapshot: { ...OPENING, enemyDisabledShipIds: disabled },
+          enabled: true,
+        }),
+      { initialProps: { disabled: [] as string[] } },
+    );
+    rerender({ disabled: ["7"] }); // disabled
+    rerender({ disabled: [] }); // repaired
+    rerender({ disabled: ["7"] }); // disabled again
+    const stored = JSON.parse(localStorage.getItem("vt-dialog-disabled-1")!);
+    expect(stored.last.enemyShipsDisabled).toBe(1);
+    expect(stored.everDisabled.enemy).toEqual(["7"]);
+    expect(result.current.total).toBeGreaterThan(0);
   });
 });

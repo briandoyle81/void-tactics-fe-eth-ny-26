@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { Attributes, getMainWeaponName, getSpecialName } from "../types/types";
 import { shipHasActivatableSpecial } from "../utils/specialConfigWeb2";
 import { GridShip, GridShipPosition } from "../types/gridDisplay";
+import { STYLE_LABEL } from "../styles/fontStyles";
 import { useFactionAbilityIsHeal } from "../hooks/useFactionAbilityIsHeal";
 import {
   selectedShipHasEffectLabel,
@@ -71,6 +72,10 @@ interface GameGridWeaponSelectorProps {
   factionAbilityRange?: number | undefined;
   setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
   setTargetShipId: (shipId: number | null) => void;
+  preferredVertical?: "above" | "below" | null;
+  onMoveVertical?: (side: "above" | "below") => void;
+  clipRootRef?: React.RefObject<HTMLDivElement | null>;
+  zoomScale?: number;
 }
 
 /**
@@ -98,6 +103,10 @@ export const GameGridWeaponSelector = React.memo(function GameGridWeaponSelector
   factionAbilityRange,
   setSelectedWeaponType,
   setTargetShipId,
+  preferredVertical = null,
+  onMoveVertical,
+  clipRootRef,
+  zoomScale = 1,
 }: GameGridWeaponSelectorProps) {
   // Resolved unconditionally (before the early `return null`s below) since
   // this is a hook call — rules-of-hooks requires it run on every render.
@@ -195,10 +204,6 @@ export const GameGridWeaponSelector = React.memo(function GameGridWeaponSelector
   // otherwise anchor to the ship's current (from) cell.
   const anchorRow = previewPosition ? previewPosition.row : shipRow;
   const anchorCol = previewPosition ? previewPosition.col : shipCol;
-  const isTopRow = anchorRow === 0;
-  const left = `${((anchorCol + 0.5) / 17) * 100}%`;
-  const top = isTopRow ? `${((anchorRow + 1) / 11) * 100}%` : `${(anchorRow / 11) * 100}%`;
-  // Sit past the self-heal / field label so the selector does not cover it.
   const selfHasEffectLabel = selectedShipHasEffectLabel({
     selectedShipId,
     targetShipId,
@@ -208,15 +213,149 @@ export const GameGridWeaponSelector = React.memo(function GameGridWeaponSelector
     factionAbilityIsHeal,
   });
   const selectorGapPx = selfHasEffectLabel ? SELF_EFFECT_LABEL_CLEARANCE_PX : 4;
-  const transform = isTopRow
-    ? `translate(-50%, ${selectorGapPx}px)`
-    : `translate(-50%, calc(-100% - ${selectorGapPx}px))`;
+
+  return (
+    <WeaponSelectorChrome
+      weapons={weapons}
+      selectedWeaponType={selectedWeaponType}
+      specialType={specialType}
+      setSelectedWeaponType={setSelectedWeaponType}
+      setTargetShipId={setTargetShipId}
+      anchorRow={anchorRow}
+      anchorCol={anchorCol}
+      selectorGapPx={selectorGapPx}
+      preferredVertical={preferredVertical}
+      onMoveVertical={onMoveVertical}
+      clipRootRef={clipRootRef}
+      zoomScale={zoomScale}
+    />
+  );
+});
+
+function WeaponSelectorChrome({
+  weapons,
+  selectedWeaponType,
+  specialType,
+  setSelectedWeaponType,
+  setTargetShipId,
+  anchorRow,
+  anchorCol,
+  selectorGapPx,
+  preferredVertical,
+  onMoveVertical,
+  clipRootRef,
+  zoomScale,
+}: {
+  weapons: { value: "weapon" | "special" | "ram"; label: string }[];
+  selectedWeaponType: "weapon" | "special" | "ram";
+  specialType: number;
+  setSelectedWeaponType: (type: "weapon" | "special" | "ram") => void;
+  setTargetShipId: (shipId: number | null) => void;
+  anchorRow: number;
+  anchorCol: number;
+  selectorGapPx: number;
+  preferredVertical: "above" | "below" | null;
+  onMoveVertical?: (side: "above" | "below") => void;
+  clipRootRef?: React.RefObject<HTMLDivElement | null>;
+  zoomScale: number;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const autoSide: "above" | "below" = anchorRow === 0 ? "below" : "above";
+  const side = preferredVertical ?? autoSide;
+  const left = `${((anchorCol + 0.5) / 17) * 100}%`;
+  const top =
+    side === "below"
+      ? `${((anchorRow + 1) / 11) * 100}%`
+      : `${(anchorRow / 11) * 100}%`;
+  const transform =
+    side === "below"
+      ? `translate(-50%, ${selectorGapPx}px)`
+      : `translate(-50%, calc(-100% - ${selectorGapPx}px))`;
+  const [fits, setFits] = useState({
+    above: anchorRow > 0,
+    below: anchorRow < 10,
+  });
+
+  useLayoutEffect(() => {
+    const widget = rootRef.current;
+    if (!widget) return;
+    const wRect = widget.getBoundingClientRect();
+    const clipEl = clipRootRef?.current;
+    const clipRect = clipEl?.getBoundingClientRect();
+    const pad = 4;
+    const view = {
+      top: Math.max(clipRect?.top ?? 0, 0) + pad,
+      bottom: Math.min(clipRect?.bottom ?? window.innerHeight, window.innerHeight) - pad,
+    };
+    const gridInner = widget.closest("[data-grid-inner]");
+    const cell = gridInner?.querySelector(
+      `[data-grid-row="${anchorRow}"][data-grid-col="${anchorCol}"]`,
+    ) as HTMLElement | null;
+    const nextFits = cell
+      ? (() => {
+          const cRect = cell.getBoundingClientRect();
+          const gap = selectorGapPx;
+          return {
+            above: cRect.top - gap - wRect.height >= view.top,
+            below: cRect.bottom + gap + wRect.height <= view.bottom,
+          };
+        })()
+      : {
+          above: anchorRow > 0,
+          below: anchorRow < 10,
+        };
+    setFits((prev) =>
+      prev.above === nextFits.above && prev.below === nextFits.below
+        ? prev
+        : nextFits,
+    );
+  }, [
+    anchorCol,
+    anchorRow,
+    clipRootRef,
+    selectorGapPx,
+    side,
+    zoomScale,
+  ]);
+
+  const flipTo: "above" | "below" = side === "above" ? "below" : "above";
+  const canFlip = onMoveVertical != null && (flipTo === "above" ? fits.above : fits.below);
 
   return (
     <div
+      ref={rootRef}
       className="absolute z-[195] pointer-events-auto"
       style={{ left, top, transform }}
     >
+      <div className="flex">
+        {onMoveVertical != null && (
+          <button
+            type="button"
+            aria-label={flipTo === "above" ? "Move weapons above" : "Move weapons below"}
+            title={flipTo === "above" ? "Move above" : "Move below"}
+            disabled={!canFlip}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!canFlip) return;
+              onMoveVertical(flipTo);
+            }}
+            className="flex w-6 shrink-0 items-center justify-center text-[10px] transition-colors duration-100"
+            style={{
+              ...STYLE_LABEL,
+              color: canFlip ? "var(--color-cyan)" : "var(--color-text-muted)",
+              backgroundColor: "var(--color-near-black)",
+              border: "2px solid var(--color-gunmetal)",
+              borderRight: "none",
+              borderTopColor: "var(--color-steel)",
+              borderLeftColor: "var(--color-steel)",
+              borderRadius: 0,
+              opacity: canFlip ? 1 : 0.4,
+              cursor: canFlip ? "pointer" : "not-allowed",
+            }}
+          >
+            {flipTo === "above" ? "▲" : "▼"}
+          </button>
+        )}
       <div
         className="flex"
         style={{
@@ -259,6 +398,7 @@ export const GameGridWeaponSelector = React.memo(function GameGridWeaponSelector
           );
         })}
       </div>
+      </div>
     </div>
   );
-});
+}

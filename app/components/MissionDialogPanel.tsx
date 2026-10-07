@@ -6,6 +6,7 @@ import { getDialogCharacter } from "../data/dialog/characters";
 import type { DialogQueueItem } from "../utils/missionDialog";
 import type { DialogLogEntry } from "../hooks/useMissionDialog";
 import { DialogPortrait } from "./DialogPortrait";
+import { HighlightedText } from "./HighlightedText";
 
 interface MissionDialogPanelProps {
   /** The line being shown now, if any. */
@@ -21,11 +22,6 @@ interface MissionDialogPanelProps {
   compact?: boolean;
   /** Extra classes for placement (e.g. to clear the tutorial task panel). */
   className?: string;
-}
-
-/** Time on screen before auto-advancing, scaled to line length. */
-function autoAdvanceMs(text: string): number {
-  return Math.min(9000, Math.max(4000, 2500 + text.length * 50));
 }
 
 function speakerFor(item: DialogQueueItem) {
@@ -94,7 +90,7 @@ export function MissionDialogPanel({
                       {speaker.name}
                     </span>
                     <span className="block" style={{ color: speaker.color }}>
-                      {entry.text}
+                      <HighlightedText text={entry.text} />
                     </span>
                   </li>
                 );
@@ -152,17 +148,8 @@ export function DialogLineCard({
   compact: boolean;
 }) {
   const { character, name, color } = speakerFor(line);
-  // Ref so parent re-renders (game poll, timer tick) don't reset the timer.
-  const onAdvanceRef = React.useRef(onAdvance);
-  onAdvanceRef.current = onAdvance;
-  // Auto-advance, paused while the pointer is over the card so a player
-  // reading (or reaching for NEXT) isn't cut off; it restarts on leave.
-  const [isHovered, setIsHovered] = React.useState(false);
-  React.useEffect(() => {
-    if (isHovered) return;
-    const timer = setTimeout(() => onAdvanceRef.current(), autoAdvanceMs(line.text));
-    return () => clearTimeout(timer);
-  }, [line.key, line.text, isHovered]);
+  // Lines never auto-advance: each stays until the player presses NEXT/OK
+  // (or clicks the card), so nothing is missed mid-turn.
 
   const portraitSize = compact ? "h-10 w-10" : "h-16 w-16";
 
@@ -176,8 +163,6 @@ export function DialogLineCard({
         e.stopPropagation();
         onAdvance();
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       role="status"
       aria-live="polite"
     >
@@ -220,7 +205,7 @@ export function DialogLineCard({
           className={`mt-1 ${compact ? "text-xs" : "text-sm"} leading-snug`}
           style={{ ...STYLE_MONO, color }}
         >
-          {line.text}
+          {line.isError ? line.text : <HighlightedText text={line.text} />}
         </p>
         <div className="mt-2 flex justify-end">
           <button

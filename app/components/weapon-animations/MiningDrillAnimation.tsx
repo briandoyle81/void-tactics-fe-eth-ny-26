@@ -32,9 +32,10 @@ function drillOrigin(
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
   const dir = facingRight ? 1 : -1;
+  // Aft is opposite facing (native art rear is the right side).
   return {
-    x: cx + dir * (box.width * 0.1 + scaleCellPx(box.width, 11)),
-    y: cy - box.height * 0.14 + scaleCellPx(box.height, -4),
+    x: cx + dir * scaleCellPx(box.width, 11),
+    y: cy - box.height * 0.08 + scaleCellPx(box.height, -4),
   };
 }
 
