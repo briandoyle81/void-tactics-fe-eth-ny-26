@@ -11,9 +11,6 @@ const RETRY_DELAYS_MS = [0, 500, 1000, 2000, 4000];
 // gives up after this long and the next retry goes ahead.
 const ATTEMPT_TIMEOUT_MS = 3000;
 
-// TEMPORARY diagnostics while chasing the refresh-logout bug.
-const log = (...args: unknown[]) => console.info("[wallet-restore]", ...args);
-
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -63,22 +60,12 @@ export function RestoreWalletConnection() {
 
   useEffect(() => {
     if (attemptedRef.current) return;
-    log("state", {
-      sdkHasLoaded,
-      hasUser: !!user,
-      primaryWallet: primaryWallet ? primaryWallet.key : null,
-      userWallets: userWallets.map((w) => w.key),
-      isConnected,
-      status,
-    });
     if (!sdkHasLoaded || !user || !wallet) return;
     if (isConnected || status === "connecting" || status === "reconnecting") return;
     attemptedRef.current = true;
 
-    log("attempting reconnect for", wallet.key, wallet.address);
-
     void (async () => {
-      for (const [i, delay] of RETRY_DELAYS_MS.entries()) {
+      for (const delay of RETRY_DELAYS_MS) {
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
         if (unmountedRef.current) return;
         try {
@@ -87,33 +74,21 @@ export function RestoreWalletConnection() {
             ATTEMPT_TIMEOUT_MS,
             "getConnectedAccounts",
           );
-          log(`attempt ${i + 1}: connected accounts`, accounts);
           if (accounts.length === 0) continue; // extension not ready yet, or site no longer authorized
-          if (getAccount(wagmiConfig).isConnected) {
-            log("wagmi already connected");
-            return;
-          }
+          if (getAccount(wagmiConfig).isConnected) return;
           // DynamicWagmiConnector registers exactly one connector for the
           // primary wallet (id "dynamic-<walletKey>-<n>").
           const connector = getConnectors(wagmiConfig).find((c) => c.id.startsWith("dynamic-"));
-          if (!connector) {
-            log(`attempt ${i + 1}: Dynamic's wagmi connector not registered yet`);
-            continue;
-          }
+          if (!connector) continue; // not registered yet
           await withTimeout(connect(wagmiConfig, { connector }), ATTEMPT_TIMEOUT_MS * 2, "wagmi connect");
-          log("wagmi connected via", connector.id);
           return;
         } catch (error) {
-          if (error instanceof ConnectorAlreadyConnectedError || getAccount(wagmiConfig).isConnected) {
-            log("wagmi already connected");
-            return;
-          }
-          console.warn("[wallet-restore] attempt", i + 1, "failed:", error);
+          if (error instanceof ConnectorAlreadyConnectedError || getAccount(wagmiConfig).isConnected) return;
+          // Otherwise a dropped reply or timeout; the next retry tries again.
         }
       }
-      log("gave up");
     })();
-  }, [sdkHasLoaded, user, wallet, primaryWallet, userWallets, isConnected, status, wagmiConfig]);
+  }, [sdkHasLoaded, user, wallet, isConnected, status, wagmiConfig]);
 
   return null;
 }
