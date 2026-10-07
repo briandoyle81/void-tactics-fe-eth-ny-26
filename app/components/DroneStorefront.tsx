@@ -4,14 +4,11 @@ import React, { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import type { Abi } from "viem";
 import { formatEther } from "viem";
+import { formatDec } from "../utils/formatDec";
 import { toast } from "react-hot-toast";
 import { TransactionButton } from "./TransactionButton";
 import { CONTRACT_ABIS } from "../config/contracts";
 import { useDroneStorefront } from "../hooks/useDroneStorefront";
-
-interface DroneStorefrontProps {
-  onClose: () => void;
-}
 
 /**
  * DroneStorefront (docs/faction-2.md §3): turn in DEC for a permanent,
@@ -19,7 +16,7 @@ interface DroneStorefrontProps {
  * Tier ladder, not a flat exchange rate — must read `tierCoreCost` for the
  * exact next-tier cost rather than guessing.
  */
-const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
+const DroneStorefront: React.FC = () => {
   const { address } = useAccount();
   const {
     isDeployed,
@@ -52,32 +49,18 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
     decBalance < nextTierCost;
 
   const nextTierCostFormatted =
-    nextTierCost !== undefined ? formatEther(nextTierCost) : null;
+    nextTierCost !== undefined ? formatDec(Number(formatEther(nextTierCost)), "up") : null;
+  const decBalanceFormatted =
+    decBalance !== undefined ? formatDec(Number(formatEther(decBalance))) : "0";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div
-        className="bg-near-black border-2 p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto rounded-none"
-        style={{ borderColor: "var(--color-cyan)" }}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-cyan font-mono tracking-wider">
-            [DRONE STOREFRONT]
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-cyan hover:text-cyan/80 transition-all duration-200 text-2xl font-bold"
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
+    <div className="w-full max-w-xl">
 
         <div className="mb-5 p-4 bg-cyan/10 border border-cyan/40 rounded-none">
           <div className="flex justify-between items-center mb-2">
             <p className="text-cyan/80 text-sm font-mono">Drone Energy Cores</p>
             <p className="text-cyan text-sm font-mono font-bold">
-              {decBalance !== undefined ? `${formatEther(decBalance)} DC` : "0.00 DC"}
+              {decBalanceFormatted} DEC
             </p>
           </div>
           <p className="text-cyan/85 text-xs font-mono leading-relaxed">
@@ -136,7 +119,7 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                       Cost
                     </div>
                     <div className="font-bold text-cyan font-mono">
-                      {nextTierCostFormatted} DC
+                      {nextTierCostFormatted} DEC
                     </div>
                   </div>
                   <div className="border border-solid border-cyan/30 bg-black/20 px-2 py-1.5">
@@ -144,7 +127,7 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                       Your balance
                     </div>
                     <div className="font-bold text-cyan font-mono">
-                      {decBalance !== undefined ? formatEther(decBalance) : "0"} DC
+                      {decBalanceFormatted} DEC
                     </div>
                   </div>
                 </div>
@@ -158,7 +141,7 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                     args={[droneStorefrontAddress as `0x${string}`, nextTierCost]}
                     className="w-full px-4 py-3 rounded-none border-2 border-cyan text-cyan hover:text-cyan hover:bg-cyan/10 font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={insufficientBalance}
-                    loadingText={`[APPROVING ${nextTierCostFormatted} DC...]`}
+                    loadingText={`[APPROVING ${nextTierCostFormatted} DEC...]`}
                     errorText="[ERROR APPROVING]"
                     onSuccess={async () => {
                       await refetchAll();
@@ -174,7 +157,7 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                       return true;
                     }}
                   >
-                    [APPROVE {nextTierCostFormatted} DC]
+                    [APPROVE {nextTierCostFormatted} DEC]
                   </TransactionButton>
                 ) : (
                   <TransactionButton
@@ -201,14 +184,13 @@ const DroneStorefront: React.FC<DroneStorefrontProps> = ({ onClose }) => {
                       return true;
                     }}
                   >
-                    [TURN IN {nextTierCostFormatted} DC]
+                    [TURN IN {nextTierCostFormatted} DEC]
                   </TransactionButton>
                 )}
               </div>
             )}
           </>
         )}
-      </div>
     </div>
   );
 };

@@ -178,6 +178,8 @@ interface GameDisplayProps {
   onBack: () => void;
   refetch?: () => void;
   readOnly?: boolean;
+  /** Open straight into the replay (the Battles inbox's Replay button). */
+  startInReplay?: boolean;
 }
 
 const GameDisplay: React.FC<GameDisplayProps> = ({
@@ -185,6 +187,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
   onBack,
   refetch,
   readOnly = false,
+  startInReplay = false,
 }) => {
   // Debug mode toggle
   const [showDebug, setShowDebug] = React.useState(false);
@@ -538,6 +541,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     setReplayTurns(record.turns);
     setReplayStep(-1);
   }, [game.metadata.gameId]);
+
+  // Replay requested from the Battles inbox: start once on open.
+  const startInReplayRef = React.useRef(startInReplay);
+  React.useEffect(() => {
+    if (!startInReplayRef.current) return;
+    startInReplayRef.current = false;
+    fetchAndStartReplay();
+  }, [fetchAndStartReplay]);
 
   const exitReplay = React.useCallback(() => {
     setReplayStep(null);

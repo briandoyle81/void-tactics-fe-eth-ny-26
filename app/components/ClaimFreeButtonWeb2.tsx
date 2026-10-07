@@ -14,7 +14,7 @@ interface ClaimFreeButtonWeb2Props {
   /** Fired on click, before the request resolves — mirrors web3's FreeShipClaimButton onPress (used there to dismiss the drone-factory tutorial step). */
   onPress?: () => void;
   /** Where the button was shown (for PostHog funnels) — mirrors FreeShipClaimButton's analyticsSurface. */
-  analyticsSurface?: "info" | "manage_navy" | "unknown";
+  analyticsSurface?: "info" | "manage_navy" | "command_deck" | "unknown";
 }
 
 export function ClaimFreeButtonWeb2({

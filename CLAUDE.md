@@ -45,6 +45,10 @@ Four testnets are supported: **Flow Testnet** (id: 747, default), **Ronin Saigon
 | `app/types/` | `types.ts` (Ship, ShipEquipment, ShipTraits, etc.), `onboarding.ts`. |
 | `app/providers/` | `TransactionContext` — wraps wagmi write calls with loading/error UI state. |
 | `app/providers.tsx` | Root providers: wagmi, QueryClient, RainbowKit, TransactionProvider. |
+| `app/page.tsx` | The website (marketing): `components/Website.tsx` with the hero and feature sections from `components/InfoSections.tsx`. |
+| `app/play/` | The game client. Signed out: `BootScreen` (sign-in fork, first battle). Signed in: the HUD (`Header.tsx`: resource pills, your-turn bell, settings menu), `GameNav` (Play · Fleet · Store · Battles · Profile; Q/E on desktop, bottom bar on phones) and the Command Deck hub (`components/commandDeck/`, layout A or B via `useCommandDeckLayout` / PostHog flag `command-deck-layout`). Art slots are configured in `app/config/art.ts`. Store (`StoreScreen`: Ship packs · Credits · Drone Cores · Lottery; ship packs pay at `CheckoutSheet`) and Fleet (`components/fleet/FleetHangar`: Ships · Loadouts · Progression) have sub-tabs; the HUD's + buttons open Store sub-tabs via the `void-tactics-navigate-to-store` event's `section` detail. The Operations run map (`RoguelikeGraph` / `RoguelikeGraphWeb2`) is laid out by `components/operations/` (`OperationsMap`: star chart + right-side mission drawer + `RunActionBar` with the primary action from `utils/runMapAction.ts` at the bottom right). Battles is an inbox (`BattlesInbox`: your turn · waiting · finished with replay) fed by `Games` / `GamesWeb2`. Settings › Audio toggles background music (`useGameMusic`). |
+| `app/admin/` | Ops Console: Maps, Admin, Ship Attributes, Purchase Prices — gated by `useOpsConsoleAccess`, linked from the header [MENU]. |
+| `proxy.ts` | Host routing. With `NEXT_PUBLIC_PLAY_URL` set, the play host serves the client at `/` and the site host redirects client paths there (`app/utils/hostRouting.ts`). |
 | `app/[gameId]/` | Dynamic route for an active game session. |
 
 ### Data Flow

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { MissionBriefing } from "./MissionBriefing";
-import { MissionNodePanel } from "./MissionNodePanel";
 import { navigateToGame } from "../utils/navigateToGame";
 import { MissionDossier } from "./MissionDossier";
 import { useRoguelikeVictoryEffects } from "../hooks/useRoguelikeVictoryEffects";
@@ -34,6 +33,19 @@ import { RoguelikeResupplyPanel } from "./RoguelikeResupplyPanel";
 import { RoguelikeNodeEditPanel } from "./RoguelikeNodeEditPanel";
 import { RoguelikeSettingsModal } from "./RoguelikeSettingsModal";
 import { CampaignEditModeToggle } from "./CampaignEditModeToggle";
+import { ShipImage } from "./ShipImage";
+import { OperationsMap } from "./operations/OperationsMap";
+import { ART_SLOTS } from "../config/art";
+import { MissionDrawerContent } from "./operations/MissionDrawerContent";
+import { RunActionBar } from "./operations/RunActionBar";
+import { useOwnedShips } from "../hooks/useOwnedShips";
+import { useRunRosterHullWeb3 } from "../hooks/useRunRosterHull";
+import { getRunMapAction } from "../utils/runMapAction";
+import type { Ship } from "../types/types";
+
+const NO_SHIP_IDS: bigint[] = [];
+const OPS_TOOLBAR_BUTTON =
+  "border border-solid px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 // Only campaign 1 exists today — same convention as RoguelikeRunStart.tsx's
 // own DEFAULT_ROGUELIKE_CAMPAIGN_ID (not exported from there, so duplicated
@@ -97,6 +109,9 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     null,
   );
   const [showSettings, setShowSettings] = React.useState(false);
+  // The mission drawer opens on selection; closing it gives the chart the
+  // full width until another node is picked.
+  const [drawerOpen, setDrawerOpen] = React.useState(true);
 
   const isBrowseMode = run == null;
   const campaignId = run?.campaignId ?? DEFAULT_ROGUELIKE_CAMPAIGN_ID;
@@ -268,6 +283,15 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   const combatTargetNode =
     combatTargetNodeId != null ? byNumberId.get(Number(combatTargetNodeId)) : undefined;
 
+  // Action bar: the run roster with hull, and fleet cost against the cap.
+  const { ships: ownedShips } = useOwnedShips();
+  const rosterShipIds = run?.rosterShipIds ?? NO_SHIP_IDS;
+  const hullByShipId = useRunRosterHullWeb3(address, rosterShipIds);
+  const rosterShips = React.useMemo(() => {
+    const byId = new Map(ownedShips.map((s) => [s.id.toString(), s]));
+    return rosterShipIds.map((id) => ({ id, ship: byId.get(id.toString()) as Ship | undefined }));
+  }, [ownedShips, rosterShipIds]);
+
   const handleEnterResupply = async (nodeId: bigint) => {
     setEnteringResupply(nodeId);
     try {
@@ -360,6 +384,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       return;
     }
     setSelectedNodeId(id);
+    setDrawerOpen(true);
     if (isBrowseMode) {
       localStorage.setItem(missionSelectedNodeKey(address), String(id));
     }
@@ -377,211 +402,201 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     return <RoguelikeResupplyPanel run={run} node={currentNode!} onDone={onRunAdvanced} />;
   }
 
+  const mapAction = getRunMapAction({
+    isBrowseMode,
+    selectedKind: !selectedNode
+      ? null
+      : selectedNode.kind === RoguelikeNodeKind.Combat
+        ? "combat"
+        : "resupply",
+    isCurrentNode: isSelectedCurrentNode,
+    isReachableChild: isSelectedReachableChild,
+    isDefeated: isSelectedNodeDefeated,
+    hasActiveGame: !isBrowseMode && run.activeGameId !== 0n,
+    isEnteringResupply: !!selectedNode && enteringResupply === selectedNode.id,
+  });
+
+  const handleMapAction = () => {
+    if (!selectedNode || isBrowseMode) return;
+    if (mapAction.type === "resume") navigateToGame(address, run.activeGameId);
+    else if (mapAction.type === "warp") setCombatTargetNodeId(selectedNode.id);
+    else if (mapAction.type === "resupply") void handleEnterResupply(selectedNode.id);
+  };
+
+  const drawer = editMode ? (
+    <RoguelikeNodeEditPanel
+      mode={isCreatingNode ? "create" : "edit"}
+      node={selectedNode ?? null}
+      campaignId={campaignId}
+      connectModeActive={!!selectedNode && connectMode?.sourceNodeId === selectedNode.id}
+      onStartConnectMode={(sourceNodeId) => setConnectMode({ sourceNodeId, twoWay: false })}
+      onCancelConnectMode={() => setConnectMode(null)}
+      onSaved={() => void refetchNodes()}
+      onCreated={() => {
+        setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
+        void refetchNodes();
+      }}
+      onCancelCreate={() => setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId))}
+    />
+  ) : selectedNode ? (
+    <MissionDrawerContent
+      title={selectedNode.title}
+      titleStatus={selectedNode.titleStatus}
+      kindLabel={selectedNode.kind === RoguelikeNodeKind.Combat ? "Combat" : "Resupply"}
+      briefing={
+        <MissionBriefing
+          mission={{ kind: "roguelike", nodeId: Number(selectedNode.id) }}
+          text={selectedNode.description}
+          status={selectedNode.descriptionStatus}
+          compact
+        />
+      }
+      enemyFleet={
+        isSelectedCombatNode
+          ? placementsLoading || configsLoading
+            ? null
+            : enemyShipConfigs.flatMap((config, i) => {
+                if (!config) return [];
+                const ship = aiConfigToPreviewShip(config);
+                return [
+                  {
+                    key: `${config.id.toString()}-${i}`,
+                    name: ship.name,
+                    image: <ShipImage ship={ship} className="h-full w-full" showLoadingState={false} />,
+                  },
+                ];
+              })
+          : undefined
+      }
+      dossier={
+        <MissionDossier
+          forces={
+            isSelectedCombatNode
+              ? {
+                  enemyShips: placementsLoading || configsLoading ? null : enemyShipConfigs.filter(Boolean).length,
+                  enemy: placementsLoading || configsLoading ? null : selectedNodeThreat,
+                  yours: isBrowseMode ? null : Number(run.currentCostCap),
+                  yoursLabel: "Your cost cap",
+                }
+              : undefined
+          }
+          rows={
+            isSelectedCombatNode
+              ? roguelikeCombatDossierRows({
+                  maxScore: Number(selectedNode.maxScore),
+                  creatorGoesFirst: selectedNode.creatorGoesFirst,
+                  turnTimeSeconds: Number(selectedNode.turnTime),
+                  autoHealPercent: autoHealPercent ?? 0,
+                  victoryEffects: selectedVictoryEffects,
+                  isCleared: isSelectedNodeDefeated,
+                })
+              : roguelikeResupplyDossierRows({ costCapOverride: Number(selectedNode.costCapOverride) })
+          }
+        />
+      }
+    />
+  ) : null;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between border-2 border-cyan p-6 font-mono" style={{ borderRadius: 0 }}>
-        <div>
-          <h3 className="text-xl font-bold text-cyan">
-            {isBrowseMode ? "[EDIT CAMPAIGN MAP]" : "[ROGUELIKE RUN]"}
-          </h3>
-          {!isBrowseMode && (
-            <p className="mt-1 text-xs text-text-muted">
-              Roster: {run.rosterShipIds.length} ships · Cost cap: {run.currentCostCap.toString()}
-              {autoHealPercent != null && autoHealPercent > 0 && (
-                <> · Auto-heal on win: {autoHealPercent}%</>
-              )}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <CampaignEditModeToggle
-            isEditor={isEditor}
-            editMode={editMode}
-            onToggle={() => setEditMode((v) => !v)}
+    <>
+      <OperationsMap
+        toolbar={
+          <>
+            <CampaignEditModeToggle
+              isEditor={isEditor}
+              editMode={editMode}
+              onToggle={() => setEditMode((v) => !v)}
+            />
+            {editMode && (
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className={`${OPS_TOOLBAR_BUTTON} border-amber text-amber hover:bg-amber/10`}
+              >
+                Campaign settings
+              </button>
+            )}
+            {!isBrowseMode && (
+              <button
+                type="button"
+                disabled={isRetreating}
+                onClick={() => void handleRetreat()}
+                className={`${OPS_TOOLBAR_BUTTON} border-warning-red text-warning-red hover:bg-warning-red/10`}
+              >
+                {isRetreating ? "Retreating…" : "Retreat run"}
+              </button>
+            )}
+            {isBrowseMode && (
+              <button
+                type="button"
+                onClick={onRunEnded}
+                className={`${OPS_TOOLBAR_BUTTON} border-gunmetal text-text-secondary hover:border-steel hover:text-text-primary`}
+              >
+                Exit map editor
+              </button>
+            )}
+          </>
+        }
+        banner={
+          connectMode && (
+            <div className="flex items-center justify-between border-b-2 border-amber px-4 py-3 font-mono text-sm text-amber">
+              <span>Click the node this one leads to (node #{connectMode.sourceNodeId.toString()}).</span>
+              <button
+                type="button"
+                onClick={() => setConnectMode(null)}
+                className="border border-amber px-3 py-1 text-xs uppercase tracking-wider hover:bg-amber/10"
+              >
+                Cancel
+              </button>
+            </div>
+          )
+        }
+        canvas={
+          <CampaignGraphCanvas
+            bare
+            backdropSrc={ART_SLOTS.runMapBackdrop.src}
+            nodes={canvasNodes}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={handleSelectNode}
+            renderNode={(node, isSelected, onSelect) => (
+              <RoguelikeNodeCard
+                node={node}
+                isSelected={isSelected}
+                onSelect={onSelect}
+                title={node.title}
+                titleStatus={node.titleStatus}
+                editMode={node.editMode}
+                connectHighlight={node.connectHighlight}
+              />
+            )}
           />
-          {editMode && (
-            <button
-              type="button"
-              onClick={() => setShowSettings(true)}
-              className="border-2 border-amber px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber hover:bg-amber/10"
-              style={{ borderRadius: 0 }}
-            >
-              [CAMPAIGN SETTINGS]
-            </button>
-          )}
-          {!isBrowseMode && (
-            <button
-              type="button"
-              disabled={isRetreating}
-              onClick={() => void handleRetreat()}
-              className="border-2 border-warning-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-warning-red transition-colors hover:bg-warning-red/10 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ borderRadius: 0 }}
-            >
-              {isRetreating ? "[RETREATING...]" : "[RETREAT RUN]"}
-            </button>
-          )}
-          {isBrowseMode && (
-            <button
-              type="button"
-              onClick={onRunEnded}
-              className="border-2 border-gunmetal px-4 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary transition-colors hover:border-steel hover:text-text-primary"
-              style={{ borderRadius: 0 }}
-            >
-              [EXIT MAP EDITOR]
-            </button>
-          )}
-        </div>
-      </div>
-
-      <CampaignGraphCanvas
-        nodes={canvasNodes}
-        selectedNodeId={selectedNodeId}
-        onSelectNode={handleSelectNode}
-        renderNode={(node, isSelected, onSelect) => (
-          <RoguelikeNodeCard
-            node={node}
-            isSelected={isSelected}
-            onSelect={onSelect}
-            title={node.title}
-            titleStatus={node.titleStatus}
-            editMode={node.editMode}
-            connectHighlight={node.connectHighlight}
-          />
-        )}
-      >
-        {connectMode && (
-          <div
-            className="flex items-center justify-between border-2 border-amber px-4 py-3 font-mono text-sm text-amber"
-            style={{ borderRadius: 0 }}
-          >
-            <span>Click the node this one leads to (node #{connectMode.sourceNodeId.toString()}).</span>
-            <button
-              type="button"
-              onClick={() => setConnectMode(null)}
-              className="border border-amber px-3 py-1 text-xs uppercase tracking-wider hover:bg-amber/10"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {editMode ? (
-          <RoguelikeNodeEditPanel
-            mode={isCreatingNode ? "create" : "edit"}
-            node={selectedNode ?? null}
-            campaignId={campaignId}
-            connectModeActive={!!selectedNode && connectMode?.sourceNodeId === selectedNode.id}
-            onStartConnectMode={(sourceNodeId) => setConnectMode({ sourceNodeId, twoWay: false })}
-            onCancelConnectMode={() => setConnectMode(null)}
-            onSaved={() => void refetchNodes()}
-            onCreated={() => {
-              setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
-              void refetchNodes();
-            }}
-            onCancelCreate={() => setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId))}
-          />
-        ) : (
-          selectedNode && (
-            <MissionNodePanel
-              title={selectedNode.title}
-              titleStatus={selectedNode.titleStatus}
-              meta={
-                <>
-                  {selectedNode.kind === RoguelikeNodeKind.Combat ? "Combat" : "Resupply"} · Node #
-                  {selectedNode.id.toString()}
-                </>
+        }
+        drawer={drawer}
+        drawerOpen={drawerOpen}
+        onDrawerOpenChange={setDrawerOpen}
+        drawerWide={editMode}
+        actionBar={
+          editMode ? undefined : (
+            <RunActionBar
+              roster={rosterShips.map(({ id, ship }) => ({
+                key: id.toString(),
+                name: ship?.name || `Ship #${id.toString()}`,
+                image: ship ? <ShipImage ship={ship} className="h-full w-full" showLoadingState={false} /> : null,
+                hullPercent: hullByShipId.get(id.toString()) ?? 100,
+              }))}
+              // Bigint ship costs convert to number here (adapter layer).
+              fleetCost={
+                isBrowseMode
+                  ? null
+                  : rosterShips.reduce((sum, { ship }) => sum + (ship ? Number(ship.shipData.cost) : 0), 0)
               }
-              briefing={
-                <MissionBriefing
-                  mission={{ kind: "roguelike", nodeId: Number(selectedNode.id) }}
-                  text={selectedNode.description}
-                  status={selectedNode.descriptionStatus}
-                />
-              }
-              dossier={
-                <MissionDossier
-                  forces={
-                    isSelectedCombatNode
-                      ? {
-                          enemyShips: placementsLoading || configsLoading ? null : enemyShipConfigs.filter(Boolean).length,
-                          enemy: placementsLoading || configsLoading ? null : selectedNodeThreat,
-                          yours: isBrowseMode ? null : Number(run.currentCostCap),
-                          yoursLabel: "Your cost cap",
-                        }
-                      : undefined
-                  }
-                  rows={
-                    isSelectedCombatNode
-                      ? roguelikeCombatDossierRows({
-                          maxScore: Number(selectedNode.maxScore),
-                          creatorGoesFirst: selectedNode.creatorGoesFirst,
-                          turnTimeSeconds: Number(selectedNode.turnTime),
-                          autoHealPercent: autoHealPercent ?? 0,
-                          victoryEffects: selectedVictoryEffects,
-                          isCleared: isSelectedNodeDefeated,
-                        })
-                      : roguelikeResupplyDossierRows({ costCapOverride: Number(selectedNode.costCapOverride) })
-                  }
-                  action={
-                    <>
-                      {isBrowseMode ? (
-                        <p className="text-sm text-text-muted">Start a run to enter this node.</p>
-                      ) : isSelectedCurrentNode ? (
-                        isSelectedNodeDefeated ? (
-                          <p className="text-sm text-phosphor-green">
-                            This node is cleared — pick where to go next above.
-                          </p>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              // A match here is already running: go straight to it
-                              // (relaunching would revert ActiveGameInProgress).
-                              run.activeGameId !== 0n
-                                ? navigateToGame(address, run.activeGameId)
-                                : setCombatTargetNodeId(selectedNode.id)
-                            }
-                            className="border-2 border-phosphor-green px-4 py-2 text-xs font-bold uppercase tracking-wider text-phosphor-green transition-colors hover:bg-phosphor-green/10"
-                            style={{ borderRadius: 0 }}
-                          >
-                            [WARP TO MISSION]
-                          </button>
-                        )
-                      ) : isSelectedReachableChild ? (
-                        selectedNode.kind === RoguelikeNodeKind.Combat ? (
-                          <button
-                            type="button"
-                            disabled={isSelectedNodeDefeated}
-                            onClick={() => setCombatTargetNodeId(selectedNode.id)}
-                            className="border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                            style={{ borderRadius: 0 }}
-                          >
-                            {isSelectedNodeDefeated ? "[ALREADY CLEARED]" : "[ENTER COMBAT]"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={enteringResupply === selectedNode.id}
-                            onClick={() => void handleEnterResupply(selectedNode.id)}
-                            className="border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan transition-colors hover:bg-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
-                            style={{ borderRadius: 0 }}
-                          >
-                            {enteringResupply === selectedNode.id ? "[ENTERING...]" : "[ENTER RESUPPLY]"}
-                          </button>
-                        )
-                      ) : (
-                        <p className="text-sm text-text-muted">
-                          Not reachable from your current position.
-                        </p>
-                      )}
-                    </>
-                  }
-                />
-              }
+              costCap={isBrowseMode ? null : Number(run.currentCostCap)}
+              action={mapAction}
+              onAction={handleMapAction}
             />
           )
-        )}
-      </CampaignGraphCanvas>
+        }
+      />
 
       {combatTargetNodeId != null && combatTargetNode && !isBrowseMode && (
         <RoguelikeCombatModal
@@ -599,6 +614,6 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
           onSaved={() => void refetchAutoHeal()}
         />
       )}
-    </div>
+    </>
   );
 }

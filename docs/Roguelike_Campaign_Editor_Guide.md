@@ -87,7 +87,7 @@ Below that is **Win effect configuration** — the *global* numbers behind each 
 
 *(Added 2026-10-02.)* The contracts repo (`void-tactics-contracts-eth-online-2026`) seeds every mission on a fresh deploy from three files in `ignition/data/`: `singlePlayerStarterContent.json`, `roguelikeStarterContent.json` and `pvpStarterContent.json`. To carry edits made in the app over to the next deploy:
 
-1. Open the **Admin** tab with a wallet holding any editor role (map admin, enemy-fleet editor or node editor) and scroll to **`[EXPORT MISSION SEED FILES]`**.
+1. Open the **Admin** tab of the Ops Console (`/admin`, linked from the header **[MENU]** as **Ops Console**) with a wallet holding any editor role (map admin, enemy-fleet editor or node editor) and scroll to **`[EXPORT MISSION SEED FILES]`**.
 2. Load the contracts repo's current three seed files. They're used to keep existing keys (`m01`, `mainCampaign`, `f06`, …) the same, since the deploy references some of them directly.
 3. Click **`[DOWNLOAD SEED FILES]`** and copy the three downloads over the originals. An unchanged chain produces no diff.
 

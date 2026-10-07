@@ -8,11 +8,6 @@ import { formatEther } from "viem";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import type { Abi } from "viem";
-import UTCPurchaseModal from "./UTCPurchaseModal";
-import UTCPurchaseModalWeb2 from "./UTCPurchaseModalWeb2";
-import { UtcLotteryPanel } from "./UtcLotteryPanel";
-import DroneStorefront from "./DroneStorefront";
-import DroneStorefrontWeb2 from "./DroneStorefrontWeb2";
 import {
   DEFAULT_CHAIN_ID,
   getSelectedChainId,
@@ -26,24 +21,25 @@ import {
 } from "../config/networks";
 import { switchWalletToAppChain } from "../utils/switchWalletChain";
 import { readRpcErrorCode } from "../utils/ensureUiChainsInWallet";
+import { HeaderAlphaBadge, HeaderDiscordLink, HeaderXLink, VOID_TACTICS_X_URL } from "./BrandLinks";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
+import { useFreeShipClaimStatus } from "../hooks/useFreeShipClaimStatus";
+import type { StoreSection } from "./StoreScreen";
+import { useGameMusic } from "../hooks/useGameMusic";
+import { formatDec } from "../utils/formatDec";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUserBalanceWeb2 } from "../hooks/useUserBalanceWeb2";
 import { setAppMode, type AppMode } from "../config/appMode";
 import { useAppMode } from "../hooks/useAppMode";
 import { signOut } from "next-auth/react";
 import posthog from "posthog-js";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { navigateToClientTab } from "../utils/clientNavigation";
+import { useOpsConsoleAccess } from "../hooks/useOpsConsoleAccess";
+import { ADMIN_PATH } from "../config/routes";
 import AuthSignIn from "./AuthSignIn";
 import { PasskeyEnablePrompt } from "./PasskeyEnablePrompt";
-
-const VOID_TACTICS_X_URL = "https://x.com/voidtacticsxyz";
-
-const FAUCET_URLS: Record<number, string> = {
-  545: "https://faucet.flow.com/fund-account",
-  84532: "https://thirdweb.com/base-sepolia-testnet",
-  2021: "https://faucet.roninchain.com/",
-  37714555429: "https://faucet.quicknode.com/xai",
-};
 
 function resolveChainIdFromQueryParam(value: string | null): number | null {
   if (!value) return null;
@@ -73,35 +69,8 @@ function resolveChainIdFromQueryParam(value: string | null): number | null {
     : null;
 }
 
-function HeaderAlphaBadge({ compact }: { compact?: boolean }) {
-  return (
-    <div
-      className={`shrink-0 border border-solid w-fit ${
-        compact ? "px-2 py-0.5" : "px-2.5 py-1"
-      }`}
-      style={{
-        fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-        fontSize: compact ? "10px" : "11px",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: compact ? "0.06em" : "0.1em",
-        color: "var(--color-amber)",
-        borderColor: "rgba(245, 158, 11, 0.75)",
-        backgroundColor: "rgba(13, 17, 23, 0.7)",
-      }}
-    >
-      [TESTNET ALPHA]
-    </div>
-  );
-}
-
-function dispatchNavigateToProfile() {
-  window.dispatchEvent(
-    new CustomEvent("void-tactics-navigate-to-profile", { bubbles: true }),
-  );
-  document.dispatchEvent(
-    new CustomEvent("void-tactics-navigate-to-profile", { bubbles: true }),
-  );
+function dispatchNavigateToProfile(push: (href: string) => void) {
+  navigateToClientTab("Profile", "void-tactics-navigate-to-profile", push);
 }
 
 function HeaderMenuItem({
@@ -373,160 +342,225 @@ function HeaderModeSwitchBadge({
   );
 }
 
-function HeaderTitleBlock({ variant }: { variant?: "mobile" | "desktop" }) {
-  const isMobile = variant === "mobile";
-  const handleClick = () => {
-    window.dispatchEvent(
-      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
-    );
-    document.dispatchEvent(
-      new CustomEvent("void-tactics-navigate-to-info", { bubbles: true }),
-    );
-  };
+function HeaderTitleBlock() {
+  const router = useRouter();
   return (
     <button
       type="button"
-      onClick={handleClick}
-      aria-label="Go to Info"
-      className={`border-0 bg-transparent p-0 text-left ${
-        isMobile ? "relative min-w-0 shrink" : "relative w-fit shrink-0"
-      }`}
+      onClick={() =>
+        navigateToClientTab("Command Deck", "void-tactics-navigate-to-info", router.push)
+      }
+      aria-label="Go to the Command Deck"
+      className="relative w-fit shrink-0 border-0 bg-transparent p-0 text-left"
     >
-      <h1
-        className={
-          isMobile
-            ? "truncate text-xl font-black uppercase leading-none tracking-wide sm:text-2xl"
-            : "text-[34px] font-black uppercase leading-none tracking-[0.06em] sm:text-3xl md:text-4xl"
-        }
+      <span
+        className="block text-xl font-black uppercase leading-none tracking-[0.06em] md:text-2xl"
         style={{
           fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
           color: "var(--color-text-primary, #e2e8f0)",
         }}
       >
         VOID TACTICS
-      </h1>
-      <div
-        className={
-          isMobile
-            ? "mt-0.5 h-0.5 w-full"
-            : "absolute -bottom-1 left-0 right-0 h-0.5"
-        }
+      </span>
+      <span
+        className="absolute -bottom-1 left-0 right-0 h-0.5"
         style={{ backgroundColor: "var(--color-cyan)" }}
       />
     </button>
   );
 }
 
-function HeaderXLink({ compact = false }: { compact?: boolean }) {
-  const box = compact ? 32 : 36;
-  const icon = compact ? 14 : 16;
+const MONO_FONT = "var(--font-jetbrains-mono), 'Courier New', monospace";
+
+/** Balance for a HUD pill: whole numbers from 100, compact from 10k. */
+function formatAmount(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  if (Math.abs(value) >= 10_000) {
+    return new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2,
+  });
+}
+
+/** A resource in the HUD: label, balance, and a + that tops it up. */
+function ResourcePill({
+  label,
+  value,
+  color,
+  title,
+  plus,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  color: string;
+  title: string;
+  plus?: { title: string; onClick?: () => void; href?: string; disabled?: boolean };
+  className?: string;
+}) {
+  const plusClass =
+    "flex h-6 w-6 shrink-0 items-center justify-center text-sm font-bold leading-none transition-colors duration-150 hover:bg-slate disabled:cursor-default disabled:opacity-40";
+  const plusStyle = {
+    backgroundColor: "var(--color-steel)",
+    color: "var(--color-phosphor-green)",
+  };
   return (
-    <a
-      href={VOID_TACTICS_X_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Void Tactics on X"
-      title="Follow on X"
-      className={`vt-header-social-btn inline-flex shrink-0 items-center justify-center border border-solid transition-colors duration-150${
-        compact ? " vt-header-social-btn-compact" : ""
-      }`}
+    <div
+      className={`flex h-8 shrink-0 items-center gap-1.5 border border-solid pl-2 pr-1 ${className}`}
       style={{
-        width: box,
-        height: box,
-        color: "var(--color-cyan, #56d6ff)",
-        backgroundColor: "rgba(13, 17, 23, 0.75)",
-        borderColor: "rgba(86, 214, 255, 0.75)",
-        borderTopColor: "var(--color-steel)",
-        borderLeftColor: "var(--color-steel)",
-        borderRadius: 0,
-        overflow: "hidden",
+        backgroundColor: "var(--color-near-black)",
+        borderColor: "var(--color-gunmetal)",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "var(--color-slate)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(13, 17, 23, 0.75)";
-      }}
+      title={title}
     >
-      <svg
-        className="vt-header-social-icon"
-        width={icon}
-        height={icon}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-        style={{ width: icon, height: icon, display: "block", flexShrink: 0 }}
+      <span
+        className="text-[10px] font-bold uppercase tracking-wider"
+        style={{ fontFamily: MONO_FONT, color }}
       >
-        <path d="M18.244 2H21.5l-7.108 8.124L22.75 22h-6.547l-5.128-6.703L5.21 22H1.95l7.604-8.692L1.25 2h6.713l4.636 6.112L18.244 2Zm-1.147 18.04h1.803L6.982 3.86H5.047L17.097 20.04Z" />
-      </svg>
-    </a>
+        {label}
+      </span>
+      <span
+        className="text-xs font-semibold tabular-nums"
+        style={{ fontFamily: MONO_FONT, color: "var(--color-text-primary)" }}
+      >
+        {value}
+      </span>
+      {plus &&
+        (plus.href ? (
+          <a
+            href={plus.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={plusClass}
+            style={plusStyle}
+            title={plus.title}
+            aria-label={plus.title}
+          >
+            +
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={plus.onClick}
+            disabled={plus.disabled}
+            className={plusClass}
+            style={plusStyle}
+            title={plus.title}
+            aria-label={plus.title}
+          >
+            +
+          </button>
+        ))}
+    </div>
   );
 }
 
-function HeaderDiscordLink({ compact = false }: { compact?: boolean }) {
-  const box = compact ? 32 : 36;
-  const icon = compact ? 14 : 16;
+function HudIconButton({
+  label,
+  onClick,
+  children,
+  badge,
+  expanded,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  badge?: number;
+  expanded?: boolean;
+}) {
   return (
-    <a
-      href={ALPHA_DISCORD_INVITE_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Join Void Tactics Discord"
-      title="Join Discord"
-      className={`vt-header-social-btn inline-flex shrink-0 items-center justify-center border border-solid transition-colors duration-150${
-        compact ? " vt-header-social-btn-compact" : ""
-      }`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-expanded={expanded}
+      className="relative flex h-8 w-8 shrink-0 items-center justify-center border border-solid transition-colors duration-150 hover:bg-slate"
       style={{
-        width: box,
-        height: box,
-        color: "var(--color-cyan, #56d6ff)",
-        backgroundColor: "rgba(13, 17, 23, 0.75)",
-        borderColor: "rgba(86, 214, 255, 0.75)",
-        borderTopColor: "var(--color-steel)",
-        borderLeftColor: "var(--color-steel)",
-        borderRadius: 0,
-        overflow: "hidden",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "var(--color-slate)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(13, 17, 23, 0.75)";
+        color: "var(--color-cyan)",
+        backgroundColor: "var(--color-near-black)",
+        borderColor: "var(--color-gunmetal)",
       }}
     >
-      <svg
-        className="vt-header-social-icon"
-        width={icon}
-        height={icon}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-        style={{ width: icon, height: icon, display: "block", flexShrink: 0 }}
-      >
-        <path d="M20.32 4.37A19.79 19.79 0 0 0 15.4 2.8a13.92 13.92 0 0 0-.63 1.3 18.35 18.35 0 0 0-5.55 0 13.5 13.5 0 0 0-.63-1.3A19.66 19.66 0 0 0 3.68 4.37C.56 8.98-.27 13.47.15 17.9a20.04 20.04 0 0 0 6.07 3.08c.5-.69.95-1.42 1.33-2.19-.73-.27-1.42-.61-2.08-1.01.17-.12.34-.25.5-.39 4.01 1.88 8.35 1.88 12.31 0 .17.14.34.27.5.39-.66.4-1.36.74-2.09 1.01.38.76.83 1.49 1.34 2.18a19.96 19.96 0 0 0 6.06-3.08c.5-5.13-.86-9.58-3.77-13.53ZM8.02 15.15c-1.2 0-2.18-1.1-2.18-2.45s.96-2.45 2.18-2.45c1.22 0 2.2 1.1 2.18 2.45 0 1.35-.97 2.45-2.18 2.45Zm7.96 0c-1.2 0-2.18-1.1-2.18-2.45s.96-2.45 2.18-2.45c1.22 0 2.2 1.1 2.18 2.45 0 1.35-.96 2.45-2.18 2.45Z" />
-      </svg>
-    </a>
+      {children}
+      {badge != null && badge > 0 && (
+        <span
+          className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center px-1 text-[10px] font-bold leading-none"
+          style={{
+            fontFamily: MONO_FONT,
+            backgroundColor: "var(--color-phosphor-green)",
+            color: "var(--color-near-black)",
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
 
-const Header: React.FC = () => {
+function SettingsHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="px-3 pb-1 pt-3 text-[10px] uppercase tracking-widest text-text-muted"
+      style={{ fontFamily: MONO_FONT }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SettingsLink({
+  href,
+  children,
+  external,
+}: {
+  href: string;
+  children: React.ReactNode;
+  external?: boolean;
+}) {
+  const className =
+    "flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider text-cyan transition-colors duration-150 hover:bg-slate";
+  const style = { fontFamily: MONO_FONT };
+  return external ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={className} style={style}>
+      {children}
+    </a>
+  ) : (
+    <Link href={href} className={className} style={style}>
+      {children}
+    </Link>
+  );
+}
+
+interface HeaderProps {
+  /** Games where it's the player's turn — shown on the bell. The bell is
+   * hidden where the count isn't known (pages outside the game client). */
+  yourTurnCount?: number;
+  /** Show the sign-in choice when signed out. The client's boot screen has
+   * its own, so it turns this off. */
+  showSignIn?: boolean;
+}
+
+/**
+ * The game client's HUD: identity, resource pills (each + tops that
+ * resource up), the your-turn bell and the settings menu (account, network,
+ * lottery, Ops Console, community and legal links).
+ */
+const Header: React.FC<HeaderProps> = ({ yourTurnCount, showSignIn = true }) => {
   const [isHydrated, setIsHydrated] = useState(false);
-  const [showUTCPurchaseModal, setShowUTCPurchaseModal] = useState(false);
-  const [showDroneStorefront, setShowDroneStorefront] = useState(false);
-  const [showUTCPurchaseModalWeb2, setShowUTCPurchaseModalWeb2] =
-    useState(false);
-  const [showDroneStorefrontWeb2, setShowDroneStorefrontWeb2] = useState(false);
-  const [showUtcLotteryPanel, setShowUtcLotteryPanel] = useState(false);
   const [hasVariantMismatch, setHasVariantMismatch] = useState(false);
-  const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [matchViewOpen, setMatchViewOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLElement | null>(null);
-  const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
-  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
   const account = useAccount();
+  const router = useRouter();
+  const { hasAccess: hasOpsConsoleAccess } = useOpsConsoleAccess();
   const config = useConfig();
   const { setShowDynamicUserProfile } = useDynamicContext();
 
@@ -541,7 +575,6 @@ const Header: React.FC = () => {
     null,
   );
   const lastVariantWarningKeyRef = useRef<string | null>(null);
-  const networkMenuRef = useRef<HTMLDivElement | null>(null);
   /** Apply `?chain=` / `?network=` only once so manual picks are not overwritten on every change. */
   const urlChainQueryConsumedRef = useRef(false);
 
@@ -622,13 +655,7 @@ const Header: React.FC = () => {
       const custom = event as CustomEvent<{ active?: boolean }>;
       const active = Boolean(custom.detail?.active);
       setMatchViewOpen(active);
-      if (active) {
-        setShowUtcLotteryPanel(false);
-        setShowUTCPurchaseModal(false);
-        setShowUTCPurchaseModalWeb2(false);
-        setShowDroneStorefront(false);
-        setShowDroneStorefrontWeb2(false);
-      }
+      if (active) setIsSettingsOpen(false);
     };
     window.addEventListener("void-tactics-games-detail-active", onDetail);
     return () =>
@@ -787,14 +814,12 @@ const Header: React.FC = () => {
         },
       );
     }
-    setIsNetworkMenuOpen(false);
+    setIsSettingsOpen(false);
   };
 
   useEffect(() => {
     const handleChainChanged = () => {
-      setShowUTCPurchaseModal(false);
-      setIsNetworkMenuOpen(false);
-      setIsMobileMenuOpen(false);
+      setIsSettingsOpen(false);
     };
     window.addEventListener(
       VOID_TACTICS_CHAIN_CHANGED_EVENT,
@@ -809,69 +834,25 @@ const Header: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isNetworkMenuOpen) return;
+    if (!isSettingsOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (networkMenuRef.current && !networkMenuRef.current.contains(target)) {
-        setIsNetworkMenuOpen(false);
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(target)) {
+        setIsSettingsOpen(false);
       }
     };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsSettingsOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
 
     window.addEventListener("mousedown", handleClickOutside);
     return () => {
       window.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleEscape);
     };
-  }, [isNetworkMenuOpen]);
-
-  useEffect(() => {
-    if (!isAccountMenuOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (accountMenuRef.current && !accountMenuRef.current.contains(target)) {
-        setIsAccountMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isAccountMenuOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isMobileMenuOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const clickedMenuButton = menuButtonRef.current?.contains(target);
-      const clickedMenuPanel = mobileMenuPanelRef.current?.contains(target);
-      if (!clickedMenuButton && !clickedMenuPanel) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isMobileMenuOpen]);
+  }, [isSettingsOpen]);
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -900,16 +881,6 @@ const Header: React.FC = () => {
   const showWeb3Panel =
     isConnected && !(bothIdentitiesActive && appMode === "web2");
 
-  // The hamburger/expanded panel is always reachable once hydrated so a
-  // logged-out player can still find the web2 sign-in option on mobile.
-  const showMobileWalletMenu = isHydrated;
-
-  useEffect(() => {
-    if (!isConnected && !isConnecting && !isWeb2LoggedIn) {
-      setIsMobileMenuOpen(false);
-    }
-  }, [isConnected, isConnecting, isWeb2LoggedIn]);
-
   // The login method the player actually used is the mode signal — keep the
   // app-mode toggle in sync so the rest of the app renders the right data
   // layer. Only auto-assign when there's no ambiguity (exactly one identity
@@ -925,673 +896,355 @@ const Header: React.FC = () => {
     }
   }, [isConnected, isWeb2LoggedIn]);
 
-  const renderMobileTrailingSlot = () => {
-    const assignMenuRef = (el: HTMLElement | null) => {
-      menuButtonRef.current = el;
-    };
+  const freeShips = useFreeShipClaimStatus();
+  const music = useGameMusic();
+  const isSignedIn = showWeb2Panel || showWeb3Panel;
+  const callsign = showWeb2Panel
+    ? (web2Username ?? web2Email ?? "Commander")
+    : formatAddress(account.address || "");
+  const initials = showWeb2Panel
+    ? callsign.slice(0, 2).toUpperCase()
+    : (account.address ?? "").slice(2, 4).toUpperCase();
 
-    if (!isHydrated) {
-      return (
-        <div ref={assignMenuRef} className="h-9 w-9 shrink-0" aria-hidden />
-      );
-    }
+  const openCommandDeck = () =>
+    navigateToClientTab("Command Deck", "void-tactics-navigate-to-info", router.push);
+  const openBattles = () =>
+    navigateToClientTab("Games", "void-tactics-navigate-to-games", router.push);
+  /** The HUD's + buttons open the matching Store sub-tab. */
+  const openStore = (section: StoreSection) =>
+    navigateToClientTab("Store", "void-tactics-navigate-to-store", router.push, { section });
 
-    // The hamburger always opens the expanded panel below (which shows the
-    // right widget for whichever mode is active — see the desktop panel).
-    const hamburger = (
-      <button
-        ref={assignMenuRef}
-        type="button"
-        onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-        className="md:hidden flex h-9 w-9 shrink-0 items-center justify-center border border-solid transition-colors duration-150"
-        style={{
-          color: "var(--color-cyan, #56d6ff)",
-          backgroundColor: "rgba(13, 17, 23, 0.75)",
-          borderColor: "rgba(86, 214, 255, 0.75)",
-          borderTopColor: "var(--color-steel)",
-          borderLeftColor: "var(--color-steel)",
-          borderRadius: 0,
-        }}
-        aria-expanded={isMobileMenuOpen}
-        aria-controls="header-mobile-controls"
-        aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-      >
-        <span className="relative block h-3.5 w-4">
-          <span
-            className={`absolute left-0 h-0.5 w-4 bg-current transition-all duration-200 ${
-              isMobileMenuOpen ? "top-1.5 rotate-45" : "top-0"
-            }`}
-          />
-          <span
-            className={`absolute left-0 top-1.5 h-0.5 w-4 bg-current transition-opacity duration-200 ${
-              isMobileMenuOpen ? "opacity-0" : "opacity-100"
-            }`}
-          />
-          <span
-            className={`absolute left-0 h-0.5 w-4 bg-current transition-all duration-200 ${
-              isMobileMenuOpen ? "top-1.5 -rotate-45" : "top-3"
-            }`}
-          />
-        </span>
-      </button>
-    );
+  const closeSettings = () => setIsSettingsOpen(false);
 
-    if (!isConnected && !isConnecting && !isWeb2LoggedIn) {
-      return (
-        <div className="flex shrink-0 items-center gap-2">
-          <HeaderDisconnectedConnect connectButtonClassName="px-3 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 text-xs" />
-          {hamburger}
-        </div>
-      );
-    }
-    return hamburger;
-  };
+  const utcValue = showWeb2Panel
+    ? creditBalance
+    : utcBalance
+      ? Number(formatEther(utcBalance as bigint))
+      : 0;
+  const decValue = showWeb2Panel
+    ? decBalance
+    : droneCoresBalance
+      ? Number(formatEther(droneCoresBalance as bigint))
+      : 0;
+  const nativeValue = balance?.value ? Number(balance.formatted) : 0;
+
+  const menuItemClass =
+    "flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 hover:bg-slate";
 
   return (
     <header
-      className="relative z-[300] border-b-2 border-solid overflow-visible"
+      className="relative z-[300] border-b-2 border-solid"
       style={{
         backgroundColor: "var(--color-slate, #1a2430)",
         borderColor: "var(--color-gunmetal, #2b2f36)",
         borderTopColor: "var(--color-steel, #223041)",
       }}
     >
-      <div className="mx-auto max-w-7xl overflow-visible px-3 sm:px-6 lg:px-8">
-        <div className="relative flex flex-wrap items-start justify-between gap-2 overflow-visible py-2 md:items-center md:gap-4 md:py-2">
-          {/* Left side - Logo and Title */}
-          <div className="flex w-full flex-col items-stretch gap-1.5 md:w-auto md:items-start md:gap-3">
-            {/* Mobile: title + testnet badge on same row. */}
-            <div className="vt-header-mobile-title-row flex w-full flex-col gap-1.5 md:hidden">
-              <div className="flex w-full items-center justify-between gap-3">
-                <div className="flex min-w-0 items-end gap-2 pr-1">
-                  <HeaderTitleBlock variant="mobile" />
-                  <HeaderAlphaBadge compact />
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <HeaderDiscordLink compact />
-                  <HeaderXLink compact />
-                  {renderMobileTrailingSlot()}
-                </div>
-              </div>
-            </div>
+      <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:px-6 md:gap-4 lg:px-8">
+        <div className={isSignedIn ? "hidden md:block" : "block"}>
+          <HeaderTitleBlock />
+        </div>
 
-            {/* Desktop: title and testnet badge on one row */}
-            <div className="vt-header-desktop-title-row hidden md:flex md:flex-row md:items-end md:gap-3">
-              <HeaderTitleBlock />
-              <HeaderAlphaBadge />
-              <HeaderDiscordLink />
-              <HeaderXLink />
-            </div>
-          </div>
-
-          {/* Right side - Wallet connection and info */}
-          {isHydrated && (
-            <div
-              ref={mobileMenuPanelRef}
-              id="header-mobile-controls"
-              className={`${
-                showMobileWalletMenu && isMobileMenuOpen
-                  ? "flex md:flex"
-                  : "hidden md:flex"
-              } w-[min(92vw,380px)] md:ml-auto md:w-auto flex-col md:flex-row absolute right-0 top-[calc(100%+8px)] z-[360] border border-solid p-3 bg-[var(--color-near-black)] border-[var(--color-gunmetal)] border-t-[var(--color-steel)] border-l-[var(--color-steel)] md:static md:z-auto md:border-0 md:p-0 md:bg-transparent`}
+        {isSignedIn && isHydrated && (
+          <button
+            type="button"
+            onClick={() => dispatchNavigateToProfile(router.push)}
+            className="hidden min-w-0 items-center gap-2 text-left lg:flex"
+            title="Profile"
+          >
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center border border-solid text-xs font-bold"
+              style={{
+                fontFamily: MONO_FONT,
+                borderColor: "var(--color-cyan)",
+                color: "var(--color-cyan)",
+                backgroundColor: "var(--color-steel)",
+              }}
+              aria-hidden
             >
-              {isConnecting && (
-                <div className="flex items-center md:ml-auto py-1">
-                  <div className="text-cyan/60 font-mono text-sm">
-                    Connecting...
-                  </div>
-                </div>
-              )}
+              {initials}
+            </span>
+            <span
+              className="truncate text-sm font-semibold uppercase tracking-wider text-text-primary"
+              style={{ fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif" }}
+            >
+              {callsign}
+            </span>
+          </button>
+        )}
 
-              {!isConnected && !isConnecting && !isWeb2LoggedIn && (
-                <AuthModeChooser connectButtonClassName="px-6 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full md:w-auto" />
-              )}
+        {!isSignedIn && (
+          <div className="hidden items-center gap-2 sm:flex">
+            <HeaderAlphaBadge compact />
+            <HeaderDiscordLink compact />
+            <HeaderXLink compact />
+          </div>
+        )}
 
-              {showWeb2Panel && (
-                <div className="flex flex-col items-stretch gap-2 md:ml-auto w-full md:w-auto pt-1 md:pt-0">
-                  {bothIdentitiesActive && (
-                    <HeaderModeSwitchBadge
-                      currentMode="web2"
-                      identityLabel={
-                        web2Username ?? web2Email ?? "Web2 account"
-                      }
-                    />
-                  )}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowDroneStorefrontWeb2(true)}
-                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                      style={{
-                        backgroundColor: "var(--color-near-black)",
-                        borderColor: "var(--color-cyan)",
-                        borderTopColor: "var(--color-steel)",
-                        borderLeftColor: "var(--color-steel)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-slate)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-near-black)";
-                      }}
-                      title="Drone Energy Cores — click to view Drone Storefront"
+        <div className="ml-auto flex min-w-0 items-center gap-1.5 md:gap-2">
+          {isHydrated && isConnecting && (
+            <span className="font-mono text-sm text-cyan/60">Connecting...</span>
+          )}
+
+          {isHydrated && !isConnecting && !isSignedIn && showSignIn && (
+            <AuthModeChooser connectButtonClassName="px-4 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 text-xs w-full md:w-auto" />
+          )}
+
+          {isHydrated && isSignedIn && (
+            <>
+              <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto md:gap-2 [scrollbar-width:none]">
+                <ResourcePill
+                  label="UTC"
+                  value={formatAmount(utcValue)}
+                  color="var(--color-amber)"
+                  title="Universal Credits"
+                  plus={{
+                    title: "Buy UTC",
+                    onClick: () => openStore("credits"),
+                  }}
+                />
+                <ResourcePill
+                  label="DEC"
+                  value={showWeb3Panel && !isDroneEnergyCoresDeployed ? "N/A" : formatDec(decValue)}
+                  color="var(--color-purple)"
+                  title="Drone Energy Cores"
+                  plus={{
+                    title: "Drone Core storefront",
+                    disabled: showWeb3Panel && !isDroneEnergyCoresDeployed,
+                    onClick: () => openStore("cores"),
+                  }}
+                />
+                {showWeb3Panel && (
+                  <ResourcePill
+                    label={nativeTokenSymbol}
+                    value={formatAmount(nativeValue)}
+                    color="var(--color-phosphor-green)"
+                    title={`${nativeTokenSymbol} balance`}
+                    className="hidden sm:flex"
+                    plus={{
+                      title: `Get ${nativeTokenSymbol}`,
+                      onClick: () => openStore("credits"),
+                    }}
+                  />
+                )}
+                {!freeShips.isLoading && !freeShips.hasError && (
+                  <button
+                    type="button"
+                    onClick={openCommandDeck}
+                    className="flex h-8 shrink-0 items-center gap-1.5 border border-solid px-2 transition-colors duration-150 hover:bg-slate"
+                    style={{
+                      backgroundColor: "var(--color-near-black)",
+                      borderColor: freeShips.isEligible
+                        ? "var(--color-phosphor-green)"
+                        : "var(--color-gunmetal)",
+                    }}
+                    title={
+                      freeShips.isEligible
+                        ? "Free ships ready to claim"
+                        : "Time until your next free ships"
+                    }
+                  >
+                    <span
+                      className="hidden text-[10px] font-bold uppercase tracking-wider text-phosphor-green sm:inline"
+                      style={{ fontFamily: MONO_FONT }}
                     >
-                      <span
-                        className="text-xs font-bold tracking-wider uppercase"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: "var(--color-cyan, #56d6ff)",
-                        }}
-                      >
-                        {decBalance} DC
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowUTCPurchaseModalWeb2(true)}
-                      className="flex items-center gap-2 px-3 py-1.5 h-8 w-28 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                      style={{
-                        backgroundColor: "var(--color-near-black)",
-                        borderColor: "var(--color-amber)",
-                        borderTopColor: "var(--color-steel)",
-                        borderLeftColor: "var(--color-steel)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-slate)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--color-near-black)";
-                      }}
-                      title="UTC balance — click to buy more"
+                      Free ships
+                    </span>
+                    <span
+                      className="text-xs font-semibold tabular-nums text-text-primary"
+                      style={{ fontFamily: MONO_FONT }}
                     >
-                      <span
-                        className="text-xs font-bold tracking-wider uppercase"
-                        style={{
-                          fontFamily:
-                            "var(--font-jetbrains-mono), 'Courier New', monospace",
-                          color: "var(--color-amber)",
-                        }}
-                      >
-                        {creditBalance} UTC
-                      </span>
-                    </button>
-                    <AuthSignIn hideSignOut />
-                    <div ref={accountMenuRef} className="relative w-full sm:w-28">
-                      <button
-                        type="button"
-                        onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-                        className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full flex items-center justify-center gap-1.5 text-xs h-8"
-                        style={{
-                          fontFamily:
-                            "var(--font-rajdhani), 'Arial Black', sans-serif",
-                          borderColor: "var(--color-cyan)",
-                          color: "var(--color-cyan, #56d6ff)",
-                          backgroundColor: "var(--color-steel)",
-                          borderRadius: 0,
-                        }}
-                      >
-                        [MENU]
-                        <span className="text-[10px] leading-none">
-                          {isAccountMenuOpen ? "▲" : "▼"}
-                        </span>
-                      </button>
+                      {freeShips.isEligible ? "Ready" : (freeShips.nextClaimInFormatted ?? "—")}
+                    </span>
+                  </button>
+                )}
+              </div>
 
-                      {isAccountMenuOpen && (
-                        <div
-                          className="absolute right-0 top-[calc(100%+4px)] z-[130] w-48 border border-solid"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-cyan)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                        >
-                          <HeaderMenuItem
-                            onClick={() => {
-                              setIsAccountMenuOpen(false);
-                              setIsMobileMenuOpen(false);
-                              dispatchNavigateToProfile();
-                            }}
-                          >
-                            Profile
-                          </HeaderMenuItem>
-                          <HeaderMenuItem
-                            danger
-                            onClick={() => {
-                              setIsAccountMenuOpen(false);
-                              posthog.capture("web2_sign_out_clicked");
-                              void signOut();
-                            }}
-                          >
-                            Sign Out
-                          </HeaderMenuItem>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              {yourTurnCount != null && (
+                <HudIconButton
+                  label={yourTurnCount > 0 ? `${yourTurnCount} battles waiting on you` : "Battles"}
+                  onClick={openBattles}
+                  badge={yourTurnCount}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  </svg>
+                </HudIconButton>
               )}
 
-              {showWeb3Panel && (
-                <div className="flex w-full md:w-auto flex-col gap-2 md:ml-auto pt-1 md:pt-0">
-                  {bothIdentitiesActive && (
-                    <HeaderModeSwitchBadge
-                      currentMode="web3"
-                      identityLabel={formatAddress(account.address || "")}
-                    />
-                  )}
-                  <div className="flex w-full flex-col sm:flex-row items-stretch md:items-end gap-3 md:gap-4">
-                    <div className="flex flex-col items-stretch md:items-end gap-2">
-                      {/* Lottery, Flow Balance, and Buy Flow button */}
-                      <div className="flex items-center gap-2 justify-between md:justify-start">
-                        {/* UTC Lottery status/results (docs/update/Frontend_Updates_2026-09-17.md §4) — same width as the Drone Cores Balance button directly below it in the next row */}
-                        <button
-                          onClick={() => setShowUtcLotteryPanel(true)}
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-amber)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-near-black)";
-                          }}
-                          title="UTC Lottery — draw status and recent results"
-                        >
-                          <span
-                            className="text-xs font-bold tracking-wider uppercase"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-amber)",
-                            }}
-                          >
-                            Lottery
-                          </span>
-                        </button>
-                        {/* Flow Balance */}
-                        <div
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-phosphor-green)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                        >
-                          <span
-                            className="text-xs font-bold tracking-wider uppercase"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-phosphor-green)",
-                            }}
-                          >
-                            {balance?.value
-                              ? `${parseFloat(balance.formatted).toFixed(2)} ${nativeTokenSymbol}`
-                              : `0.00 ${nativeTokenSymbol}`}
-                          </span>
-                        </div>
-                        {/* Get Tokens link — opens chain-appropriate faucet */}
-                        <a
-                          href={
-                            FAUCET_URLS[selectedChainId] ?? FAUCET_URLS[545]
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-32 h-8 border border-solid text-xs font-bold tracking-wider uppercase flex items-center justify-center transition-colors duration-150"
-                          style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-cyan, #56d6ff)",
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "rgba(86, 214, 255, 0.75)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-near-black)";
-                          }}
-                        >
-                          [GET TOKENS]
-                        </a>
-                      </div>
+              <div ref={settingsMenuRef} className="relative">
+                <HudIconButton
+                  label="Settings"
+                  onClick={() => setIsSettingsOpen((open) => !open)}
+                  expanded={isSettingsOpen}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </HudIconButton>
 
-                      {/* UTC Balance and Network */}
-                      <div className="flex items-center gap-2 justify-between md:justify-start">
-                        {/* Drone Cores Balance - Clickable (opens Drone Storefront) — directly below the Lottery button in the row above, same width */}
-                        <button
-                          onClick={() => setShowDroneStorefront(true)}
-                          disabled={!isDroneEnergyCoresDeployed}
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer disabled:cursor-default disabled:opacity-60"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-cyan)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isDroneEnergyCoresDeployed) return;
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-near-black)";
-                          }}
-                        >
-                          <span
-                            className="text-xs font-bold tracking-wider uppercase"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-cyan, #56d6ff)",
-                            }}
-                          >
-                            {isDroneEnergyCoresDeployed
-                              ? droneCoresBalance
-                                ? `${formatEther(droneCoresBalance as bigint)} DC`
-                                : "0.00 DC"
-                              : "N/A DC"}
-                          </span>
-                        </button>
-                        {/* UTC Balance - Clickable */}
-                        <button
-                          onClick={() => setShowUTCPurchaseModal(true)}
-                          className="flex items-center gap-2 px-3 py-1.5 h-8 w-40 justify-center border border-solid transition-colors duration-150 cursor-pointer"
-                          style={{
-                            backgroundColor: "var(--color-near-black)",
-                            borderColor: "var(--color-amber)",
-                            borderTopColor: "var(--color-steel)",
-                            borderLeftColor: "var(--color-steel)",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor =
-                              "var(--color-amber)";
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor =
-                              "var(--color-amber)";
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-near-black)";
-                          }}
-                        >
-                          <span
-                            className="text-xs font-bold tracking-wider uppercase"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-amber)",
-                            }}
-                          >
-                            {utcBalance
-                              ? `${formatEther(utcBalance as bigint)} UTC`
-                              : "0.00 UTC"}
-                          </span>
-                        </button>
-                        {/* Network (moved here) */}
-                        <div
-                          ref={networkMenuRef}
-                          className="relative z-[120] h-8 w-32"
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIsNetworkMenuOpen((prev) => !prev)
-                            }
-                            disabled={!isHydrated || isConnecting}
-                            className="flex h-full w-full items-center justify-center border border-solid px-3 pr-7 text-center text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-70"
-                            style={{
-                              fontFamily:
-                                "var(--font-jetbrains-mono), 'Courier New', monospace",
-                              color: "var(--color-cyan, #56d6ff)",
-                              backgroundColor: "var(--color-near-black)",
-                              borderColor: "var(--color-cyan)",
-                              borderTopColor: "var(--color-steel)",
-                              borderLeftColor: "var(--color-steel)",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isHydrated || isConnecting) return;
-                              e.currentTarget.style.backgroundColor =
-                                "var(--color-slate)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor =
-                                "var(--color-near-black)";
-                            }}
-                          >
-                            {(
-                              SUPPORTED_CHAINS.find(
-                                (c) => c.id === selectedChainId,
-                              )?.name ?? "NETWORK"
-                            ).toUpperCase()}
-                          </button>
-                          <span
-                            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] leading-none"
-                            style={{ color: "var(--color-cyan)" }}
-                          >
-                            {isNetworkMenuOpen ? "▲" : "▼"}
-                          </span>
-
-                          {isNetworkMenuOpen && (
-                            <div
-                              className="absolute left-0 top-[calc(100%+4px)] z-[130] w-32 border border-solid"
-                              style={{
-                                backgroundColor: "var(--color-near-black)",
-                                borderColor: "var(--color-cyan)",
-                                borderTopColor: "var(--color-steel)",
-                                borderLeftColor: "var(--color-steel)",
-                              }}
-                            >
-                              {SUPPORTED_CHAINS.map((c) => {
-                                const isActive = c.id === selectedChainId;
-                                const selectable = isChainSelectableInUi(c.id);
-                                return (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    disabled={!selectable}
-                                    title={
-                                      selectable
-                                        ? undefined
-                                        : "Unavailable on this build"
-                                    }
-                                    onClick={() => handleNetworkChange(c.id)}
-                                    className={`flex h-8 w-full items-center px-2 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150 ${
-                                      !selectable
-                                        ? "cursor-not-allowed opacity-45"
-                                        : ""
-                                    }`}
-                                    style={{
-                                      fontFamily:
-                                        "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                      color: isActive
-                                        ? "var(--color-near-black)"
-                                        : "var(--color-cyan)",
-                                      backgroundColor: isActive
-                                        ? "var(--color-cyan)"
-                                        : "transparent",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (isActive || !selectable) return;
-                                      e.currentTarget.style.backgroundColor =
-                                        "var(--color-slate)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (isActive || !selectable) return;
-                                      e.currentTarget.style.backgroundColor =
-                                        "transparent";
-                                    }}
-                                  >
-                                    {c.name.toUpperCase()}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 flex-col items-stretch">
-                      {/* Account menu — Profile / My Account / Log Out */}
-                      <div ref={accountMenuRef} className="relative w-full md:w-48">
+                {isSettingsOpen && (
+                  <div
+                    className="absolute right-0 top-[calc(100%+6px)] z-[360] max-h-[80vh] w-[min(92vw,18rem)] overflow-y-auto border border-solid pb-2"
+                    style={{
+                      backgroundColor: "var(--color-near-black)",
+                      borderColor: "var(--color-cyan)",
+                      borderTopColor: "var(--color-steel)",
+                      borderLeftColor: "var(--color-steel)",
+                    }}
+                    role="menu"
+                    aria-label="Settings"
+                  >
+                    <SettingsHeading>Account</SettingsHeading>
+                    <div className="flex items-center justify-between gap-2 px-3 pb-2">
+                      <span className="truncate font-mono text-xs text-text-secondary">{callsign}</span>
+                      {showWeb3Panel && (
                         <button
                           type="button"
-                          onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-                          className="px-3 py-1.5 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150 w-full flex items-center justify-center gap-1.5 text-xs h-8"
-                          style={{
-                            fontFamily:
-                              "var(--font-rajdhani), 'Arial Black', sans-serif",
-                            borderColor: "var(--color-cyan)",
-                            color: "var(--color-cyan, #56d6ff)",
-                            backgroundColor: "var(--color-steel)",
-                            borderRadius: 0,
-                          }}
-                        >
-                          [MENU]
-                          <span className="text-[10px] leading-none">
-                            {isAccountMenuOpen ? "▲" : "▼"}
-                          </span>
-                        </button>
-
-                        {isAccountMenuOpen && (
-                          <div
-                            className="absolute left-0 top-[calc(100%+4px)] z-[130] w-full border border-solid"
-                            style={{
-                              backgroundColor: "var(--color-near-black)",
-                              borderColor: "var(--color-cyan)",
-                              borderTopColor: "var(--color-steel)",
-                              borderLeftColor: "var(--color-steel)",
-                            }}
-                          >
-                            <HeaderMenuItem
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                setIsMobileMenuOpen(false);
-                                dispatchNavigateToProfile();
-                              }}
-                            >
-                              Profile
-                            </HeaderMenuItem>
-                            <HeaderMenuItem
-                              title="Manage connected wallets, security, and passkeys"
-                              onClick={() => {
-                                setIsAccountMenuOpen(false);
-                                setShowDynamicUserProfile(true);
-                              }}
-                            >
-                              My Account
-                            </HeaderMenuItem>
-                            <HeaderLogoutButton
-                              onBeforeLogOut={() => {
-                                setIsAccountMenuOpen(false);
-                                handleBeforeLogOut();
-                              }}
-                              className="flex h-8 w-full items-center px-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors duration-150"
-                              style={{
-                                fontFamily:
-                                  "var(--font-jetbrains-mono), 'Courier New', monospace",
-                                color: "var(--color-warning-red)",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "var(--color-slate)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "transparent";
-                              }}
-                            >
-                              Log Out
-                            </HeaderLogoutButton>
-                          </div>
-                        )}
-                      </div>
-                      {/* Address (moved here) */}
-                      <div
-                        className="flex items-center gap-2 px-3 py-1.5 h-8 w-full md:w-48 justify-center border border-solid"
-                        style={{
-                          backgroundColor: "var(--color-near-black)",
-                          borderColor: "var(--color-gunmetal)",
-                          borderTopColor: "var(--color-steel)",
-                          borderLeftColor: "var(--color-steel)",
-                        }}
-                      >
-                        <span
-                          className="text-xs font-bold tracking-wider uppercase"
-                          style={{
-                            fontFamily:
-                              "var(--font-jetbrains-mono), 'Courier New', monospace",
-                            color: "var(--color-text-secondary)",
-                          }}
-                        >
-                          {formatAddress(account.address || "")}
-                        </span>
-                        <button
                           onClick={() => {
-                            navigator.clipboard.writeText(
-                              account.address || "",
-                            );
+                            void navigator.clipboard.writeText(account.address || "");
                             toast.success("Address copied to clipboard!");
                           }}
-                          className="p-1 transition-colors duration-150"
-                          style={{
-                            color: "var(--color-text-secondary)",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = "var(--color-cyan)";
-                            e.currentTarget.style.backgroundColor =
-                              "var(--color-slate)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color =
-                              "var(--color-text-secondary)";
-                            e.currentTarget.style.backgroundColor =
-                              "transparent";
-                          }}
-                          title="Copy address to clipboard"
+                          className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-text-muted hover:text-cyan"
                         >
-                          <svg
-                            className="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
+                          Copy
                         </button>
-                      </div>
+                      )}
                     </div>
+                    {bothIdentitiesActive && (
+                      <div className="px-3 pb-2">
+                        <HeaderModeSwitchBadge
+                          currentMode={showWeb2Panel ? "web2" : "web3"}
+                          identityLabel={
+                            showWeb2Panel
+                              ? (web2Username ?? web2Email ?? "Web2 account")
+                              : formatAddress(account.address || "")
+                          }
+                        />
+                      </div>
+                    )}
+                    <HeaderMenuItem
+                      onClick={() => {
+                        closeSettings();
+                        dispatchNavigateToProfile(router.push);
+                      }}
+                    >
+                      Profile
+                    </HeaderMenuItem>
+                    {showWeb3Panel && (
+                      <HeaderMenuItem
+                        title="Manage connected wallets, security, and passkeys"
+                        onClick={() => {
+                          closeSettings();
+                          setShowDynamicUserProfile(true);
+                        }}
+                      >
+                        My Account
+                      </HeaderMenuItem>
+                    )}
+                    {hasOpsConsoleAccess && (
+                      <Link
+                        href={ADMIN_PATH}
+                        onClick={closeSettings}
+                        className={`${menuItemClass} text-amber`}
+                        style={{ fontFamily: MONO_FONT }}
+                      >
+                        Ops Console
+                      </Link>
+                    )}
+                    {showWeb3Panel ? (
+                      <HeaderLogoutButton
+                        onBeforeLogOut={() => {
+                          closeSettings();
+                          handleBeforeLogOut();
+                        }}
+                        className={`${menuItemClass} text-warning-red`}
+                        style={{ fontFamily: MONO_FONT }}
+                      >
+                        Log Out
+                      </HeaderLogoutButton>
+                    ) : (
+                      <HeaderMenuItem
+                        danger
+                        onClick={() => {
+                          closeSettings();
+                          posthog.capture("web2_sign_out_clicked");
+                          void signOut();
+                        }}
+                      >
+                        Sign Out
+                      </HeaderMenuItem>
+                    )}
+
+                    {showWeb3Panel && (
+                      <>
+                        <SettingsHeading>Network</SettingsHeading>
+                        {SUPPORTED_CHAINS.map((c) => {
+                          const isActive = c.id === selectedChainId;
+                          const selectable = isChainSelectableInUi(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              disabled={!selectable || isConnecting}
+                              title={selectable ? undefined : "Unavailable on this build"}
+                              onClick={() => handleNetworkChange(c.id)}
+                              className={`${menuItemClass} ${
+                                isActive ? "bg-cyan text-near-black hover:bg-cyan" : "text-cyan"
+                              } ${!selectable ? "cursor-not-allowed opacity-45" : ""}`}
+                              style={{ fontFamily: MONO_FONT }}
+                            >
+                              {c.name}
+                            </button>
+                          );
+                        })}
+
+                        <SettingsHeading>Credits</SettingsHeading>
+                        <HeaderMenuItem
+                          onClick={() => {
+                            closeSettings();
+                            openStore("lottery");
+                          }}
+                        >
+                          UTC Lottery
+                        </HeaderMenuItem>
+                      </>
+                    )}
+
+                    <SettingsHeading>Audio</SettingsHeading>
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={music.enabled}
+                      onClick={music.toggle}
+                      className={`${menuItemClass} justify-between text-cyan`}
+                      style={{ fontFamily: MONO_FONT }}
+                    >
+                      Music
+                      <span className={music.enabled ? "text-phosphor-green" : "text-text-muted"}>
+                        {music.enabled ? "On" : "Off"}
+                      </span>
+                    </button>
+
+                    <SettingsHeading>Community</SettingsHeading>
+                    <SettingsLink href={ALPHA_DISCORD_INVITE_URL} external>
+                      Discord
+                    </SettingsLink>
+                    <SettingsLink href={VOID_TACTICS_X_URL} external>
+                      X
+                    </SettingsLink>
+                    <SettingsLink href="/">Website</SettingsLink>
+
+                    <SettingsHeading>Legal</SettingsHeading>
+                    <SettingsLink href="/privacy">Privacy Policy</SettingsLink>
+                    <SettingsLink href="/terms">Terms of Service</SettingsLink>
+                    <SettingsLink href="/audio-credits">Audio Credits</SettingsLink>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -1601,7 +1254,7 @@ const Header: React.FC = () => {
         <div
           className="border-t border-solid px-4 py-1.5 text-xs font-bold tracking-wider uppercase"
           style={{
-            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
+            fontFamily: MONO_FONT,
             color: "var(--color-warning-red)",
             backgroundColor:
               "color-mix(in srgb, var(--color-warning-red) 10%, transparent)",
@@ -1614,27 +1267,9 @@ const Header: React.FC = () => {
         </div>
       )}
 
-      {/* UTC Purchase Modal */}
-      {showUTCPurchaseModal && (
-        <UTCPurchaseModal onClose={() => setShowUTCPurchaseModal(false)} />
-      )}
-      {showUTCPurchaseModalWeb2 && (
-        <UTCPurchaseModalWeb2
-          onClose={() => setShowUTCPurchaseModalWeb2(false)}
-        />
-      )}
-      {showDroneStorefront && (
-        <DroneStorefront onClose={() => setShowDroneStorefront(false)} />
-      )}
-      {showDroneStorefrontWeb2 && (
-        <DroneStorefrontWeb2 onClose={() => setShowDroneStorefrontWeb2(false)} />
-      )}
-      {showUtcLotteryPanel && (
-        <UtcLotteryPanel onClose={() => setShowUtcLotteryPanel(false)} />
-      )}
       {/* Dynamic's own profile modal (wallets, security, passkeys) — opened
-          via My Account in the [MENU] dropdown above. Mounted here since
-          Header renders on every page; Dynamic controls its own visibility
+          via My Account in the settings menu. Mounted here since the HUD
+          renders on every client page; Dynamic controls its own visibility
           off showDynamicUserProfile. */}
       <DynamicUserProfile />
       <PasskeyEnablePrompt />

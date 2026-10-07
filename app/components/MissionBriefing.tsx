@@ -21,10 +21,13 @@ export function MissionBriefing({
   mission,
   text,
   status,
+  compact = false,
 }: {
   mission: DialogMission;
   text: string;
   status: NodeContentStatus | undefined;
+  /** Smaller portrait, for narrow panels like the run map's mission drawer. */
+  compact?: boolean;
 }) {
   const speakerId = MISSION_BRIEFING_SPEAKERS.find((s) => isSameMission(s.mission, mission))
     ?.characterId;
@@ -43,12 +46,12 @@ export function MissionBriefing({
     <div className="border-l-2 bg-near-black/60 p-4" style={{ borderColor: color }}>
       {/* Portrait floats so the transmission wraps around and then under it
           — no empty column beside a long briefing. */}
-      <div className="float-left mb-2 mr-4 w-24 sm:w-32">
+      <div className={`float-left mb-2 mr-4 ${compact ? "w-20" : "w-24 sm:w-32"}`}>
         <DialogPortrait
           character={character}
           name={character.name}
           color={color}
-          sizeClass="h-24 w-24 sm:h-32 sm:w-32"
+          sizeClass={compact ? "h-20 w-20" : "h-24 w-24 sm:h-32 sm:w-32"}
         />
         <div
           className="border border-t-0 border-solid px-1 py-1 text-center"

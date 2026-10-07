@@ -94,7 +94,7 @@ function layoutGraph<TNode extends CampaignGraphCanvasNode>(
 // layers (no images/canvas): a static field for texture, plus a dimmer
 // twinkling field for ambient motion (disabled under prefers-reduced-motion
 // via the campaign-starfield-twinkle class in globals.css).
-function Starfield() {
+function Starfield({ backdropSrc }: { backdropSrc?: string | null }) {
   const staticStars: React.CSSProperties = {
     backgroundImage: `
       radial-gradient(1px 1px at 24px 32px, rgba(226,232,240,0.55) 50%, transparent 51%),
@@ -117,6 +117,12 @@ function Starfield() {
   };
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ backgroundColor: "var(--color-near-black)" }}>
+      {backdropSrc && (
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{ backgroundImage: `url(${backdropSrc})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+      )}
       <div className="absolute inset-0" style={staticStars} />
       <div className="campaign-starfield-twinkle absolute inset-0" style={twinkleStars} />
     </div>
@@ -221,6 +227,10 @@ export interface CampaignGraphCanvasProps<TNode extends CampaignGraphCanvasNode>
   headerExtra?: React.ReactNode;
   /** Rendered below the graph canvas — the node detail/preview panel. */
   children?: React.ReactNode;
+  /** No border of its own, for a canvas framed by its container (the run map). */
+  bare?: boolean;
+  /** Image drawn under the starfield (app/config/art.ts). */
+  backdropSrc?: string | null;
 }
 
 // Shared campaign-graph canvas (depth-tiered columns, SVG prerequisite
@@ -240,6 +250,8 @@ export function CampaignGraphCanvas<TNode extends CampaignGraphCanvasNode>({
   manualColumnOverrides = {},
   headerExtra,
   children,
+  bare = false,
+  backdropSrc,
 }: CampaignGraphCanvasProps<TNode>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState<number | null>(null);
@@ -278,18 +290,18 @@ export function CampaignGraphCanvas<TNode extends CampaignGraphCanvasNode>({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col ${bare ? "" : "gap-6"}`}>
       {headerExtra}
       {/* containerRef sits on this plain, non-scrolling wrapper (not the
           overflow-x-auto box below) so its measured width can never be
           affected by a scrollbar appearing/disappearing inside it. */}
       <div ref={containerRef} className="relative w-full">
         <div
-          className="relative w-full overflow-x-auto border-2"
+          className={`relative w-full overflow-x-auto ${bare ? "" : "border-2"}`}
           style={{ borderColor: "var(--color-steel)", borderRadius: 0, minHeight: CANVAS_MIN_HEIGHT }}
         >
           <div className="relative" style={{ width: layout.width + CANVAS_PADDING * 2, height: canvasHeight }}>
-            <Starfield />
+            <Starfield backdropSrc={backdropSrc} />
             <div
               className="absolute"
               style={{ left: CANVAS_PADDING, top: contentTop, width: layout.width, height: layout.height }}

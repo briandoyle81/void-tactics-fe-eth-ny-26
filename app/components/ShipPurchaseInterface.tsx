@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { VariantPicker } from "./VariantPicker";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
 import { ShipPurchaseButton } from "./ShipPurchaseButton";
-import { FlowPaymentButton } from "./FlowPaymentButton";
-import { PurchaseConfirmModal } from "./PurchaseConfirmModal";
+import { FlowPaymentModal } from "./FlowPaymentModal";
+import { useFlowPaymentModal } from "../hooks/useFlowPaymentModal";
+import { CheckoutSheet, CheckoutDetail, CHECKOUT_CONFIRM_CLASS } from "./CheckoutSheet";
 import { ShipImage } from "./ShipImage";
 import { ShipPurchaseTierCard } from "./ShipPurchaseTierCard";
 import { ShipPurchaseShell } from "./ShipPurchaseShell";
@@ -25,14 +26,10 @@ import {
 } from "../utils/shipPreviewSpec";
 import type { Ship } from "../types/types";
 import { formatEther } from "viem";
-import { getSelectedChainId } from "../config/networks";
-import { FLOW_USD_TIERS } from "../config/flowPayment";
+import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
+import { FLOW_USD_TIERS, type FlowTier } from "../config/flowPayment";
 
-interface ShipPurchaseInterfaceProps {
-  onClose: () => void;
-  paymentMethod?: "FLOW" | "UTC" | "USD";
-  onPaymentMethodChange?: (method: "FLOW" | "UTC" | "USD") => void;
-}
+type PaymentMethod = "USD" | "FLOW" | "UTC";
 
 // How often the demo/preview ships shown on the tier cards reroll — matched
 // to HeroShipShowcase's default rotation cadence on the Info page (10s) so the
@@ -48,15 +45,25 @@ function truncateTo8Decimals(value: string): string {
   return truncated ? `${whole}.${truncated}` : whole!;
 }
 
-const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
-  paymentMethod: externalPaymentMethod,
-  onClose,
-}) => {
+/**
+ * Web3 ship packs: tier cards priced in USD; picking one opens checkout,
+ * where the player pays by card or any token (Fireblocks Flow), the chain's
+ * native token, or UTC.
+ */
+const ShipPurchaseInterface: React.FC = () => {
   const shipsPack = useShipsPurchaseInfo();
   const utcPack = useShipPurchaserPurchaseInfo();
   const { refetch } = useOwnedShips();
   const { chainId: walletChainId } = useAccount();
   const activeGameChainId = walletChainId ?? getSelectedChainId();
+  const nativeTokenSymbol = getNativeTokenSymbol(activeGameChainId);
+  const flowModal = useFlowPaymentModal({
+    onSuccess: async () => {
+      await refetch();
+    },
+  });
+  // Price ladder for the Fireblocks Flow modal of the pack last sent there.
+  const [flowTier, setFlowTier] = useState<FlowTier>(FLOW_USD_TIERS[0]!);
   const [previewSeed, setPreviewSeed] = useState(() =>
     Math.floor(Math.random() * 1_000_000),
   );
@@ -72,33 +79,19 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
   // the NFT. Default to variant 1 (ungated).
   const [selectedVariant, setSelectedVariant] = useState(1);
 
-  // Which tier the FLOW/UTC confirm modal is open for (null = closed). USD has
-  // its own checkout flow (FlowPaymentModal) and skips this.
-  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
+  // Which pack's checkout is open (null = closed), and how it's being paid.
+  const [checkoutIndex, setCheckoutIndex] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("USD");
 
-  const paymentMethod = externalPaymentMethod ?? "FLOW";
-  const paymentMethodLabel = paymentMethod === "FLOW" ? "TOKENS" : "UTC";
-
-  if (paymentMethod === "UTC" && !utcPack.purchaserDeployed) {
-    return (
-      <div className="w-full py-8 text-center">
-        <p className="text-warning-red font-mono">
-          UTC ship packs are not available on this network (ShipPurchaser not
-          deployed).
-        </p>
-      </div>
-    );
-  }
-
-  // USD uses the same tier structure as FLOW (ship counts, ranks, previews)
-  const pack = paymentMethod === "UTC" ? utcPack : shipsPack;
+  // Packs (ship counts, ranks, previews) come from Ships; ShipPurchaser
+  // prices the same tiers in UTC.
   const {
     tiers,
     shipsPerTier: maxPerTier,
     pricesWei: prices,
     isLoading,
     tierCount,
-  } = pack;
+  } = shipsPack;
 
   const toPreviewShip = (spec: ShipPreviewSpec): Ship => ({
     name: `Preview ${spec.seed}`,
@@ -178,6 +171,8 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     const badge = getTierBadge(tier, tierCount);
     const previewShips = getPreviewShipsForTier(tier);
     const flowTier = FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!;
+    const utcIndex = utcPack.purchaserDeployed ? utcPack.tiers.indexOf(tier) : -1;
+    const utcPrice = utcIndex >= 0 ? utcPack.pricesWei[utcIndex] : undefined;
     return {
       tier,
       index,
@@ -190,6 +185,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
       badge,
       previewShips,
       flowTier,
+      utcPrice,
     };
   });
 
@@ -199,7 +195,7 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     <ShipPurchaseTierCard
       tierCallout={d.tierCallout}
       badge={d.badge}
-      priceLabel={`${d.priceFormatted} ${paymentMethodLabel}`}
+      priceLabel={`$${d.flowTier.displayPrice} USD`}
       shipsCount={d.shipsCount ?? 0}
       guaranteedRanksDisplay={d.guaranteedRanksDisplay}
       previewShipImages={d.previewShips.map((ship, idx) => (
@@ -213,57 +209,59 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
     />
   );
 
-  const tierCards = tierData.map((d) => {
+  const tierCards = tierData.map((d) => (
+    <button
+      key={d.index}
+      type="button"
+      onClick={() => setCheckoutIndex(d.index)}
+      className={`relative min-h-[420px] px-4 py-3 border-2 text-left ${d.colors.border} ${d.colors.text} ${d.colors.hoverBorder} ${d.colors.hoverText} ${d.colors.hoverBg} font-mono tracking-wider transition-all duration-200`}
+    >
+      {renderTierCard(d)}
+    </button>
+  ));
+
+  const checkout = checkoutIndex !== null ? tierData[checkoutIndex] : null;
+  const closeCheckout = () => setCheckoutIndex(null);
+
+  const renderConfirm = (d: TierDatum) => {
     if (paymentMethod === "USD") {
       return (
-        <FlowPaymentButton
-          key={d.index}
-          tier={d.tier}
-          gameChainId={activeGameChainId}
-          flowTier={d.flowTier}
-          shipsCount={d.shipsCount ?? 0}
-          tierCallout={d.tierCallout}
-          badge={d.badge}
-          previewShips={d.previewShips}
-          colors={d.colors}
-          variant={selectedVariant}
-          onSuccess={async () => {
-            await refetch();
-            onClose();
+        <button
+          type="button"
+          className={CHECKOUT_CONFIRM_CLASS}
+          onClick={() => {
+            setFlowTier(d.flowTier);
+            closeCheckout();
+            void flowModal.open(d.tier, activeGameChainId, selectedVariant);
           }}
-        />
+        >
+          Continue to payment
+        </button>
       );
     }
-
-    // FLOW / UTC: clicking a tier now opens a confirmation modal instead of
-    // firing the wallet transaction immediately.
+    const price = paymentMethod === "UTC" ? d.utcPrice : d.price;
     return (
-      <button
-        key={d.index}
-        type="button"
-        onClick={() => setConfirmIndex(d.index)}
-        className={`relative min-h-[420px] px-4 py-3 border-2 text-left ${d.colors.border} ${d.colors.text} ${d.colors.hoverBorder} ${d.colors.hoverText} ${d.colors.hoverBg} font-mono tracking-wider transition-all duration-200`}
+      <ShipPurchaseButton
+        tier={d.tier}
+        price={price ?? BigInt(0)}
+        paymentMethod={paymentMethod}
+        variant={selectedVariant}
+        className={CHECKOUT_CONFIRM_CLASS}
+        refetch={refetch}
+        onSuccess={async () => {
+          closeCheckout();
+        }}
       >
-        {renderTierCard(d)}
-      </button>
+        Confirm purchase
+      </ShipPurchaseButton>
     );
-  });
-
-  const footerPaymentNote =
-    paymentMethod === "UTC"
-      ? "Click a pack to review, then approve and confirm."
-      : paymentMethod === "USD"
-        ? "Pay with any token from any chain. Powered by Fireblocks Flow."
-        : "Click a pack to review, then confirm.";
-
-  const confirmData =
-    confirmIndex !== null && paymentMethod !== "USD" ? tierData[confirmIndex] : null;
+  };
 
   return (
     <>
       <ShipPurchaseShell
         tierCards={tierCards}
-        footerPaymentNote={footerPaymentNote}
+        footerPaymentNote="Pick a pack, then choose how to pay: card or any token, your wallet's token, or UTC."
         topContent={
           <div className="space-y-2">
             <div
@@ -281,30 +279,51 @@ const ShipPurchaseInterface: React.FC<ShipPurchaseInterfaceProps> = ({
         }
       />
 
-      {confirmData && (
-        <PurchaseConfirmModal
-          show
-          card={renderTierCard(confirmData)}
-          tokenPriceLabel={`${confirmData.priceFormatted} ${paymentMethodLabel}`}
-          usdApproxLabel={`≈ $${confirmData.flowTier.displayPrice} USD`}
-          onCancel={() => setConfirmIndex(null)}
-          confirmButton={
-            <ShipPurchaseButton
-              tier={confirmData.tier}
-              price={confirmData.price ?? BigInt(0)}
-              paymentMethod={paymentMethod as "FLOW" | "UTC"}
-              variant={selectedVariant}
-              className="border-2 border-phosphor-green px-6 py-2 font-mono font-bold tracking-wider text-phosphor-green transition-all duration-200 hover:bg-phosphor-green/10"
-              refetch={refetch}
-              onSuccess={async () => {
-                setConfirmIndex(null);
-              }}
-            >
-              CONFIRM PURCHASE
-            </ShipPurchaseButton>
+      {checkout && (
+        <CheckoutSheet
+          title="Checkout"
+          summary={renderTierCard(checkout)}
+          selectedId={paymentMethod}
+          onSelect={(id) => setPaymentMethod(id as PaymentMethod)}
+          options={[
+            {
+              id: "USD",
+              label: "Card or any token",
+              note: "Any chain, via Fireblocks Flow",
+              priceLabel: `$${checkout.flowTier.displayPrice}`,
+            },
+            {
+              id: "FLOW",
+              label: nativeTokenSymbol,
+              note: "From your wallet",
+              priceLabel: `${checkout.priceFormatted} ${nativeTokenSymbol}`,
+            },
+            {
+              id: "UTC",
+              label: "UTC",
+              note: "Approve, then confirm",
+              priceLabel:
+                checkout.utcPrice !== undefined
+                  ? `${truncateTo8Decimals(formatEther(checkout.utcPrice))} UTC`
+                  : "—",
+              disabledReason:
+                checkout.utcPrice === undefined
+                  ? "Not available on this network"
+                  : undefined,
+            },
+          ]}
+          details={
+            <>
+              <CheckoutDetail label="Ships" value={String(checkout.shipsCount ?? 0)} />
+              <CheckoutDetail label="Approx. USD" value={`≈ $${checkout.flowTier.displayPrice}`} />
+            </>
           }
+          confirm={renderConfirm(checkout)}
+          onCancel={closeCheckout}
         />
       )}
+
+      <FlowPaymentModal modal={flowModal} flowTier={flowTier} />
     </>
   );
 };

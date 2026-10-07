@@ -9,15 +9,11 @@ import {
   type UtcPurchaseTierPreview,
 } from "../hooks/useUtcPurchaseWeb2";
 import { MockPurchaseConfirmModal } from "./MockPurchaseConfirmModal";
-import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
+import { UTCPurchasePanelShell } from "./UTCPurchasePanelShell";
 import { UTCPurchaseTierCardContent } from "./UTCPurchaseTierCardContent";
 import { getTierColors } from "../utils/shipPurchaseTierDisplay";
 
-interface UTCPurchaseModalWeb2Props {
-  onClose: () => void;
-}
-
-// Web2-mode counterpart to `UTCPurchaseModal.tsx` — same layout/copy
+// Store › Credits (web2). Web2-mode counterpart to `UTCPurchasePanel.tsx` — same layout/copy
 // structure and tier-card look, but buys UTC directly via
 // `/api/utc/purchase` instead of an on-chain token purchase. Tiers/prices
 // come from the same ship-pack tier list (`usePurchaseTiersWeb2`, via
@@ -26,7 +22,7 @@ interface UTCPurchaseModalWeb2Props {
 // tier's ships would earn, not the ship-purchase-with-UTC price. Tier
 // colors come from `shipPurchaseTierDisplay.ts` (shared with
 // ShipPurchaseInterfaceWeb2.tsx) rather than being ported from
-// UTCPurchaseModal.tsx, so low-to-high tier order matches the ship
+// UTCPurchasePanel.tsx, so low-to-high tier order matches the ship
 // purchase flow's colors, not web3's UTC-purchase-specific ordering.
 
 function TierButton({
@@ -59,7 +55,7 @@ function TierButton({
   );
 }
 
-const UTCPurchaseModalWeb2: React.FC<UTCPurchaseModalWeb2Props> = ({ onClose }) => {
+const UTCPurchasePanelWeb2: React.FC = () => {
   const { creditBalance } = useUserBalanceWeb2();
   const { tiers, isLoading, error } = useUtcPurchaseTiersWeb2(true);
   const { purchase } = useUtcPurchaseWeb2();
@@ -79,7 +75,6 @@ const UTCPurchaseModalWeb2: React.FC<UTCPurchaseModalWeb2Props> = ({ onClose }) 
       const result = await purchase(pendingTier.tier);
       toast.success(`Purchased ${result.utcEarned} UTC`);
       setPendingTier(null);
-      onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Purchase failed");
     } finally {
@@ -88,8 +83,7 @@ const UTCPurchaseModalWeb2: React.FC<UTCPurchaseModalWeb2Props> = ({ onClose }) 
   };
 
   return (
-    <UTCPurchaseModalShell
-      onClose={onClose}
+    <UTCPurchasePanelShell
       balanceValueLabel={`${creditBalance} UTC`}
       balanceDescription={
         <>
@@ -141,8 +135,8 @@ const UTCPurchaseModalWeb2: React.FC<UTCPurchaseModalWeb2Props> = ({ onClose }) 
           ))}
         </div>
       )}
-    </UTCPurchaseModalShell>
+    </UTCPurchasePanelShell>
   );
 };
 
-export default UTCPurchaseModalWeb2;
+export default UTCPurchasePanelWeb2;

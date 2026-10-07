@@ -4,13 +4,9 @@ import React from "react";
 
 // Shared between ShipPurchaseInterface.tsx (web3) and
 // ShipPurchaseInterfaceWeb2.tsx (web2) — the outer shell (header, tier-grid
-// wrapper + "One mint. Full fleet." aside, footer copy). The tier cards
-// themselves stay caller-built: web3 wraps each in `ShipPurchaseButton` or
-// `FlowPaymentButton` depending on payment method (a real data/action
-// difference — contract calls vs. wallet-signed cross-chain payment), web2
-// wraps each in a plain button calling a REST route. Only
-// `footerPaymentNote` (the one line of copy that varies by payment method)
-// is parameterized; everything else is byte-identical between modes.
+// wrapper + "One mint. Full fleet." aside, footer copy). The tier cards stay
+// caller-built; each opens that mode's checkout (CheckoutSheet), where the
+// payment method is chosen.
 interface ShipPurchaseShellProps {
   tierCards: React.ReactNode[];
   footerPaymentNote: string;

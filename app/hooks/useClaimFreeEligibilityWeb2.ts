@@ -15,8 +15,8 @@ interface ClaimFreeEligibility {
 }
 
 export function useClaimFreeEligibilityWeb2() {
-  // Called unconditionally from Info.tsx (the default tab, mounted
-  // regardless of web2/web3 mode) — without this gate, it hits
+  // Called unconditionally from useFreeShipClaimStatus (the HUD and Command
+  // Deck, mounted regardless of web2/web3 mode) — without this gate, it hits
   // /api/ships/claim-free and polls indefinitely even for web3 users who
   // have no web2 session at all.
   const { isLoggedIn } = useCurrentUser();
@@ -33,6 +33,7 @@ export function useClaimFreeEligibilityWeb2() {
   return {
     isEligible: data?.eligible ?? false,
     isLoadingClaimStatus: isLoading,
+    secondsUntilNextClaim,
     claimStatusError: error instanceof Error ? error.message : null,
     nextClaimInFormatted:
       secondsUntilNextClaim != null && secondsUntilNextClaim > 0

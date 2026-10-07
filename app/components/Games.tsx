@@ -5,8 +5,10 @@ import { useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import GameDisplay from "./GameDisplay";
-import { GameLogCard } from "./GameLogCard";
-import { GamesListShell } from "./GamesListShell";
+import { BattlesInbox, type BattleInboxItem } from "./BattlesInbox";
+import { resolveNodeContent, useOnChainNodeContent } from "../hooks/useNodeContent";
+import { useGetRoguelikeRun } from "../hooks/useRoguelikeRun";
+import type { RoguelikeRun } from "../types/roguelike";
 import { GameDataView } from "../types/types";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
 import { SINGLE_PLAYER_MATCH_ADDRESS } from "../hooks/useSinglePlayerMatch";
@@ -23,9 +25,15 @@ function isPveGame(game: GameDataView): boolean {
   );
 }
 
+function shortAddress(addr: string): string {
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
 const Games: React.FC = () => {
   const { address, isConnected } = useAccount();
   const [selectedGame, setSelectedGame] = useState<GameDataView | null>(null);
+  // Opened via the inbox's Replay button.
+  const [startInReplay, setStartInReplay] = useState(false);
   const { games, isLoading, isFetching, error, refetch } = usePlayerGames({
     enabled: !selectedGame,
   });
@@ -285,11 +293,72 @@ const Games: React.FC = () => {
 
   const handleBackToList = useCallback(() => {
     setSelectedGame(null);
+    setStartInReplay(false);
     if (typeof window !== "undefined") {
       localStorage.removeItem(storageKey);
       localStorage.setItem(viewModeKey, "list");
     }
   }, [storageKey, viewModeKey]);
+
+  // The run's live mission shows its title in the inbox; other missions
+  // aren't tied to a node after the fact, so they read "Operations".
+  const { data: runData } = useGetRoguelikeRun(address);
+  const run = runData as RoguelikeRun | undefined;
+  const runNodeIds = useMemo(
+    () => (run && run.activeGameId !== 0n ? [run.currentNodeId] : []),
+    [run],
+  );
+  const { contentById: runContentById, isLoading: runContentLoading } = useOnChainNodeContent(
+    "ROGUELIKE",
+    runNodeIds,
+  );
+  const activeMissionTitle =
+    run && run.activeGameId !== 0n
+      ? resolveNodeContent(runContentById, run.currentNodeId, runContentLoading).title
+      : null;
+
+  const inboxItems: BattleInboxItem[] = visibleGames.map((game) => {
+    const isFinished = game.metadata.winner !== ZERO_ADDRESS;
+    const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
+    const isPve = isPveGame(game);
+    const isCreator = game.metadata.creator.toLowerCase() === address?.toLowerCase();
+    const opponent = isCreator ? game.metadata.joiner : game.metadata.creator;
+    const isRoguelike =
+      game.metadata.orchestrator?.toLowerCase() === ROGUELIKE_MATCH_ADDRESS.toLowerCase();
+    const isRunGame = isRoguelike && run?.activeGameId === game.metadata.gameId;
+    const myScore = Number(isCreator ? game.creatorScore : game.joinerScore);
+    const theirScore = Number(isCreator ? game.joinerScore : game.creatorScore);
+    const turnTime = Number(game.turnState.turnTime || 0n);
+    return {
+      key: game.metadata.gameId.toString(),
+      title: isPve
+        ? isRunGame && activeMissionTitle
+          ? activeMissionTitle
+          : isRoguelike
+            ? "Operations mission"
+            : "Campaign mission"
+        : `vs ${shortAddress(opponent)}`,
+      subtitle: `${isPve ? (isRoguelike ? "Operations" : "Campaign") : "Skirmish"} · Game ${game.metadata.gameId.toString()}`,
+      status: isFinished ? "finished" : game.turnState.currentTurn === address ? "yourTurn" : "waiting",
+      result: isFinished ? (isDraw ? "draw" : game.metadata.winner === address ? "victory" : "defeat") : undefined,
+      isPve,
+      myScore,
+      theirScore,
+      maxScore: Number(game.maxScore),
+      secondsRemaining: isFinished || !turnTime ? null : calculateTimeRemaining(game),
+      startedAtMs: Number(game.metadata.startedAt) * 1000,
+      onOpen: () => {
+        setStartInReplay(false);
+        setSelectedGame(game);
+      },
+      onReplay: isFinished
+        ? () => {
+            setStartInReplay(true);
+            setSelectedGame(game);
+          }
+        : undefined,
+    };
+  });
 
   // If a game is selected, show the game display
   if (selectedGame) {
@@ -298,76 +367,37 @@ const Games: React.FC = () => {
         game={selectedGame}
         onBack={handleBackToList}
         refetch={stableListRefetch}
+        startInReplay={startInReplay}
       />
     );
   }
 
   return (
-    <div className="space-y-3">
-      <button
-        type="button"
-        onClick={() => void handleResetCache()}
-        disabled={isResettingCache}
-        className="font-mono text-[10px] uppercase tracking-widest px-2 py-1 border disabled:opacity-50"
-        style={{
-          color: "var(--color-cyan)",
-          borderColor: "var(--color-cyan)",
-          backgroundColor: "var(--color-near-black)",
-        }}
-      >
-        {isResettingCache ? "[RESETTING CACHE...]" : "[DEBUG: RESET CACHE]"}
-      </button>
-      <GamesListShell
-        isAuthenticated={isConnected}
-        authRequiredMessage="Please connect your wallet to view your games."
-        isLoading={showGamesLoading}
-        error={error}
-        count={visibleGames.length}
-        showPve={showPve}
-        onShowPveChange={setShowPve}
-        hiddenPveCount={sortedGames.length - visibleGames.length}
-      >
-        {visibleGames.map((game) => {
-        const isFinished = game.metadata.winner !== ZERO_ADDRESS;
-        const isDraw = isFinished && game.metadata.winner === TIE_ADDRESS;
-        const isVictory = isFinished && !isDraw && game.metadata.winner === address;
-        const remaining = isFinished ? 0 : calculateTimeRemaining(game);
-        return (
-          <GameLogCard
-            key={game.metadata.gameId.toString()}
-            gameIdLabel={game.metadata.gameId.toString()}
-            isFinished={isFinished}
-            isDraw={isDraw}
-            isVictory={isVictory}
-            lobbyIdLabel={game.metadata.lobbyId.toString()}
-            identityRows={
-              <>
-                <div className="data-readout">
-                  <span className="data-readout-label">Creator</span>
-                  <span className="font-mono text-xs">
-                    {game.metadata.creator.slice(0, 6)}…{game.metadata.creator.slice(-4)}
-                  </span>
-                </div>
-                <div className="data-readout">
-                  <span className="data-readout-label">Joiner</span>
-                  <span className="font-mono text-xs">
-                    {game.metadata.joiner.slice(0, 6)}…{game.metadata.joiner.slice(-4)}
-                  </span>
-                </div>
-              </>
-            }
-            dateLabel={new Date(Number(game.metadata.startedAt) * 1000).toLocaleDateString()}
-            creatorScore={Number(game.creatorScore)}
-            joinerScore={Number(game.joinerScore)}
-            maxScore={Number(game.maxScore)}
-            isMyTurn={game.turnState.currentTurn === address}
-            turnSecondsRemaining={remaining}
-            onSelect={() => setSelectedGame(game)}
-          />
-        );
-      })}
-      </GamesListShell>
-    </div>
+    <BattlesInbox
+      isAuthenticated={isConnected}
+      authRequiredMessage="Connect your wallet to see your battles."
+      isLoading={showGamesLoading}
+      error={error}
+      items={inboxItems}
+      showPve={showPve}
+      onShowPveChange={setShowPve}
+      hiddenPveCount={sortedGames.length - visibleGames.length}
+      headerExtra={
+        <button
+          type="button"
+          onClick={() => void handleResetCache()}
+          disabled={isResettingCache}
+          className="border px-2 py-1 font-mono text-[10px] uppercase tracking-widest disabled:opacity-50"
+          style={{
+            color: "var(--color-cyan)",
+            borderColor: "var(--color-cyan)",
+            backgroundColor: "var(--color-near-black)",
+          }}
+        >
+          {isResettingCache ? "[RESETTING CACHE...]" : "[DEBUG: RESET CACHE]"}
+        </button>
+      }
+    />
   );
 };
 

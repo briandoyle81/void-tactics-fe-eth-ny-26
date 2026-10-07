@@ -116,9 +116,10 @@ export function useFleetComposition(
     setSelectedId(v);
   }, []);
 
-  const onSelectChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const v = e.target.value;
+  /** Select a preset by id ("" for none, "__create__" for a new one),
+   * showing the stored-locally notice first in a new session. */
+  const selectFleet = useCallback(
+    (v: string) => {
       if (v === "") {
         finishSelect("");
         return;
@@ -135,6 +136,11 @@ export function useFleetComposition(
       finishSelect(v);
     },
     [scopeKey, finishSelect],
+  );
+
+  const onSelectChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => selectFleet(e.target.value),
+    [selectFleet],
   );
 
   const acknowledgeLocalNoticeModal = useCallback(() => {
@@ -184,15 +190,17 @@ export function useFleetComposition(
     setFleetCompositions((prev) => prev.map((f) => (f.id === selectedId ? { ...f, name } : f)));
   }, [selectedId, renameDraft]);
 
-  const deleteActive = useCallback(() => {
-    if (!selectedId) return;
+  const deleteFleet = useCallback((id: string) => {
     if (!confirm("Delete this fleet preset? It is only stored in this browser.")) {
       return;
     }
-    const id = selectedId;
     setFleetCompositions((prev) => prev.filter((f) => f.id !== id));
-    setSelectedId(null);
-  }, [selectedId]);
+    setSelectedId((current) => (current === id ? null : current));
+  }, []);
+
+  const deleteActive = useCallback(() => {
+    if (selectedId) deleteFleet(selectedId);
+  }, [selectedId, deleteFleet]);
 
   const exportFile = useCallback(
     (filenamePrefix: string) => {
@@ -252,6 +260,8 @@ export function useFleetComposition(
     showLocalNoticeModal,
     importInputRef,
     onSelectChange,
+    selectFleet,
+    deleteFleet,
     acknowledgeLocalNoticeModal,
     cancelLocalNoticeModal,
     addShip,

@@ -1,5 +1,6 @@
 import type { MissionDossierRow } from "../components/MissionDossier";
 import { formatTurnTime } from "../components/MissionDossier";
+import { formatDec } from "./formatDec";
 
 // Dossier rows for MissionNodePanel, shared by the web3 and web2 previews.
 // Number-native: callers convert bigint node fields before calling. Enemy
@@ -51,7 +52,7 @@ export function roguelikeCombatDossierRows(
     rows.push({ label: "On victory", value: `Hulls patched to at least ${healFloor}%`, tone: "good" });
   }
   if (f.victoryEffects.decBonus != null && f.victoryEffects.decBonus > 0) {
-    rows.push({ label: "Reward", value: `+${f.victoryEffects.decBonus} DEC`, tone: "good" });
+    rows.push({ label: "Reward", value: `+${formatDec(f.victoryEffects.decBonus)} DEC`, tone: "good" });
   }
   if (f.victoryEffects.shipGrant) {
     const { variant, tier } = f.victoryEffects.shipGrant;

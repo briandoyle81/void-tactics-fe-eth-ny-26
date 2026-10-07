@@ -31,8 +31,8 @@ const PREVIEW_REFRESH_INTERVAL_MS = 10000;
 // — see ManageNavyWeb2.tsx's doc comment), so USD here is a REST purchase,
 // not the cross-chain wallet flow web3's "USD" tab uses.
 interface ShipPurchaseInterfaceWeb2Props {
-  paymentMethod: "usd" | "utc";
-  onPurchase: (tier: number, currency: "usd" | "utc") => void;
+  /** Opens checkout for a pack; the payment method is chosen there. */
+  onSelectTier: (tier: number) => void;
   busy: boolean;
 }
 
@@ -64,11 +64,7 @@ function toPreviewShip(spec: ShipPreviewSpec): Web2Ship {
   };
 }
 
-export function ShipPurchaseInterfaceWeb2({
-  paymentMethod,
-  onPurchase,
-  busy,
-}: ShipPurchaseInterfaceWeb2Props) {
+export function ShipPurchaseInterfaceWeb2({ onSelectTier, busy }: ShipPurchaseInterfaceWeb2Props) {
   // Reroll the demo/preview ships on the same cadence HeroShipShowcase uses on
   // the Info page (10s) so both "living" ship displays feel consistent.
   const [previewSeed, setPreviewSeed] = useState(() =>
@@ -91,16 +87,13 @@ export function ShipPurchaseInterfaceWeb2({
     const tierCallout = getTierCallout(t.tier);
     const badge = getTierBadge(t.tier, tiers.length);
     const previewShips = getPreviewShipsForTier(t.tier, t.shipCount);
-    const priceLabel =
-      paymentMethod === "usd"
-        ? `$${(t.priceUsdCents / 100).toFixed(2)}`
-        : `${t.priceUtc} UTC`;
+    const priceLabel = `$${(t.priceUsdCents / 100).toFixed(2)} USD`;
 
     return (
       <button
         key={t.tier}
         type="button"
-        onClick={() => onPurchase(t.tier, paymentMethod)}
+        onClick={() => onSelectTier(t.tier)}
         disabled={busy}
         className={`relative min-h-[420px] px-4 py-3 border-2 text-left ${colors.border} ${colors.text} ${colors.hoverBorder} ${colors.hoverText} ${colors.hoverBg} font-mono tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
       >
@@ -123,8 +116,10 @@ export function ShipPurchaseInterfaceWeb2({
     );
   });
 
-  const footerPaymentNote =
-    paymentMethod === "utc" ? "Click to purchase with UTC." : "Click to purchase.";
-
-  return <ShipPurchaseShell tierCards={tierCards} footerPaymentNote={footerPaymentNote} />;
+  return (
+    <ShipPurchaseShell
+      tierCards={tierCards}
+      footerPaymentNote="Pick a pack, then choose how to pay: USD or UTC."
+    />
+  );
 }

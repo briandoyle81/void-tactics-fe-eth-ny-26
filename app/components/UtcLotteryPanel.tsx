@@ -26,10 +26,6 @@ const MAX_UINT256 = (1n << 256n) - 1n;
 const PERMIT2_APPROVAL_WINDOW_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const SLIPPAGE_BPS = 200n; // 2%
 
-interface UtcLotteryPanelProps {
-  onClose: () => void;
-}
-
 function shortAddr(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
@@ -44,7 +40,7 @@ function shortAddr(addr: string) {
  * draw does not always have a winner (DrawResolvedNoWinner) — that state is shown explicitly,
  * never inferred from an absent balance change.
  */
-export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
+export function UtcLotteryPanel() {
   const { address } = useAccount();
   const {
     isDeployed,
@@ -111,23 +107,7 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
       : undefined;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div
-        className="bg-near-black border-2 p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto rounded-none"
-        style={{ borderColor: "var(--color-amber)" }}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-amber font-mono tracking-wider">
-            [UTC LOTTERY]
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-amber hover:text-amber/80 transition-all duration-200 text-2xl font-bold"
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
+    <div className="w-full max-w-xl">
 
         <div className="mb-5 p-4 bg-amber/10 border border-amber/40 rounded-none">
           <p className="text-amber/85 text-xs font-mono leading-relaxed">
@@ -403,7 +383,6 @@ export function UtcLotteryPanel({ onClose }: UtcLotteryPanelProps) {
             )}
           </>
         )}
-      </div>
     </div>
   );
 }

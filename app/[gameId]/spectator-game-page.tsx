@@ -2,13 +2,12 @@
 
 import { useEffect } from "react";
 import Header from "../components/Header";
-import AlphaDiscordNoticeBar from "../components/AlphaDiscordNoticeBar";
-import SiteFooter from "../components/SiteFooter";
 import GameDisplay from "../components/GameDisplay";
 import { useGetGame } from "../hooks/useGameContract";
 import { GameDataView } from "../types/types";
 import { useRouter } from "next/navigation";
 import { VOID_TACTICS_CHAIN_CHANGED_EVENT } from "../config/networks";
+import { PLAY_PATH } from "../config/routes";
 
 interface SpectatorGamePageProps {
   gameId: number | null;
@@ -28,7 +27,7 @@ export default function SpectatorGamePage({
 
   useEffect(() => {
     const onChainChanged = () => {
-      router.push("/");
+      router.push(PLAY_PATH);
     };
     window.addEventListener(VOID_TACTICS_CHAIN_CHANGED_EVENT, onChainChanged);
     return () => {
@@ -44,9 +43,6 @@ export default function SpectatorGamePage({
       className="flex min-h-screen flex-col"
       style={{ backgroundColor: "var(--color-near-black)" }}
     >
-      <div className="shrink-0">
-        <AlphaDiscordNoticeBar />
-      </div>
       <div className="shrink-0">
         <Header />
       </div>
@@ -67,7 +63,7 @@ export default function SpectatorGamePage({
                   Invalid game URL: {requestedPathId || "(empty)"}.
                 </div>
                 <button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push(PLAY_PATH)}
                   className="px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
                   style={{
                     fontFamily:
@@ -91,7 +87,7 @@ export default function SpectatorGamePage({
                   Unable to load game {gameId}.
                 </div>
                 <button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push(PLAY_PATH)}
                   className="px-4 py-2 border-2 border-solid uppercase font-semibold tracking-wider transition-colors duration-150"
                   style={{
                     fontFamily:
@@ -108,16 +104,13 @@ export default function SpectatorGamePage({
             ) : (
               <GameDisplay
                 game={game}
-                onBack={() => router.push("/")}
+                onBack={() => router.push(PLAY_PATH)}
                 readOnly={true}
               />
             )}
           </div>
         </div>
       </main>
-      <div className="shrink-0">
-        <SiteFooter />
-      </div>
     </div>
   );
 }

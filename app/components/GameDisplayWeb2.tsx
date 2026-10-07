@@ -98,6 +98,8 @@ interface GameDisplayWeb2Props {
   onBack: () => void;
   refetch?: () => void;
   readOnly?: boolean;
+  /** Open straight into the replay (the Battles inbox's Replay button). */
+  startInReplay?: boolean;
 }
 
 function GameDisplayWeb2({
@@ -105,6 +107,7 @@ function GameDisplayWeb2({
   onBack,
   refetch,
   readOnly = false,
+  startInReplay = false,
 }: GameDisplayWeb2Props) {
   const { userId } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -112,7 +115,7 @@ function GameDisplayWeb2({
   const [selectedShipId, setSelectedShipId] = useState<number | null>(null);
   const [draggedShipId, setDraggedShipId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showReplay, setShowReplay] = useState(false);
+  const [showReplay, setShowReplay] = useState(startInReplay);
   const [showFleetModal, setShowFleetModal] = useState(false);
 
   const gameViewRootRef = React.useRef<HTMLDivElement | null>(null);

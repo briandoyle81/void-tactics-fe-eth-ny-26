@@ -3,7 +3,8 @@
 import React from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { UTCPurchaseButton } from "./UTCPurchaseButton";
-import { UTCPurchaseModalShell } from "./UTCPurchaseModalShell";
+import { UTCPurchasePanelShell } from "./UTCPurchasePanelShell";
+import { getFaucetUrl } from "../config/faucets";
 import { UTCPurchaseTierCardContent } from "./UTCPurchaseTierCardContent";
 import { CONTRACT_ADDRESSES, CONTRACT_ABIS } from "../config/contracts";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
@@ -11,11 +12,8 @@ import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseI
 import type { Abi } from "viem";
 import { formatEther } from "viem";
 
-interface UTCPurchaseModalProps {
-  onClose: () => void;
-}
-
-const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
+/** Store › Credits (web3): buy UTC with the chain's native token. */
+const UTCPurchasePanel: React.FC = () => {
   const { address, chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
   const nativeTokenSymbol = getNativeTokenSymbol(activeChainId);
@@ -94,12 +92,10 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
 
   const handlePurchaseSuccess = async () => {
     await refetchUTCBalance();
-    onClose();
   };
 
   return (
-    <UTCPurchaseModalShell
-      onClose={onClose}
+    <UTCPurchasePanelShell
       balanceValueLabel={
         utcBalance ? `${formatEther(utcBalance as bigint)} UTC` : "0.00 UTC"
       }
@@ -109,6 +105,20 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
           TOKENS, then spend UTC when you reserve games or check out ship
           packs elsewhere. This purchase only adds UTC to your wallet.
         </>
+      }
+      balanceFooter={
+        <p className="mt-2 text-xs font-mono text-cyan/85">
+          Need {nativeTokenSymbol}?{" "}
+          <a
+            href={getFaucetUrl(activeChainId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold text-cyan underline underline-offset-2"
+          >
+            Get it from the faucet
+          </a>{" "}
+          during Alpha.
+        </p>
       }
       chooseAmountDescription={
         <>
@@ -159,8 +169,8 @@ const UTCPurchaseModal: React.FC<UTCPurchaseModalProps> = ({ onClose }) => {
           })}
         </div>
         )}
-    </UTCPurchaseModalShell>
+    </UTCPurchasePanelShell>
   );
 };
 
-export default UTCPurchaseModal;
+export default UTCPurchasePanel;

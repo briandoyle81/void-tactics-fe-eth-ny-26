@@ -15,7 +15,7 @@ interface FreeShipClaimButtonProps {
   className?: string;
   disabled?: boolean;
   /** Where the button was shown (for PostHog funnels). */
-  analyticsSurface?: "info" | "manage_navy" | "unknown";
+  analyticsSurface?: "info" | "manage_navy" | "command_deck" | "unknown";
   /** Fires when the user activates the button (before eligibility checks and claim). */
   onPress?: () => void;
   onSuccess?: TransactionFollowUp;

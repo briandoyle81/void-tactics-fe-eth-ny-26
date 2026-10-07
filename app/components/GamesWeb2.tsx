@@ -3,12 +3,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { usePlayerGamesWeb2 } from "../hooks/usePlayerGamesWeb2";
-import { useMapNameWeb2 } from "../hooks/useMapNameWeb2";
 import type { Web2GameDataView } from "../types/web2Game";
 import { WEB2_TIE_SENTINEL } from "../types/web2Game";
 import GameDisplayWeb2 from "./GameDisplayWeb2";
-import { GameLogCard } from "./GameLogCard";
-import { GamesListShell } from "./GamesListShell";
+import { BattlesInbox, type BattleInboxItem } from "./BattlesInbox";
 import { AI_USER_ID } from "../config/aiUser";
 import { useShowPveGames } from "../hooks/useShowPveGames";
 
@@ -21,6 +19,8 @@ import { useShowPveGames } from "../hooks/useShowPveGames";
 const GamesWeb2: React.FC = () => {
   const { userId, isLoggedIn } = useCurrentUser();
   const [selectedGame, setSelectedGame] = useState<Web2GameDataView | null>(null);
+  // Opened via the inbox's Replay button.
+  const [startInReplay, setStartInReplay] = useState(false);
   const { games, isLoading, error, refetch } = usePlayerGamesWeb2({
     pausePolling: Boolean(selectedGame),
   });
@@ -130,6 +130,7 @@ const GamesWeb2: React.FC = () => {
 
   const handleBackToList = useCallback(() => {
     setSelectedGame(null);
+    setStartInReplay(false);
     if (typeof window !== "undefined") {
       localStorage.removeItem(storageKey);
       localStorage.setItem(viewModeKey, "list");
@@ -146,81 +147,55 @@ const GamesWeb2: React.FC = () => {
         game={selectedGame}
         onBack={handleBackToList}
         refetch={stableListRefetch}
+        startInReplay={startInReplay}
       />
     );
   }
 
+  const inboxItems: BattleInboxItem[] = visibleGames.map((game) => {
+    const isFinished = game.metadata.winner !== "";
+    const isDraw = isFinished && game.metadata.winner === WEB2_TIE_SENTINEL;
+    const isPve = game.metadata.joiner === AI_USER_ID;
+    const isCreator = game.metadata.creator === userId;
+    const turnTime = game.turnState.turnTime || 0;
+    return {
+      key: String(game.metadata.gameId),
+      // Web2 games aren't tied to a mission node, so missions read generically.
+      title: isPve
+        ? "Mission"
+        : `vs ${isCreator ? game.metadata.joinerLabel : game.metadata.creatorLabel}`,
+      subtitle: `${isPve ? "PvE" : "Skirmish"} · Game ${game.metadata.gameId}`,
+      status: isFinished ? "finished" : game.turnState.currentTurn === userId ? "yourTurn" : "waiting",
+      result: isFinished ? (isDraw ? "draw" : game.metadata.winner === userId ? "victory" : "defeat") : undefined,
+      isPve,
+      myScore: isCreator ? game.creatorScore : game.joinerScore,
+      theirScore: isCreator ? game.joinerScore : game.creatorScore,
+      maxScore: game.maxScore,
+      secondsRemaining: isFinished || !turnTime ? null : calculateTimeRemaining(game),
+      startedAtMs: game.metadata.startedAt,
+      onOpen: () => {
+        setStartInReplay(false);
+        setSelectedGame(game);
+      },
+      onReplay: isFinished
+        ? () => {
+            setStartInReplay(true);
+            setSelectedGame(game);
+          }
+        : undefined,
+    };
+  });
+
   return (
-    <GamesListShell
+    <BattlesInbox
       isAuthenticated={isLoggedIn}
-      authRequiredMessage="Please sign in to view your games."
+      authRequiredMessage="Sign in to see your battles."
       isLoading={isLoading}
       error={error}
-      count={visibleGames.length}
+      items={inboxItems}
       showPve={showPve}
       onShowPveChange={setShowPve}
       hiddenPveCount={sortedGames.length - visibleGames.length}
-    >
-      {visibleGames.map((game) => (
-        <GameCardWeb2
-          key={game.metadata.gameId}
-          game={game}
-          userId={userId}
-          remaining={game.metadata.winner === "" ? calculateTimeRemaining(game) : 0}
-          onSelect={() => setSelectedGame(game)}
-        />
-      ))}
-    </GamesListShell>
-  );
-};
-
-/** Single game-list card — its own component because it needs its own
- * useMapNameWeb2 hook call, and hooks can't be called from inside a
- * .map() callback. */
-const GameCardWeb2: React.FC<{
-  game: Web2GameDataView;
-  userId: string | null;
-  remaining: number;
-  onSelect: () => void;
-}> = ({ game, userId, remaining, onSelect }) => {
-  const { name: mapName } = useMapNameWeb2(game.mapId);
-  const isFinished = game.metadata.winner !== "";
-  const isDraw = isFinished && game.metadata.winner === WEB2_TIE_SENTINEL;
-  const isVictory = isFinished && !isDraw && game.metadata.winner === userId;
-  const isCreatorMe = game.metadata.creator === userId;
-
-  return (
-    <GameLogCard
-      gameIdLabel={String(game.metadata.gameId)}
-      isFinished={isFinished}
-      isDraw={isDraw}
-      isVictory={isVictory}
-      lobbyIdLabel={String(game.metadata.lobbyId)}
-      identityRows={
-        <>
-          <div className="data-readout">
-            <span className="data-readout-label">Map</span>
-            <span className="font-mono text-xs">{mapName ?? `#${game.mapId}`}</span>
-          </div>
-          <div className="data-readout">
-            <span className="data-readout-label">You are</span>
-            <span className="font-mono text-xs">{isCreatorMe ? "Creator" : "Joiner"}</span>
-          </div>
-          <div className="data-readout">
-            <span className="data-readout-label">Opponent</span>
-            <span className="font-mono text-xs">
-              {isCreatorMe ? game.metadata.joinerLabel : game.metadata.creatorLabel}
-            </span>
-          </div>
-        </>
-      }
-      dateLabel={new Date(game.metadata.startedAt).toLocaleDateString()}
-      creatorScore={game.creatorScore}
-      joinerScore={game.joinerScore}
-      maxScore={game.maxScore}
-      isMyTurn={game.turnState.currentTurn === userId}
-      turnSecondsRemaining={remaining}
-      onSelect={onSelect}
     />
   );
 };
