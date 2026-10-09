@@ -25,6 +25,12 @@ const CACHE_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 const DEFAULT_COOLDOWN_SECONDS = 28 * 24 * 60 * 60; // 28 days
 
+// After the claim is mined, a load-balanced RPC node can still be a block
+// behind and return the pre-claim lastClaimTimestamp (and ship list). Poll
+// until the new claim reads back, then refetch ships.
+const CLAIM_READBACK_ATTEMPTS = 10;
+const CLAIM_READBACK_INTERVAL_MS = 1000;
+
 type EligibilityCacheEntry = {
   eligible: boolean;
   timestamp: number;
@@ -139,6 +145,8 @@ export function useFreeShipClaiming() {
     chainId: activeChainId,
   });
   const processedReceiptHashRef = useRef<`0x${string}` | null>(null);
+  // lastClaimTimestamp when the claim was sent, to tell a fresh read from a stale one.
+  const lastClaimTimestampAtClaimRef = useRef<bigint | undefined>(undefined);
 
   // Track if we should show the error (clear it after some time or on new attempts)
   const [showError, setShowError] = useState(false);
@@ -336,10 +344,16 @@ export function useFreeShipClaiming() {
 
     setFollowUpPending(true);
     let cancelled = false;
+    const before = lastClaimTimestampAtClaimRef.current;
     void (async () => {
       try {
+        for (let attempt = 0; attempt < CLAIM_READBACK_ATTEMPTS && !cancelled; attempt++) {
+          const { data } = await refetchClaimStatus();
+          const ts = data as bigint | undefined;
+          if (ts != null && ts !== 0n && ts !== before) break;
+          await new Promise((resolve) => setTimeout(resolve, CLAIM_READBACK_INTERVAL_MS));
+        }
         await refetch();
-        await refetchClaimStatus();
       } finally {
         if (!cancelled) setFollowUpPending(false);
       }
@@ -397,6 +411,7 @@ export function useFreeShipClaiming() {
 
     // Clear any previous error when attempting a new claim
     setShowError(false);
+    lastClaimTimestampAtClaimRef.current = lastClaimTimestamp as bigint | undefined;
 
     try {
       await switchToSelectedChainIfNeeded();

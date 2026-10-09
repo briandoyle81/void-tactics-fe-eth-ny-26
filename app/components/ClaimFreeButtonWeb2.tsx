@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import posthog from "posthog-js";
 import { apiMutate } from "../lib/apiMutate";
@@ -24,6 +25,7 @@ export function ClaimFreeButtonWeb2({
 }: ClaimFreeButtonWeb2Props) {
   const [isClaiming, setIsClaiming] = useState(false);
   const { userId } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   const handleClick = async () => {
     onPress?.();
@@ -36,7 +38,12 @@ export function ClaimFreeButtonWeb2({
       );
       posthog.capture("free_ship_claimed", { user_id: userId, surface: analyticsSurface });
       toast.success(`Claimed ${result.ships.length} free ship(s)`);
-      await onSuccess();
+      // Eligibility otherwise only refreshes every 60s, so the HUD pill and
+      // Command Deck card kept showing "Ready" after a claim.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ships", "claim-free-eligibility", "web2"] }),
+        onSuccess(),
+      ]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to claim free ships");
     } finally {

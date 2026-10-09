@@ -20,6 +20,7 @@ import {
   type NavyFilterCategory,
 } from "../utils/navyFilters";
 import { FleetShipListPanel } from "./FleetShipListPanel";
+import { NoShipsClaimPanel } from "./NoShipsClaimPanel";
 import { NavyFilterToolbar } from "./NavyFilterToolbar";
 import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { NavyPagination } from "./NavyPagination";
@@ -284,6 +285,8 @@ export function RoguelikeRunStart({ onRunStarted }: RoguelikeRunStartProps) {
 
       {shipsLoading ? (
         <p className="text-sm text-text-muted">Loading your ships…</p>
+      ) : ships.length === 0 ? (
+        <NoShipsClaimPanel />
       ) : (
         <FleetShipListPanel
           widthClass="w-full"

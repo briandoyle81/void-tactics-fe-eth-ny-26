@@ -496,15 +496,6 @@ export function MapDisplayView({
               style={{ left: `${(13 / GRID_DIMENSIONS.WIDTH) * 100}%`, top: 0, width: "2px", height: "100%", transform: "translateX(-50%)" }}
             />
 
-            <div
-              className="absolute bg-warning-red"
-              style={{ left: `${(4 / GRID_DIMENSIONS.WIDTH) * 100}%`, top: 0, width: "2px", height: "100%", transform: "translateX(-50%)" }}
-            />
-            <div
-              className="absolute bg-warning-red"
-              style={{ left: `${(13 / GRID_DIMENSIONS.WIDTH) * 100}%`, top: 0, width: "2px", height: "100%", transform: "translateX(-50%)" }}
-            />
-
             {[2, 5, 11, 14].map((col) => (
               <div
                 key={`v-${col}`}
