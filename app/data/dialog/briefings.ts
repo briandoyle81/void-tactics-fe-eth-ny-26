@@ -11,9 +11,9 @@ import type { DialogCharacterId } from "./characters";
 //                  in characters.ts); their portrait, name and color frame
 //                  the text.
 //
-// The briefing text itself isn't written here: it's the node's description,
-// edited in the campaign/roguelike map editor (node content). A mission with
-// no entry here shows its description as plain, unattributed text.
+// The briefing text itself isn't written here: it's the node's description
+// in nodeContent.ts (web3; web2 keeps it in Postgres). A mission with no
+// entry here shows its description as plain, unattributed text.
 export const MISSION_BRIEFING_SPEAKERS: {
   mission: DialogMission;
   characterId: DialogCharacterId;

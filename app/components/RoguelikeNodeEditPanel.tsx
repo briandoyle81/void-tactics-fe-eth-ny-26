@@ -16,13 +16,8 @@ import {
 } from "../hooks/useMapsContract";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
-import {
-  editableDescription,
-  editableTitle,
-  nodeContentSaveError,
-  useSaveOnChainNodeContent,
-  type ResolvedNodeContent,
-} from "../hooks/useNodeContent";
+import type { ResolvedNodeContent } from "../hooks/useNodeContent";
+import { NodeContentReadOnly } from "./NodeContentReadOnly";
 import {
   WIN_EFFECT_CATALOG,
   useWinEffectAddresses,
@@ -83,7 +78,6 @@ export function RoguelikeNodeEditPanel({
   const { data: allConfigs } = useGetAllAIShipConfigs();
   const { isEditor: isEncounterEditor, isLoading: isEncounterEditorLoading } =
     useIsEncounterEditor();
-  const saveContent = useSaveOnChainNodeContent();
   const winEffectAddresses = useWinEffectAddresses();
   const {
     data: currentWinEffects,
@@ -103,8 +97,6 @@ export function RoguelikeNodeEditPanel({
   const [showFleetEditor, setShowFleetEditor] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const [title, setTitle] = React.useState(editableTitle(node));
-  const [description, setDescription] = React.useState(editableDescription(node));
 
   const [selectedWinEffects, setSelectedWinEffects] = React.useState<string[]>([]);
   const [isSavingWinEffects, setIsSavingWinEffects] = React.useState(false);
@@ -123,10 +115,6 @@ export function RoguelikeNodeEditPanel({
     setMaxScore(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
     setCreatorGoesFirst(node?.creatorGoesFirst ?? true);
     setCostCapOverride(node?.costCapOverride ?? NEW_NODE_DEFAULTS.costCapOverride);
-    // Only re-seed on node change, not when this node's content refetches
-    // (would clobber an in-progress edit).
-    setTitle(editableTitle(node));
-    setDescription(editableDescription(node));
   }, [node]);
 
   const isCombat = kind === RoguelikeNodeKind.Combat;
@@ -231,18 +219,6 @@ export function RoguelikeNodeEditPanel({
     }
   };
 
-  const handleSaveContent = async () => {
-    if (node == null) return;
-    try {
-      const hash = await saveContent("ROGUELIKE", node.id, { title, description });
-      toast.success(`Node content saved on chain. (tx: ${hash.slice(0, 10)}…)`);
-      onSaved();
-    } catch (error) {
-      console.error("Failed to save node content:", error);
-      toast.error(nodeContentSaveError(error));
-    }
-  };
-
   const toggleWinEffect = (address: string) => {
     const lower = address.toLowerCase();
     setSelectedWinEffects((prev) =>
@@ -316,36 +292,7 @@ export function RoguelikeNodeEditPanel({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Title
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-            style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Description
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-            style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-          />
-        </label>
-        {mode === "edit" && (
-          <button
-            type="button"
-            onClick={() => void handleSaveContent()}
-            className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
-            style={{ borderRadius: 0 }}
-          >
-            [SAVE CONTENT]
-          </button>
-        )}
+        {mode === "edit" && <NodeContentReadOnly node={node} />}
 
         {isCombat ? (
           <>

@@ -16,3 +16,10 @@ export const MAP_ADMIN_ADDRESS = "0x69a5B3aE8598fC5A5419eaa1f2A59Db2D052e346";
  * email being in this list.
  */
 export const WEB2_ADMIN_EMAILS = ["briandoyle81@gmail.com"];
+
+/**
+ * Tournaments are temporarily off in the game client: the Command Deck shows
+ * them greyed out under a "Coming Soon" band, the screen can't be opened,
+ * and the tournament list isn't fetched. Flip to true to bring them back.
+ */
+export const TOURNAMENTS_ENABLED = false;

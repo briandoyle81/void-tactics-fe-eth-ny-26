@@ -1,6 +1,7 @@
 "use client";
 
 import { navyFilterCategoryLabel, needsNavyFilterValue, type NavyFilterCategory, type NavyFilterCriterion, type NavySortField, type NavySortOrder } from "../utils/navyFilters";
+import type { ReactNode } from "react";
 import { NavyFilterControls } from "./NavyFilterControls";
 
 // Shared between ManageNavy.tsx (web3) and ManageNavyWeb2.tsx (web2) — the
@@ -25,6 +26,8 @@ interface NavyFilterToolbarProps {
   onToggleFilterValue: (category: NavyFilterCategory, value: string) => void;
   onSetThreatFilter: (value: string | null) => void;
   onSetDraftValue: (category: NavyFilterCategory, value: string) => void;
+  /** Extra buttons right after [FILTERS], e.g. [IMPORT FLEETS]. */
+  filterActions?: ReactNode;
 }
 
 function formatCriterion(
@@ -39,7 +42,7 @@ function formatCriterion(
 }
 
 export function NavyFilterToolbar(props: NavyFilterToolbarProps) {
-  const { activeFilters, onRemoveFilter, onClearFilters, sortBy, onSortByChange, sortOrder, onToggleSortOrder, showFilterWindow, onOpenFilterWindow, onCloseFilterWindow, getSecondaryOptions } = props;
+  const { activeFilters, onRemoveFilter, onClearFilters, sortBy, onSortByChange, sortOrder, onToggleSortOrder, showFilterWindow, onOpenFilterWindow, onCloseFilterWindow, getSecondaryOptions, filterActions } = props;
 
   return (
     <>
@@ -71,6 +74,7 @@ export function NavyFilterToolbar(props: NavyFilterToolbarProps) {
         >
           {activeFilters.length > 0 ? `[FILTERS ${activeFilters.length}]` : "[FILTERS]"}
         </button>
+        {filterActions}
         {activeFilters.length > 0 && (
           <button
             type="button"

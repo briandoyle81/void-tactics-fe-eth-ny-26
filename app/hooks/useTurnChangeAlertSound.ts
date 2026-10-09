@@ -47,3 +47,41 @@ export function useTurnChangeAlertSound(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMyTurn, identity, readOnly]);
 }
+
+const TURN_TITLE_PREFIX = "● Your turn · ";
+
+/**
+ * Tab-title cue for a player who isn't looking: when it becomes their turn
+ * while the tab is hidden or the window unfocused, prefix the title until
+ * they come back (or the turn passes). Shared by GameDisplay and
+ * GameDisplayWeb2.
+ */
+export function useTurnTitleCue(isMyTurn: boolean, enabled: boolean) {
+  const prevTurnRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const wasMyTurn = prevTurnRef.current;
+    prevTurnRef.current = isMyTurn;
+    if (!enabled || !isMyTurn || wasMyTurn !== false) return;
+    if (document.visibilityState !== "hidden" && document.hasFocus()) return;
+
+    const clear = () => {
+      if (document.title.startsWith(TURN_TITLE_PREFIX)) {
+        document.title = document.title.slice(TURN_TITLE_PREFIX.length);
+      }
+    };
+    const onReturn = () => {
+      if (document.visibilityState !== "hidden" && document.hasFocus()) clear();
+    };
+    if (!document.title.startsWith(TURN_TITLE_PREFIX)) {
+      document.title = TURN_TITLE_PREFIX + document.title;
+    }
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+      clear();
+    };
+  }, [isMyTurn, enabled]);
+}

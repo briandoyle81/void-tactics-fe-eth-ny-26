@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import GameDisplay from "./GameDisplay";
 import { BattlesInbox, type BattleInboxItem } from "./BattlesInbox";
-import { resolveNodeContent, useOnChainNodeContent } from "../hooks/useNodeContent";
+import { resolveNodeContent, useWeb3NodeContent } from "../hooks/useNodeContent";
 import { useGetRoguelikeRun } from "../hooks/useRoguelikeRun";
 import type { RoguelikeRun } from "../types/roguelike";
 import { GameDataView } from "../types/types";
@@ -308,7 +308,7 @@ const Games: React.FC = () => {
     () => (run && run.activeGameId !== 0n ? [run.currentNodeId] : []),
     [run],
   );
-  const { contentById: runContentById, isLoading: runContentLoading } = useOnChainNodeContent(
+  const { contentById: runContentById, isLoading: runContentLoading } = useWeb3NodeContent(
     "ROGUELIKE",
     runNodeIds,
   );

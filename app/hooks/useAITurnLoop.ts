@@ -28,6 +28,8 @@ interface UseAITurnLoopParams {
   // without racing ahead of confirmed chain data.
   lastMoveSignal: string;
   refetchGame: () => void;
+  /** AI moves to send in one takeAITurns call (tail case); 1 = takeAITurn. See app/utils/aiTurnBatch.ts. */
+  batchMoves?: number;
 }
 
 /**
@@ -42,8 +44,9 @@ export function useAITurnLoop({
   isGameOver,
   lastMoveSignal,
   refetchGame,
+  batchMoves = 1,
 }: UseAITurnLoopParams) {
-  const { takeAITurn } = useSinglePlayerMatch();
+  const { takeAITurn, takeAITurns } = useSinglePlayerMatch();
   // takeAITurn only resolves once the wallet sends the tx, not once it's
   // confirmed — refetching right on send (the old behavior) reads stale
   // chain state, so lastMoveSignal never changes and this loop stalls after
@@ -86,7 +89,7 @@ export function useAITurnLoop({
     const pacingTimeout = setTimeout(() => {
       didFire = true;
       iterationRef.current += 1;
-      takeAITurn(gameId)
+      (batchMoves > 1 ? takeAITurns(gameId, batchMoves) : takeAITurn(gameId))
         .then(async (hash) => {
           if (publicClient) {
             await publicClient.waitForTransactionReceipt({ hash });

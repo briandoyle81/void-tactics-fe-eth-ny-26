@@ -53,8 +53,8 @@ function faction1LaserOrigin(
   const cy = box.y + box.height / 2;
   const dir = facingRight ? 1 : -1;
   return {
-    x: cx + dir * box.width * 0.08,
-    y: cy + (facingRight ? -box.height * 0.15 : 0),
+    x: cx + dir * box.width * 0.06,
+    y: cy + (facingRight ? -box.height * 0.15 : 0) - box.height * 0.16,
   };
 }
 

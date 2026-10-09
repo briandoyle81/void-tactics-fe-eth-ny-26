@@ -46,18 +46,22 @@ import {
 import { SINGLE_PLAYER_MATCH_ADDRESS, useGameIdToNodeId } from "../hooks/useSinglePlayerMatch";
 import { ROGUELIKE_MATCH_ADDRESS } from "../hooks/useRoguelikeMatch";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
-import { resolveNodeContent, useOnChainNodeContent } from "../hooks/useNodeContent";
+import { resolveNodeContent, useWeb3NodeContent } from "../hooks/useNodeContent";
 import { inferVictoryReason } from "../utils/victoryReason";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { useMissionDialog } from "../hooks/useMissionDialog";
-import { resetRoguelikeRunQueries, useGetRoguelikeRun } from "../hooks/useRoguelikeRun";
-import { invalidateShipsReads } from "../hooks/useShipsContract";
+import {
+  invalidateRoguelikeRunQueries,
+  resetRoguelikeRunQueries,
+  useGetRoguelikeRun,
+} from "../hooks/useRoguelikeRun";
 import { DialogLineCard, MissionDialogPanel } from "./MissionDialogPanel";
 import { buildDialogSnapshot } from "../utils/missionDialog";
 import type { DialogMission } from "../types/dialog";
 import { useAITurnLoop } from "../hooks/useAITurnLoop";
 import { useRoguelikeAITurnLoop } from "../hooks/useRoguelikeAITurnLoop";
+import { aiTurnBatchSize } from "../utils/aiTurnBatch";
 import { TransactionButton } from "./TransactionButton";
 import { toast } from "react-hot-toast";
 import { useTransaction } from "../providers/TransactionContext";
@@ -98,7 +102,8 @@ import {
 import { useGameplayInteraction } from "../hooks/useGameplayInteraction";
 import { useDamageCalculation } from "../hooks/useDamageCalculation";
 import { useGamePolling } from "../hooks/useGamePolling";
-import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnChangeAlertSound, useTurnTitleCue, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { setHiddenTurnWatch } from "../utils/contractEventRouting";
 import { STYLE_LABEL, STYLE_MONO } from "../styles/fontStyles";
 import { useLandscapeMode } from "../hooks/useLandscapeMode";
 import { type GameRecord, type TurnRecord } from "../types/types";
@@ -845,7 +850,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [nodeIdForGame],
   );
   const { contentById: missionContentById, isLoading: missionContentLoading } =
-    useOnChainNodeContent("CAMPAIGN", missionNodeIds);
+    useWeb3NodeContent("CAMPAIGN", missionNodeIds);
   const missionNodeContent =
     nodeIdForGame != null && nodeIdForGame > 0n
       ? resolveNodeContent(missionContentById, nodeIdForGame, missionContentLoading)
@@ -864,7 +869,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     [roguelikeNodeIdForGame],
   );
   const { contentById: roguelikeContentById, isLoading: roguelikeContentLoading } =
-    useOnChainNodeContent("ROGUELIKE", roguelikeMissionNodeIds);
+    useWeb3NodeContent("ROGUELIKE", roguelikeMissionNodeIds);
   // Campaign and roguelike missions show their title instead of the game
   // number (loading/missing placeholders come from resolveNodeContent).
   const gameTitleLabel = missionNodeContent
@@ -887,6 +892,19 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     ? `${game.lastMove.shipId}-${game.lastMove.timestamp}`
     : "";
 
+  // Once the human has no unmoved ships this round, the AI's remaining
+  // moves go out in one takeAITurns transaction instead of one each.
+  const humanIsCreator = game.metadata.creator?.toLowerCase() === address?.toLowerCase();
+  const aiBatchMoves = React.useMemo(
+    () =>
+      aiTurnBatchSize({
+        humanActiveShipIds: humanIsCreator ? game.creatorActiveShipIds : game.joinerActiveShipIds,
+        aiActiveShipIds: humanIsCreator ? game.joinerActiveShipIds : game.creatorActiveShipIds,
+        movedShipIds: movedShipIdsSet,
+      }),
+    [humanIsCreator, game.creatorActiveShipIds, game.joinerActiveShipIds, movedShipIdsSet],
+  );
+
   // Both loops are always mounted (rules of hooks) — each is a no-op unless
   // its own isAITurn flag is true, so only one is ever actually driving.
   const singlePlayerAiTurnLoop = useAITurnLoop({
@@ -895,6 +913,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     isGameOver,
     lastMoveSignal,
     refetchGame,
+    batchMoves: aiBatchMoves,
   });
   const roguelikeAiTurnLoop = useRoguelikeAITurnLoop({
     gameId: game.metadata.gameId,
@@ -902,6 +921,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     isGameOver,
     lastMoveSignal,
     refetchGame,
+    batchMoves: aiBatchMoves,
   });
   const aiTurnLoop = isRoguelikeGame ? roguelikeAiTurnLoop : singlePlayerAiTurnLoop;
 
@@ -1638,6 +1658,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
 
   // Play alert sound when it becomes the player's turn
   useTurnChangeAlertSound(isMyTurnEffective, address, readOnly, prevTurnRef);
+
+  // Waiting on a human opponent: keep a slow event poll running even if the
+  // tab is hidden, so the turn cue (sound + title) still arrives.
+  const isMatchLive =
+    !readOnly && !!address && (!game.metadata.winner || game.metadata.winner === ZERO_ADDR);
+  const waitingOnOpponent = isMatchLive && !isVsAIGame && !isMyTurnEffective;
+  React.useEffect(() => {
+    setHiddenTurnWatch("pvp-match", waitingOnOpponent);
+    return () => setHiddenTurnWatch("pvp-match", false);
+  }, [waitingOnOpponent]);
+  useTurnTitleCue(isMyTurnEffective, isMatchLive);
 
   // Clear any pending transaction state when turn changes
   React.useEffect(() => {
@@ -2629,8 +2660,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({
     if (isRoguelikeGame) {
       // A loss ended the run; a win on the final node also releases the
       // roster. Either way the cached ship list needs its inFleet refreshed.
+      // A win refetches the run so the map shows the fleet's new hull and the
+      // cleared node.
       if (gameWinnerResult !== "me") resetRoguelikeRunQueries(queryClient);
-      else void invalidateShipsReads(queryClient);
+      else invalidateRoguelikeRunQueries(queryClient);
       window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
       document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
     } else if (isSinglePlayerGame) {

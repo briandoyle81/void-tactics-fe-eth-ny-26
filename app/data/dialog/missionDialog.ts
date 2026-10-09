@@ -51,8 +51,8 @@ import type { DialogCharacterId } from "./characters";
 // - Every roguelike combat node needs a missionStart line. A missing one
 //   shows an error in game instead of a generic line (see
 //   ENTRY_LINE_REQUIRED_KINDS in app/utils/missionDialog.ts).
-// - The mission's description (the briefing in the node preview) isn't
-//   written here; its speaker is assigned in briefings.ts.
+// - The mission's title and description (the briefing in the node preview)
+//   are in nodeContent.ts; its speaker is assigned in briefings.ts.
 export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
   {
     id: "roguelike-1-start",
@@ -132,6 +132,79 @@ export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
       {
         characterId: "adjutant",
         text: "Whatever is going on here, someone else will have to figure it out.",
+      },
+    ],
+  },
+  {
+    id: "roguelike-2-start",
+    characterId: "adjutant",
+    text: "We've reached the site and have more of those strange ships on scan.  They are now broadcasting IFF with a valid hexcode, but it doesn't match any in our records.  Whoever they are, Central will allow them to claim this site under Section 10.",
+    mission: { kind: "roguelike", nodeId: 2 },
+    trigger: { type: "missionStart" },
+    responses: [
+      {
+        characterId: "adjutant",
+        text: "We're a little banged up from the last fight, so you might want to be cautious.  The layout of the dust clouds and debris fields favors our deployment.  Rather than fighting the enemy ships directly, you might want to focus on blocking them and securing the resource locations..",
+      },
+      {
+        characterId: "prototypeDrone",
+        text: "And with that keen steel deep into their faces flashed out pallid green, gentle, and humorously discourse of parlors, sofas, carpets, and the same time enforced a certain grizzled wittiness; such ceaseless shudderings shook him; that appears to the 10th claim",
+      },
+    ],
+  },
+  {
+    id: "roguelike-2-enemy-wiped",
+    characterId: "adjutant",
+    text: "That was the last one!  We've wiped out the enemy forces.  Amazing!",
+    mission: { kind: "roguelike", nodeId: 2 },
+    trigger: { type: "shipsDestroyed", side: "enemy", count: 10 },
+  },
+  {
+    id: "roguelike-2-victory",
+    characterId: "adjutant",
+    text: "We've secured the resource site and enemy forces seem to be adhering to Space Law.  We still don't know who they are, but great work, Admiral.",
+    mission: { kind: "roguelike", nodeId: 2 },
+    trigger: { type: "missionVictory" },
+    responses: [
+      {
+        characterId: "prototypeDrone",
+        text: "Import of all that region. Should you ever stand in the east, I am not free to ply her shuttle between given threads; Shall we?’cries the Captain, the whole striking contrast of the sea, and slippers, his partner, who have died exhaling it.",
+      },
+      {
+        characterId: "adjutant",
+        text: "...that almost sounded like they were conceding defeat.",
+      },
+    ],
+  },
+  {
+    id: "roguelike-2-defeat",
+    characterId: "adjutant",
+    text: "We've lost, admiral.  The enemy can legally claim the site.  I guess we'll have to wait for Central to tell us what happened when they register the claim.",
+    mission: { kind: "roguelike", nodeId: 2 },
+    trigger: { type: "missionDefeat" },
+  },
+  {
+    id: "roguelike-3-start",
+    characterId: "adjutant",
+    text: "Admiral, didn't we already destroy one of those ships earlier?  I guess it could be another ship with the same name, but I've never seen a name repeated in such a short time.",
+    mission: { kind: "roguelike", nodeId: 3 },
+    trigger: { type: "missionStart" },
+    responses: [
+      {
+        characterId: "adjutant",
+        text: "As you know, the drone factories don't allow us to name our ships.  That means that while it's not too uncommon for two ships to have the same name, it's still really rare to see any given name repeated in such a short time.",
+      },
+      {
+        characterId: "prototypeDrone",
+        text: "Starbuck watched the fate of one of these cloudy black brigantines had risen to its place and time himself on his underlings to the copper cooler at the back; pinioned in the pit by sheer force of contrast, acted like a knot of numbed wasps.",
+      },
+      {
+        characterId: "adjutant",
+        text: "I'm not sure I understand.  Why is that significant?",
+      },
+      {
+        characterId: "prototypeDrone",
+        text: "Come hither and praying, and there have been shoals, what’s to me with the little tents really no oars.",
       },
     ],
   },

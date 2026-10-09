@@ -18,7 +18,7 @@ import {
   useCampaignAutoHealPercent,
   type RoguelikeNodeWithContent,
 } from "../hooks/useRoguelikeNodeMap";
-import { useAreRoguelikeNodesDefeated, useAreRoguelikeNodesLocked } from "../hooks/useRoguelikeRun";
+import { useRoguelikeRunView } from "../hooks/useGameLens";
 import { useIsRoguelikeNodeEditor } from "../hooks/useRoguelikeNodeMap";
 import { useRoguelikeMatch } from "../hooks/useRoguelikeMatch";
 import { useRoguelikeNodeMapAdmin } from "../hooks/useRoguelikeNodeMapAdmin";
@@ -38,6 +38,8 @@ import { OperationsMap } from "./operations/OperationsMap";
 import { ART_SLOTS } from "../config/art";
 import { MissionDrawerContent } from "./operations/MissionDrawerContent";
 import { RunActionBar } from "./operations/RunActionBar";
+import { NodeEditorModal } from "./operations/NodeEditorModal";
+import { RetreatRunConfirmModal } from "./operations/RetreatRunConfirmModal";
 import { useOwnedShips } from "../hooks/useOwnedShips";
 import { useRunRosterHullWeb3 } from "../hooks/useRunRosterHull";
 import { getRunMapAction } from "../utils/runMapAction";
@@ -112,6 +114,9 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   // The mission drawer opens on selection; closing it gives the chart the
   // full width until another node is picked.
   const [drawerOpen, setDrawerOpen] = React.useState(true);
+  // Edit Mode opens the selected node in a full-screen editor instead.
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [showRetreatConfirm, setShowRetreatConfirm] = React.useState(false);
 
   const isBrowseMode = run == null;
   const campaignId = run?.campaignId ?? DEFAULT_ROGUELIKE_CAMPAIGN_ID;
@@ -133,18 +138,19 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   );
 
   const { nodes: campaignNodes, isLoading: nodesLoading, refetch: refetchNodes } =
-    useRoguelikeGraphWithContent(campaignId);
+    // Players only see nodes reachable from the root (one GameLens call);
+    // the editor needs every node, linked or not.
+    useRoguelikeGraphWithContent(campaignId, true, { reachableOnly: !isBrowseMode && !editMode });
   const { data: autoHealPercent, refetch: refetchAutoHeal } = useCampaignAutoHealPercent(campaignId);
 
-  const nodeIds = React.useMemo(() => campaignNodes.map((n) => n.id), [campaignNodes]);
   const byNumberId = React.useMemo(
     () => new Map(campaignNodes.map((n) => [Number(n.id), n])),
     [campaignNodes],
   );
   const currentNode = isBrowseMode ? undefined : byNumberId.get(Number(run.currentNodeId));
 
-  const { lockedByNodeId } = useAreRoguelikeNodesLocked(address, nodeIds);
-  const { defeatedByNodeId } = useAreRoguelikeNodesDefeated(address, nodeIds);
+  // Locked/defeated flags for every reachable node, in one GameLens call.
+  const { lockedByNodeId, defeatedByNodeId } = useRoguelikeRunView(address, !isBrowseMode);
 
   const prerequisitesByNumberId = React.useMemo(
     () =>
@@ -381,10 +387,12 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     }
     if (id === ADD_NODE_SENTINEL_ID) {
       setSelectedNodeId(ADD_NODE_SENTINEL_ID);
+      setEditorOpen(true);
       return;
     }
     setSelectedNodeId(id);
     setDrawerOpen(true);
+    setEditorOpen(true);
     if (isBrowseMode) {
       localStorage.setItem(missionSelectedNodeKey(address), String(id));
     }
@@ -423,7 +431,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     else if (mapAction.type === "resupply") void handleEnterResupply(selectedNode.id);
   };
 
-  const drawer = editMode ? (
+  const nodeEditor = (
     <RoguelikeNodeEditPanel
       mode={isCreatingNode ? "create" : "edit"}
       node={selectedNode ?? null}
@@ -433,12 +441,18 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       onCancelConnectMode={() => setConnectMode(null)}
       onSaved={() => void refetchNodes()}
       onCreated={() => {
+        setEditorOpen(false);
         setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
         void refetchNodes();
       }}
-      onCancelCreate={() => setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId))}
+      onCancelCreate={() => {
+        setEditorOpen(false);
+        setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
+      }}
     />
-  ) : selectedNode ? (
+  );
+
+  const drawer = editMode ? null : selectedNode ? (
     <MissionDrawerContent
       title={selectedNode.title}
       titleStatus={selectedNode.titleStatus}
@@ -520,7 +534,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
               <button
                 type="button"
                 disabled={isRetreating}
-                onClick={() => void handleRetreat()}
+                onClick={() => setShowRetreatConfirm(true)}
                 className={`${OPS_TOOLBAR_BUTTON} border-warning-red text-warning-red hover:bg-warning-red/10`}
               >
                 {isRetreating ? "Retreating…" : "Retreat run"}
@@ -574,7 +588,6 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
         drawer={drawer}
         drawerOpen={drawerOpen}
         onDrawerOpenChange={setDrawerOpen}
-        drawerWide={editMode}
         actionBar={
           editMode ? undefined : (
             <RunActionBar
@@ -597,6 +610,31 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
           )
         }
       />
+
+      {/* Hidden while connecting so the target node can be clicked on the
+          map; it reopens on the same node once the link is made. */}
+      {editMode && editorOpen && !connectMode && (isCreatingNode || selectedNode) && (
+        <NodeEditorModal
+          title={
+            isCreatingNode
+              ? "New node"
+              : `Node #${String(selectedNode!.id)} · ${selectedNode!.title}`
+          }
+          onClose={() => setEditorOpen(false)}
+        >
+          {nodeEditor}
+        </NodeEditorModal>
+      )}
+
+      {showRetreatConfirm && !isBrowseMode && (
+        <RetreatRunConfirmModal
+          isRetreating={isRetreating}
+          onCancel={() => setShowRetreatConfirm(false)}
+          onConfirm={() => {
+            void handleRetreat().finally(() => setShowRetreatConfirm(false));
+          }}
+        />
+      )}
 
       {combatTargetNodeId != null && combatTargetNode && !isBrowseMode && (
         <RoguelikeCombatModal

@@ -19,7 +19,7 @@ import { useGamePollingWeb2 } from "../hooks/useGamePollingWeb2";
 import { useMapWeb2 } from "../hooks/useMapWeb2";
 import { gameStateSyncKey } from "../utils/normalizeGameDataView";
 import { useDamageCalculationWeb2 } from "../hooks/useDamageCalculationWeb2";
-import { useTurnChangeAlertSound, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
+import { useTurnChangeAlertSound, useTurnTitleCue, playTurnAlertSound } from "../hooks/useTurnChangeAlertSound";
 import { RoundStartModal } from "./RoundStartModal";
 import { useRoundStartAnnouncement } from "../hooks/useRoundStartAnnouncement";
 import { GameResultModal, type MissionLossReason } from "./GameResultModal";
@@ -73,7 +73,11 @@ import { FleeSafetySwitch } from "./FleeSafetySwitch";
 import { FleeConfirmButtonWeb2 } from "./FleeConfirmButtonWeb2";
 import { STYLE_LABEL } from "../styles/fontStyles";
 import { useMissionDialog } from "../hooks/useMissionDialog";
-import { resetRoguelikeRunQueriesWeb2, useRoguelikeRunWeb2 } from "../hooks/useRoguelikeWeb2";
+import {
+  invalidateRoguelikeRunQueriesWeb2,
+  resetRoguelikeRunQueriesWeb2,
+  useRoguelikeRunWeb2,
+} from "../hooks/useRoguelikeWeb2";
 import { DialogLineCard, MissionDialogPanel } from "./MissionDialogPanel";
 import { buildDialogSnapshot } from "../utils/missionDialog";
 import type { DialogMission } from "../types/dialog";
@@ -368,6 +372,7 @@ function GameDisplayWeb2({
   // Play alert sound when it becomes the player's turn (turn changes from
   // opponent to player only).
   useTurnChangeAlertSound(isCurrentPlayerTurn, userId, readOnly, prevTurnRef);
+  useTurnTitleCue(isCurrentPlayerTurn, !readOnly && !!userId && !isGameOver);
 
   // Round-start announcement — mirrors GameDisplay.tsx's roundStartInfo:
   // fires on the very first render (game start) and again whenever
@@ -900,8 +905,9 @@ function GameDisplayWeb2({
         if (isRoguelikeGame) {
           // Any loss already ended the run; drop the cached run so the
           // Mission tab opens on the start-a-run screen.
+          // A win refetches the run so the map shows the fleet's new hull.
           if (gameWinnerResult !== "me") resetRoguelikeRunQueriesWeb2(queryClient);
-          else void queryClient.invalidateQueries({ queryKey: ["ships", "owned", "web2"] });
+          else invalidateRoguelikeRunQueriesWeb2(queryClient);
           window.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
           document.dispatchEvent(new CustomEvent("void-tactics-navigate-to-roguelike"));
         } else if (isSinglePlayerGame) {

@@ -20,6 +20,8 @@ interface UseRoguelikeAITurnLoopParams {
   isGameOver: boolean;
   lastMoveSignal: string;
   refetchGame: () => void;
+  /** AI moves to send in one takeAITurns call (tail case); 1 = takeAITurn. See app/utils/aiTurnBatch.ts. */
+  batchMoves?: number;
 }
 
 export function useRoguelikeAITurnLoop({
@@ -28,8 +30,9 @@ export function useRoguelikeAITurnLoop({
   isGameOver,
   lastMoveSignal,
   refetchGame,
+  batchMoves = 1,
 }: UseRoguelikeAITurnLoopParams) {
-  const { takeAITurn } = useRoguelikeMatch();
+  const { takeAITurn, takeAITurns } = useRoguelikeMatch();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const [moveCount, setMoveCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export function useRoguelikeAITurnLoop({
     const pacingTimeout = setTimeout(() => {
       didFire = true;
       iterationRef.current += 1;
-      takeAITurn(gameId)
+      (batchMoves > 1 ? takeAITurns(gameId, batchMoves) : takeAITurn(gameId))
         .then(async (hash) => {
           if (publicClient) {
             await publicClient.waitForTransactionReceipt({ hash });

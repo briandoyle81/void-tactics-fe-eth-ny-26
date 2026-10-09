@@ -10,14 +10,11 @@ import { SubTabs } from "../SubTabs";
 import { LoadoutsWeb3 } from "./LoadoutsWeb3";
 import { LoadoutsWeb2 } from "./LoadoutsWeb2";
 import { useAppMode } from "../../hooks/useAppMode";
+import { FLEET_SECTIONS, type FleetSection } from "./fleetSections";
 
 // The Fleet tab (hangar): the ship collection, saved loadouts, and
 // Progression — the Drone Core ladder that permanently adds free ships to
 // every claim (also sold in Store › Drone Cores).
-
-export type FleetSection = "ships" | "loadouts" | "progression";
-
-export const FLEET_SECTIONS: readonly FleetSection[] = ["ships", "loadouts", "progression"];
 
 const SECTION_LABELS: Record<FleetSection, string> = {
   ships: "Ships",

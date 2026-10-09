@@ -13,7 +13,10 @@ const TURN_POLL_DIVISOR = 10;
 // deriving its polling cadence from that stored value would leave the
 // "AI is taking its turn" loop waiting hours between refetches. Use a fixed
 // fast cadence for single-player games instead.
-const AI_POST_MOVE_POLL_INTERVAL_MS = 2 * 1000;
+// The app-wide event watcher polls GameUpdate / AITurnTaken every 4s while
+// a match is open and refetches this game on each one, so this is only a
+// fallback in case an event poll misses (was 2s, which doubled the reads).
+const AI_POST_MOVE_POLL_INTERVAL_MS = 6 * 1000;
 const AI_POST_MOVE_WINDOW_MS = 60 * 1000;
 
 interface UseGamePollingParams {

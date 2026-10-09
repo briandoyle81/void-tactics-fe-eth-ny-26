@@ -1,18 +1,22 @@
 import { useCallback, useState, useEffect, useMemo, useRef } from "react";
-import { useAccount, useBlockNumber, useReadContracts } from "wagmi";
+import { useAccount, useReadContracts } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLobbiesRead, useLobbiesChainParams } from "./useLobbiesContract";
 import { getSelectedChainId } from "../config/networks";
 import { Lobby } from "../types/types";
+import { usePageVisible, useWindowFocused } from "./usePageVisible";
+
+// Open-lobby refresh. Was every block (eth_blockNumber polled every ~4s plus
+// three reads per block, even in hidden tabs). Lobby events also refresh it
+// through ContractEventsHost; this is the fallback for lobbies other players
+// open or close.
+const LOBBY_LIST_POLL_MS = 15_000;
+const LOBBY_LIST_BLURRED_POLL_MS = 60_000;
 
 export function useLobbyList() {
   const { address, chainId: walletChainId } = useAccount();
   const activeChainId = walletChainId ?? getSelectedChainId();
   const queryClient = useQueryClient();
-  const { data: blockNumber } = useBlockNumber({
-    watch: true,
-    chainId: activeChainId,
-  });
   const {
     address: lobbiesAddress,
     abi: lobbiesAbi,
@@ -98,28 +102,25 @@ export function useLobbyList() {
     setError(null);
   }, [activeChainId]);
 
-  // Invalidate on each new block, debounced to at most once per 5 s.
-  // Avoids the redundant dual-invalidation (block + interval) on fast chains.
-  const lastInvalidatedRef = useRef(0);
+  // Paused while the tab is hidden; slower while the window is unfocused.
+  // Query keys go through a ref: wagmi rebuilds them each render, which
+  // would otherwise restart the timer before it ever fires.
+  const isPageVisible = usePageVisible();
+  const isWindowFocused = useWindowFocused();
+  const lobbyQueryKeysRef = useRef([playerLobbyIds.queryKey, openLobbyIds.queryKey, lobbyStructs.queryKey]);
+  lobbyQueryKeysRef.current = [playerLobbyIds.queryKey, openLobbyIds.queryKey, lobbyStructs.queryKey];
   useEffect(() => {
-    lastInvalidatedRef.current = 0;
-  }, [address, activeChainId]);
-
-  useEffect(() => {
-    if (!blockNumber) return;
-    const now = Date.now();
-    if (now - lastInvalidatedRef.current < 5000) return;
-    lastInvalidatedRef.current = now;
-    queryClient.invalidateQueries({ queryKey: playerLobbyIds.queryKey });
-    queryClient.invalidateQueries({ queryKey: openLobbyIds.queryKey });
-    queryClient.invalidateQueries({ queryKey: lobbyStructs.queryKey });
-  }, [
-    blockNumber,
-    queryClient,
-    playerLobbyIds.queryKey,
-    openLobbyIds.queryKey,
-    lobbyStructs.queryKey,
-  ]);
+    if (!isPageVisible) return;
+    const interval = setInterval(
+      () => {
+        for (const queryKey of lobbyQueryKeysRef.current) {
+          void queryClient.invalidateQueries({ queryKey });
+        }
+      },
+      isWindowFocused ? LOBBY_LIST_POLL_MS : LOBBY_LIST_BLURRED_POLL_MS,
+    );
+    return () => clearInterval(interval);
+  }, [isPageVisible, isWindowFocused, queryClient]);
 
   // Process the lobby data when it changes
   useEffect(() => {

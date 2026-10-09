@@ -92,10 +92,36 @@ export function useRoguelikeMatch() {
     [writeAndWait],
   );
 
+  // AI moves send without waiting or touching the ships cache: the AI loop
+  // waits for the receipt itself (writeAndWait here made it wait twice) and
+  // an AI move never changes which ships the player owns.
   const takeAITurn = useCallback(
-    (gameId: bigint) => writeAndWait("takeAITurn", [gameId], TAKE_AI_TURN_GAS_LIMIT),
-    [writeAndWait],
+    (gameId: bigint) =>
+      writeContractAsync({
+        address: ROGUELIKE_MATCH_ADDRESS,
+        abi: ROGUELIKE_MATCH_ABI,
+        functionName: "takeAITurn",
+        args: [gameId],
+        chainId: CHAIN_ID,
+        gas: TAKE_AI_TURN_GAS_LIMIT,
+      }),
+    [writeContractAsync],
   );
 
-  return { startRun, enterCombatNode, enterResupplyNode, retreatRun, takeAITurn };
+  // Several AI moves in one tx — only when the human has no unmoved ships
+  // left this round (see app/utils/aiTurnBatch.ts). Gas scales per move.
+  const takeAITurns = useCallback(
+    (gameId: bigint, maxMoves: number) =>
+      writeContractAsync({
+        address: ROGUELIKE_MATCH_ADDRESS,
+        abi: ROGUELIKE_MATCH_ABI,
+        functionName: "takeAITurns",
+        args: [gameId, BigInt(maxMoves)],
+        chainId: CHAIN_ID,
+        gas: TAKE_AI_TURN_GAS_LIMIT * BigInt(maxMoves),
+      }),
+    [writeContractAsync],
+  );
+
+  return { startRun, enterCombatNode, enterResupplyNode, retreatRun, takeAITurn, takeAITurns };
 }

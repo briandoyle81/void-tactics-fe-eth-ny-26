@@ -29,7 +29,7 @@ import RoguelikeRunContract from "../contracts/artifacts/DeployModule#RoguelikeR
 import RoguelikeMatchContract from "../contracts/artifacts/DeployModule#RoguelikeMatch.json";
 import RoguelikeResupplyContract from "../contracts/artifacts/DeployModule#RoguelikeResupply.json";
 import RandomManagerContract from "../contracts/artifacts/DeployModule#RandomManager.json";
-import NodeContentRegistryContract from "../contracts/artifacts/DeployModule#NodeContentRegistry.json";
+import GameLensContract from "../contracts/artifacts/DeployModule#GameLens.json";
 import DECBonusWinEffectContract from "../contracts/artifacts/DeployModule#DECBonusWinEffect.json";
 import HealAboveFloorWinEffectContract from "../contracts/artifacts/DeployModule#HealAboveFloorWinEffect.json";
 import ShipGrantWinEffectContract from "../contracts/artifacts/DeployModule#ShipGrantWinEffect.json";
@@ -224,12 +224,10 @@ const BASE_SEPOLIA_CONTRACT_ADDRESSES = {
   RANDOM_MANAGER:
     BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#RandomManager"] ??
     ZERO_ADDRESS,
-  // Not yet deployed to Base Sepolia — falls back to ZERO_ADDRESS until a
-  // real deploy populates deployed_addresses.json (see
-  // NodeContentRegistry.sol's header comment / DeployAndConfig.ts).
-  NODE_CONTENT_REGISTRY:
-    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#NodeContentRegistry"] ??
-    ZERO_ADDRESS,
+  // Read-only aggregate views (paginated owned ships, run view, campaign
+  // graph) — see docs/redesign-10-7/frontend-handoff-rpc-cost-suggestions-2026-10-08.md §3.
+  GAME_LENS:
+    BASE_SEPOLIA_DEPLOYED_ADDRESSES["DeployModule#GameLens"] ?? ZERO_ADDRESS,
   // Pluggable roguelike win effects (see IRoguelikeWinEffect.sol) — not yet
   // deployed to Base Sepolia, falls back to ZERO_ADDRESS until a real
   // deploy populates deployed_addresses.json.
@@ -374,7 +372,7 @@ export const CONTRACT_ABIS = {
   ROGUELIKE_MATCH: RoguelikeMatchContract.abi,
   ROGUELIKE_RESUPPLY: RoguelikeResupplyContract.abi,
   RANDOM_MANAGER: RandomManagerContract.abi,
-  NODE_CONTENT_REGISTRY: NodeContentRegistryContract.abi,
+  GAME_LENS: GameLensContract.abi,
   DEC_BONUS_WIN_EFFECT: DECBonusWinEffectContract.abi,
   HEAL_ABOVE_FLOOR_WIN_EFFECT: HealAboveFloorWinEffectContract.abi,
   SHIP_GRANT_WIN_EFFECT: ShipGrantWinEffectContract.abi,

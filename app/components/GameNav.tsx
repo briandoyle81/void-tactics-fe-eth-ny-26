@@ -38,6 +38,9 @@ export function GameNav({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+      // A modal is open (checkout, confirmations, editors): switching the
+      // section behind it would unmount the screen it belongs to.
+      if (document.querySelector('[aria-modal="true"], [role="alertdialog"]')) return;
       const key = event.key.toLowerCase();
       if (key !== "q" && key !== "e") return;
       const index = GAME_SECTIONS.indexOf(active);

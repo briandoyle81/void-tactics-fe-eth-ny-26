@@ -35,6 +35,8 @@ import { OperationsMap } from "./operations/OperationsMap";
 import { ART_SLOTS } from "../config/art";
 import { MissionDrawerContent } from "./operations/MissionDrawerContent";
 import { RunActionBar } from "./operations/RunActionBar";
+import { NodeEditorModal } from "./operations/NodeEditorModal";
+import { RetreatRunConfirmModal } from "./operations/RetreatRunConfirmModal";
 import { useRunRosterHullWeb2 } from "../hooks/useRunRosterHull";
 import { getRunMapAction } from "../utils/runMapAction";
 import { aiConfigToPreviewShipWeb2 } from "../utils/aiShipConfigWeb2";
@@ -84,6 +86,9 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
   // The mission drawer opens on selection; closing it gives the chart the
   // full width until another node is picked.
   const [drawerOpen, setDrawerOpen] = React.useState(true);
+  // Edit Mode opens the selected node in a full-screen editor instead.
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [showRetreatConfirm, setShowRetreatConfirm] = React.useState(false);
 
   const isBrowseMode = run == null;
   const campaignId = run?.campaignId ?? DEFAULT_ROGUELIKE_CAMPAIGN_ID;
@@ -259,10 +264,12 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
     }
     if (id === ADD_NODE_SENTINEL_ID) {
       setSelectedNodeId(ADD_NODE_SENTINEL_ID);
+      setEditorOpen(true);
       return;
     }
     setSelectedNodeId(id);
     setDrawerOpen(true);
+    setEditorOpen(true);
     if (isBrowseMode) {
       localStorage.setItem(MISSION_SELECTED_NODE_KEY, String(id));
     }
@@ -301,7 +308,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
     else if (mapAction.type === "resupply") void handleEnterResupply(selectedNode.id);
   };
 
-  const drawer = editMode ? (
+  const nodeEditor = (
     <RoguelikeNodeEditPanelWeb2
       mode={isCreatingNode ? "create" : "edit"}
       node={selectedNode ?? null}
@@ -311,12 +318,18 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       onCancelConnectMode={() => setConnectMode(null)}
       onSaved={() => void refetchNodes()}
       onCreated={() => {
+        setEditorOpen(false);
         setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId);
         void refetchNodes();
       }}
-      onCancelCreate={() => setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId)}
+      onCancelCreate={() => {
+        setEditorOpen(false);
+        setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId);
+      }}
     />
-  ) : selectedNode ? (
+  );
+
+  const drawer = editMode ? null : selectedNode ? (
     <MissionDrawerContent
       title={selectedNode.title}
       titleStatus={selectedNode.titleStatus}
@@ -395,7 +408,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
               <button
                 type="button"
                 disabled={isRetreating}
-                onClick={() => void handleRetreat()}
+                onClick={() => setShowRetreatConfirm(true)}
                 className={`${OPS_TOOLBAR_BUTTON} border-warning-red text-warning-red hover:bg-warning-red/10`}
               >
                 {isRetreating ? "Retreating…" : "Retreat run"}
@@ -449,7 +462,6 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
         drawer={drawer}
         drawerOpen={drawerOpen}
         onDrawerOpenChange={setDrawerOpen}
-        drawerWide={editMode}
         actionBar={
           editMode ? undefined : (
             <RunActionBar
@@ -467,6 +479,31 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
           )
         }
       />
+
+      {/* Hidden while connecting so the target node can be clicked on the
+          map; it reopens on the same node once the link is made. */}
+      {editMode && editorOpen && !connectMode && (isCreatingNode || selectedNode) && (
+        <NodeEditorModal
+          title={
+            isCreatingNode
+              ? "New node"
+              : `Node #${String(selectedNode!.id)} · ${selectedNode!.title}`
+          }
+          onClose={() => setEditorOpen(false)}
+        >
+          {nodeEditor}
+        </NodeEditorModal>
+      )}
+
+      {showRetreatConfirm && !isBrowseMode && (
+        <RetreatRunConfirmModal
+          isRetreating={isRetreating}
+          onCancel={() => setShowRetreatConfirm(false)}
+          onConfirm={() => {
+            void handleRetreat().finally(() => setShowRetreatConfirm(false));
+          }}
+        />
+      )}
 
       {combatTargetNodeId != null && combatTargetNode && !isBrowseMode && (
         <RoguelikeCombatModalWeb2

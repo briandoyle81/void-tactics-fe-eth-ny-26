@@ -72,7 +72,7 @@ import {
 import { reorderByFleetComposition } from "../utils/fleetCompositionStorage";
 import { useFleetComposition } from "../hooks/useFleetComposition";
 import { FleetCompositionSelect } from "./FleetCompositionSelect";
-import { FleetCompositionControls } from "./FleetCompositionControls";
+import { FleetCompositionControls, ImportFleetsButton } from "./FleetCompositionControls";
 import { FleetCompositionLocalNoticeModal } from "./FleetCompositionLocalNoticeModal";
 import { RecycleConfirmModal } from "./RecycleConfirmModal";
 import { RecycleLockedNotice } from "./RecycleLockedNotice";
@@ -82,7 +82,6 @@ import {
 } from "./ManageNavyActionButton";
 import { ClaimFreeShipsControls } from "./ClaimFreeShipsControls";
 import { invalidateAllShipPurchasePriceCachesForChain } from "../utils/shipPurchaseInfoCache";
-import { ManageNavyShipsCountHeading } from "./ManageNavyShipsCountHeading";
 import { ManageNavyFleetCompositionCardSlot } from "./ManageNavyFleetCompositionCardSlot";
 import ShipConstructor from "./ShipConstructor";
 
@@ -581,15 +580,6 @@ const ManageNavy: React.FC = () => {
 
   // Handle bulk actions - now handled by ShipActionButton components
 
-  const handleSelectAll = () => {
-    if (selectedShips.size === shipsForGridDisplay.length) {
-      setSelectedShips(new Set());
-    } else {
-      setSelectedShips(
-        new Set(shipsForGridDisplay.map((ship) => ship.id.toString())),
-      );
-    }
-  };
 
   const shipGridRef = React.useRef<HTMLDivElement>(null);
   const [nameBlockMinHeights, setNameBlockMinHeights] = React.useState<
@@ -851,6 +841,49 @@ const ManageNavy: React.FC = () => {
           : "[UPDATE ALL SHIPS]"}
       </TransactionButton>
     );
+
+  // Recycle sits at the end of the action row (or below it while a
+  // tutorial brief owns the row).
+  const isNormalActionRow = !showConstructDeliveryTutorial && !showBuyShipsTutorial;
+  const recycleControl = (
+    <>
+      {canRecycle &&
+        selectedShips.size > 0 &&
+        (() => {
+          // Filter out ships that are in fleets
+          const recyclableShips = Array.from(selectedShips).filter((id) => {
+            const ship = ships.find((s) => s.id.toString() === id);
+            return ship && !ship.shipData.inFleet;
+          });
+
+          return recyclableShips.length > 0 ? (
+            <ShipActionButton
+              action="recycle"
+              shipIds={recyclableShips.map((id) => BigInt(id))}
+              className={manageNavyActionButtonClassName("red")}
+              onSuccess={async () => {
+                toast.success("Ships recycled successfully!");
+                setSelectedShips(new Set());
+                await refetch();
+              }}
+            >
+              {`[RECYCLE ${recyclableShips.length} SHIPS]`}
+            </ShipActionButton>
+          ) : (
+            <div className="w-full px-4 py-3 text-center text-sm font-mono font-bold tracking-wider text-amber opacity-50 sm:px-6 md:w-auto rounded-none border-2 border-amber">
+              [SELECTED SHIPS ARE IN FLEETS - CANNOT RECYCLE]
+            </div>
+          );
+        })()}
+
+      {!canRecycle && isConnected && (
+        <RecycleLockedNotice
+          purchasedCount={amountPurchased ? Number(amountPurchased) : 0}
+          threshold={10}
+        />
+      )}
+    </>
+  );
 
   const fleetCompositionSelectControl = (
     <FleetCompositionSelect
@@ -1169,6 +1202,7 @@ const ManageNavy: React.FC = () => {
                 {claimFreeShipControls}
               </div>
             </div>
+            {recycleControl}
           </div>
         )}
 
@@ -1219,41 +1253,7 @@ const ManageNavy: React.FC = () => {
           </div>
         )}
 
-        {canRecycle &&
-          selectedShips.size > 0 &&
-          (() => {
-            // Filter out ships that are in fleets
-            const recyclableShips = Array.from(selectedShips).filter((id) => {
-              const ship = ships.find((s) => s.id.toString() === id);
-              return ship && !ship.shipData.inFleet;
-            });
-
-            return recyclableShips.length > 0 ? (
-              <ShipActionButton
-                action="recycle"
-                shipIds={recyclableShips.map((id) => BigInt(id))}
-                className={manageNavyActionButtonClassName("red")}
-                onSuccess={async () => {
-                  toast.success("Ships recycled successfully!");
-                  setSelectedShips(new Set());
-                  await refetch();
-                }}
-              >
-                {`[RECYCLE ${recyclableShips.length} SHIPS]`}
-              </ShipActionButton>
-            ) : (
-              <div className="w-full px-4 py-3 text-center text-sm font-mono font-bold tracking-wider text-amber opacity-50 sm:px-6 md:w-auto rounded-none border-2 border-amber">
-                [SELECTED SHIPS ARE IN FLEETS - CANNOT RECYCLE]
-              </div>
-            );
-          })()}
-
-        {!canRecycle && isConnected && (
-          <RecycleLockedNotice
-            purchasedCount={amountPurchased ? Number(amountPurchased) : 0}
-            threshold={10}
-          />
-        )}
+        {!isNormalActionRow && recycleControl}
       </div>
 
       {/* Filtering and Sorting Controls */}
@@ -1269,6 +1269,7 @@ const ManageNavy: React.FC = () => {
       >
         <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-center xl:justify-between">
           <NavyFilterToolbar
+            filterActions={<ImportFleetsButton inputRef={fleetComposition.importInputRef} onFileChange={fleetComposition.onImportFileChange} />}
             activeFilters={filterState.activeFilters}
             onRemoveFilter={filterState.removeFilterById}
             onClearFilters={filterState.clearFilters}
@@ -1340,12 +1341,6 @@ const ManageNavy: React.FC = () => {
         >
           <div className="flex flex-col gap-3 mb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <ManageNavyShipsCountHeading
-                shownCount={filteredAndSortedShips.length}
-                totalCount={ships.length}
-                perPage={SHIPS_PER_PAGE}
-                page={filterState.page}
-              />
               <div className="flex flex-wrap items-center gap-2">
                 {shipsForGridDisplay.length > SHIPS_PER_PAGE && (
                   <NavyPagination
@@ -1355,33 +1350,6 @@ const ManageNavy: React.FC = () => {
                     onNext={() => filterState.nextPage(shipsForGridDisplay.length)}
                   />
                 )}
-                <button
-                  onClick={handleSelectAll}
-                  className="px-3 py-1 border-2 border-solid uppercase font-semibold tracking-wider text-sm transition-colors duration-150"
-                  style={{
-                    fontFamily:
-                      "var(--font-rajdhani), 'Arial Black', sans-serif",
-                    borderColor: "var(--color-gunmetal)",
-                    color: "var(--color-text-secondary)",
-                    backgroundColor: "var(--color-steel)",
-                    borderRadius: 0,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-cyan)";
-                    e.currentTarget.style.color = "var(--color-cyan)";
-                    e.currentTarget.style.backgroundColor =
-                      "var(--color-slate)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-gunmetal)";
-                    e.currentTarget.style.color = "var(--color-text-secondary)";
-                    e.currentTarget.style.backgroundColor = "var(--color-steel)";
-                  }}
-                >
-                  {selectedShips.size === shipsForGridDisplay.length
-                    ? "[DESELECT ALL]"
-                    : "[SELECT ALL]"}
-                </button>
                 {selectedShips.size > 0 && (
                   <span
                     className="text-sm uppercase tracking-wider"
@@ -1408,8 +1376,6 @@ const ManageNavy: React.FC = () => {
               onDeleteActive={fleetComposition.deleteActive}
               fleetCompositions={fleetComposition.fleetCompositions}
               onExport={() => fleetComposition.exportFile(`fleet_compositions_chain${chainId}`)}
-              importInputRef={fleetComposition.importInputRef}
-              onImportFileChange={fleetComposition.onImportFileChange}
             />
           </div>
           <div

@@ -1,7 +1,8 @@
 "use client";
 
-import { useAccount, useWatchContractEvent } from "wagmi";
+import { useAccount } from "wagmi";
 import type { Abi, Log } from "viem";
+import { eventAbi, useCombinedEventWatch } from "./useCombinedEventWatch";
 import { toast } from "react-hot-toast";
 import { useOwnedShips } from "./useOwnedShips";
 import { usePlayerGames } from "./usePlayerGames";
@@ -10,69 +11,43 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSelectedChainId } from "../config/networks";
 import { baseSepolia } from "viem/chains";
 import { SINGLE_PLAYER_MATCH_ADDRESS } from "./useSinglePlayerMatch";
-
-const SHIP_TRANSFER_EVENT_ABI = [
-  {
-    type: "event",
-    name: "Transfer",
-    inputs: [
-      { indexed: true, name: "from", type: "address" },
-      { indexed: true, name: "to", type: "address" },
-      { indexed: false, name: "tokenId", type: "uint256" },
-    ],
-  },
-] as const;
-
-const GAME_UPDATE_EVENT_ABI = [
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "gameId",
-        type: "uint256",
-      },
-    ],
-    name: "GameUpdate",
-    type: "event",
-  },
-] as const;
-
-// Game.sol emits this once per new game with both players' addresses, so a
-// player can learn about a game the *other* side started without polling.
-const GAME_STARTED_EVENT_ABI = [
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "uint256", name: "gameId", type: "uint256" },
-      { indexed: true, internalType: "uint256", name: "lobbyId", type: "uint256" },
-      { indexed: false, internalType: "address", name: "creator", type: "address" },
-      { indexed: false, internalType: "address", name: "joiner", type: "address" },
-    ],
-    name: "GameStarted",
-    type: "event",
-  },
-] as const;
+import { ROGUELIKE_MATCH_ADDRESS } from "./useRoguelikeMatch";
+import { usePageVisible, useWindowFocused } from "./usePageVisible";
+import {
+  groupLogsByEvent,
+  isFastEventPollingRequested,
+  isHiddenTurnWatchRequested,
+  subscribeFastEventPolling,
+} from "../utils/contractEventRouting";
 
 // Games live on Base Sepolia only while multi-chain is disabled; usePlayerGames
 // is pinned there, so the game watchers must be too or a wallet on another
 // chain would watch the wrong contract and the list would never refresh.
 const GAMES_CHAIN_ID = baseSepolia.id;
 
-const AI_TURN_TAKEN_EVENT_ABI = [
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "uint256", name: "gameId", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "shipId", type: "uint256" },
-      { indexed: false, internalType: "uint8", name: "actionType", type: "uint8" },
-      { indexed: false, internalType: "uint256", name: "targetShipId", type: "uint256" },
-    ],
-    name: "AITurnTaken",
-    type: "event",
-  },
-] as const;
+// Event ABIs come from the deployed artifacts so decoding always matches
+// the contracts (hand-copied ABIs drifted: GameStarted's indexed fields
+// changed at the 2026-10-08 redeploy and Transfer's tokenId is indexed).
+const TRANSFER_EVENT = eventAbi(CONTRACT_ABIS.SHIPS as Abi, "Transfer");
+const GAME_UPDATE_EVENT = eventAbi(CONTRACT_ABIS.GAME as Abi, "GameUpdate");
+const GAME_STARTED_EVENT = eventAbi(CONTRACT_ABIS.GAME as Abi, "GameStarted");
+// SinglePlayerMatch and RoguelikeMatch emit the same AITurnTaken.
+const AI_TURN_TAKEN_EVENT = eventAbi(CONTRACT_ABIS.SINGLE_PLAYER_MATCH as Abi, "AITurnTaken");
+const GAME_RESERVED_EVENT = eventAbi(CONTRACT_ABIS.LOBBIES as Abi, "GameReserved");
+
+const GAME_CHAIN_EVENTS = [GAME_UPDATE_EVENT, GAME_STARTED_EVENT, AI_TURN_TAKEN_EVENT] as const;
+const PICKER_CHAIN_EVENTS = [TRANSFER_EVENT, GAME_RESERVED_EVENT] as const;
+const ALL_EVENTS = [...GAME_CHAIN_EVENTS, ...PICKER_CHAIN_EVENTS] as const;
+
+// Poll cadence: fast while a match is open or a screen is waiting on the
+// other player, slow otherwise; nothing while the tab is hidden.
+const FAST_POLL_MS = 4000;
+const SLOW_POLL_MS = 20_000;
+// Window visible but unfocused (another app in front).
+const BLURRED_POLL_MS = 60_000;
+// Hidden tab with a PvP match waiting on the opponent (setHiddenTurnWatch).
+// Browsers throttle hidden-tab timers to about once a minute anyway.
+const HIDDEN_TURN_POLL_MS = 60_000;
 
 // Global refetch functions for individual game data
 export const globalGameRefetchFunctions: Map<number, () => void> = new Map();
@@ -124,9 +99,8 @@ export function ContractEventsHost() {
   const activeChainId = walletChainId ?? getSelectedChainId();
   const contractAddresses = getContractAddresses(activeChainId);
   const shouldWatch = !!address;
-  // Transfer / GameReserved are list-tab concerns. Keep GameUpdate + AITurnTaken
-  // while a match is open so the board still live-refetches, but drop the extra
-  // 5s getLogs pollers that cannot affect the open game view.
+  // A match view (Games detail) switches polling to the fast cadence and
+  // skips the list-only events below.
   const [matchViewOpen, setMatchViewOpen] = useState(false);
   useEffect(() => {
     const onDetail = (event: Event) => {
@@ -287,90 +261,92 @@ export function ContractEventsHost() {
     [address],
   );
 
-  const shipEventConfig = useMemo(
-    () => ({
-      chainId: activeChainId,
-      address: contractAddresses.SHIPS as `0x${string}`,
-      abi: SHIP_TRANSFER_EVENT_ABI,
-      eventName: "Transfer" as const,
-      poll: true as const,
-      pollingInterval: 5000,
-      enabled: watchListEvents,
-      onLogs: handleShipTransferLogs,
-    }),
-    [activeChainId, contractAddresses.SHIPS, handleShipTransferLogs, watchListEvents]
+  // Transfer / GameReserved are list concerns: skipped while a match is
+  // open (the board refetches itself through GameUpdate / AITurnTaken).
+  const matchViewOpenRef = useRef(matchViewOpen);
+  matchViewOpenRef.current = matchViewOpen;
+  const handleLogs = useCallback(
+    (logs: Log[]) => {
+      const groups = groupLogsByEvent(logs as (Log & { eventName?: string })[]);
+      if (groups.GameUpdate) handleGameUpdateLogs(groups.GameUpdate);
+      if (groups.GameStarted) handleGameStartedLogs(groups.GameStarted);
+      if (groups.AITurnTaken) handleAITurnTakenLogs(groups.AITurnTaken);
+      if (!matchViewOpenRef.current) {
+        if (groups.Transfer) handleShipTransferLogs(groups.Transfer);
+        if (groups.GameReserved) handleGameReservedLogs(groups.GameReserved);
+      }
+    },
+    [handleGameUpdateLogs, handleGameStartedLogs, handleAITurnTakenLogs, handleShipTransferLogs, handleGameReservedLogs],
   );
 
-  const gameEventConfig = useMemo(
-    () => ({
-      chainId: GAMES_CHAIN_ID,
-      address: gamesContractAddress,
-      abi: GAME_UPDATE_EVENT_ABI,
-      eventName: "GameUpdate" as const,
-      poll: true as const,
-      pollingInterval: 5000,
-      enabled: shouldWatch,
-      onLogs: handleGameUpdateLogs,
-    }),
-    [gamesContractAddress, handleGameUpdateLogs, shouldWatch]
+  // Hidden tabs don't poll and unfocused windows poll slowly; becoming
+  // active again catches up with one refetch.
+  const isPageVisible = usePageVisible();
+  const isWindowFocused = useWindowFocused();
+  const isActive = isPageVisible && isWindowFocused;
+  const wasActiveRef = useRef(isActive);
+  useEffect(() => {
+    if (isActive && !wasActiveRef.current && shouldWatch) {
+      void refetchGames();
+      if (!matchViewOpenRef.current) void refetchShips();
+      globalGameRefetchFunctions.forEach((refetchFn) => refetchFn());
+    }
+    wasActiveRef.current = isActive;
+  }, [isActive, shouldWatch, refetchGames, refetchShips]);
+
+  const [fastRequested, setFastRequested] = useState(isFastEventPollingRequested);
+  const [hiddenTurnWatch, setHiddenTurnWatch] = useState(isHiddenTurnWatchRequested);
+  useEffect(
+    () =>
+      subscribeFastEventPolling(() => {
+        setFastRequested(isFastEventPollingRequested());
+        setHiddenTurnWatch(isHiddenTurnWatchRequested());
+      }),
+    [],
+  );
+  let pollingInterval = matchViewOpen || fastRequested ? FAST_POLL_MS : SLOW_POLL_MS;
+  if (!isWindowFocused) pollingInterval = BLURRED_POLL_MS;
+  if (!isPageVisible) pollingInterval = HIDDEN_TURN_POLL_MS;
+  const watching = shouldWatch && (isPageVisible || hiddenTurnWatch);
+
+  // Game, both match contracts (AITurnTaken), and — when the picker is on
+  // the games chain, which is the normal case — Ships and Lobbies too: one
+  // log poll for everything.
+  const pickerOnGamesChain = activeChainId === GAMES_CHAIN_ID;
+  const gamesChainAddresses = useMemo(
+    () =>
+      [
+        gamesContractAddress,
+        SINGLE_PLAYER_MATCH_ADDRESS,
+        ROGUELIKE_MATCH_ADDRESS,
+        ...(pickerOnGamesChain
+          ? [contractAddresses.SHIPS as `0x${string}`, contractAddresses.LOBBIES as `0x${string}`]
+          : []),
+      ].filter(Boolean),
+    [gamesContractAddress, pickerOnGamesChain, contractAddresses.SHIPS, contractAddresses.LOBBIES],
+  );
+  const pickerChainAddresses = useMemo(
+    () => [contractAddresses.SHIPS as `0x${string}`, contractAddresses.LOBBIES as `0x${string}`],
+    [contractAddresses.SHIPS, contractAddresses.LOBBIES],
   );
 
-  const gameStartedEventConfig = useMemo(
-    () => ({
-      chainId: GAMES_CHAIN_ID,
-      address: gamesContractAddress,
-      abi: GAME_STARTED_EVENT_ABI,
-      eventName: "GameStarted" as const,
-      poll: true as const,
-      pollingInterval: 5000,
-      enabled: shouldWatch,
-      onLogs: handleGameStartedLogs,
-    }),
-    [gamesContractAddress, handleGameStartedLogs, shouldWatch]
-  );
-
-  const aiTurnEventConfig = useMemo(
-    () => ({
-      chainId: GAMES_CHAIN_ID,
-      address: SINGLE_PLAYER_MATCH_ADDRESS,
-      abi: AI_TURN_TAKEN_EVENT_ABI,
-      eventName: "AITurnTaken" as const,
-      poll: true as const,
-      pollingInterval: 5000,
-      enabled: shouldWatch && matchViewOpen,
-      onLogs: handleAITurnTakenLogs,
-    }),
-    [handleAITurnTakenLogs, shouldWatch, matchViewOpen]
-  );
-
-  const gameReservedEventConfig = useMemo(
-    () => ({
-      chainId: activeChainId,
-      address: contractAddresses.LOBBIES as `0x${string}`,
-      abi: CONTRACT_ABIS.LOBBIES as Abi,
-      eventName: "GameReserved" as const,
-      poll: true as const,
-      pollingInterval: 5000,
-      enabled: watchListEvents,
-      onLogs: handleGameReservedLogs,
-    }),
-    [activeChainId, contractAddresses.LOBBIES, handleGameReservedLogs, watchListEvents]
-  );
-
-  // Watch ship transfer events (only when address is available)
-  useWatchContractEvent(shipEventConfig);
-
-  // Watch game update events
-  useWatchContractEvent(gameEventConfig);
-
-  // Watch new games involving this player (including ones the opponent started)
-  useWatchContractEvent(gameStartedEventConfig);
-
-  // Watch AI turn events (single-player, Base Sepolia only)
-  useWatchContractEvent(aiTurnEventConfig);
-
-  // Watch lobby reservation events (notify the reserved player)
-  useWatchContractEvent(gameReservedEventConfig);
+  useCombinedEventWatch({
+    chainId: GAMES_CHAIN_ID,
+    addresses: gamesChainAddresses,
+    events: pickerOnGamesChain ? ALL_EVENTS : GAME_CHAIN_EVENTS,
+    enabled: watching,
+    pollingInterval,
+    onLogs: handleLogs,
+  });
+  // Only when the picker is on another chain.
+  useCombinedEventWatch({
+    chainId: activeChainId,
+    addresses: pickerChainAddresses,
+    events: PICKER_CHAIN_EVENTS,
+    enabled: watching && !pickerOnGamesChain && !matchViewOpen,
+    pollingInterval: isWindowFocused ? SLOW_POLL_MS : BLURRED_POLL_MS,
+    onLogs: handleLogs,
+  });
 
   return null;
 }

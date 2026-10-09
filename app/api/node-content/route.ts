@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  // Web2 only: web3 node text lives on chain in NodeContentRegistry and is
-  // written by the editor's own wallet transaction (useSaveOnChainNodeContent).
+  // Web2 only: web3 node text ships as static files (app/data/content/),
+  // edited as local drafts and published by exporting those files.
   const { error } = await requireWeb2Admin();
   if (error) return error;
 

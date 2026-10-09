@@ -98,6 +98,11 @@ import { usePlayerStats } from "../hooks/usePlayerStats";
 import { WinLossBadge } from "./WinLossBadge";
 import { LobbyCardActions } from "./LobbyCardActions";
 import { lobbyStatusColor, lobbyStatusLabel } from "../utils/lobbyStatusDisplay";
+import { usePageVisible } from "../hooks/usePageVisible";
+import { setFastEventPolling } from "../utils/contractEventRouting";
+
+/** Fallback lobby refresh while waiting on the other player (events cover the fast path). */
+const LOBBY_WAIT_POLL_MS = 10_000;
 
 function findGameForLobby(
   data: unknown,
@@ -519,30 +524,26 @@ const Lobbies: React.FC = () => {
     (currentLobbyForPolling.players.creatorFleetId === 0n ||
       currentLobbyForPolling.players.joinerFleetId === 0n);
 
+  // While waiting on the other player: ask the app-wide event watcher for
+  // its fast cadence (GameStarted / GameReserved arrive within ~4s and
+  // refresh the games list), and refresh the lobby itself on a slower
+  // fallback. Was a 2s loop of three reads; paused while the tab is hidden.
+  const isWaitingOnOtherPlayer =
+    isWaitingForOtherFleet || hasLobbyWaitingOnOpponentFleet || hasLobbyWaitingForGame || isCreatingFleet;
+  const isPageVisible = usePageVisible();
   React.useEffect(() => {
-    if (
-      !isWaitingForOtherFleet &&
-      !hasLobbyWaitingOnOpponentFleet &&
-      !hasLobbyWaitingForGame &&
-      !isCreatingFleet
-    ) {
-      return;
-    }
+    setFastEventPolling("lobby-wait", isWaitingOnOtherPlayer);
+    return () => setFastEventPolling("lobby-wait", false);
+  }, [isWaitingOnOtherPlayer]);
+  React.useEffect(() => {
+    if (!isWaitingOnOtherPlayer || !isPageVisible) return;
     const interval = setInterval(() => {
       void loadLobbies();
       void refetchSelectedLobby();
       void refetchGames();
-    }, 2000);
+    }, LOBBY_WAIT_POLL_MS);
     return () => clearInterval(interval);
-  }, [
-    isWaitingForOtherFleet,
-    hasLobbyWaitingOnOpponentFleet,
-    hasLobbyWaitingForGame,
-    isCreatingFleet,
-    loadLobbies,
-    refetchSelectedLobby,
-    refetchGames,
-  ]);
+  }, [isWaitingOnOtherPlayer, isPageVisible, loadLobbies, refetchSelectedLobby, refetchGames]);
 
   const isLobbyGoToGamesBusy = useCallback(
     (lobbyId: bigint) => {

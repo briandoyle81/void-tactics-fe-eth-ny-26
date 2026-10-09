@@ -36,6 +36,8 @@ interface MapEditorRenderSaveButtonArgs {
 
 interface MapEditorProps {
   mapId?: number;
+  /** The map's name, used for the downloaded file and its metadata. */
+  mapName?: string;
   initialBlockedPositions?: MapPosition[];
   initialImpassablePositions?: MapPosition[];
   initialScoringPositions?: ScoringPosition[];
@@ -53,6 +55,11 @@ interface MapEditorProps {
   renderSaveButton: (args: MapEditorRenderSaveButtonArgs) => React.ReactNode;
 }
 
+
+/** Strips characters filesystems reject; keeps spaces and capitals. */
+function toFileNamePart(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim();
+}
 
 const isZoneTool = (tool: string | null | undefined): tool is ZoneSide =>
   tool === "creatorZone" || tool === "joinerZone";
@@ -80,6 +87,7 @@ function positionsFromGrid(grid: boolean[][]): MapPosition[] {
 
 export function MapEditor({
   mapId,
+  mapName,
   initialBlockedPositions,
   initialImpassablePositions,
   initialScoringPositions,
@@ -670,6 +678,9 @@ export function MapEditor({
 
   // Download map as JSON file
   const downloadMap = useCallback(() => {
+    const displayName =
+      mapName?.trim() || (isEditing ? `Map ${mapId}` : "New Map");
+    const date = new Date().toISOString().split("T")[0];
     const mapData = {
       version: "1.0",
       gridDimensions: GRID_DIMENSIONS,
@@ -678,7 +689,7 @@ export function MapEditor({
       scoringTiles: editorState.scoringTiles,
       onlyOnceTiles: editorState.onlyOnceTiles,
       metadata: {
-        name: isEditing ? `Map ${mapId}` : "New Map",
+        name: displayName,
         createdAt: new Date().toISOString(),
         createdBy: "Map Editor",
       },
@@ -690,14 +701,13 @@ export function MapEditor({
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `map_${isEditing ? mapId : "new"}_${
-      new Date().toISOString().split("T")[0]
-    }.json`;
+    // "<map name> <date>.json", e.g. "A Strange Encounter 2026-10-07.json".
+    link.download = `${toFileNamePart(displayName) || "Map"} ${date}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [editorState, isEditing, mapId]);
+  }, [editorState, isEditing, mapId, mapName]);
 
   // Upload map from JSON file
   const uploadMap = useCallback(

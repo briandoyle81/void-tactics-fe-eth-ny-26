@@ -12,6 +12,7 @@ import { toShipCardData } from "../utils/toShipCardData";
 import { FleetShipListPanel, type FleetShipListItemData } from "./FleetShipListPanel";
 import { aiConfigToPreviewShip } from "../utils/aiShipConfig";
 import { calculateAttributesFromContracts } from "../utils/shipAttributesCalculator";
+import { getFactionName } from "../config/factions";
 
 interface WorkingPlacement {
   /** Synthetic, rendering-only id (never sent on-chain — only row/col/configId are) so MapDisplay can key/select each placed ship even when the same config appears more than once on a map. */
@@ -338,8 +339,8 @@ export function MapPlacementsEditor({
                   className="w-full border border-gunmetal bg-black/60 px-2 py-1 text-xs text-cyan"
                 >
                   <option value="all">All factions</option>
-                  <option value={1}>Faction 1</option>
-                  <option value={2}>Faction 2</option>
+                  <option value={1}>{getFactionName(1)}</option>
+                  <option value={2}>{getFactionName(2)}</option>
                 </select>
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-text-secondary">
                   <input

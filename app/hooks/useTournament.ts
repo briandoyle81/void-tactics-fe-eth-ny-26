@@ -1,6 +1,8 @@
 "use client";
 
-import { useReadContract, useReadContracts, useWatchContractEvent } from "wagmi";
+import { useReadContract, useReadContracts } from "wagmi";
+import { eventAbi, useCombinedEventWatch } from "./useCombinedEventWatch";
+import { usePageVisible } from "./usePageVisible";
 import { useCallback, useMemo } from "react";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
@@ -18,6 +20,19 @@ export const BASE_SEPOLIA_TOURNAMENT_ADDRESS =
   CONTRACT_ADDRESSES_BY_CHAIN_ID[84532].TOURNAMENT;
 
 const TOURNAMENT_ABI = CONTRACT_ABIS.TOURNAMENT as Abi;
+const TOURNAMENT_ADDRESSES = [BASE_SEPOLIA_TOURNAMENT_ADDRESS] as const;
+const TOURNAMENT_DETAIL_EVENTS = [
+  "Registered",
+  "TournamentClosing",
+  "TournamentStarted",
+  "BracketShuffleRerolled",
+  "MatchGameAssigned",
+  "MatchResolved",
+  "NextRoundMatchCreated",
+  "TournamentFinalized",
+  "TournamentCancelled",
+].map((name) => eventAbi(TOURNAMENT_ABI, name));
+const TOURNAMENT_POLL_MS = 10_000;
 const CHAIN_ID = baseSepolia.id;
 
 /** owner()-gated admin controls (Tournament.setWinEffects) check this before rendering, same gate LobbyAdminPanel.tsx uses. */
@@ -139,26 +154,18 @@ export function useTournament(tournamentId: bigint | null) {
     return r?.status === "success" ? (r.result as bigint) : 0n;
   }, [data, address]);
 
-  // Refresh on any tournament event
-  const watchConfig = useMemo(
-    () => ({
-      address: BASE_SEPOLIA_TOURNAMENT_ADDRESS,
-      abi: TOURNAMENT_ABI,
-      chainId: CHAIN_ID,
-    }),
-    [],
-  );
+  // Refresh on any tournament event: one combined log poll (it was nine
+  // watchers, each polling separately), paused while the tab is hidden.
+  const isPageVisible = usePageVisible();
   const onEvent = useCallback(() => { void refetch(); }, [refetch]);
-
-  useWatchContractEvent({ ...watchConfig, eventName: "Registered", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "TournamentClosing", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "TournamentStarted", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "BracketShuffleRerolled", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "MatchGameAssigned", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "MatchResolved", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "NextRoundMatchCreated", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "TournamentFinalized", onLogs: onEvent });
-  useWatchContractEvent({ ...watchConfig, eventName: "TournamentCancelled", onLogs: onEvent });
+  useCombinedEventWatch({
+    chainId: CHAIN_ID,
+    addresses: TOURNAMENT_ADDRESSES,
+    events: TOURNAMENT_DETAIL_EVENTS,
+    enabled: enabled && isPageVisible,
+    pollingInterval: TOURNAMENT_POLL_MS,
+    onLogs: onEvent,
+  });
 
   return { config, summary, registrants, bracket, isRegistered, winnings, isLoading, refetch };
 }

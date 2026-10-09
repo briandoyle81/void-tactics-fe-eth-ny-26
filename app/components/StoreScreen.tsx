@@ -9,14 +9,11 @@ import DroneStorefrontWeb2 from "./DroneStorefrontWeb2";
 import { UtcLotteryPanel } from "./UtcLotteryPanel";
 import { SubTabs } from "./SubTabs";
 import { useAppMode } from "../hooks/useAppMode";
+import { STORE_SECTIONS, type StoreSection } from "./storeSections";
 
 // The Store: what you're buying, by sub-tab. Payment is chosen at checkout
 // (ship packs) or by the item itself (credits, cores). The HUD's + buttons
 // open the matching sub-tab.
-
-export type StoreSection = "packs" | "credits" | "cores" | "lottery";
-
-export const STORE_SECTIONS: readonly StoreSection[] = ["packs", "credits", "cores", "lottery"];
 
 const SECTION_LABELS: Record<StoreSection, string> = {
   packs: "Ship packs",

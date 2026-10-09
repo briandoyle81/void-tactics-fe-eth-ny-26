@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_DATA_STALE_MS } from "../config/queryTiming";
 import { useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { baseSepolia } from "viem/chains";
@@ -27,6 +28,7 @@ export function useGetAllAIShipConfigs() {
     abi: AI_ENCOUNTERS_ABI,
     chainId: CHAIN_ID,
     functionName: "getAllAIShipConfigs",
+    query: { staleTime: ADMIN_DATA_STALE_MS },
   });
   return { ...result, data: result.data as AIShipConfig[] | undefined };
 }
@@ -39,6 +41,7 @@ export function useMaxPlacementsPerMap() {
     abi: AI_ENCOUNTERS_ABI,
     chainId: CHAIN_ID,
     functionName: "maxPlacementsPerMap",
+    query: { staleTime: ADMIN_DATA_STALE_MS },
   });
   return { ...result, data: result.data as bigint | undefined };
 }
@@ -50,7 +53,7 @@ export function useGetMapPlacements(mapId: bigint | undefined) {
     chainId: CHAIN_ID,
     functionName: "getMapPlacements",
     args: mapId != null ? [mapId] : undefined,
-    query: { enabled: mapId != null },
+    query: { enabled: mapId != null, staleTime: ADMIN_DATA_STALE_MS },
   });
   const raw = result.data as
     | readonly [readonly { row: number; col: number }[], readonly bigint[]]

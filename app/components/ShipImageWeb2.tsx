@@ -12,6 +12,8 @@ interface ShipImageWeb2Props {
   rankStarsSize?: "default" | "large";
   hideRankStars?: boolean;
   flip?: boolean;
+  /** See ShipImageView: keep the last image while a new ship renders. */
+  holdPreviousImage?: boolean;
 }
 
 // Web2-mode adapter for the shared `ShipImageView` — resolves the REST-
@@ -26,6 +28,7 @@ export function ShipImageWeb2({
   rankStarsSize = "default",
   hideRankStars = false,
   flip = false,
+  holdPreviousImage = false,
 }: ShipImageWeb2Props) {
   const { dataUrl, isLoading, error } = useShipRendererWeb2(ship);
 
@@ -44,6 +47,7 @@ export function ShipImageWeb2({
       rankStarsSize={rankStarsSize}
       hideRankStars={hideRankStars}
       flip={flip}
+      holdPreviousImage={holdPreviousImage}
     />
   );
 }

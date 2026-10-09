@@ -59,6 +59,14 @@ Four testnets are supported: **Flow Testnet** (id: 747, default), **Ronin Saigon
 4. Game state polled by `usePlayerGames`; client-side turn simulation handled by `useSimulatedGameState`
 5. Transactions flow through `TransactionProvider` which surfaces pending/success/error toasts
 
+## Content and RPC (2026-10-08 redeploy)
+
+- **Map names and node titles/descriptions are not on chain.** Node text ships as `app/data/dialog/nodeContent.ts` (next to the mission dialog) and map names as `app/data/content/mapNames.ts` (see `app/config/content.ts`). Both are edited by hand and deployed; the web3 editors show them read-only. Web2 keeps its own content in Postgres.
+- **Base Sepolia RPC** comes from `NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL` (falls back to the public endpoint). Never hardcode keys.
+- **Contract events:** watch with `useCombinedEventWatch` (one log poll for many events/contracts, handler via ref), gated on `usePageVisible()`. Don't add per-event `useWatchContractEvent` watchers. Event ABIs come from the deployed artifacts (`eventAbi`), not hand-copied.
+- **Aggregate reads:** prefer `GameLens` views (`app/hooks/useGameLens.ts`) over chains of dependent reads. Admin-edited data uses `ADMIN_DATA_STALE_MS`.
+- `window.__vtRpcUsage` (and the dev console's `[rpc]` summary) shows requests by method.
+
 ## Critical: RPC Call Memoization
 
 Excessive RPC calls will spam the node provider and cause rate limiting. Every wagmi hook config and every callback passed to wagmi hooks **must** be memoized:

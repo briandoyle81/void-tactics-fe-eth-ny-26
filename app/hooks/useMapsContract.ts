@@ -5,6 +5,8 @@ import type { Abi } from "viem";
 import { getSelectedChainId } from "../config/networks";
 import { useSelectedChainId } from "./useSelectedChainId";
 import { MapMode } from "../types/types";
+import { ADMIN_DATA_STALE_MS } from "../config/queryTiming";
+import { STATIC_MAP_NAMES } from "../config/content";
 
 export type UseMapsReadOptions = {
   query?: {
@@ -77,7 +79,10 @@ export function useMapCount() {
 }
 
 export function useGetAllPresetMaps() {
-  return useMapsRead("getAllPresetMaps", undefined, { chainSource: "picker" });
+  return useMapsRead("getAllPresetMaps", undefined, {
+    chainSource: "picker",
+    query: { staleTime: ADMIN_DATA_STALE_MS },
+  });
 }
 
 function isValidPositiveInt(n: number) {
@@ -169,47 +174,23 @@ export function useMapModes(mapIds: number[]) {
   return { modeByMapId, isLoading, error };
 }
 
-// Batched map-name lookup for a whole map list (picker labels, admin list)
-// — one multicall instead of N individual reads, same shape as
-// useMapModes. On-chain counterpart to web2's useMapNameWeb2 — every
-// seeded map has a real name as of the 2026-09-23 maps/deployment-zones
-// redesign (docs/eth-global-remote/frontend-handoff-maps-and-deployment-zones-2026-09-23.md
-// §3); an empty string means the map was never named.
+/**
+ * Map names (web3). The Maps contract no longer stores names, so they come
+ * from app/data/content/mapNames.ts — no RPC. Same shape as the old
+ * on-chain read so callers didn't change.
+ */
 export function useMapNames(mapIds: number[]) {
-  const pickerChainId = useSelectedChainId();
-  const { MAPS } = getContractAddresses(pickerChainId);
   const idsKey = mapIds.join(",");
-  const stableIds = useMemo(
-    () => (idsKey.length === 0 ? [] : idsKey.split(",").map(Number)),
-    [idsKey],
-  );
-  const contracts = useMemo(
-    () =>
-      stableIds.map((id) => ({
-        address: MAPS as `0x${string}`,
-        abi: CONTRACT_ABIS.MAPS as Abi,
-        chainId: pickerChainId,
-        functionName: "mapName" as const,
-        args: [BigInt(id)] as const,
-      })),
-    [stableIds, MAPS, pickerChainId],
-  );
-  const { data, isLoading, isFetched, error, refetch } = useReadContracts({
-    contracts,
-    query: {
-      enabled: stableIds.length > 0,
-      refetchOnMount: "always" as const,
-    },
-  });
   const nameByMapId = useMemo(() => {
     const map = new Map<number, string>();
-    stableIds.forEach((id, i) => {
-      const name = data?.[i]?.result as string | undefined;
+    if (idsKey.length === 0) return map;
+    idsKey.split(",").map(Number).forEach((id) => {
+      const name = STATIC_MAP_NAMES[id];
       if (name) map.set(id, name);
     });
     return map;
-  }, [stableIds, data]);
-  return { nameByMapId, isLoading, isFetched, error, refetch };
+  }, [idsKey]);
+  return { nameByMapId, isLoading: false, isFetched: true, error: null, refetch: async () => undefined };
 }
 
 /** `Map #<id>` alone, or `Map #<id> — <name>` when the map has one — same format web2's titleLabel construction already uses. */

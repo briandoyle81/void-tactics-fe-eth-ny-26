@@ -183,6 +183,7 @@ export function MapEditScreenWeb2({ map, onSaved, onCancel, onMapChanged }: MapE
         </div>
       )}
       <MapEditor
+        mapName={name}
         mapId={map?.id}
         initialBlockedPositions={map?.blockedTiles}
         initialImpassablePositions={map?.impassableTiles}

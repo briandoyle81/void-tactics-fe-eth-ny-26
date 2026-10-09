@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import {
   useCreatorZonePositions,
@@ -48,24 +47,10 @@ export function MapEditScreen({
   const [createMode, setCreateMode] = useState<MapMode>(MapMode.Both);
   const editorMapIds = useMemo(() => (isEditing ? [mapId] : []), [isEditing, mapId]);
   const { modeByMapId } = useMapModes(editorMapIds);
-  const { nameByMapId, isFetched: nameFetched } = useMapNames(editorMapIds);
-  const [name, setName] = useState("");
-  const [loadedName, setLoadedName] = useState("");
-  const seededMapId = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (!isEditing) {
-      seededMapId.current = undefined;
-      setName("");
-      setLoadedName("");
-      return;
-    }
-    if (!nameFetched) return;
-    if (seededMapId.current === mapId) return;
-    seededMapId.current = mapId;
-    const onchainName = nameByMapId.get(mapId) ?? "";
-    setLoadedName(onchainName);
-    setName(onchainName);
-  }, [isEditing, mapId, nameFetched, nameByMapId]);
+  // Names aren't on chain and aren't edited here: they ship in
+  // app/data/content/mapNames.ts (edit that file to rename a map).
+  const { nameByMapId } = useMapNames(editorMapIds);
+  const name = isEditing ? (nameByMapId.get(mapId) ?? "") : "";
   const { data: impassableData } = useGetPresetMapImpassable(mapId ?? 0);
   const initialImpassablePositions = Array.isArray(impassableData)
     ? (impassableData as MapPosition[])
@@ -82,11 +67,8 @@ export function MapEditScreen({
   return (
     <div className="space-y-4 -mx-1 -my-1 px-1 py-1">
       <MapEditorHeader
-        title={isEditing ? `Edit Map ${mapId}` : "Create New Map"}
+        title={isEditing ? `Edit Map ${mapId}${name ? ` — ${name}` : ""}` : "Create New Map"}
         onBack={onCancel}
-        name={name}
-        onNameChange={setName}
-        nameDisabled={!canEdit || (isEditing && !nameFetched)}
       />
       {isEditing ? (
         <div className="flex flex-wrap items-center gap-3 border border-gunmetal bg-black/40 p-3 font-mono text-sm">
@@ -138,6 +120,7 @@ export function MapEditScreen({
         </div>
       )}
       <MapEditor
+        mapName={name}
         mapId={mapId}
         initialBlockedPositions={initialBlockedPositions}
         initialImpassablePositions={initialImpassablePositions}
@@ -164,8 +147,6 @@ export function MapEditScreen({
             initialJoinerZonePositions={initialJoinerZonePositions ?? []}
             mapId={mapId}
             createMode={createMode}
-            name={name}
-            initialName={loadedName}
             blockedPositions={blockedPositions}
             impassablePositions={impassablePositions}
             scoringPositions={scoringPositions}
@@ -188,16 +169,14 @@ const scoringKey = (p: ScoringPosition) => `${posKey(p)}:${Number(p.points)}:${p
 const sameScoring = (a: ScoringPosition[], b: ScoringPosition[]) =>
   a.length === b.length && a.map(scoringKey).sort().join("|") === b.map(scoringKey).sort().join("|");
 
-// Creating a map is one createFullPresetMap call, then setMapName if a
-// name was entered (names are not a createFullPresetMap argument).
-// Editing sends only what changed: updatePresetMap for blocked + scoring
-// tiles, updatePresetMapImpassable for impassable tiles, setCreatorZone /
-// setJoinerZone for deployment zones, and setMapName for a renamed map.
+// Creating a map is one createFullPresetMap call. Editing sends only what
+// changed: updatePresetMap for blocked + scoring tiles,
+// updatePresetMapImpassable for impassable tiles, setCreatorZone /
+// setJoinerZone for deployment zones. Names aren't on chain or edited here
+// (app/data/content/mapNames.ts).
 function Web3MapSaveButton({
   mapId,
   createMode,
-  name,
-  initialName,
   blockedPositions,
   impassablePositions,
   scoringPositions,
@@ -213,8 +192,6 @@ function Web3MapSaveButton({
 }: {
   mapId?: number;
   createMode: MapMode;
-  name: string;
-  initialName: string;
   blockedPositions: MapPosition[];
   impassablePositions: MapPosition[];
   scoringPositions: ScoringPosition[];
@@ -231,7 +208,6 @@ function Web3MapSaveButton({
   const mapsContract = useMapsContract();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
-  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const isEditing = mapId !== undefined;
 
@@ -246,11 +222,6 @@ function Web3MapSaveButton({
     await publicClient!.waitForTransactionReceipt({ hash });
   };
 
-  const invalidateMapNames = () =>
-    queryClient.invalidateQueries({
-      predicate: (query) => JSON.stringify(query.queryKey).includes("mapName"),
-    });
-
   const handleClick = async () => {
     if (validationError) {
       toast.error(validationError);
@@ -258,8 +229,6 @@ function Web3MapSaveButton({
     }
     setIsSaving(true);
     try {
-      const trimmedName = name.trim();
-      const nameChanged = trimmedName !== initialName.trim();
       if (!isEditing) {
         await send("createFullPresetMap", [
           blockedPositions,
@@ -267,14 +236,6 @@ function Web3MapSaveButton({
           scoringPositions,
           createMode,
         ]);
-        if (trimmedName) {
-          const count = (await publicClient!.readContract({
-            address: mapsContract.address,
-            abi: mapsContract.abi,
-            functionName: "mapCount",
-          })) as bigint;
-          await send("setMapName", [count, trimmedName]);
-        }
         toast.success("Map created");
       } else {
         const tilesChanged =
@@ -287,14 +248,10 @@ function Web3MapSaveButton({
           !tilesChanged &&
           !impassableChanged &&
           !creatorZoneChanged &&
-          !joinerZoneChanged &&
-          !nameChanged
+          !joinerZoneChanged
         ) {
           toast("No changes to save");
           return;
-        }
-        if (nameChanged) {
-          await send("setMapName", [BigInt(mapId), trimmedName]);
         }
         if (tilesChanged) {
           await send("updatePresetMap", [BigInt(mapId), blockedPositions, scoringPositions]);
@@ -310,7 +267,6 @@ function Web3MapSaveButton({
         }
         toast.success("Map updated");
       }
-      await invalidateMapNames();
       onSuccess();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

@@ -1,6 +1,7 @@
 import type { MissionDossierRow } from "../components/MissionDossier";
 import { formatTurnTime } from "../components/MissionDossier";
 import { formatDec } from "./formatDec";
+import { getFactionName } from "../config/factions";
 
 // Dossier rows for MissionNodePanel, shared by the web3 and web2 previews.
 // Number-native: callers convert bigint node fields before calling. Enemy
@@ -56,7 +57,7 @@ export function roguelikeCombatDossierRows(
   }
   if (f.victoryEffects.shipGrant) {
     const { variant, tier } = f.victoryEffects.shipGrant;
-    rows.push({ label: "Reward", value: `New ship: Faction ${variant}, tier ${tier}`, tone: "good" });
+    rows.push({ label: "Reward", value: `New ship: ${getFactionName(variant)}, tier ${tier}`, tone: "good" });
   }
   rows.push({ label: "Stakes", value: "Defeat or retreat ends the run", tone: "warning" });
   if (f.isCleared) rows.push({ label: "Status", value: "Cleared", tone: "good" });
@@ -77,7 +78,7 @@ export function campaignDossierRows(
   f: CombatFields & { requiredVariant: number; unlocked: boolean; completed: boolean },
 ): MissionDossierRow[] {
   const rows = combatRows(f);
-  if (f.requiredVariant > 0) rows.push({ label: "Fleet", value: `Faction ${f.requiredVariant} only` });
+  if (f.requiredVariant > 0) rows.push({ label: "Fleet", value: `${getFactionName(f.requiredVariant)} only` });
   if (f.completed) rows.push({ label: "Status", value: "Completed", tone: "good" });
   else if (!f.unlocked) rows.push({ label: "Status", value: "Locked", tone: "warning" });
   return rows;

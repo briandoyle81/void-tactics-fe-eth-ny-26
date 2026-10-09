@@ -34,6 +34,9 @@ interface ShipImageViewProps {
   hideRankStars?: boolean;
   /** Mirror the hull art only. Rank stars and other HTML overlays stay upright. */
   flip?: boolean;
+  /** Keep showing the last rendered image while a new ship renders, instead
+   * of going blank — for previews that swap ships in place (Store packs). */
+  holdPreviousImage?: boolean;
 }
 
 export function ShipImageView({
@@ -50,7 +53,15 @@ export function ShipImageView({
   rankStarsSize = "default",
   hideRankStars = false,
   flip = false,
+  holdPreviousImage = false,
 }: ShipImageViewProps) {
+  // Last rendered image, for holdPreviousImage. A ref, not state: holding
+  // must never cost an extra render — this view backs every ship image in
+  // the app (hangar grids, fleet lists, game boards).
+  const heldUrlRef = React.useRef<string | null>(null);
+  if (dataUrl) heldUrlRef.current = dataUrl;
+  const shownUrl = dataUrl ?? (holdPreviousImage ? heldUrlRef.current : null);
+
   const rankStarBox =
     rankStarsSize === "large"
       ? SHIP_IMAGE_RANK_STAR_BOX_LARGE
@@ -107,7 +118,7 @@ export function ShipImageView({
 
   // Handle loading state for constructed ships (including retries)
   // Only show loading if we don't have dataUrl (to prevent flash when re-rendering)
-  if (isLoading && showLoadingState && !dataUrl) {
+  if (isLoading && showLoadingState && !shownUrl) {
     return (
       <div
         className={`flex items-center justify-center bg-steel/50 border border-gunmetal rounded-none ${className}`}
@@ -122,7 +133,7 @@ export function ShipImageView({
 
   // Handle error or no data for constructed ships - keep showing loading instead of fallback
   // Only show loading if we don't have dataUrl (to prevent flash when re-rendering)
-  if ((error || !dataUrl) && !dataUrl) {
+  if ((error || !shownUrl) && !shownUrl) {
     return (
       <div
         className={`flex items-center justify-center bg-steel/50 border border-gunmetal rounded-none ${className}`}
@@ -142,7 +153,7 @@ export function ShipImageView({
       style={style}
     >
       <img
-        src={dataUrl}
+        src={shownUrl}
         alt={idLabel}
         className={hullClassName}
         onError={(e) => {

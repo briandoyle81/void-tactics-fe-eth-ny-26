@@ -10,26 +10,16 @@ import {
   type ReactNode,
 } from "react";
 import { useAccount } from "wagmi";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { SessionRestoreProbe } from "../components/SessionRestoreProbe";
 import Header from "../components/Header";
 import { GameNav, type GameSection } from "../components/GameNav";
 import { BootScreen } from "../components/BootScreen";
 import { CommandDeckWeb3 } from "../components/commandDeck/CommandDeckWeb3";
 import { CommandDeckWeb2 } from "../components/commandDeck/CommandDeckWeb2";
 import type { CommandDeckDestination } from "../components/commandDeck/CommandDeck";
-import { OnboardingTutorial } from "../components/OnboardingTutorial";
-import { FleetHangar, FLEET_SECTIONS, type FleetSection } from "../components/fleet/FleetHangar";
-import { StoreScreen, STORE_SECTIONS, type StoreSection } from "../components/StoreScreen";
-import Lobbies from "../components/Lobbies";
-import LobbiesWeb2 from "../components/LobbiesWeb2";
-import { RoguelikeCampaign } from "../components/RoguelikeCampaign";
-import { RoguelikeCampaignWeb2 } from "../components/RoguelikeCampaignWeb2";
-import Games from "../components/Games";
-import GamesWeb2 from "../components/GamesWeb2";
-import Profile from "../components/Profile";
-import ProfileWeb2 from "../components/ProfileWeb2";
-import { Tournaments } from "../components/Tournaments";
-import { TournamentsWeb2 } from "../components/TournamentsWeb2";
+import dynamic from "next/dynamic";
+import { FLEET_SECTIONS, type FleetSection } from "../components/fleet/fleetSections";
+import { STORE_SECTIONS, type StoreSection } from "../components/storeSections";
 import { usePlayerGames } from "../hooks/usePlayerGames";
 import { usePlayerGamesWeb2 } from "../hooks/usePlayerGamesWeb2";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -39,6 +29,44 @@ import { useAppMode } from "../hooks/useAppMode";
 import { OPS_CONSOLE_TABS, type OpsConsoleTab } from "../hooks/useOpsConsoleAccess";
 import { PENDING_CLIENT_DETAIL_STORAGE_KEY, setGameClientMounted } from "../utils/clientNavigation";
 import posthog from "posthog-js";
+import { GAME_CONTENT_MAX_WIDTH_CLASS } from "../config/layout";
+import { TOURNAMENTS_ENABLED } from "../config/alpha";
+
+// Screens load when first opened, so the boot screen and Command Deck don't
+// download (and in dev, compile) the game view, tutorial, Lobbies, hangar,
+// Store and run map up front.
+function ScreenLoading() {
+  return (
+    <div className="animate-pulse py-10 text-center font-mono text-xs uppercase tracking-widest text-text-muted">
+      Loading…
+    </div>
+  );
+}
+const OnboardingTutorial = dynamic(
+  () => import("../components/OnboardingTutorial").then((m) => m.OnboardingTutorial),
+  { loading: ScreenLoading },
+);
+const FleetHangar = dynamic(() => import("../components/fleet/FleetHangar").then((m) => m.FleetHangar), { loading: ScreenLoading });
+const StoreScreen = dynamic(() => import("../components/StoreScreen").then((m) => m.StoreScreen), { loading: ScreenLoading });
+const Lobbies = dynamic(() => import("../components/Lobbies"), { loading: ScreenLoading });
+const LobbiesWeb2 = dynamic(() => import("../components/LobbiesWeb2"), { loading: ScreenLoading });
+const RoguelikeCampaign = dynamic(
+  () => import("../components/RoguelikeCampaign").then((m) => m.RoguelikeCampaign),
+  { loading: ScreenLoading },
+);
+const RoguelikeCampaignWeb2 = dynamic(
+  () => import("../components/RoguelikeCampaignWeb2").then((m) => m.RoguelikeCampaignWeb2),
+  { loading: ScreenLoading },
+);
+const Games = dynamic(() => import("../components/Games"), { loading: ScreenLoading });
+const GamesWeb2 = dynamic(() => import("../components/GamesWeb2"), { loading: ScreenLoading });
+const Profile = dynamic(() => import("../components/Profile"), { loading: ScreenLoading });
+const ProfileWeb2 = dynamic(() => import("../components/ProfileWeb2"), { loading: ScreenLoading });
+const Tournaments = dynamic(() => import("../components/Tournaments").then((m) => m.Tournaments), { loading: ScreenLoading });
+const TournamentsWeb2 = dynamic(
+  () => import("../components/TournamentsWeb2").then((m) => m.TournamentsWeb2),
+  { loading: ScreenLoading },
+);
 
 type ClientTab =
   | "Command Deck"
@@ -105,6 +133,7 @@ function migrateSavedTab(saved: string | null): ClientTab {
   if (saved === "Info" || saved === "Campaign" || OPS_CONSOLE_TABS.includes(saved as OpsConsoleTab)) {
     return "Command Deck";
   }
+  if (saved === "Tournaments" && !TOURNAMENTS_ENABLED) return "Command Deck";
   return CLIENT_TABS.has(saved) ? (saved as ClientTab) : "Command Deck";
 }
 
@@ -120,43 +149,6 @@ function hasCompletedFirstBattle(): boolean {
 function sectionFromEvent<T extends string>(event: Event, allowed: readonly T[]): T | null {
   const section = (event as CustomEvent<{ section?: string } | undefined>).detail?.section;
   return section && allowed.includes(section as T) ? (section as T) : null;
-}
-
-/** How long to wait on a wallet session restore before showing the boot screen. */
-const SESSION_RESTORE_TIMEOUT_MS = 5000;
-
-/**
- * Whether the wallet SDK saved a connected wallet last visit. Read from its
- * persisted store because the SDK can take a while to report it has loaded
- * (or never does, if it can't reach its API), and a signed-out player
- * shouldn't wait on that.
- */
-function hasSavedWalletSession(): boolean {
-  try {
-    const saved = JSON.parse(localStorage.getItem("dynamic_store") ?? "null");
-    return (saved?.state?.connectedWalletsInfo?.length ?? 0) > 0;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * True while a signed-in wallet session is still coming back after a load
- * (see RestoreWalletConnection): the SDK has a user, or saved a wallet and
- * hasn't loaded yet, but wagmi isn't connected. Bounded so a locked wallet
- * doesn't hold the player on a loading screen.
- */
-function useIsRestoringSession(isConnected: boolean): boolean {
-  const { sdkHasLoaded, user } = useDynamicContext();
-  const [hasSavedSession, setHasSavedSession] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
-  useEffect(() => {
-    setHasSavedSession(hasSavedWalletSession());
-    const timer = setTimeout(() => setTimedOut(true), SESSION_RESTORE_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, []);
-  if (timedOut || isConnected) return false;
-  return Boolean(user) || (!sdkHasLoaded && hasSavedSession);
 }
 
 const panelBorderStyle: CSSProperties = {
@@ -233,7 +225,7 @@ export default function GameClient() {
   const { userId: currentUserId, isLoggedIn, isLoading: isUserLoading } = useCurrentUser();
   const appMode = useAppMode();
   const commandDeckLayout = useCommandDeckLayout();
-  const isRestoringSession = useIsRestoringSession(isConnected);
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ClientTab>("Command Deck");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -247,6 +239,7 @@ export default function GameClient() {
   const [fleetSection, setFleetSection] = useState<FleetSection>("ships");
 
   const openTab = useCallback((tab: ClientTab) => {
+    if (tab === "Tournaments" && !TOURNAMENTS_ENABLED) return;
     setActiveTab(tab);
     posthog.capture("tab_navigated", { tab_name: tab });
   }, []);
@@ -474,7 +467,7 @@ export default function GameClient() {
           </ScreenPanel>
         )}
         {activeTab === "Lobbies" && <ScreenPanel>{appMode === "web2" ? <LobbiesWeb2 /> : <Lobbies />}</ScreenPanel>}
-        {activeTab === "Tournaments" && (
+        {activeTab === "Tournaments" && TOURNAMENTS_ENABLED && (
           <ScreenPanel>{appMode === "web2" ? <TournamentsWeb2 /> : <Tournaments />}</ScreenPanel>
         )}
         {activeTab === "Profile" && (
@@ -501,6 +494,7 @@ export default function GameClient() {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--color-near-black)" }}>
+      <SessionRestoreProbe isConnected={isConnected} onChange={setIsRestoringSession} />
       <div className="shrink-0" style={hudRowStyle} aria-hidden={hideGlobalChrome}>
         <Header yourTurnCount={isSignedIn ? yourTurnCount : undefined} showSignIn={false} />
         {showNav && (
@@ -514,9 +508,11 @@ export default function GameClient() {
       <main
         className={`flex min-h-0 w-full flex-1 flex-col ${
           hideGlobalChrome || !isSignedIn ? "p-0" : "pb-24 pt-4 md:pb-16"
-        } ${isFullWidth || !isSignedIn ? "px-0" : "px-2 md:px-10 lg:px-20"}`}
+        } ${isFullWidth || !isSignedIn ? "px-0" : "px-2 md:px-6 lg:px-10"}`}
       >
-        <div className={`w-full ${isFullWidth || !isSignedIn ? "" : "mx-auto max-w-7xl"}`}>{content}</div>
+        <div className={`w-full ${isFullWidth || !isSignedIn ? "" : `mx-auto ${GAME_CONTENT_MAX_WIDTH_CLASS}`}`}>
+          {content}
+        </div>
       </main>
     </div>
   );

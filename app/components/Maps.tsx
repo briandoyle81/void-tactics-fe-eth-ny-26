@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetAllPresetMaps,
   useMapCount,
@@ -11,6 +12,7 @@ import {
   useMapsImpassablePositions,
   useMapsCreatorZonePositions,
   useMapsJoinerZonePositions,
+  useMapsContract,
 } from "../hooks/useMapsContract";
 import { MapEditScreen } from "./MapEditScreen";
 import { MapPreviewCard } from "./MapPreviewCard";
@@ -23,6 +25,8 @@ export default function Maps() {
   const { address } = useAccount();
   const { data: allMapsData, refetch: refetchMaps } = useGetAllPresetMaps();
   const { data: mapCount, refetch: refetchMapCount } = useMapCount();
+  const queryClient = useQueryClient();
+  const { address: mapsAddress } = useMapsContract();
   const [showEditor, setShowEditor] = useState(false);
   const [editingMapId, setEditingMapId] = useState<number | undefined>(
     undefined
@@ -85,8 +89,16 @@ export default function Maps() {
   const handleEditorSave = () => {
     setShowEditor(false);
     setEditingMapId(undefined);
-    // Refresh maps list
-    window.location.reload();
+    // Refetch every Maps contract read (list, modes, impassable tiles,
+    // zones). Was a full page reload, which dropped the wallet session for
+    // a while and showed the Ops Console as signed out.
+    const mapsKey = mapsAddress.toLowerCase();
+    void queryClient.invalidateQueries({
+      predicate: (query) =>
+        JSON.stringify(query.queryKey, (_key, value) => (typeof value === "bigint" ? value.toString() : value))
+          .toLowerCase()
+          .includes(mapsKey),
+    });
   };
 
   const handleEditorCancel = () => {

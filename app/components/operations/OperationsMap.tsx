@@ -18,7 +18,6 @@ export function OperationsMap({
   drawer,
   drawerOpen,
   onDrawerOpenChange,
-  drawerWide = false,
   actionBar,
 }: {
   /** Controls at the top right (retreat, edit mode, ...). */
@@ -30,8 +29,6 @@ export function OperationsMap({
   drawer: ReactNode | null;
   drawerOpen: boolean;
   onDrawerOpenChange: (open: boolean) => void;
-  /** Wider drawer, for the map editor's node form. */
-  drawerWide?: boolean;
   actionBar?: ReactNode;
 }) {
   const isOpen = drawerOpen && drawer != null;
@@ -45,8 +42,7 @@ export function OperationsMap({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onDrawerOpenChange]);
 
-  const drawerWidthClass = drawerWide ? "md:w-[45%]" : "md:w-[33.4%]";
-  const canvasPadClass = isOpen ? (drawerWide ? "md:pr-[45%]" : "md:pr-[33.4%]") : "";
+  const canvasPadClass = isOpen ? "md:pr-[33.4%]" : "";
 
   return (
     <div className="flex flex-col border-2 border-solid" style={{ borderColor: "var(--color-steel)" }}>
@@ -64,7 +60,7 @@ export function OperationsMap({
         {drawer != null && isOpen && (
           <aside
             aria-label="Mission"
-            className={`absolute inset-x-0 bottom-0 z-20 max-h-[75%] overflow-y-auto border-t-2 bg-near-black md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:overflow-visible md:border-l md:border-t-0 ${drawerWidthClass}`}
+            className={`absolute inset-x-0 bottom-0 z-20 max-h-[75%] overflow-y-auto border-t-2 bg-near-black md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:overflow-visible md:w-[33.4%] md:border-l md:border-t-0`}
             style={{ borderColor: "var(--color-cyan)", boxShadow: "-1.2rem 0 2.4rem rgba(0,0,0,0.6)" }}
           >
             <button

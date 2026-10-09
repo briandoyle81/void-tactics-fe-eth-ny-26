@@ -10,36 +10,54 @@ import React from "react";
 interface ShipPurchaseShellProps {
   tierCards: React.ReactNode[];
   footerPaymentNote: string;
-  /** Optional content rendered between the header and the tier grid — used by
-   * the web3 interface for the faction/variant picker (gated on the
-   * Shattered Hive medal). Web2 omits it. */
+  /** Controls at the right of the header — the web3 interface's faction
+   * toggle (gated on the Shattered Hive medal). Web2 omits it. */
   topContent?: React.ReactNode;
+  /** A small note under the description, e.g. web3's per-chain pricing caveat. */
+  notice?: React.ReactNode;
 }
 
-export function ShipPurchaseShell({ tierCards, footerPaymentNote, topContent }: ShipPurchaseShellProps) {
+export function ShipPurchaseShell({
+  tierCards,
+  footerPaymentNote,
+  topContent,
+  notice,
+}: ShipPurchaseShellProps) {
   return (
     <div className="w-full">
-      <header className="mb-6 border-b border-cyan/25 pb-5">
-        <h3
-          className="text-xl font-black uppercase tracking-[0.12em] text-cyan sm:text-2xl"
-          style={{
-            fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
-          }}
-        >
-          Expand your fleet
-        </h3>
-        <p
-          className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary"
-          style={{
-            fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
-          }}
-        >
-          Each pack mints a full roster at once. Larger packs stack more
-          guaranteed veteran slots so your navy hits the field ready for combat.
-        </p>
+      <header className="mb-5 flex flex-col gap-4 border-b border-cyan/25 pb-4 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <h3
+            className="text-xl font-black uppercase tracking-[0.12em] text-cyan sm:text-2xl"
+            style={{
+              fontFamily: "var(--font-rajdhani), 'Arial Black', sans-serif",
+            }}
+          >
+            Expand your fleet
+          </h3>
+          <p
+            className="mt-1 max-w-xl text-sm leading-snug text-text-secondary"
+            style={{
+              fontFamily:
+                "var(--font-jetbrains-mono), 'Courier New', monospace",
+            }}
+          >
+            Bigger packs add guaranteed veterans.
+          </p>
+          {notice && (
+            <p
+              className="mt-1 text-[11px] text-amber/80"
+              style={{
+                fontFamily:
+                  "var(--font-jetbrains-mono), 'Courier New', monospace",
+              }}
+            >
+              {notice}
+            </p>
+          )}
+        </div>
+        {topContent && <div className="shrink-0">{topContent}</div>}
       </header>
-
-      {topContent && <div className="mb-6">{topContent}</div>}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tierCards}
@@ -82,8 +100,8 @@ export function ShipPurchaseShell({ tierCards, footerPaymentNote, topContent }: 
           fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace",
         }}
       >
-        Preview ships are examples only. Final minted ships may differ in loadout
-        and visuals.
+        Preview ships are examples only. Final minted ships may differ in
+        loadout and visuals.
       </p>
     </div>
   );

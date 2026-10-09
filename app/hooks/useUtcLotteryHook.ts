@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useReadContract, useWatchContractEvent } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { eventAbi, useCombinedEventWatch, type DecodedLog } from "./useCombinedEventWatch";
+import { usePageVisible } from "./usePageVisible";
 import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import lotteryHookDeploy from "../contracts/base-sepolia/uniswap-lottery-hook.json";
@@ -12,6 +14,11 @@ import { useSelectedChainId } from "./useSelectedChainId";
 // in its own combined address+ABI file rather than deployed_addresses.json.
 const LOTTERY_HOOK_ADDRESS = lotteryHookDeploy.address as `0x${string}`;
 const LOTTERY_HOOK_ABI = lotteryHookDeploy.abi as Abi;
+const LOTTERY_HOOK_ADDRESSES = [LOTTERY_HOOK_ADDRESS] as const;
+const LOTTERY_EVENTS = ["SellRecorded", "DrawResolved", "DrawResolvedNoWinner", "DrawStarted"].map((name) =>
+  eventAbi(LOTTERY_HOOK_ABI, name),
+);
+const LOTTERY_POLL_MS = 15_000;
 
 const RECENT_EVENTS_LIMIT = 10;
 
@@ -145,79 +152,61 @@ export function useUtcLotteryHook() {
   const [recentSells, setRecentSells] = useState<LotterySellEntry[]>([]);
   const [recentDrawResults, setRecentDrawResults] = useState<LotteryDrawResultEntry[]>([]);
 
-  useWatchContractEvent({
-    ...baseConfig,
-    eventName: "SellRecorded",
-    enabled: isDeployed && !!userAddress,
-    onLogs: (logs) => {
-      const mine = logs.filter(
+  // One combined log poll for the four lottery events (it was four
+  // watchers with inline handlers, which re-subscribed on every render),
+  // paused while the tab is hidden.
+  const isPageVisible = usePageVisible();
+  const onLotteryLogs = useCallback(
+    (logs: DecodedLog[]) => {
+      const me = userAddress?.toLowerCase();
+      const sells = logs.filter(
         (log) =>
-          (log as unknown as { args?: { player?: Address } }).args?.player?.toLowerCase() ===
-          userAddress?.toLowerCase(),
+          log.eventName === "SellRecorded" &&
+          !!me &&
+          (log.args?.player as Address | undefined)?.toLowerCase() === me,
       );
-      if (mine.length === 0) return;
-      setRecentSells((prev) => {
-        const additions: LotterySellEntry[] = mine.map((log) => {
-          const args = (
-            log as unknown as {
-              args?: { drawId?: bigint; ethProceeds?: bigint; playerWeightInDraw?: bigint };
-            }
-          ).args;
-          return {
-            drawId: args?.drawId ?? 0n,
-            ethProceeds: args?.ethProceeds ?? 0n,
-            playerWeightInDraw: args?.playerWeightInDraw ?? 0n,
+      const draws = logs.filter(
+        (log) => log.eventName === "DrawResolved" || log.eventName === "DrawResolvedNoWinner",
+      );
+      if (sells.length > 0) {
+        setRecentSells((prev) => {
+          const additions: LotterySellEntry[] = sells.map((log) => ({
+            drawId: (log.args?.drawId as bigint | undefined) ?? 0n,
+            ethProceeds: (log.args?.ethProceeds as bigint | undefined) ?? 0n,
+            playerWeightInDraw: (log.args?.playerWeightInDraw as bigint | undefined) ?? 0n,
             blockNumber: log.blockNumber,
-          };
+          }));
+          return [...additions, ...prev].slice(0, RECENT_EVENTS_LIMIT);
         });
-        return [...additions, ...prev].slice(0, RECENT_EVENTS_LIMIT);
-      });
-      refetchDrawState();
-    },
-  });
-
-  useWatchContractEvent({
-    ...baseConfig,
-    eventName: "DrawResolved",
-    enabled: isDeployed,
-    onLogs: (logs) => {
-      setRecentDrawResults((prev) => {
-        const additions: LotteryDrawResultEntry[] = logs.map((log) => {
-          const args = (log as unknown as { args?: { drawId?: bigint; winner?: Address } }).args;
-          return {
-            drawId: args?.drawId ?? 0n,
-            winner: args?.winner,
-            noWinner: false,
-            blockNumber: log.blockNumber,
-          };
+      }
+      if (draws.length > 0) {
+        setRecentDrawResults((prev) => {
+          const additions: LotteryDrawResultEntry[] = draws.map((log) =>
+            log.eventName === "DrawResolvedNoWinner"
+              ? { drawId: (log.args?.drawId as bigint | undefined) ?? 0n, noWinner: true, blockNumber: log.blockNumber }
+              : {
+                  drawId: (log.args?.drawId as bigint | undefined) ?? 0n,
+                  winner: log.args?.winner as Address | undefined,
+                  noWinner: false,
+                  blockNumber: log.blockNumber,
+                },
+          );
+          return [...additions, ...prev].slice(0, RECENT_EVENTS_LIMIT);
         });
-        return [...additions, ...prev].slice(0, RECENT_EVENTS_LIMIT);
-      });
-      refetchDrawState();
+      }
+      if (sells.length > 0 || draws.length > 0 || logs.some((log) => log.eventName === "DrawStarted")) {
+        refetchDrawState();
+      }
     },
-  });
-
-  useWatchContractEvent({
-    ...baseConfig,
-    eventName: "DrawResolvedNoWinner",
-    enabled: isDeployed,
-    onLogs: (logs) => {
-      setRecentDrawResults((prev) => {
-        const additions: LotteryDrawResultEntry[] = logs.map((log) => {
-          const args = (log as unknown as { args?: { drawId?: bigint } }).args;
-          return { drawId: args?.drawId ?? 0n, noWinner: true, blockNumber: log.blockNumber };
-        });
-        return [...additions, ...prev].slice(0, RECENT_EVENTS_LIMIT);
-      });
-      refetchDrawState();
-    },
-  });
-
-  useWatchContractEvent({
-    ...baseConfig,
-    eventName: "DrawStarted",
-    enabled: isDeployed,
-    onLogs: () => refetchDrawState(),
+    [userAddress, refetchDrawState],
+  );
+  useCombinedEventWatch({
+    chainId: baseSepolia.id,
+    addresses: LOTTERY_HOOK_ADDRESSES,
+    events: LOTTERY_EVENTS,
+    enabled: isDeployed && isPageVisible,
+    pollingInterval: LOTTERY_POLL_MS,
+    onLogs: onLotteryLogs,
   });
 
   return {

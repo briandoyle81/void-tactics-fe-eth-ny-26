@@ -269,7 +269,10 @@ export function useFreeShipClaiming() {
       })()
     : false;
 
-  // Compute seconds until next claim and update every second when not eligible
+  // Compute seconds until next claim while not eligible. The countdown shows
+  // minutes ("3d 4h 12m"), so it only re-renders every 15s until the last
+  // minute, then every second — a 1s tick re-rendered every consumer
+  // (including the always-mounted HUD) needlessly.
   useEffect(() => {
     if (!address || isEligible) {
       setSecondsUntilNextClaim(null);
@@ -292,10 +295,15 @@ export function useFreeShipClaiming() {
       const now = Math.floor(Date.now() / 1000);
       return Math.max(0, nextAt - now);
     };
-    const tick = () => setSecondsUntilNextClaim(getSecondsRemaining());
+    let timeout: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const remaining = getSecondsRemaining();
+      setSecondsUntilNextClaim(remaining);
+      if (remaining == null || remaining <= 0) return;
+      timeout = setTimeout(tick, remaining <= 60 ? 1000 : 15_000);
+    };
     tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeout);
   }, [
     address,
     isEligible,

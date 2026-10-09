@@ -164,3 +164,9 @@ export interface GenericDialogLine<C extends string = string> {
    */
   missionKinds?: Exclude<DialogMissionKind, "tutorial">[];
 }
+
+/** A mission node's title and description (the briefing). */
+export interface NodeContentText {
+  title: string;
+  description: string;
+}

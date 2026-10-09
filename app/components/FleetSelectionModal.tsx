@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { FleetFilterPanel } from "./FleetFilterPanel";
 import { FleetShipListPanel, type FleetShipListItemData } from "./FleetShipListPanel";
 import type { FleetFilters } from "../utils/fleetFilters";
+import { getFactionName } from "../config/factions";
 
 // Shared between Lobbies.tsx (web3) and LobbiesWeb2.tsx (web2) — the full
 // fleet-selection modal chrome (header, create/cancel/go-to-games button,
@@ -152,8 +153,8 @@ export function FleetSelectionModal({
     <div className="mb-3 grid grid-cols-2 gap-2">
       {(
         [
-          { variant: 1, label: "Faction 1" },
-          { variant: 2, label: "Faction 2" },
+          { variant: 1, label: getFactionName(1) },
+          { variant: 2, label: getFactionName(2) },
         ] as const
       ).map((faction) => {
         const isSelected = selectedVariant === faction.variant;

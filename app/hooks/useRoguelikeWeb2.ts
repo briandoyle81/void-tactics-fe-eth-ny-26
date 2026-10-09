@@ -55,6 +55,16 @@ export function resetRoguelikeRunQueriesWeb2(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: OWNED_SHIPS_QUERY_KEY });
 }
 
+/**
+ * Refetches the run after a won mission so the run map shows the roster's
+ * new hull (the Mission tab stays mounted during the match), plus owned
+ * ships for any roster released by winning the final node.
+ */
+export function invalidateRoguelikeRunQueriesWeb2(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: RUN_QUERY_KEY });
+  void queryClient.invalidateQueries({ queryKey: OWNED_SHIPS_QUERY_KEY });
+}
+
 export function useRoguelikeRunWeb2(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: RUN_QUERY_KEY,
@@ -115,7 +125,8 @@ export type RoguelikeNodeWeb2WithContent = RoguelikeNodeWeb2 & ResolvedNodeConte
 /** Web2 counterpart to useRoguelikeNodeMap.ts's useRoguelikeGraphWithContent — same structure+content merge, Prisma-backed instead of on-chain. */
 export function useRoguelikeCampaignNodesWeb2WithContent(campaignId: number | undefined) {
   const graph = useRoguelikeCampaignNodesWeb2(campaignId);
-  const { contentById, isLoading: contentLoading } = useNodeContentWeb2("ROGUELIKE");
+  // Titles only matter once there's a campaign to show.
+  const { contentById, isLoading: contentLoading } = useNodeContentWeb2("ROGUELIKE", campaignId != null);
 
   const nodes = useMemo(
     () => mergeNodeContent(graph.nodes, contentById, contentLoading),

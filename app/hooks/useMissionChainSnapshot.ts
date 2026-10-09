@@ -19,7 +19,7 @@ import {
   useRoguelikeCampaignRequiredVariant,
   useRoguelikeCampaignRootNode,
 } from "./useRoguelikeNodeMap";
-import { useOnChainNodeContent } from "./useNodeContent";
+import { useWeb3NodeContent } from "./useNodeContent";
 import { useRoguelikeNodesWinEffects, useWinEffectAddresses } from "./useWinEffects";
 import type { MissionChainSnapshot, NodeContent } from "../utils/missionSeedExport";
 
@@ -85,12 +85,12 @@ export function useMissionChainSnapshot(): {
     useRoguelikeNodesWinEffects(roguelikeNodeIds);
   const winEffectAddresses = useWinEffectAddresses();
 
-  // ---- Titles/descriptions: what's set on chain in NodeContentRegistry.
+  // ---- Titles/descriptions: the shipped content (nodeContent.ts).
   const campaignNodeIds = useMemo(() => campaignNodes.map((n) => n.id), [campaignNodes]);
   const { contentById: campaignChainContent, isLoading: campaignContentLoading } =
-    useOnChainNodeContent("CAMPAIGN", campaignNodeIds);
+    useWeb3NodeContent("CAMPAIGN", campaignNodeIds);
   const { contentById: roguelikeChainContent, isLoading: roguelikeContentLoading } =
-    useOnChainNodeContent("ROGUELIKE", roguelikeNodeIds);
+    useWeb3NodeContent("ROGUELIKE", roguelikeNodeIds);
 
   const isLoading =
     mapsLoading ||

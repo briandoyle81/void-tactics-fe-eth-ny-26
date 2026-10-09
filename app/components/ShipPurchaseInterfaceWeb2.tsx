@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { getKillsForRank } from "../lib/purchaseTiers";
 import { usePurchaseTiersWeb2 } from "../hooks/usePurchaseTiersWeb2";
+import { useStaggeredPreviewSeeds } from "../hooks/useStaggeredPreviewSeeds";
 import { Web2Ship } from "../types/web2Ship";
 import { ShipImageWeb2 } from "./ShipImageWeb2";
 import { ShipPurchaseTierCard } from "./ShipPurchaseTierCard";
@@ -13,15 +14,8 @@ import {
   getTierBadge,
   getGuaranteedRanksDisplay,
 } from "../utils/shipPurchaseTierDisplay";
-import {
-  getPreviewShipSpecsForTier,
-  PREVIEW_SHIP_ID_OFFSET,
-  type ShipPreviewSpec,
-} from "../utils/shipPreviewSpec";
-
-// How often the demo/preview ships shown on the tier cards reroll — matched to
-// HeroShipShowcase's default rotation cadence on the Info page (10s).
-const PREVIEW_REFRESH_INTERVAL_MS = 10000;
+import { getPreviewShipSpecsForTier } from "../utils/shipPreviewSpec";
+import { PREVIEW_REFRESH_INTERVAL_MS, toPreviewShipWeb2 } from "../utils/previewShips";
 
 // Web2-mode counterpart to ShipPurchaseInterface.tsx — same tier-card
 // layout/copy (via the shared ShipPurchaseTierCard/shipPurchaseTierDisplay
@@ -36,57 +30,21 @@ interface ShipPurchaseInterfaceWeb2Props {
   busy: boolean;
 }
 
-function toPreviewShip(spec: ShipPreviewSpec): Web2Ship {
-  return {
-    name: `Preview ${spec.seed}`,
-    id: PREVIEW_SHIP_ID_OFFSET + spec.seed,
-    equipment: spec.equipment,
-    traits: {
-      serialNumber: PREVIEW_SHIP_ID_OFFSET + spec.seed,
-      colors: spec.colors,
-      variant: spec.variant,
-      accuracy: spec.accuracy,
-      hull: spec.hull,
-      speed: spec.speed,
-    },
-    shipData: {
-      shipsDestroyed: spec.shipsDestroyed,
-      costsVersion: 0,
-      cost: 0,
-      shiny: spec.shiny,
-      constructed: true,
-      inFleet: false,
-      timestampDestroyed: 0,
-      modifiedCount: 0,
-      isFree: false,
-    },
-    owner: "",
-  };
-}
-
 export function ShipPurchaseInterfaceWeb2({ onSelectTier, busy }: ShipPurchaseInterfaceWeb2Props) {
-  // Reroll the demo/preview ships on the same cadence HeroShipShowcase uses on
-  // the Info page (10s) so both "living" ship displays feel consistent.
-  const [previewSeed, setPreviewSeed] = useState(() =>
-    Math.floor(Math.random() * 1_000_000),
-  );
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPreviewSeed(Math.floor(Math.random() * 1_000_000));
-    }, PREVIEW_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
   const { tiers } = usePurchaseTiersWeb2();
+  // One seed per pack, rerolled in turn so the cards don't all change at once
+  // (each still changes every 10s, the cadence HeroShipShowcase uses).
+  const previewSeeds = useStaggeredPreviewSeeds(tiers.length, PREVIEW_REFRESH_INTERVAL_MS);
 
-  const getPreviewShipsForTier = (tier: number, shipCount: number): Web2Ship[] =>
-    getPreviewShipSpecsForTier(previewSeed, tier, shipCount, getKillsForRank).map(toPreviewShip);
+  const getPreviewShipsForTier = (tier: number, shipCount: number, previewSeed: number): Web2Ship[] =>
+    getPreviewShipSpecsForTier(previewSeed, tier, shipCount, getKillsForRank).map(toPreviewShipWeb2);
 
-  const tierCards = tiers.map((t) => {
+  const tierCards = tiers.map((t, index) => {
     const colors = getTierColors(t.tier);
     const guaranteedRanksDisplay = getGuaranteedRanksDisplay(t.tier, t.shipCount);
     const tierCallout = getTierCallout(t.tier);
     const badge = getTierBadge(t.tier, tiers.length);
-    const previewShips = getPreviewShipsForTier(t.tier, t.shipCount);
+    const previewShips = getPreviewShipsForTier(t.tier, t.shipCount, previewSeeds[index] ?? 0);
     const priceLabel = `$${(t.priceUsdCents / 100).toFixed(2)} USD`;
 
     return (
@@ -105,8 +63,11 @@ export function ShipPurchaseInterfaceWeb2({ onSelectTier, busy }: ShipPurchaseIn
           guaranteedRanksDisplay={guaranteedRanksDisplay}
           previewShipImages={previewShips.map((ship, idx) => (
             <ShipImageWeb2
-              key={ship.id}
+              // Keyed by slot so a reroll swaps the ship in place, holding the
+              // previous image until the new one renders (no blank flash).
+              key={idx}
               ship={ship}
+              holdPreviousImage
               showLoadingState={false}
               rankStarsSize={idx === 0 ? "large" : "default"}
             />

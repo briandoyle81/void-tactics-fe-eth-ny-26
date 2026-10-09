@@ -20,13 +20,8 @@ import { useAccount } from "wagmi";
 import { MAP_ADMIN_ADDRESS } from "../config/alpha";
 import { useGetAllAIShipConfigs } from "../hooks/useAIEncountersContract";
 import { useIsEncounterEditor } from "../hooks/useIsEncounterEditor";
-import {
-  editableDescription,
-  editableTitle,
-  nodeContentSaveError,
-  useSaveOnChainNodeContent,
-  type ResolvedNodeContent,
-} from "../hooks/useNodeContent";
+import type { ResolvedNodeContent } from "../hooks/useNodeContent";
+import { NodeContentReadOnly } from "./NodeContentReadOnly";
 import { MapPickerModal, type MapPickerMap } from "./MapPickerModal";
 import { MapPlacementsEditor } from "./MapPlacementsEditor";
 
@@ -78,7 +73,6 @@ export function CampaignNodeEditPanel({
   const { data: allConfigs } = useGetAllAIShipConfigs();
   const { isEditor: isEncounterEditor, isLoading: isEncounterEditorLoading } =
     useIsEncounterEditor();
-  const saveContent = useSaveOnChainNodeContent();
 
   const [mapId, setMapId] = React.useState<bigint>(node?.mapId ?? 0n);
   const [costLimit, setCostLimit] = React.useState(node?.costLimit ?? NEW_NODE_DEFAULTS.costLimit);
@@ -89,8 +83,6 @@ export function CampaignNodeEditPanel({
   const [showFleetEditor, setShowFleetEditor] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const [title, setTitle] = React.useState(editableTitle(node));
-  const [description, setDescription] = React.useState(editableDescription(node));
 
   // Re-seed local field state when switching to a different selected node
   // (this component stays mounted across selection changes — CampaignGraph
@@ -105,10 +97,6 @@ export function CampaignNodeEditPanel({
     setTurnTime(node?.turnTime ?? NEW_NODE_DEFAULTS.turnTime);
     setMaxScore(node?.maxScore ?? NEW_NODE_DEFAULTS.maxScore);
     setCreatorGoesFirst(node?.creatorGoesFirst ?? true);
-    // Only re-seed on node change, not when this node's content refetches
-    // (would clobber an in-progress edit).
-    setTitle(editableTitle(node));
-    setDescription(editableDescription(node));
   }, [node]);
 
   const allMapIds = React.useMemo(() => {
@@ -213,18 +201,6 @@ export function CampaignNodeEditPanel({
     }
   };
 
-  const handleSaveContent = async () => {
-    if (node == null) return;
-    try {
-      const hash = await saveContent("CAMPAIGN", node.id, { title, description });
-      toast.success(`Node content saved on chain. (tx: ${hash.slice(0, 10)}…)`);
-      onSaved();
-    } catch (error) {
-      console.error("Failed to save node content:", error);
-      toast.error(nodeContentSaveError(error));
-    }
-  };
-
   const handleRemovePrerequisite = async (prerequisiteId: bigint) => {
     if (!node) return;
     try {
@@ -260,36 +236,7 @@ export function CampaignNodeEditPanel({
           )}
         </div>
 
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Title
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-            style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Description
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="px-3 py-2 bg-near-black border text-cyan focus:outline-none focus:ring-2 focus:ring-cyan"
-            style={{ borderRadius: 0, borderColor: "var(--color-cyan)" }}
-          />
-        </label>
-        {mode === "edit" && (
-          <button
-            type="button"
-            onClick={() => void handleSaveContent()}
-            className="self-start border-2 border-cyan px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10"
-            style={{ borderRadius: 0 }}
-          >
-            [SAVE CONTENT]
-          </button>
-        )}
+        {mode === "edit" && <NodeContentReadOnly node={node} />}
 
         <label className="flex flex-col gap-1 text-xs text-text-muted">
           Map

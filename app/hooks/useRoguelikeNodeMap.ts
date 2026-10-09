@@ -6,7 +6,9 @@ import { baseSepolia } from "viem/chains";
 import type { Abi } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { RoguelikeNode } from "../types/roguelike";
-import { useOnChainNodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
+import { useWeb3NodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
+import { useRoguelikeCampaignGraph } from "./useGameLens";
+import { ADMIN_DATA_STALE_MS } from "../config/queryTiming";
 
 // Roguelike is Base Sepolia only, same as the original single-player stack
 // (AIEncounters/NodeMap/SinglePlayerMatch) — pin to that chain directly
@@ -109,12 +111,13 @@ export function useIsRoguelikeNodeEditor(address: `0x${string}` | undefined) {
   return { ...result, data: result.data as boolean | undefined };
 }
 
-export function useRoguelikeNodeCount() {
+export function useRoguelikeNodeCount(enabled = true) {
   const result = useReadContract({
     address: ROGUELIKE_NODE_MAP_ADDRESS,
     abi: ROGUELIKE_NODE_MAP_ABI,
     chainId: CHAIN_ID,
     functionName: "nodeCount",
+    query: { enabled, staleTime: ADMIN_DATA_STALE_MS },
   });
   return { ...result, data: result.data as bigint | undefined };
 }
@@ -127,8 +130,8 @@ export function useRoguelikeNodeCount() {
 // everything, filter client-side" approach CampaignGraph.tsx's
 // useCampaignGraph takes) — fine at these node-map-scale counts (tens of
 // nodes), not something to reach for at arbitrary scale.
-export function useAllRoguelikeNodes() {
-  const { data: nodeCount } = useRoguelikeNodeCount();
+export function useAllRoguelikeNodes(enabled = true) {
+  const { data: nodeCount } = useRoguelikeNodeCount(enabled);
   const ids = useMemo(() => {
     const count = nodeCount != null ? Number(nodeCount) : 0;
     return Array.from({ length: count }, (_, i) => BigInt(i + 1));
@@ -142,7 +145,7 @@ export function useAllRoguelikeNodes() {
       functionName: "getNode" as const,
       args: [id] as const,
     })),
-    query: { enabled: ids.length > 0 },
+    query: { enabled: enabled && ids.length > 0, staleTime: ADMIN_DATA_STALE_MS },
   });
 
   const nodes: RoguelikeNode[] = ids
@@ -155,37 +158,36 @@ export function useAllRoguelikeNodes() {
 export type RoguelikeNodeWithContent = RoguelikeNode & ResolvedNodeContent;
 
 /**
- * The full roguelike graph for one campaign, content included:
- * useAllRoguelikeNodes (filtered to campaignId, same as RoguelikeGraph.tsx
- * does today) merged with the three-layer title/description resolution from
- * useNodeContent.ts — the roguelike counterpart to
- * useCampaignGraphWithContent in useNodeMap.ts.
+ * The roguelike graph for one campaign, content included (node text from
+ * app/data/content via useWeb3NodeContent). Two sources:
+ * - default: every node in the campaign (nodeCount + getNode×N), which the
+ *   map editor needs to see nodes not linked in yet;
+ * - `reachableOnly`: GameLens.getCampaignGraph, one call returning only the
+ *   nodes reachable from the root — all a player can ever visit.
  */
-export function useRoguelikeGraphWithContent(campaignId: bigint) {
-  const { nodes: allNodes, ...rest } = useAllRoguelikeNodes();
+export function useRoguelikeGraphWithContent(
+  campaignId: bigint,
+  enabled = true,
+  { reachableOnly = false }: { reachableOnly?: boolean } = {},
+) {
+  const scan = useAllRoguelikeNodes(enabled && !reachableOnly);
+  const lens = useRoguelikeCampaignGraph(campaignId, enabled && reachableOnly);
+  const source = reachableOnly ? lens : scan;
 
   const campaignNodes = useMemo(
-    () => allNodes.filter((n) => n.campaignId === campaignId),
-    [allNodes, campaignId],
+    () => source.nodes.filter((n) => n.campaignId === campaignId),
+    [source.nodes, campaignId],
   );
   const nodeIds = useMemo(() => campaignNodes.map((n) => n.id), [campaignNodes]);
-  const {
-    contentById,
-    isLoading: contentLoading,
-    refetch: refetchContent,
-  } = useOnChainNodeContent("ROGUELIKE", nodeIds);
+  const { contentById, isLoading: contentLoading } = useWeb3NodeContent("ROGUELIKE", nodeIds);
 
   const nodes = useMemo(
     () => mergeNodeContent(campaignNodes, contentById, contentLoading),
     [campaignNodes, contentById, contentLoading],
   );
 
-  const { refetch: refetchNodes } = rest;
-  const refetch = useCallback(async () => {
-    const result = await refetchNodes();
-    await refetchContent();
-    return result;
-  }, [refetchNodes, refetchContent]);
+  const refetchNodes = source.refetch;
+  const refetch = useCallback(() => refetchNodes(), [refetchNodes]);
 
-  return { ...rest, nodes, refetch };
+  return { isLoading: source.isLoading, error: source.error, nodes, refetch };
 }

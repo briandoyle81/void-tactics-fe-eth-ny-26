@@ -1558,3 +1558,52 @@ select:focus {
   }
 }
 
+
+/* Round start announcement (RoundStartModal): backdrop fades in, then the
+   card rises into place with an accent sweep along its top edge; the exit
+   reverses it before the modal unmounts. */
+@keyframes round-start-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes round-start-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes round-start-sweep {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes round-start-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+
+.round-start-backdrop {
+  animation: round-start-backdrop-in 260ms ease-out both;
+}
+
+.round-start-card {
+  animation: round-start-card-in 340ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both;
+}
+
+.round-start-sweep {
+  transform-origin: left center;
+  animation: round-start-sweep 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 240ms both;
+}
+
+.round-start-closing {
+  animation: round-start-out 200ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .round-start-backdrop,
+  .round-start-card,
+  .round-start-sweep,
+  .round-start-closing {
+    animation: none !important;
+  }
+}

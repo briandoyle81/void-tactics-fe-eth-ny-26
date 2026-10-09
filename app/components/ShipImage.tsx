@@ -31,6 +31,8 @@ interface ShipImageProps {
   hideRankStars?: boolean;
   /** Mirror the hull art only. Rank stars stay upright. */
   flip?: boolean;
+  /** See ShipImageView: keep the last image while a new ship renders. */
+  holdPreviousImage?: boolean;
 }
 
 // Web3-mode adapter for the shared `ShipImageView` — resolves the on-chain
@@ -45,6 +47,7 @@ export function ShipImage({
   rankStarsSize = "default",
   hideRankStars = false,
   flip = false,
+  holdPreviousImage = false,
 }: ShipImageProps) {
   const { dataUrl, isLoading, error, renderKey } = useShipRenderer(ship);
 
@@ -74,6 +77,7 @@ export function ShipImage({
       rankStarsSize={rankStarsSize}
       hideRankStars={hideRankStars}
       flip={flip}
+      holdPreviousImage={holdPreviousImage}
     />
   );
 }

@@ -17,15 +17,18 @@ import { PosthogAppChainSync } from "./components/PosthogAppChainSync";
 import { RestoreWalletConnection } from "./components/RestoreWalletConnection";
 import { useRankConfigSync } from "./hooks/useRankConfigSync";
 import { useRankConfigSyncWeb2 } from "./hooks/useRankConfigSyncWeb2";
+import { recordRpcRequest } from "./utils/rpcUsage";
 
-// TEMPORARY: hardcoded Ankr key to get off the public sepolia.base.org RPC,
-// which was rate-limiting us (403s) under normal AI-turn polling load. Move
-// to an env var once whitelisting is set up — note that as a client-side
-// (browser) request, this URL/key is visible to the client either way
-// unless it's routed through a server-side proxy; an env var alone doesn't
-// hide it here, it's just cleaner to rotate/manage.
-const BASE_SEPOLIA_RPC_URL =
-  "https://rpc.ankr.com/base_sepolia/31ef0b305970259dd64f01bf48c77e9593ce3c493320f5879d6c9b9430f7fb68";
+// Base Sepolia RPC for reads (wagmi) and wallet writes (Dynamic). Set
+// NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL to a keyed provider (e.g. Ankr): the
+// public sepolia.base.org endpoint rate-limits (403s) under heavy AI-turn
+// polling. As a client-side URL the key is visible to the browser either
+// way — the env var just keeps it out of source and easy to rotate (the
+// previously hardcoded Ankr key was disabled on 2026-10-08, which broke
+// every Base Sepolia read).
+const PUBLIC_BASE_SEPOLIA_RPC_URL = "https://sepolia.base.org";
+const CONFIGURED_BASE_SEPOLIA_RPC_URL = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL?.trim() || null;
+const BASE_SEPOLIA_RPC_URL = CONFIGURED_BASE_SEPOLIA_RPC_URL ?? PUBLIC_BASE_SEPOLIA_RPC_URL;
 
 const wagmiConfig = createConfig({
   chains: [flowTestnet, saigon, baseSepolia, xaiTestnet],
@@ -33,7 +36,8 @@ const wagmiConfig = createConfig({
   transports: {
     [flowTestnet.id]: http(),
     [saigon.id]: http(),
-    [baseSepolia.id]: http(BASE_SEPOLIA_RPC_URL),
+    // onFetchRequest counts requests by method (app/utils/rpcUsage.ts).
+    [baseSepolia.id]: http(BASE_SEPOLIA_RPC_URL, { onFetchRequest: recordRpcRequest }),
     [xaiTestnet.id]: http(),
   },
 });
@@ -82,18 +86,21 @@ const DYNAMIC_SETTINGS: DynamicContextProps["settings"] = {
   // transport was switched to Ankr, so takeAITurn/acceptMatch/etc. kept
   // hitting the rate-limited public endpoint. Override just Base Sepolia's
   // RPC here too, leaving every other dashboard-configured network as-is.
-  overrides: {
-    evmNetworks: (networks) =>
-      networks.map((network) =>
-        Number(network.chainId) === baseSepolia.id
-          ? {
-              ...network,
-              rpcUrls: [BASE_SEPOLIA_RPC_URL],
-              privateCustomerRpcUrls: [BASE_SEPOLIA_RPC_URL],
-            }
-          : network,
-      ),
-  },
+  // Only when a keyed RPC is configured; otherwise Dynamic keeps its own.
+  overrides: CONFIGURED_BASE_SEPOLIA_RPC_URL
+    ? {
+        evmNetworks: (networks) =>
+          networks.map((network) =>
+            Number(network.chainId) === baseSepolia.id
+              ? {
+                  ...network,
+                  rpcUrls: [CONFIGURED_BASE_SEPOLIA_RPC_URL],
+                  privateCustomerRpcUrls: [CONFIGURED_BASE_SEPOLIA_RPC_URL],
+                }
+              : network,
+          ),
+      }
+    : undefined,
 };
 
 // memo prevents DynamicWagmiConnectorInner's frequent re-renders from cascading into the entire app tree

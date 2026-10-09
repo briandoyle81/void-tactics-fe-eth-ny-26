@@ -24,10 +24,15 @@ interface RoundStartModalProps {
 
 // Shared between GameDisplay.tsx (live PvP/single-player) and
 // SimulatedGameDisplay.tsx (tutorial) — announces a new round and who acts
-// first, auto-dismissing after `autoDismissMs` or on click. Styled to match
+// first, auto-dismissing after `autoDismissMs` or on click. Animates in and
+// out (round-start-* classes in globals.css) so it doesn't pop over the
+// board; the exit plays before onClose unmounts it. Styled to match
 // GameResultModal.tsx's card/backdrop/typography conventions (same z-index,
 // square corners, STYLE_LABEL heading) so the two read as one family of
 // end-of-turn-sequence overlays.
+/** Length of the exit animation (round-start-out in globals.css). */
+const EXIT_MS = 200;
+
 export function RoundStartModal({
   round,
   isMyTurnFirst,
@@ -43,12 +48,36 @@ export function RoundStartModal({
   const hasCurrentScore = myScore != null && opponentScore != null;
   const onCloseRef = React.useRef(onClose);
   onCloseRef.current = onClose;
+  const [isClosing, setIsClosing] = React.useState(false);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Play the exit, then close. Reduced motion skips the wait.
+  const close = React.useCallback(() => {
+    if (closeTimerRef.current) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      onCloseRef.current();
+      return;
+    }
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => onCloseRef.current(), EXIT_MS);
+  }, []);
+
+  React.useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
+
   // Parent re-renders (game poll, 1s timer tick) used to pass a new onClose
   // every time and reset this timeout, so the overlay never auto-dismissed.
   React.useEffect(() => {
-    const timer = setTimeout(() => onCloseRef.current(), autoDismissMs);
+    const timer = setTimeout(close, autoDismissMs);
     return () => clearTimeout(timer);
-  }, [autoDismissMs]);
+  }, [autoDismissMs, close]);
 
   const accentColor = isMyTurnFirst
     ? "var(--color-cyan)"
@@ -56,15 +85,23 @@ export function RoundStartModal({
 
   return (
     <div
-      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 p-4"
-      onClick={onClose}
+      className={`round-start-backdrop fixed inset-0 z-[500] flex items-center justify-center bg-black/90 p-4 ${
+        // Ignore input while fading out so the board is clickable right away.
+        isClosing ? "round-start-closing pointer-events-none" : ""
+      }`}
+      onClick={close}
       role="presentation"
     >
       <div
-        className="relative w-full max-w-md border-2 bg-near-black p-6 font-mono text-center"
+        className="round-start-card relative w-full max-w-md overflow-hidden border-2 bg-near-black p-6 font-mono text-center"
         style={{ borderColor: accentColor, borderRadius: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div
+          className="round-start-sweep absolute inset-x-0 top-0 h-1"
+          style={{ backgroundColor: accentColor }}
+          aria-hidden
+        />
         <div className="text-sm uppercase tracking-widest text-text-muted">
           Round {round.toString()}
         </div>
@@ -136,7 +173,7 @@ export function RoundStartModal({
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={close}
           className="mt-6 w-full border-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors hover:bg-white/5"
           style={{ borderColor: accentColor, color: accentColor, borderRadius: 0 }}
         >

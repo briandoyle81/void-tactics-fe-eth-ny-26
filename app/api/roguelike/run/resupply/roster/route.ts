@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
+import { getFactionName } from "@/app/config/factions";
 
 export async function POST(req: NextRequest) {
   const { userId, error } = await requireAuth();
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       );
       if (wrongVariant) {
         return NextResponse.json(
-          { error: `This campaign requires Faction ${run.campaign.requiredVariant} ships` },
+          { error: `This campaign requires ${getFactionName(run.campaign.requiredVariant)} ships` },
           { status: 400 },
         );
       }

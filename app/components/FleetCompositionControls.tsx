@@ -3,8 +3,8 @@
 import type { FleetComposition } from "../utils/fleetCompositionStorage";
 
 // Shared between ManageNavy.tsx (web3) and ManageNavyWeb2.tsx (web2) — the
-// rename/save/delete/threat-total/export/import row, ported verbatim from
-// ManageNavy.tsx. `threatTotal` is caller-computed (web3 sums bigint
+// rename/save/delete/threat-total/export row (import lives next to the
+// filters: ImportFleetsButton below). `threatTotal` is caller-computed (web3 sums bigint
 // `shipData.cost`, web2 sums number `shipData.cost` — see the
 // number-native-shared-components rule) and passed in as a plain number.
 interface FleetCompositionControlsProps {
@@ -18,8 +18,6 @@ interface FleetCompositionControlsProps {
   onDeleteActive: () => void;
   fleetCompositions: FleetComposition[];
   onExport: () => void;
-  importInputRef: React.RefObject<HTMLInputElement | null>;
-  onImportFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export function FleetCompositionControls({
@@ -33,9 +31,8 @@ export function FleetCompositionControls({
   onDeleteActive,
   fleetCompositions,
   onExport,
-  importInputRef,
-  onImportFileChange,
 }: FleetCompositionControlsProps) {
+  if ((selectedId == null || !activeFleet) && fleetCompositions.length === 0) return null;
   return (
     <div
       className="flex flex-col gap-2 border border-solid px-2 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-3"
@@ -110,21 +107,29 @@ export function FleetCompositionControls({
           [EXPORT FLEETS]
         </button>
       )}
+    </div>
+  );
+}
+
+/** [IMPORT FLEETS]: opens a file picker for an exported fleets JSON. */
+export function ImportFleetsButton({
+  inputRef,
+  onFileChange,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <>
       <button
         type="button"
-        onClick={() => importInputRef.current?.click()}
-        className="px-3 py-1.5 rounded-none border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-bold text-xs tracking-wider transition-all duration-200"
+        onClick={() => inputRef.current?.click()}
+        className="px-3 py-1 border-2 border-cyan text-cyan hover:bg-cyan/10 font-mono font-semibold uppercase text-sm tracking-wider transition-all duration-150"
         style={{ borderRadius: 0 }}
       >
         [IMPORT FLEETS]
       </button>
-      <input
-        ref={importInputRef}
-        type="file"
-        accept=".json,application/json"
-        className="hidden"
-        onChange={onImportFileChange}
-      />
-    </div>
+      <input ref={inputRef} type="file" accept=".json,application/json" className="hidden" onChange={onFileChange} />
+    </>
   );
 }

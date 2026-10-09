@@ -79,7 +79,22 @@ export function useSinglePlayerMatch() {
     [writeContractAsync],
   );
 
-  return { startNodeMatch, takeAITurn };
+  // Several AI moves in one tx — only when the human has no unmoved ships
+  // left this round (see app/utils/aiTurnBatch.ts). Gas scales per move.
+  const takeAITurns = useCallback(
+    (gameId: bigint, maxMoves: number) =>
+      writeContractAsync({
+        address: SINGLE_PLAYER_MATCH_ADDRESS,
+        abi: SINGLE_PLAYER_MATCH_ABI,
+        functionName: "takeAITurns",
+        args: [gameId, BigInt(maxMoves)],
+        chainId: CHAIN_ID,
+        gas: TAKE_AI_TURN_GAS_LIMIT * BigInt(maxMoves),
+      }),
+    [writeContractAsync],
+  );
+
+  return { startNodeMatch, takeAITurn, takeAITurns };
 }
 
 // Maps a game back to the campaign node it was launched from — recorded

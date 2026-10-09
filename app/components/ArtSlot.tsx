@@ -17,13 +17,13 @@ export function ArtSlot({
   className?: string;
   children?: ReactNode;
 }) {
-  const { label, src } = ART_SLOTS[slot];
+  const { label, src, position = "center" } = ART_SLOTS[slot];
   return (
     <div
       className={`relative overflow-hidden ${className}`}
       style={
         src
-          ? { backgroundImage: `url(${src})`, backgroundSize: "cover", backgroundPosition: "center" }
+          ? { backgroundImage: `url(${src})`, backgroundSize: "cover", backgroundPosition: position }
           : {
               backgroundColor: "#0f161e",
               backgroundImage:

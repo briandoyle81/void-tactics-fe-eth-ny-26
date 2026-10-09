@@ -6,7 +6,7 @@ import { baseSepolia } from "viem/chains";
 import type { Abi, Address } from "viem";
 import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
 import { CampaignNode } from "../types/types";
-import { useOnChainNodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
+import { useWeb3NodeContent, mergeNodeContent, type ResolvedNodeContent } from "./useNodeContent";
 
 // Single-player (NodeMap/SinglePlayerMatch/AIEncounters) is Base Sepolia
 // only — always read from that chain regardless of the connected
@@ -252,10 +252,9 @@ export type CampaignGraphNodeWithContent = CampaignGraphNode & ResolvedNodeConte
 
 /**
  * The full campaign graph, content included: useCampaignGraph's on-chain
- * structure/unlock/completed reads, merged with the three-layer
- * (DB -> static config -> default) title/description resolution from
- * useNodeContent.ts (on-chain NodeContentRegistry -> static config ->
- * default) — one call for what CampaignGraph.tsx previously
+ * structure/unlock/completed reads, merged with node text from
+ * useNodeContent.ts (shipped nodeContent.ts) — one call for
+ * what CampaignGraph.tsx previously
  * assembled from two separate hooks plus a per-node resolveNodeContent call.
  */
 export function useCampaignGraphWithContent(
@@ -268,7 +267,7 @@ export function useCampaignGraphWithContent(
     contentById,
     isLoading: contentLoading,
     refetch: refetchContent,
-  } = useOnChainNodeContent("CAMPAIGN", nodeIds);
+  } = useWeb3NodeContent("CAMPAIGN", nodeIds);
 
   const nodes = useMemo(
     () => mergeNodeContent(graph.nodes, contentById, contentLoading),

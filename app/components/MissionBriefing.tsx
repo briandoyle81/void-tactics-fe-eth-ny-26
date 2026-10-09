@@ -58,7 +58,7 @@ export function MissionBriefing({
           style={{ borderColor: color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)` }}
         >
           <div
-            className="truncate text-xs font-bold uppercase tracking-widest"
+            className="line-clamp-2 break-words text-xs font-bold uppercase leading-tight tracking-widest"
             style={{ ...STYLE_LABEL, color }}
           >
             {character.name}

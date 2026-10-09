@@ -20,6 +20,7 @@ import { AI_USER_ID, ensureAiUser } from "@/app/lib/aiUser";
 import { generateAiFleetForMap, NoAIPlacementsError } from "@/app/lib/aiFleetWeb2";
 import { createGameFromLobby } from "@/app/lib/createGameFromLobby";
 import { hasDuplicateShipIds } from "@/app/utils/fleetShipIds";
+import { getFactionName } from "@/app/config/factions";
 
 export async function POST(
   req: NextRequest,
@@ -93,7 +94,7 @@ export async function POST(
     );
     if (wrongVariant) {
       return NextResponse.json(
-        { error: `This campaign requires Faction ${node.campaign.requiredVariant} ships` },
+        { error: `This campaign requires ${getFactionName(node.campaign.requiredVariant)} ships` },
         { status: 400 },
       );
     }

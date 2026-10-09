@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import Header from "../components/Header";
+import { SessionRestoreProbe } from "../components/SessionRestoreProbe";
 import Maps from "../components/Maps";
 import MapsWeb2 from "../components/MapsWeb2";
 import Admin from "../components/Admin";
@@ -63,7 +64,8 @@ function ConsoleMessage({ children }: { children: React.ReactNode }) {
  */
 export default function OpsConsolePage() {
   const appMode = useAppMode();
-  const { status } = useAccount();
+  const { status, isConnected } = useAccount();
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
   const { isLoggedIn, isLoading: isUserLoading } = useCurrentUser();
   const { tabs, hasAccess, isLoading: isAccessLoading } = useOpsConsoleAccess();
   const [savedTab, setSavedTab] = useState<OpsConsoleTab | null>(null);
@@ -84,13 +86,16 @@ export default function OpsConsolePage() {
   };
 
   const isSignedIn = appMode === "web2" ? isLoggedIn : status === "connected";
+  // After a load the wallet session takes a few seconds to come back; show
+  // "Checking access…" meanwhile, not the signed-out message.
   const isCheckingSignIn =
     appMode === "web2"
       ? isUserLoading
-      : status === "connecting" || status === "reconnecting";
+      : status === "connecting" || status === "reconnecting" || isRestoringSession;
 
   return (
     <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--color-near-black)" }}>
+      <SessionRestoreProbe isConnected={isConnected} onChange={setIsRestoringSession} />
       <div className="shrink-0">
         <Header />
       </div>

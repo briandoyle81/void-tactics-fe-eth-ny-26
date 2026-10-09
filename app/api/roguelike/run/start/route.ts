@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { requireAuth } from "@/app/lib/auth";
 import { hasDuplicateShipIds } from "@/app/utils/fleetShipIds";
+import { getFactionName } from "@/app/config/factions";
 
 export async function POST(req: NextRequest) {
   const { userId, error } = await requireAuth();
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
   const rosterVariant = [...variants][0] ?? 0;
   if (campaign.requiredVariant > 0 && rosterVariant !== campaign.requiredVariant) {
     return NextResponse.json(
-      { error: `This campaign requires Faction ${campaign.requiredVariant} fleet` },
+      { error: `This campaign requires a ${getFactionName(campaign.requiredVariant)} fleet` },
       { status: 400 },
     );
   }

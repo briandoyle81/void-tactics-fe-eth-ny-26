@@ -465,7 +465,7 @@ export interface AIShipInfo {
 }
 
 // NodeMap.getAllNodes()/.getNode(nodeId) — the campaign graph. No display
-// names/flavor text on-chain, see app/config/campaignNodes.ts for that.
+// names/flavor text on-chain, see app/data/content/ (app/config/content.ts) for that.
 export interface CampaignNode {
   id: bigint;
   campaignId: bigint;

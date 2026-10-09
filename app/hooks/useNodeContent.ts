@@ -2,12 +2,9 @@
 
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { usePublicClient, useReadContract, useWriteContract } from "wagmi";
-import { baseSepolia } from "viem/chains";
-import type { Abi, Address } from "viem";
 import { apiFetch } from "../lib/apiFetch";
 import { apiMutate } from "../lib/apiMutate";
-import { CONTRACT_ABIS, CONTRACT_ADDRESSES_BY_CHAIN_ID } from "../config/contracts";
+import { STATIC_NODE_CONTENT } from "../config/content";
 
 export type NodeGraphType = "CAMPAIGN" | "ROGUELIKE";
 
@@ -19,100 +16,29 @@ export interface NodeContentValue {
 // Node title/description, keyed by node id in `contentById`. There is no
 // fallback text: a node with nothing set shows an error in its place (see
 // resolveNodeContent). Where `contentById` comes from depends on the mode:
-// - web3: NodeContentRegistry on chain (useOnChainNodeContent), edited by a
-//   wallet transaction (useSaveOnChainNodeContent).
+// - web3: app/data/dialog/nodeContent.ts, shipped with the app and edited
+//   by hand (not in the node editors). The contracts no longer store node
+//   text.
 // - web2: the NodeContent table (useNodeContentWeb2), edited through
 //   PUT /api/node-content by a web2 admin.
-// Fetched once per graph screen (not per node card) so node cards stay
-// plain, sync, data-fetching-free components.
+// Read once per graph screen (not per node card) so node cards stay plain,
+// sync components.
 
-const CHAIN_ID = baseSepolia.id;
-const REGISTRY_ADDRESS = CONTRACT_ADDRESSES_BY_CHAIN_ID[CHAIN_ID]
-  .NODE_CONTENT_REGISTRY as Address;
-const REGISTRY_ABI = CONTRACT_ABIS.NODE_CONTENT_REGISTRY as Abi;
-
-/** On-chain node text for the given nodes (web3). Nodes with nothing published are left out. */
-export function useOnChainNodeContent(
+/** Web3 node text for the given nodes, from nodeContent.ts. No RPC. */
+export function useWeb3NodeContent(
   graphType: NodeGraphType,
   nodeIds: readonly (bigint | number)[],
 ) {
-  const isRoguelike = graphType === "ROGUELIKE";
-  const args = useMemo(
-    () =>
-      [nodeIds.map(() => isRoguelike), nodeIds.map((id) => BigInt(id))] as const,
-    [nodeIds, isRoguelike],
-  );
-  const { data, isLoading, refetch } = useReadContract({
-    address: REGISTRY_ADDRESS,
-    abi: REGISTRY_ABI,
-    chainId: CHAIN_ID,
-    functionName: "getNodeContentBatch",
-    args,
-    query: { enabled: nodeIds.length > 0 },
-  });
-
   const contentById = useMemo(() => {
+    const all = STATIC_NODE_CONTENT[graphType];
     const map = new Map<number, NodeContentValue>();
-    const [titles, descriptions] = (data as readonly [readonly string[], readonly string[]] | undefined) ?? [
-      [],
-      [],
-    ];
-    nodeIds.forEach((id, i) => {
-      const title = titles[i] ?? "";
-      const description = descriptions[i] ?? "";
-      if (title || description) map.set(Number(id), { title, description });
+    nodeIds.forEach((id) => {
+      const content = all[Number(id)];
+      if (content && (content.title || content.description)) map.set(Number(id), content);
     });
     return map;
-  }, [data, nodeIds]);
-
-  return { contentById, isLoading, refetch };
-}
-
-/**
- * Writes one node's title/description straight to NodeContentRegistry from
- * the connected wallet, and resolves once the transaction is mined. The
- * wallet must be the registry owner or one of its node editors
- * (NodeContentRegistry.setNodeEditor — owner-only, separate from the
- * NodeMap/RoguelikeNodeMap editor roles).
- */
-export function useSaveOnChainNodeContent() {
-  const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient({ chainId: CHAIN_ID });
-
-  return useCallback(
-    async (graphType: NodeGraphType, nodeId: bigint | number, content: NodeContentValue) => {
-      const hash = await writeContractAsync({
-        address: REGISTRY_ADDRESS,
-        abi: REGISTRY_ABI,
-        chainId: CHAIN_ID,
-        functionName: "setNodeContentBatch",
-        args: [
-          [graphType === "ROGUELIKE"],
-          [BigInt(nodeId)],
-          [content.title],
-          [content.description],
-        ],
-      });
-      await publicClient!.waitForTransactionReceipt({ hash });
-      return hash;
-    },
-    [writeContractAsync, publicClient],
-  );
-}
-
-/** Readable message for a failed on-chain content save. */
-export function nodeContentSaveError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.includes("NotNodeEditor")) {
-    return (
-      "This wallet can't edit node text on chain. The NodeContentRegistry owner " +
-      "has to grant it with setNodeEditor."
-    );
-  }
-  if (message.includes("User rejected") || message.includes("User denied")) {
-    return "Transaction declined.";
-  }
-  return message || "Failed to save node content";
+  }, [graphType, nodeIds]);
+  return { contentById, isLoading: false, refetch: async () => undefined };
 }
 
 interface NodeContentRow {

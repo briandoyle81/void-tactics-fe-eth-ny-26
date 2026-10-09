@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useAccount } from "wagmi";
 import { useOwnedShips } from "../hooks/useOwnedShips";
+import { useStaggeredPreviewSeeds } from "../hooks/useStaggeredPreviewSeeds";
 import { VariantPicker } from "./VariantPicker";
 import { useShipsPurchaseInfo } from "../hooks/useShipsPurchaseInfo";
 import { useShipPurchaserPurchaseInfo } from "../hooks/useShipPurchaserPurchaseInfo";
@@ -19,22 +20,18 @@ import {
   getTierBadge,
   getGuaranteedRanksDisplay,
 } from "../utils/shipPurchaseTierDisplay";
+import { getPreviewShipSpecsForTier } from "../utils/shipPreviewSpec";
 import {
-  getPreviewShipSpecsForTier,
-  PREVIEW_SHIP_ID_OFFSET,
-  type ShipPreviewSpec,
-} from "../utils/shipPreviewSpec";
+  PREVIEW_REFRESH_INTERVAL_MS,
+  previewShipsDestroyedForRank,
+  toPreviewShip,
+} from "../utils/previewShips";
 import type { Ship } from "../types/types";
 import { formatEther } from "viem";
 import { getNativeTokenSymbol, getSelectedChainId } from "../config/networks";
 import { FLOW_USD_TIERS, type FlowTier } from "../config/flowPayment";
 
 type PaymentMethod = "USD" | "FLOW" | "UTC";
-
-// How often the demo/preview ships shown on the tier cards reroll — matched
-// to HeroShipShowcase's default rotation cadence on the Info page (10s) so the
-// two "living" ship displays feel consistent.
-const PREVIEW_REFRESH_INTERVAL_MS = 10000;
 
 // Truncates (not rounds) a decimal string to at most 8 fractional digits,
 // dropping any resulting trailing zeros so a whole-number price stays clean.
@@ -64,15 +61,8 @@ const ShipPurchaseInterface: React.FC = () => {
   });
   // Price ladder for the Fireblocks Flow modal of the pack last sent there.
   const [flowTier, setFlowTier] = useState<FlowTier>(FLOW_USD_TIERS[0]!);
-  const [previewSeed, setPreviewSeed] = useState(() =>
-    Math.floor(Math.random() * 1_000_000),
-  );
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPreviewSeed(Math.floor(Math.random() * 1_000_000));
-    }, PREVIEW_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+  // One seed per pack, rerolled in turn so the cards don't all change at once.
+  const previewSeeds = useStaggeredPreviewSeeds(shipsPack.tierCount, PREVIEW_REFRESH_INTERVAL_MS);
 
   // Faction/variant to mint. Variant 2 (Shattered Hive) is gated on the medal
   // NFT — VariantPicker shows it grayed out and blocks selecting it without
@@ -93,51 +83,12 @@ const ShipPurchaseInterface: React.FC = () => {
     tierCount,
   } = shipsPack;
 
-  const toPreviewShip = (spec: ShipPreviewSpec): Ship => ({
-    name: `Preview ${spec.seed}`,
-    id: BigInt(PREVIEW_SHIP_ID_OFFSET + spec.seed),
-    equipment: spec.equipment,
-    traits: {
-      serialNumber: BigInt(PREVIEW_SHIP_ID_OFFSET + spec.seed),
-      colors: spec.colors,
-      variant: spec.variant,
-      accuracy: spec.accuracy,
-      hull: spec.hull,
-      speed: spec.speed,
-    },
-    shipData: {
-      shipsDestroyed: spec.shipsDestroyed,
-      costsVersion: 0,
-      cost: 0,
-      shiny: spec.shiny,
-      constructed: true,
-      inFleet: false,
-      timestampDestroyed: 0n,
-    },
-    owner: "0x0000000000000000000000000000000000000000",
-  });
-
-  const shipsDestroyedForRank = (rank: number): number => {
-    switch (Math.min(5, rank)) {
-      case 5:
-        return 350;
-      case 4:
-        return 120;
-      case 3:
-        return 45;
-      case 2:
-        return 15;
-      default:
-        return 5;
-    }
-  };
-
-  const getPreviewShipsForTier = (tier: number): Ship[] =>
+  const getPreviewShipsForTier = (tier: number, previewSeed: number): Ship[] =>
     getPreviewShipSpecsForTier(
       previewSeed,
       tier,
       maxPerTier[tier] ?? 1,
-      shipsDestroyedForRank,
+      previewShipsDestroyedForRank,
       selectedVariant,
     ).map(toPreviewShip);
 
@@ -169,7 +120,7 @@ const ShipPurchaseInterface: React.FC = () => {
     const guaranteedRanksDisplay = getGuaranteedRanksDisplay(tier, shipsCount ?? 1);
     const tierCallout = getTierCallout(tier);
     const badge = getTierBadge(tier, tierCount);
-    const previewShips = getPreviewShipsForTier(tier);
+    const previewShips = getPreviewShipsForTier(tier, previewSeeds[index] ?? 0);
     const flowTier = FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!;
     const utcIndex = utcPack.purchaserDeployed ? utcPack.tiers.indexOf(tier) : -1;
     const utcPrice = utcIndex >= 0 ? utcPack.pricesWei[utcIndex] : undefined;
@@ -200,8 +151,11 @@ const ShipPurchaseInterface: React.FC = () => {
       guaranteedRanksDisplay={d.guaranteedRanksDisplay}
       previewShipImages={d.previewShips.map((ship, idx) => (
         <ShipImage
-          key={ship.id.toString()}
+          // Keyed by slot so a reroll swaps the ship in place, holding the
+          // previous image until the new one renders (no blank flash).
+          key={idx}
           ship={ship}
+          holdPreviousImage
           showLoadingState={false}
           rankStarsSize={idx === 0 ? "large" : "default"}
         />
@@ -263,19 +217,7 @@ const ShipPurchaseInterface: React.FC = () => {
         tierCards={tierCards}
         footerPaymentNote="Pick a pack, then choose how to pay: card or any token, your wallet's token, or UTC."
         topContent={
-          <div className="space-y-2">
-            <div
-              className="text-[11px] uppercase tracking-[0.12em] text-text-muted"
-              style={{ fontFamily: "var(--font-jetbrains-mono), 'Courier New', monospace" }}
-            >
-              Choose faction
-            </div>
-            <VariantPicker
-              selectedVariant={selectedVariant}
-              onSelect={setSelectedVariant}
-              className="max-w-2xl"
-            />
-          </div>
+          <VariantPicker compact selectedVariant={selectedVariant} onSelect={setSelectedVariant} />
         }
       />
 

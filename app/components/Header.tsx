@@ -24,7 +24,7 @@ import { readRpcErrorCode } from "../utils/ensureUiChainsInWallet";
 import { HeaderAlphaBadge, HeaderDiscordLink, HeaderXLink, VOID_TACTICS_X_URL } from "./BrandLinks";
 import { ALPHA_DISCORD_INVITE_URL } from "../config/alpha";
 import { useFreeShipClaimStatus } from "../hooks/useFreeShipClaimStatus";
-import type { StoreSection } from "./StoreScreen";
+import type { StoreSection } from "./storeSections";
 import { useGameMusic } from "../hooks/useGameMusic";
 import { formatDec } from "../utils/formatDec";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -38,6 +38,7 @@ import { useRouter } from "next/navigation";
 import { navigateToClientTab } from "../utils/clientNavigation";
 import { useOpsConsoleAccess } from "../hooks/useOpsConsoleAccess";
 import { ADMIN_PATH } from "../config/routes";
+import { GAME_CONTENT_MAX_WIDTH_CLASS } from "../config/layout";
 import AuthSignIn from "./AuthSignIn";
 import { PasskeyEnablePrompt } from "./PasskeyEnablePrompt";
 
@@ -503,6 +504,37 @@ function HudIconButton({
   );
 }
 
+/**
+ * The HUD's free-ships countdown. Its own component so the countdown's
+ * updates re-render only this pill, not the whole HUD.
+ */
+function HudFreeShipsPill({ onOpen }: { onOpen: () => void }) {
+  const freeShips = useFreeShipClaimStatus();
+  if (freeShips.isLoading || freeShips.hasError) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex h-8 shrink-0 items-center gap-1.5 border border-solid px-2 transition-colors duration-150 hover:bg-slate"
+      style={{
+        backgroundColor: "var(--color-near-black)",
+        borderColor: freeShips.isEligible ? "var(--color-phosphor-green)" : "var(--color-gunmetal)",
+      }}
+      title={freeShips.isEligible ? "Free ships ready to claim" : "Time until your next free ships"}
+    >
+      <span
+        className="hidden text-[10px] font-bold uppercase tracking-wider text-phosphor-green sm:inline"
+        style={{ fontFamily: MONO_FONT }}
+      >
+        Free ships
+      </span>
+      <span className="text-xs font-semibold tabular-nums text-text-primary" style={{ fontFamily: MONO_FONT }}>
+        {freeShips.isEligible ? "Ready" : (freeShips.nextClaimInFormatted ?? "—")}
+      </span>
+    </button>
+  );
+}
+
 function SettingsHeading({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -896,7 +928,6 @@ const Header: React.FC<HeaderProps> = ({ yourTurnCount, showSignIn = true }) => 
     }
   }, [isConnected, isWeb2LoggedIn]);
 
-  const freeShips = useFreeShipClaimStatus();
   const music = useGameMusic();
   const isSignedIn = showWeb2Panel || showWeb3Panel;
   const callsign = showWeb2Panel
@@ -940,7 +971,9 @@ const Header: React.FC<HeaderProps> = ({ yourTurnCount, showSignIn = true }) => 
         borderTopColor: "var(--color-steel, #223041)",
       }}
     >
-      <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:px-6 md:gap-4 lg:px-8">
+      <div
+        className={`mx-auto flex ${GAME_CONTENT_MAX_WIDTH_CLASS} items-center gap-2 px-3 py-2 sm:px-6 md:gap-4 lg:px-10`}
+      >
         <div className={isSignedIn ? "hidden md:block" : "block"}>
           <HeaderTitleBlock />
         </div>
@@ -1027,37 +1060,8 @@ const Header: React.FC<HeaderProps> = ({ yourTurnCount, showSignIn = true }) => 
                     }}
                   />
                 )}
-                {!freeShips.isLoading && !freeShips.hasError && (
-                  <button
-                    type="button"
-                    onClick={openCommandDeck}
-                    className="flex h-8 shrink-0 items-center gap-1.5 border border-solid px-2 transition-colors duration-150 hover:bg-slate"
-                    style={{
-                      backgroundColor: "var(--color-near-black)",
-                      borderColor: freeShips.isEligible
-                        ? "var(--color-phosphor-green)"
-                        : "var(--color-gunmetal)",
-                    }}
-                    title={
-                      freeShips.isEligible
-                        ? "Free ships ready to claim"
-                        : "Time until your next free ships"
-                    }
-                  >
-                    <span
-                      className="hidden text-[10px] font-bold uppercase tracking-wider text-phosphor-green sm:inline"
-                      style={{ fontFamily: MONO_FONT }}
-                    >
-                      Free ships
-                    </span>
-                    <span
-                      className="text-xs font-semibold tabular-nums text-text-primary"
-                      style={{ fontFamily: MONO_FONT }}
-                    >
-                      {freeShips.isEligible ? "Ready" : (freeShips.nextClaimInFormatted ?? "—")}
-                    </span>
-                  </button>
-                )}
+                {/* Unmounted during a match so its reads and countdown stop. */}
+                {!matchViewOpen && <HudFreeShipsPill onOpen={openCommandDeck} />}
               </div>
 
               {yourTurnCount != null && (
@@ -1277,4 +1281,6 @@ const Header: React.FC<HeaderProps> = ({ yourTurnCount, showSignIn = true }) => 
   );
 };
 
-export default Header;
+// Memoized: the client page re-renders on every games poll and tab change,
+// and the HUD's props (a count and a flag) rarely change with it.
+export default React.memo(Header);

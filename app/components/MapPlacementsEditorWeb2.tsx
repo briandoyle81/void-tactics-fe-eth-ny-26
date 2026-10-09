@@ -12,6 +12,7 @@ import { toShipCardDataWeb2 } from "../utils/toShipCardDataWeb2";
 import { FleetShipListPanel, type FleetShipListItemData } from "./FleetShipListPanel";
 import { aiConfigToPreviewShipWeb2, type AIShipConfigWeb2 } from "../utils/aiShipConfigWeb2";
 import { calculateAttributesFromContractsWeb2 } from "../utils/shipAttributesCalculatorWeb2";
+import { getFactionName } from "../config/factions";
 
 interface AIMapPlacementWeb2 {
   id: number;
@@ -338,8 +339,8 @@ export function MapPlacementsEditorWeb2({
                   className="w-full border border-gunmetal bg-black/60 px-2 py-1 text-xs text-cyan"
                 >
                   <option value="all">All factions</option>
-                  <option value={1}>Faction 1</option>
-                  <option value={2}>Faction 2</option>
+                  <option value={1}>{getFactionName(1)}</option>
+                  <option value={2}>{getFactionName(2)}</option>
                 </select>
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-text-secondary">
                   <input
