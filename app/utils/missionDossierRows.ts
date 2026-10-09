@@ -1,5 +1,4 @@
 import type { MissionDossierRow } from "../components/MissionDossier";
-import { formatTurnTime } from "../components/MissionDossier";
 import { formatDec } from "./formatDec";
 import { getFactionName } from "../config/factions";
 
@@ -11,14 +10,12 @@ interface CombatFields {
   maxScore: number;
   /** The player is always the creator side in single-player. */
   creatorGoesFirst: boolean;
-  turnTimeSeconds: number;
 }
 
 function combatRows(f: CombatFields): MissionDossierRow[] {
   return [
     { label: "Objective", value: `Score ${f.maxScore} VP or destroy the enemy fleet` },
     { label: "Initiative", value: f.creatorGoesFirst ? "You move first" : "Enemy moves first" },
-    { label: "Turn timer", value: formatTurnTime(f.turnTimeSeconds) },
   ];
 }
 

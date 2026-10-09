@@ -60,7 +60,6 @@ export function CampaignNodePreviewWeb2({ node, campaign }: CampaignNodePreviewW
           rows={campaignDossierRows({
             maxScore: node.maxScore,
             creatorGoesFirst: node.creatorGoesFirst,
-            turnTimeSeconds: node.turnTimeSeconds,
             requiredVariant: campaign.requiredVariant,
             unlocked: node.unlocked,
             completed: node.completed,

@@ -14,13 +14,6 @@ const TONE_CLASS: Record<NonNullable<MissionDossierRow["tone"]>, string> = {
   warning: "text-warning-red",
 };
 
-/** "5 min", "90 s" — turn timer for the dossier. */
-export function formatTurnTime(seconds: number): string {
-  if (seconds >= 60 && seconds % 60 === 0) return `${seconds / 60} min`;
-  if (seconds >= 60) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  return `${seconds} s`;
-}
-
 // The decision-data column of MissionNodePanel: an optional force comparison
 // (enemy threat and ship count against your fleet's cost cap, drawn as two
 // bars on one scale), then label/value rows, then the launch action pinned

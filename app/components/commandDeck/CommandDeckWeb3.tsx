@@ -15,7 +15,7 @@ import { useShipsPurchaseInfo } from "../../hooks/useShipsPurchaseInfo";
 import { useStaggeredPreviewSeeds } from "../../hooks/useStaggeredPreviewSeeds";
 import { ShipImage } from "../ShipImage";
 import { FLOW_USD_TIERS } from "../../config/flowPayment";
-import { describePack, getTierCallout, getTierColors } from "../../utils/shipPurchaseTierDisplay";
+import { getTierCallout, getTierColors } from "../../utils/shipPurchaseTierDisplay";
 import { getPreviewShipSpecsForTier } from "../../utils/shipPreviewSpec";
 import {
   PREVIEW_REFRESH_INTERVAL_MS,
@@ -92,8 +92,8 @@ export function CommandDeckWeb3(
     ).map(toPreviewShip);
     return {
       callout: getTierCallout(tier),
+      shipCount: shipsPack.shipsPerTier[index] ?? 1,
       priceLabel: `$${(FLOW_USD_TIERS[index] ?? FLOW_USD_TIERS[0]!).displayPrice} USD`,
-      description: describePack(tier, shipsPack.shipsPerTier[index] ?? 1),
       textClass: getTierColors(tier).text,
       previewShipImages: ships.map((ship, idx) => (
         <ShipImage

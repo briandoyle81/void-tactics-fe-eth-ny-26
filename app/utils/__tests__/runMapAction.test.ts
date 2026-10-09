@@ -12,6 +12,15 @@ const base: RunMapActionInput = {
 };
 
 describe("getRunMapAction", () => {
+  it("starts a run from the run-less map preview", () => {
+    expect(getRunMapAction({ ...base, isBrowseMode: true, canStartRun: true })).toEqual({
+      type: "start",
+      label: "Start run",
+      disabled: false,
+    });
+    expect(getRunMapAction({ ...base, isBrowseMode: true, selectedKind: null, canStartRun: true }).type).toBe("start");
+  });
+
   it("warps to a reachable combat node", () => {
     expect(getRunMapAction(base)).toEqual({ type: "warp", label: "Warp to mission", disabled: false });
   });

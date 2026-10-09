@@ -27,9 +27,9 @@ export interface OperationsSummary {
 export interface FeaturedPackSummary {
   /** e.g. "FLAGSHIP PACK". */
   callout: string;
+  /** Ships in the pack, shown here as "Flagship - 60 Ships". */
+  shipCount: number;
   priceLabel: string;
-  /** What's in the pack, e.g. "60 ships, led by 4 veterans up to Rank 5." */
-  description: string;
   /** Tier text color class from shipPurchaseTierDisplay (e.g. "text-amber"). */
   textClass: string;
   /** Pack preview ships, lead ship first (ShipImage / ShipImageWeb2). */
@@ -132,7 +132,7 @@ function DeckButton({
 
 function operationsCta(operations: OperationsSummary): string {
   if (operations.state === "active") return "Continue run";
-  if (operations.state === "noRun") return "Start a run";
+  if (operations.state === "noRun") return "Play Single Player";
   return "Operations";
 }
 
@@ -221,18 +221,18 @@ function LayoutA({ operations, yourTurnCount, openTournamentCount, featuredPack,
     // screen; rows never shrink below 14rem.
     <div className="grid grid-cols-1 gap-3 md:h-[clamp(30rem,70vh,52rem)] md:grid-cols-[1.35fr_1fr_15rem] md:grid-rows-[minmax(14rem,1fr)_minmax(14rem,1fr)] md:gap-4 xl:grid-cols-[1.35fr_1fr_18rem]">
       <Tile borderColor="var(--color-cyan)" className="md:col-start-1 md:row-span-2 md:row-start-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-4">
+          <span className="text-4xl font-bold uppercase leading-none tracking-wider text-cyan md:text-5xl" style={DISPLAY_FONT}>
+            Operations
+          </span>
+          {operations.missionTitle && (
+            <span className="text-lg font-semibold uppercase tracking-wider text-amber" style={DISPLAY_FONT}>
+              {operations.missionTitle}
+            </span>
+          )}
+        </div>
         <ArtSlot slot="operations" className="min-h-40 flex-1" />
         <div className="grid gap-3 p-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <span className="text-4xl font-bold uppercase leading-none tracking-wider text-cyan md:text-5xl" style={DISPLAY_FONT}>
-              Operations
-            </span>
-            {operations.missionTitle && (
-              <span className="text-lg font-semibold uppercase tracking-wider text-amber" style={DISPLAY_FONT}>
-                {operations.missionTitle}
-              </span>
-            )}
-          </div>
           <RunPips pips={operations.pips} />
           <DeckButton solid onClick={() => onOpen("operations")} className="w-full py-3 text-base">
             {operationsCta(operations)}
@@ -244,7 +244,7 @@ function LayoutA({ operations, yourTurnCount, openTournamentCount, featuredPack,
         <ArtSlot slot="skirmish" className="min-h-28 flex-1" />
         <div className="flex items-center justify-between gap-3 p-3">
           <span className="text-3xl font-bold uppercase tracking-wider" style={DISPLAY_FONT}>
-            Skirmish
+            Skirmish - PvP
           </span>
           <DeckButton onClick={() => onOpen("skirmish")}>Play</DeckButton>
         </div>
@@ -252,7 +252,12 @@ function LayoutA({ operations, yourTurnCount, openTournamentCount, featuredPack,
 
       <Tile borderColor="var(--color-amber)" className="md:col-start-3 md:row-start-1">
         {featuredPack ? (
-          <FeaturedPackPreview pack={featuredPack} />
+          <>
+            <div className="px-3 pt-3 text-lg font-bold uppercase tracking-wider text-amber" style={DISPLAY_FONT}>
+              Featured Pack
+            </div>
+            <FeaturedPackPreview pack={featuredPack} />
+          </>
         ) : (
           <ArtSlot slot="storeFeatured" className="min-h-28 flex-1" />
         )}
@@ -260,9 +265,8 @@ function LayoutA({ operations, yourTurnCount, openTournamentCount, featuredPack,
           {featuredPack ? (
             <div className="min-w-0">
               <div className={`text-lg font-bold uppercase leading-tight tracking-wider ${featuredPack.textClass}`} style={DISPLAY_FONT}>
-                {featuredPack.callout}
+                {`${featuredPack.callout.replace(/\s+pack$/i, "")} - ${featuredPack.shipCount} Ships`}
               </div>
-              <p className="mt-0.5 text-xs leading-snug text-text-secondary">{featuredPack.description}</p>
               <div className="mt-1 font-mono text-xs text-text-primary">{featuredPack.priceLabel}</div>
             </div>
           ) : (
@@ -327,7 +331,7 @@ function LayoutA({ operations, yourTurnCount, openTournamentCount, featuredPack,
 function LayoutB({ operations, yourTurnCount, openTournamentCount, onOpen }: Omit<CommandDeckProps, "layout">) {
   const rail: { id: CommandDeckDestination; label: string; chip?: string; chipColor?: string }[] = [
     { id: "operations", label: "Operations" },
-    { id: "skirmish", label: "Skirmish" },
+    { id: "skirmish", label: "Skirmish - PvP" },
     {
       id: "tournaments",
       label: "Tournaments",

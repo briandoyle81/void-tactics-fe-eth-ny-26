@@ -19,6 +19,10 @@ export interface RoguelikeNodeCardNode {
   unlocked: boolean;
   completed: boolean;
   isCurrent: boolean;
+  /** Whether the player can click this node: they've reached it (current,
+   * cleared, or the next stop from the current node), or the map is in
+   * browse/Edit Mode. Nodes further ahead stay unselectable. */
+  selectable: boolean;
 }
 
 const STAR_SIZE = 18;
@@ -49,11 +53,8 @@ export function RoguelikeNodeCard({
   editMode,
   connectHighlight,
 }: RoguelikeNodeCardProps) {
-  // Every node stays clickable, unlike CampaignNodeCard (which disables
-  // locked nodes) — "unlocked" here means "enterable right now from your
-  // current position," not "ever reachable," so letting the player preview
-  // a currently-locked-out node (why it's locked, what it was) is useful
-  // rather than misleading.
+  // Only nodes the player has reached are clickable (see `selectable`);
+  // the rest of the chart is visible but can't be opened yet.
   const starColor = node.isCurrent
     ? "var(--color-amber)"
     : node.completed
@@ -67,7 +68,10 @@ export function RoguelikeNodeCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group relative flex flex-col items-center gap-3 font-mono cursor-pointer ${
+      disabled={!node.selectable}
+      className={`group relative flex flex-col items-center gap-3 font-mono ${
+        node.selectable ? "cursor-pointer" : "cursor-not-allowed"
+      } ${
         connectHighlight === "invalid" ? "opacity-40" : ""
       }`}
       style={{ width: CAMPAIGN_NODE_WIDTH, height: CAMPAIGN_NODE_HEIGHT }}

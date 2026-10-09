@@ -96,15 +96,3 @@ export function getPreviewDisplayRanks(tier: number, shipsInTier: number): numbe
   return ranks.filter((r) => r > 1);
 }
 
-/**
- * One line on what a pack contains, e.g. "60 ships, led by 4 veterans up to
- * Rank 5." Built from the same guaranteed ranks the tier card lists.
- */
-export function describePack(tier: number, shipsInTier: number): string {
-  const veterans = getGuaranteedRankNumbers(tier, shipsInTier).filter((r) => r > 1);
-  const ships = `${shipsInTier} ${shipsInTier === 1 ? "ship" : "ships"}`;
-  if (veterans.length === 0) return `${ships} to build your navy.`;
-  const top = veterans[0]!;
-  if (veterans.length === 1) return `${ships}, led by a Rank ${top} veteran.`;
-  return `${ships}, led by ${veterans.length} veterans up to Rank ${top}.`;
-}

@@ -50,9 +50,11 @@ const OPS_TOOLBAR_BUTTON =
   "border border-solid px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 interface RoguelikeGraphWeb2Props {
-  /** Null in the run-less "browse/edit" entry point — see RoguelikeGraph.tsx's matching prop doc. */
+  /** Null when the player has no run — see RoguelikeGraph.tsx's matching prop doc. */
   run: RoguelikeRunWeb2 | null;
   onRunEnded: () => void;
+  /** Run-less preview only: opens fleet selection to start a run. */
+  onStartRun?: () => void;
 }
 
 interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
@@ -70,7 +72,7 @@ interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
 // RoguelikeRun.isNodeLocked), so "unlocked" here means "adjacent to your
 // current position" rather than "not locked out for this run" — see the
 // original doc-comment this file carried before Edit Mode was added.
-export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props) {
+export function RoguelikeGraphWeb2({ run, onRunEnded, onStartRun }: RoguelikeGraphWeb2Props) {
   const { retreatRun, enterResupplyNode } = useRoguelikeMatchWeb2();
   const isEditor = useWeb2Admin();
   const admin = useRoguelikeAdminWeb2();
@@ -108,6 +110,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
   const { nodes: campaignNodes, isLoading: nodesLoading, refetch: refetchNodes } =
     useRoguelikeCampaignNodesWeb2WithContent(campaignId);
   const { campaign, refetch: refetchCampaign } = useRoguelikeCampaignWeb2(campaignId);
+  const rootNodeId = campaign?.rootNodeId ?? null;
 
   const byId = React.useMemo(
     () => new Map(campaignNodes.map((n) => [n.id, n])),
@@ -139,20 +142,26 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
         const isCurrent = !isBrowseMode && n.id === run.currentNodeId;
         const isAdjacent = isCurrent || !!currentNode?.childEdges.some((e) => e.childId === n.id);
         const isConnectSource = connectMode?.sourceNodeId === n.id;
+        const isCompleted = n.kind === RoguelikeNodeKind.Combat ? defeatedSet.has(n.id) : false;
         return {
           id: n.id,
           kind: n.kind as RoguelikeNodeKind,
           prerequisites: prerequisitesById.get(n.id) ?? [],
-          completed: n.kind === RoguelikeNodeKind.Combat ? defeatedSet.has(n.id) : false,
-          unlocked: isBrowseMode ? true : isAdjacent,
+          completed: isCompleted,
+          unlocked: isBrowseMode ? editMode || n.id === rootNodeId : isAdjacent,
           isCurrent,
+          // Only nodes the player has reached open the mission drawer.
+          // With no run, only the root node (where a run starts).
+          selectable: isBrowseMode
+            ? editMode || n.id === rootNodeId
+            : editMode || isAdjacent || isCompleted,
           title: n.title,
           titleStatus: n.titleStatus,
           editMode,
           connectHighlight: !connectMode ? undefined : isConnectSource ? "source" : "candidate",
         };
       }),
-    [campaignNodes, isBrowseMode, run, currentNode, defeatedSet, prerequisitesById, editMode, connectMode],
+    [campaignNodes, isBrowseMode, run, currentNode, rootNodeId, defeatedSet, prerequisitesById, editMode, connectMode],
   );
   if (editMode) {
     canvasNodes.push({
@@ -162,6 +171,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       completed: false,
       unlocked: true,
       isCurrent: false,
+      selectable: true,
       title: "+ ADD NODE",
       titleStatus: "ok",
       editMode: true,
@@ -174,18 +184,22 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       setSelectedNodeId(run.currentNodeId);
       return;
     }
+    if (!editMode) {
+      if (rootNodeId != null) setSelectedNodeId(rootNodeId);
+      return;
+    }
     if (selectedNodeId !== null || campaignNodes.length === 0) return;
     const saved = localStorage.getItem(MISSION_SELECTED_NODE_KEY);
     const savedId = saved ? Number(saved) : NaN;
     if (Number.isFinite(savedId) && byId.has(savedId)) {
       setSelectedNodeId(savedId);
     }
-  }, [isBrowseMode, run?.currentNodeId, campaignNodes, selectedNodeId, byId]);
+  }, [isBrowseMode, editMode, rootNodeId, run?.currentNodeId, campaignNodes, selectedNodeId, byId]);
 
   React.useEffect(() => {
     if (!editMode) {
       setConnectMode(null);
-      if (isCreatingNode) setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId);
+      if (isCreatingNode) setSelectedNodeId(isBrowseMode ? rootNodeId : run!.currentNodeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
@@ -270,7 +284,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
     setSelectedNodeId(id);
     setDrawerOpen(true);
     setEditorOpen(true);
-    if (isBrowseMode) {
+    if (isBrowseMode && editMode) {
       localStorage.setItem(MISSION_SELECTED_NODE_KEY, String(id));
     }
   };
@@ -289,6 +303,7 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
 
   const mapAction = getRunMapAction({
     isBrowseMode,
+    canStartRun: isBrowseMode && !editMode && !!onStartRun,
     selectedKind: !selectedNode
       ? null
       : selectedNode.kind === RoguelikeNodeKind.Combat
@@ -303,6 +318,10 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
   });
 
   const handleMapAction = () => {
+    if (mapAction.type === "start") {
+      onStartRun?.();
+      return;
+    }
     if (!selectedNode || isBrowseMode) return;
     if (mapAction.type === "warp") setCombatTargetNodeId(selectedNode.id);
     else if (mapAction.type === "resupply") void handleEnterResupply(selectedNode.id);
@@ -319,12 +338,12 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
       onSaved={() => void refetchNodes()}
       onCreated={() => {
         setEditorOpen(false);
-        setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId);
+        setSelectedNodeId(isBrowseMode ? rootNodeId : run!.currentNodeId);
         void refetchNodes();
       }}
       onCancelCreate={() => {
         setEditorOpen(false);
-        setSelectedNodeId(isBrowseMode ? null : run!.currentNodeId);
+        setSelectedNodeId(isBrowseMode ? rootNodeId : run!.currentNodeId);
       }}
     />
   );
@@ -373,7 +392,6 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
               ? roguelikeCombatDossierRows({
                   maxScore: selectedNode.maxScore ?? 0,
                   creatorGoesFirst: selectedNode.creatorGoesFirst ?? true,
-                  turnTimeSeconds: selectedNode.turnTimeSeconds ?? 0,
                   autoHealPercent: campaign?.autoHealPercent ?? 0,
                   victoryEffects: selectedVictoryEffects,
                   isCleared: isSelectedNodeDefeated,
@@ -412,15 +430,6 @@ export function RoguelikeGraphWeb2({ run, onRunEnded }: RoguelikeGraphWeb2Props)
                 className={`${OPS_TOOLBAR_BUTTON} border-warning-red text-warning-red hover:bg-warning-red/10`}
               >
                 {isRetreating ? "Retreating…" : "Retreat run"}
-              </button>
-            )}
-            {isBrowseMode && (
-              <button
-                type="button"
-                onClick={onRunEnded}
-                className={`${OPS_TOOLBAR_BUTTON} border-gunmetal text-text-secondary hover:border-steel hover:text-text-primary`}
-              >
-                Exit map editor
               </button>
             )}
           </>

@@ -13,7 +13,7 @@ import { usePurchaseTiersWeb2 } from "../../hooks/usePurchaseTiersWeb2";
 import { useStaggeredPreviewSeeds } from "../../hooks/useStaggeredPreviewSeeds";
 import { ShipImageWeb2 } from "../ShipImageWeb2";
 import { getKillsForRank } from "../../lib/purchaseTiers";
-import { describePack, getTierCallout, getTierColors } from "../../utils/shipPurchaseTierDisplay";
+import { getTierCallout, getTierColors } from "../../utils/shipPurchaseTierDisplay";
 import { getPreviewShipSpecsForTier } from "../../utils/shipPreviewSpec";
 import { PREVIEW_REFRESH_INTERVAL_MS, toPreviewShipWeb2 } from "../../utils/previewShips";
 
@@ -72,8 +72,8 @@ export function CommandDeckWeb2(
     );
     return {
       callout: getTierCallout(top.tier),
+      shipCount: top.shipCount,
       priceLabel: `$${(top.priceUsdCents / 100).toFixed(2)} USD`,
-      description: describePack(top.tier, top.shipCount),
       textClass: getTierColors(top.tier).text,
       previewShipImages: ships.map((ship, idx) => (
         <ShipImageWeb2

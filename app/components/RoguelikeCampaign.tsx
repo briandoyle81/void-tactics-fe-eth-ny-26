@@ -3,40 +3,21 @@
 import React from "react";
 import { useAccount } from "wagmi";
 import { useGetRoguelikeRun, useHasActiveRoguelikeRun } from "../hooks/useRoguelikeRun";
-import { useIsRoguelikeNodeEditor } from "../hooks/useRoguelikeNodeMap";
 import { toast } from "react-hot-toast";
 import { RunStatus, type RoguelikeRun } from "../types/roguelike";
 import { RoguelikeRunStart } from "./RoguelikeRunStart";
 import { RoguelikeGraph } from "./RoguelikeGraph";
 
-function browsingMapStorageKey(address: string | undefined): string {
-  return `mission-browsing-map-${address || "anonymous"}`;
-}
-
 // Top-level Roguelike tab container — branches on whether the connected
 // player has an active run (docs/update/Frontend_Update_Guide_Roguelike_Campaign.md).
-// Editors additionally get a run-less "browse/edit" entry point from the
-// no-active-run screen, since RoguelikeGraph otherwise has no way to be
-// reached without a run — see the campaign map editor plan's decision log.
+// With no run it shows the campaign map as a preview (editors can turn on
+// Edit Mode there); its Start run action opens fleet selection.
 export function RoguelikeCampaign() {
   const { address, isConnected } = useAccount();
   const { data: hasActiveRun, isLoading: hasActiveRunLoading, refetch: refetchHasActiveRun } =
     useHasActiveRoguelikeRun(address);
   const { data: run, isLoading: runLoading, refetch: refetchRun } = useGetRoguelikeRun(address);
-  const { data: isEditor = false } = useIsRoguelikeNodeEditor(address);
-  const [browsingMap, setBrowsingMapState] = React.useState(false);
-  React.useEffect(() => {
-    setBrowsingMapState(localStorage.getItem(browsingMapStorageKey(address)) === "1");
-  }, [address]);
-  const setBrowsingMap = React.useCallback(
-    (value: boolean) => {
-      setBrowsingMapState(value);
-      const key = browsingMapStorageKey(address);
-      if (value) localStorage.setItem(key, "1");
-      else localStorage.removeItem(key);
-    },
-    [address],
-  );
+  const [choosingFleet, setChoosingFleet] = React.useState(false);
 
   const refetchAll = React.useCallback(async () => {
     await Promise.all([refetchHasActiveRun(), refetchRun()]);
@@ -55,6 +36,11 @@ export function RoguelikeCampaign() {
     toast.error("Run started, but the network hasn't caught up yet. Refresh in a moment.");
   }, [refetchHasActiveRun, refetchRun]);
 
+  const handleRunStarted = React.useCallback(async () => {
+    await refetchUntilRunActive();
+    setChoosingFleet(false);
+  }, [refetchUntilRunActive]);
+
   if (!isConnected) {
     return (
       <div className="border-2 border-cyan p-6 text-center font-mono text-sm text-text-muted" style={{ borderRadius: 0 }}>
@@ -71,33 +57,38 @@ export function RoguelikeCampaign() {
     );
   }
 
-  if (browsingMap) {
-    return (
-      <RoguelikeGraph
-        run={null}
-        onRunEnded={() => setBrowsingMap(false)}
-        onRunAdvanced={() => {}}
-      />
-    );
-  }
-
   if (!hasActiveRun || !run || run.status !== RunStatus.Active) {
+    if (!choosingFleet) {
+      return (
+        <RoguelikeGraph
+          run={null}
+          onRunEnded={() => {}}
+          onRunAdvanced={() => {}}
+          onStartRun={() => setChoosingFleet(true)}
+        />
+      );
+    }
     return (
       <div className="flex flex-col gap-4">
-        {isEditor && (
-          <button
-            type="button"
-            onClick={() => setBrowsingMap(true)}
-            className="self-start border-2 border-amber px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber hover:bg-amber/10 font-mono"
-            style={{ borderRadius: 0 }}
-          >
-            [EDIT CAMPAIGN MAP]
-          </button>
-        )}
-        <RoguelikeRunStart onRunStarted={refetchUntilRunActive} />
+        <BackToCampaignMapButton onClick={() => setChoosingFleet(false)} />
+        <RoguelikeRunStart onRunStarted={handleRunStarted} />
       </div>
     );
   }
 
   return <RoguelikeGraph run={run} onRunEnded={refetchAll} onRunAdvanced={refetchAll} />;
+}
+
+/** Fleet selection's way back to the run-less campaign map. Shared with RoguelikeCampaignWeb2. */
+export function BackToCampaignMapButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="self-start border-2 border-cyan px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan hover:bg-cyan/10 font-mono"
+      style={{ borderRadius: 0 }}
+    >
+      ← Campaign map
+    </button>
+  );
 }

@@ -16,6 +16,7 @@ import { RoguelikeNodeKind, type RoguelikeRun } from "../types/roguelike";
 import {
   useRoguelikeGraphWithContent,
   useCampaignAutoHealPercent,
+  useRoguelikeCampaignRootNode,
   type RoguelikeNodeWithContent,
 } from "../hooks/useRoguelikeNodeMap";
 import { useRoguelikeRunView } from "../hooks/useGameLens";
@@ -66,12 +67,14 @@ function missionSelectedNodeKey(address: string | undefined): string {
 }
 
 interface RoguelikeGraphProps {
-  /** Null in the run-less "browse/edit" entry point (RoguelikeCampaign.tsx's
-   * [EDIT CAMPAIGN MAP] button, for editors with no active run) — every
-   * node renders unlocked with no "current position", and Fight/Enter/
-   * Retreat are unavailable (only the edit panel can act on the graph). */
+  /** Null when the player has no run: the map is a preview with no
+   * "current position". Only the root node (where a run starts) can be
+   * selected, and the primary action is Start run (`onStartRun`). Editors
+   * can still turn on Edit Mode here to edit every node. */
   run: RoguelikeRun | null;
   onRunEnded: () => void;
+  /** Run-less preview only: opens fleet selection to start a run. */
+  onStartRun?: () => void;
   /** Called after enterResupplyNode succeeds — unlike enterCombatNode
    * (which navigates away to the game, so the parent naturally refetches on
    * return), resupply keeps the player on this screen, so `run.currentNodeId`
@@ -97,7 +100,7 @@ interface RoguelikeCanvasNode extends RoguelikeNodeCardNode {
 // surfaced as a play action here (a real contract-level option that was
 // never wired up). Edit Mode (gated on isRoguelikeNodeEditor) layers node/
 // edge/map/fleet editing onto this same screen — see RoguelikeNodeEditPanel.
-export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGraphProps) {
+export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced, onStartRun }: RoguelikeGraphProps) {
   const { address } = useAccount();
   const { retreatRun, enterResupplyNode } = useRoguelikeMatch();
   const { data: isEditor = false } = useIsRoguelikeNodeEditor(address);
@@ -140,7 +143,9 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   const { nodes: campaignNodes, isLoading: nodesLoading, refetch: refetchNodes } =
     // Players only see nodes reachable from the root (one GameLens call);
     // the editor needs every node, linked or not.
-    useRoguelikeGraphWithContent(campaignId, true, { reachableOnly: !isBrowseMode && !editMode });
+    useRoguelikeGraphWithContent(campaignId, true, { reachableOnly: !editMode });
+  const { data: rootNodeIdRaw } = useRoguelikeCampaignRootNode(isBrowseMode ? campaignId : undefined);
+  const rootNodeId = rootNodeIdRaw != null ? Number(rootNodeIdRaw) : null;
   const { data: autoHealPercent, refetch: refetchAutoHeal } = useCampaignAutoHealPercent(campaignId);
 
   const byNumberId = React.useMemo(
@@ -171,6 +176,10 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
         const idNum = Number(n.id);
         const isCurrent = !isBrowseMode && n.id === run.currentNodeId;
         const isConnectSource = connectMode?.sourceNodeId === n.id;
+        const isCompleted =
+          !isBrowseMode && n.kind === RoguelikeNodeKind.Combat && !!defeatedByNodeId.get(n.id.toString());
+        const isNextStop =
+          !!currentNode?.children.some((e) => e.childId === n.id) && !lockedByNodeId.get(n.id.toString());
         return {
           id: idNum,
           kind: n.kind,
@@ -179,16 +188,21 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
           // isNodeDefeated, which only applies to Combat nodes) — they
           // never render as cleared, only as your current position or a
           // reachable/locked stop on the map.
-          completed: isBrowseMode
-            ? false
-            : n.kind === RoguelikeNodeKind.Combat
-              ? !!defeatedByNodeId.get(n.id.toString())
-              : false,
-          // Browse mode has no "current position" to gate reachability
-          // against — every node renders unlocked so an editor can select
-          // and edit any of them.
-          unlocked: isBrowseMode ? true : isCurrent ? true : !lockedByNodeId.get(n.id.toString()),
+          completed: isCompleted,
+          // With no run there's no "current position": the root node
+          // (where a run starts) renders unlocked, or every node in Edit
+          // Mode so an editor can select and edit any of them.
+          unlocked: isBrowseMode
+            ? editMode || idNum === rootNodeId
+            : isCurrent
+              ? true
+              : !lockedByNodeId.get(n.id.toString()),
           isCurrent,
+          // Only nodes the player has reached open the mission drawer.
+          // With no run, only the root node (where a run starts).
+          selectable: isBrowseMode
+            ? editMode || idNum === rootNodeId
+            : editMode || isCurrent || isCompleted || isNextStop,
           title: n.title,
           titleStatus: n.titleStatus,
           editMode,
@@ -199,6 +213,8 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       campaignNodes,
       isBrowseMode,
       run,
+      currentNode,
+      rootNodeId,
       defeatedByNodeId,
       lockedByNodeId,
       prerequisitesByNumberId,
@@ -214,6 +230,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       completed: false,
       unlocked: true,
       isCurrent: false,
+      selectable: true,
       title: "+ ADD NODE",
       titleStatus: "ok",
       editMode: true,
@@ -221,11 +238,16 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     });
   }
 
-  // Play mode snaps to the current run node. Browse/edit mode restores the
-  // last selected node so leaving Mission and coming back keeps the panel.
+  // Play mode snaps to the current run node, and the run-less preview to
+  // the root node. Edit Mode without a run restores the last selected node
+  // so leaving Mission and coming back keeps the panel.
   React.useEffect(() => {
     if (!isBrowseMode) {
       setSelectedNodeId(Number(run.currentNodeId));
+      return;
+    }
+    if (!editMode) {
+      if (rootNodeId != null) setSelectedNodeId(rootNodeId);
       return;
     }
     if (selectedNodeId !== null || campaignNodes.length === 0) return;
@@ -234,12 +256,12 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     if (Number.isFinite(savedId) && byNumberId.has(savedId)) {
       setSelectedNodeId(savedId);
     }
-  }, [isBrowseMode, run?.currentNodeId, campaignNodes, selectedNodeId, address, byNumberId]);
+  }, [isBrowseMode, editMode, rootNodeId, run?.currentNodeId, campaignNodes, selectedNodeId, address, byNumberId]);
 
   React.useEffect(() => {
     if (!editMode) {
       setConnectMode(null);
-      if (isCreatingNode) setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
+      if (isCreatingNode) setSelectedNodeId(isBrowseMode ? rootNodeId : Number(run!.currentNodeId));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
@@ -393,7 +415,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
     setSelectedNodeId(id);
     setDrawerOpen(true);
     setEditorOpen(true);
-    if (isBrowseMode) {
+    if (isBrowseMode && editMode) {
       localStorage.setItem(missionSelectedNodeKey(address), String(id));
     }
   };
@@ -412,6 +434,7 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
 
   const mapAction = getRunMapAction({
     isBrowseMode,
+    canStartRun: isBrowseMode && !editMode && !!onStartRun,
     selectedKind: !selectedNode
       ? null
       : selectedNode.kind === RoguelikeNodeKind.Combat
@@ -425,6 +448,10 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
   });
 
   const handleMapAction = () => {
+    if (mapAction.type === "start") {
+      onStartRun?.();
+      return;
+    }
     if (!selectedNode || isBrowseMode) return;
     if (mapAction.type === "resume") navigateToGame(address, run.activeGameId);
     else if (mapAction.type === "warp") setCombatTargetNodeId(selectedNode.id);
@@ -442,12 +469,12 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
       onSaved={() => void refetchNodes()}
       onCreated={() => {
         setEditorOpen(false);
-        setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
+        setSelectedNodeId(isBrowseMode ? rootNodeId : Number(run!.currentNodeId));
         void refetchNodes();
       }}
       onCancelCreate={() => {
         setEditorOpen(false);
-        setSelectedNodeId(isBrowseMode ? null : Number(run!.currentNodeId));
+        setSelectedNodeId(isBrowseMode ? rootNodeId : Number(run!.currentNodeId));
       }}
     />
   );
@@ -499,7 +526,6 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
               ? roguelikeCombatDossierRows({
                   maxScore: Number(selectedNode.maxScore),
                   creatorGoesFirst: selectedNode.creatorGoesFirst,
-                  turnTimeSeconds: Number(selectedNode.turnTime),
                   autoHealPercent: autoHealPercent ?? 0,
                   victoryEffects: selectedVictoryEffects,
                   isCleared: isSelectedNodeDefeated,
@@ -538,15 +564,6 @@ export function RoguelikeGraph({ run, onRunEnded, onRunAdvanced }: RoguelikeGrap
                 className={`${OPS_TOOLBAR_BUTTON} border-warning-red text-warning-red hover:bg-warning-red/10`}
               >
                 {isRetreating ? "Retreating…" : "Retreat run"}
-              </button>
-            )}
-            {isBrowseMode && (
-              <button
-                type="button"
-                onClick={onRunEnded}
-                className={`${OPS_TOOLBAR_BUTTON} border-gunmetal text-text-secondary hover:border-steel hover:text-text-primary`}
-              >
-                Exit map editor
               </button>
             )}
           </>

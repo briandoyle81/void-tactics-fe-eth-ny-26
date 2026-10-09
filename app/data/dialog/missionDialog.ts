@@ -208,4 +208,37 @@ export const MISSION_DIALOG_LINES: MissionDialogLine<DialogCharacterId>[] = [
       },
     ],
   },
+  {
+    id: "roguelike-3-victory",
+    characterId: "adjutant",
+    text: "We've secured another site.  Let's clean up and get to the resupply station.",
+    mission: { kind: "roguelike", nodeId: 3 },
+    trigger: { type: "missionVictory" },
+    responses: [
+      {
+        characterId: "prototypeDrone",
+        text: "What news of whose fossil remains? Sing, I had passed through the honor; they say; her side to gaze curiously carved. The next generation awakens.",
+      },
+    ],
+  },
+  {
+    id: "roguelike-3-defeat",
+    characterId: "adjutant",
+    text: "They beat us.  It was a hard fight, we did our best, but we just couldn't hold them off.",
+    mission: { kind: "roguelike", nodeId: 3 },
+    trigger: { type: "missionDefeat" },
+  },
+  {
+    id: "roguelike-5-start",
+    characterId: "adjutant",
+    text: "RED ALERT! RED ALERT!  Scanning the unknown ships.  Preliminary results suggests they're tougher than our ships.  Their weapons have huge power supplies, but focusing apertures suggest shorter range.  They're heavy, slow, and hit like a truck.",
+    mission: { kind: "roguelike", nodeId: 5 },
+    trigger: { type: "missionStart" },
+    responses: [
+      {
+        characterId: "adjutant",
+        text: "I recommend you play to our strengths and their weaknesses.  Keep them at a distance and use the debris fields to control the fight.",
+      },
+    ],
+  },
 ];

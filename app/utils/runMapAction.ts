@@ -1,7 +1,7 @@
 // The run map's primary action (bottom right of the action bar) for the
 // selected node. Shared by RoguelikeGraph (web3) and RoguelikeGraphWeb2.
 
-export type RunMapActionType = "warp" | "resume" | "resupply" | "none";
+export type RunMapActionType = "start" | "warp" | "resume" | "resupply" | "none";
 
 export interface RunMapAction {
   type: RunMapActionType;
@@ -12,6 +12,8 @@ export interface RunMapAction {
 export interface RunMapActionInput {
   /** No run: browsing or editing the map. */
   isBrowseMode: boolean;
+  /** No run, and the player can start one from here (opens fleet selection). */
+  canStartRun?: boolean;
   selectedKind: "combat" | "resupply" | null;
   isCurrentNode: boolean;
   isReachableChild: boolean;
@@ -24,6 +26,7 @@ export interface RunMapActionInput {
 const none = (label: string): RunMapAction => ({ type: "none", label, disabled: true });
 
 export function getRunMapAction(input: RunMapActionInput): RunMapAction {
+  if (input.isBrowseMode && input.canStartRun) return { type: "start", label: "Start run", disabled: false };
   if (input.selectedKind === null) return none("Select a mission");
   if (input.isBrowseMode) return none("Start a run to enter");
 

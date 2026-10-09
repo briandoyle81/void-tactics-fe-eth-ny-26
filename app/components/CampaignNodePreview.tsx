@@ -78,7 +78,6 @@ export function CampaignNodePreview({ node }: CampaignNodePreviewProps) {
           rows={campaignDossierRows({
             maxScore: Number(node.maxScore),
             creatorGoesFirst: node.creatorGoesFirst,
-            turnTimeSeconds: Number(node.turnTime),
             requiredVariant: requiredVariant ?? 0,
             unlocked: node.unlocked,
             completed: node.completed,
